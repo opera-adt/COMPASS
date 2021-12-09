@@ -6,7 +6,7 @@ runconfig:
            pge_name: CSLC_S1_PGE
 
        input_file_group:
-           # Required if burst_id is not provided. List of reference and secondary S1 ZIP files
+           # Required. List of reference and secondary S1 ZIP files
            input_file_path:
            # List of reference and secondary orbit file
            orbit_file_path:

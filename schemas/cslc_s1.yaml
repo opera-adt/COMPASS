@@ -6,8 +6,8 @@ runconfig:
            pge_name: enum('CSLC_S1_PGE')
 
         input_file_group:
-           # Required if burst_id is not provided. List of reference and secondary S1 ZIP files
-           input_file_path: list(str(), min=2, max=2, required=False)
+           # Required. List of reference and secondary S1 ZIP files
+           input_file_path: list(str(), min=2, max=2)
            # List of reference and secondary orbit file
            orbit_file_path: list(str(), min=2, max=2, required=False)
            # List of unique burst IDs. Required if input_file_path is not provided.

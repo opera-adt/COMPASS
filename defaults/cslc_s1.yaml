@@ -6,12 +6,16 @@ runconfig:
            pge_name: CSLC_S1_PGE
 
        input_file_group:
-           # Required. List of reference and secondary S1 ZIP files
-           input_file_path:
-           # List of reference and secondary orbit file
+           # Required. List of SAFE files (min=1)
+           safe_file_path:
+           # Required. List of orbit (EOF) files (min=1)
            orbit_file_path:
-           # List of unique burst IDs. Required if input_file_path is not provided
+           # List of (unique) burst IDs to process
            burst_id:
+           # Options for reference burst
+           reference_burst:
+               is_reference: False
+               file_path:
 
        dynamic_ancillary_file_group:
            # Digital Elevation Model
@@ -32,3 +36,10 @@ runconfig:
        processing:
            rdr2geo:
                lines_per_block: 1000
+
+           geo2rdr:
+               lines_per_block: 1000
+
+           resample:
+               lines_per_block: 1000
+

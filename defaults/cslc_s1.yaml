@@ -14,7 +14,7 @@ runconfig:
            burst_id:
            # Options for reference burst
            reference_burst:
-               is_reference: False
+               is_reference: True
                file_path:
 
        dynamic_ancillary_file_group:

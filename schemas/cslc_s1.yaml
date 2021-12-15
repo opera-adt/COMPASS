@@ -11,7 +11,7 @@ runconfig:
            # Required. List of orbit (EOF) files
            orbit_file_path: list(str(), min=1)
            # List of (unique) burst ID to process
-           burst_id: list(str(), min=0, max=27, required=False)
+           burst_id: list(str(), min=1, required=False)
            # Reference burst options
            reference_burst: include('reference_burst_options', required=False)
 

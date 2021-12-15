@@ -14,7 +14,10 @@ runconfig:
            burst_id:
            # Options for reference burst
            reference_burst:
+               # Required. Flag indicating reference burst
                is_reference: True
+               # File path to reference burst to which coregister secondary burst.
+               # Only used if the flag is_reference is set to False.
                file_path:
 
        dynamic_ancillary_file_group:

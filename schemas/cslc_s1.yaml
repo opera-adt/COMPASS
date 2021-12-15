@@ -50,7 +50,8 @@ runconfig:
 reference_burst_options:
     # Required. Flag indicating reference burst
     is_reference: bool()
-    # File path to reference burst
+    # File path to reference burst to which coregister secondary burst.
+    # Only used if the flag is_reference is set to False.
     file_path: str(required=False)
 
 rdr2geo_geo2rdr_shared_options:

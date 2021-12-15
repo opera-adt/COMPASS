@@ -14,7 +14,7 @@ runconfig:
            burst_id:
            # Options for reference burst
            reference_burst:
-               # Required. Flag indicating reference burst
+               # Required. Flag indicating reference burst. If True, the input zip file is a reference date
                is_reference: True
                # File path to reference burst to which coregister secondary burst.
                # Only used if the flag is_reference is set to False.

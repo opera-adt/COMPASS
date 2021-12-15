@@ -48,7 +48,8 @@ runconfig:
 
 # Group of processing options
 reference_burst_options:
-    # Required. Flag indicating reference burst
+    # Required. Flag indicating reference burst.
+    # If True, the input zip file is a reference date
     is_reference: bool()
     # File path to reference burst to which coregister secondary burst.
     # Only used if the flag is_reference is set to False.

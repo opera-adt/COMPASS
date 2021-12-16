@@ -1,0 +1,76 @@
+runconfig:
+    name: str()
+
+    groups:
+        pge_name_group:
+           pge_name: enum('CSLC_S1_PGE')
+
+        input_file_group:
+           # Required. List of SAFE files (min=1)
+           safe_file_path: list(str(), min=1)
+           # Required. List of orbit (EOF) files
+           orbit_file_path: list(str(), min=1)
+           # List of (unique) burst ID to process
+           burst_id: list(str(), min=1, required=False)
+           # Reference burst options
+           reference_burst: include('reference_burst_options', required=False)
+
+        dynamic_ancillary_file_group:
+           # Digital Elevation Model.
+           dem_file: include(str(), required=False)
+
+        product_path_group:
+           # Directory where PGE will place results
+           product_path: str()
+           # Directory where SAS can write temporary data
+           scratch_path: str()
+           # Intermediate file name. SAS writes the output to this file.
+           # PGE may rename the product according to file naming convention
+           sas_output_file: str()
+
+        primary_executable:
+           product_type: enum('CSLC_S1')
+
+        # This section includes parameters to tweak the workflow
+        processing:
+           # Polarization to process. If not set, process all polarizations for that burst
+           polarization: any(list('HH', 'HV', 'VH', 'VV'), min=1, max=4), str(min=2, max=2), required=False)
+
+           # Options to run rdr2geo
+           rdr2geo: include('rdr2geo_options', required=False)
+
+           # Options to run geo2rdr
+           geo2rdr: include('rdr2geo_geo2rdr_shared_options', required=False)
+
+           # Options to run resample
+           resample: include('resample_options', required=False)
+
+
+# Group of processing options
+reference_burst_options:
+    # Required. Flag indicating reference burst.
+    # If True, the input zip file is a reference date
+    is_reference: bool()
+    # File path to reference burst to which coregister secondary burst.
+    # Only used if the flag is_reference is set to False.
+    file_path: str(required=False)
+
+rdr2geo_geo2rdr_shared_options:
+   # Convergence threshold for rdr2geo algorithm
+   threshold: num(min=0, required=False)
+   # Maximum number of iterations
+   numiter: int(min=1, required=False)
+   # Lines per block to process in batch
+   lines_per_block: int(min=1, required=False)
+
+rdr2geo_options:
+   # rdr2geo and geo2rdr shared options
+   include('rdr2geo_geo2rdr_shared_options', required=False)
+   # Secondary number of iterations
+   extraiter: int(min=1, required=False)
+
+resample_options:
+   # Lines per block to process in batch
+   lines_per_block: int(min=1, required=False)
+
+

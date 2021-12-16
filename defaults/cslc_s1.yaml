@@ -1,0 +1,48 @@
+runconfig:
+   name: cslc_s1_workflow_default
+
+   groups:
+       pge_name_group:
+           pge_name: CSLC_S1_PGE
+
+       input_file_group:
+           # Required. List of SAFE files (min=1)
+           safe_file_path:
+           # Required. List of orbit (EOF) files (min=1)
+           orbit_file_path:
+           # List of (unique) burst IDs to process
+           burst_id:
+           # Options for reference burst
+           reference_burst:
+               # Required. Flag indicating reference burst. If True, the input zip file is a reference date
+               is_reference: True
+               # File path to reference burst to which coregister secondary burst.
+               # Only used if the flag is_reference is set to False.
+               file_path:
+
+       dynamic_ancillary_file_group:
+           # Digital Elevation Model
+           dem_file:
+
+       product_path_group:
+           # Directory where PGE will place results
+           product_path:
+           # Directory where SAS can write temporary data
+           scratch_path:
+           # Intermediate file name. SAS writes the output to this file.
+           # PGE ay rename the product according to file naming convention
+           sas_output_file:
+
+       primary_executable:
+           product_type: CSLC_S1
+
+       processing:
+           rdr2geo:
+               lines_per_block: 1000
+
+           geo2rdr:
+               lines_per_block: 1000
+
+           resample:
+               lines_per_block: 1000
+

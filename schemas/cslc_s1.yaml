@@ -34,13 +34,13 @@ runconfig:
         # This section includes parameters to tweak the workflow
         processing:
            # Polarization to process. If not set, process all polarizations for that burst
-           polarization: any(list('HH', 'HV', 'VH', 'VV'), min=1, max=4), str(min=2, max=2), required=False)
+           polarization: any(list('HH', 'HV', 'VH', 'VV'), min=1, max=4, required=False)
 
            # Options to run rdr2geo
            rdr2geo: include('rdr2geo_options', required=False)
 
            # Options to run geo2rdr
-           geo2rdr: include('rdr2geo_geo2rdr_shared_options', required=False)
+           geo2rdr: include('geo2rdr_options', required=False)
 
            # Options to run resample
            resample: include('resample_options', required=False)
@@ -55,7 +55,7 @@ reference_burst_options:
     # Only used if the flag is_reference is set to False.
     file_path: str(required=False)
 
-rdr2geo_geo2rdr_shared_options:
+geo2rdr_options:
    # Convergence threshold for rdr2geo algorithm
    threshold: num(min=0, required=False)
    # Maximum number of iterations
@@ -64,13 +64,15 @@ rdr2geo_geo2rdr_shared_options:
    lines_per_block: int(min=1, required=False)
 
 rdr2geo_options:
-   # rdr2geo and geo2rdr shared options
-   include('rdr2geo_geo2rdr_shared_options', required=False)
+   # Convergence threshold for rdr2geo algorithm
+   threshold: num(min=0, required=False)
+   # Maximum number of iterations
+   numiter: int(min=1, required=False)
+   # Lines per block to process in batch
+   lines_per_block: int(min=1, required=False)
    # Secondary number of iterations
    extraiter: int(min=1, required=False)
 
 resample_options:
    # Lines per block to process in batch
    lines_per_block: int(min=1, required=False)
-
-

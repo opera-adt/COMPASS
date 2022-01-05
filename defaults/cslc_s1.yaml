@@ -45,4 +45,3 @@ runconfig:
 
            resample:
                lines_per_block: 1000
-

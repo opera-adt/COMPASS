@@ -1,13 +1,10 @@
-'''
-collection of useful functions used across workflows
+'''collection of useful functions used across workflows
 '''
 
-from collections import defaultdict
+import logging
 import os
-import pathlib
 
 from osgeo import gdal
-import h5py
 
 def check_file_path(file_path: str) -> None:
     '''check if file path exists and raise error it does not'''
@@ -49,25 +46,23 @@ def check_write_dir(dst_path: str):
             os.makedirs(dst_path, exist_ok=True)
         except OSError:
             err_str = f"Unable to create {dst_path}"
-            error_channel.log(err_str)
+            logging.error(err_str)
             raise OSError(err_str)
 
     # check if path writeable
     write_ok = os.access(dst_path, os.W_OK)
     if not write_ok:
         err_str = f"{dst_path} scratch directory lacks write permission."
-        error_channel.log(err_str)
+        logging.error(err_str)
         raise PermissionError(err_str)
 
 def check_dem(dem_path: str):
     '''
     Raise error if DEM is not system file, netCDF, nor S3.
     '''
-    error_channel = journal.error('helpers.check_dem')
-
     try:
         gdal.Open(dem_path)
     except:
         err_str = f'{dem_path} cannot be opened by GDAL'
-        error_channel.log(err_str)
+        logging.error.log(err_str)
         raise ValueError(err_str)

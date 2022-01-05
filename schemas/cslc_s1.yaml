@@ -35,17 +35,14 @@ runconfig:
         processing:
            # Polarization to process. If not set, process all polarizations for that burst
            polarization: any(list('HH', 'HV', 'VH', 'VV'), min=1, max=4, required=False)
-
            # Options to run rdr2geo
            rdr2geo: include('rdr2geo_options', required=False)
-
            # Options to run geo2rdr
            geo2rdr: include('geo2rdr_options', required=False)
-
            # Options to run resample
            resample: include('resample_options', required=False)
 
-
+---
 # Group of processing options
 reference_burst_options:
     # Required. Flag indicating reference burst.

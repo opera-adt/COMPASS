@@ -1,3 +1,4 @@
+from __future__ import annotations
 from dataclasses import dataclass
 import logging
 import os
@@ -5,7 +6,7 @@ import os
 from ruamel.yaml import YAML
 import yamale
 
-import helpers
+from . import helpers
 
 
 def validate_group(group_cfg: dict) -> None:
@@ -45,6 +46,7 @@ def validate_group(group_cfg: dict) -> None:
 
 @dataclass(frozen=True)
 class RunConfig:
+
     '''dataclass containing CSLC runconfig'''
     name: str
     # for easy immutability, lazily keep dict read from yaml (for now?)

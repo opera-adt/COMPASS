@@ -1,7 +1,8 @@
-'''collection of useful functions used across workflows
+'''
+collection of useful functions used across workflows
 '''
 
-import logging
+import journal
 import os
 
 from osgeo import gdal
@@ -13,10 +14,11 @@ def check_file_path(file_path: str) -> None:
        ----------
        file_path : str
            Path to file to be checked
-       """
+    """
+    error_channel = journal.error('helpers.check_file_path')
     if not os.path.isfile(file_path):
         err_str = f'{file_path} not found'
-        logging.error(err_str)
+        error_channel.log(err_str)
         raise FileNotFoundError(err_str)
 
 def deep_update(original, update):
@@ -72,14 +74,14 @@ def check_write_dir(dst_path: str):
             os.makedirs(dst_path, exist_ok=True)
         except OSError:
             err_str = f"Unable to create {dst_path}"
-            logging.error(err_str)
+            error_channel.log(err_str)
             raise OSError(err_str)
 
     # check if path writeable
     write_ok = os.access(dst_path, os.W_OK)
     if not write_ok:
         err_str = f"{dst_path} scratch directory lacks write permission."
-        logging.error(err_str)
+        error_channel.log(err_str)
         raise PermissionError(err_str)
 
 def check_dem(dem_path: str):
@@ -91,9 +93,10 @@ def check_dem(dem_path: str):
        dem_path : str
           File path to DEM for which to check GDAL-compatibility
     """
+    error_channel = journal.error('helpers.check_dem')
     try:
         gdal.Open(dem_path)
     except:
         err_str = f'{dem_path} cannot be opened by GDAL'
-        logging.error.log(err_str)
+        error_channel.log(err_str)
         raise ValueError(err_str)

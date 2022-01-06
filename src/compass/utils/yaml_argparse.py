@@ -1,5 +1,4 @@
 import argparse
-import logging
 
 class YamlArgparse():
     def __init__(self):

@@ -7,7 +7,7 @@ import journal
 import yamale
 from ruamel.yaml import YAML
 
-from . import helpers
+from compass.utils import helpers
 
 
 def validate_group(group_cfg: dict) -> None:

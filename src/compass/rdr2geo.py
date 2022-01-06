@@ -10,8 +10,8 @@ import time
 import isce3
 
 from sentinel1_reader.sentinel1_reader import burst_from_zip
-from .util.runconfig import RunConfig
-from .util.yaml_argparse import YamlArgparse
+from compass.util.runconfig import RunConfig
+from compass.util.yaml_argparse import YamlArgparse
 
 def run(cfg):
     '''run rdr2geo with provided runconfig'''

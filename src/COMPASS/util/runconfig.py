@@ -17,9 +17,12 @@ def validate_group(group_cfg: dict) -> None:
        group_cfg : dict
            Dictionary storing runconfig options to validate
     """
-    # check input group
-    input_group = group_cfg['input_file_group']
+    error_channel = journal.error('runconfig.validate_group')
 
+    # Check 'input_file_group' section of runconfig
+    input_group = group_cfg['input_file_group']
+    # If is_reference flag is False, check that file path to reference
+    # burst is assigned and valid (required by geo2rdr and resample)
     is_reference = input_group['reference_burst']['is_reference']
     if not is_reference:
         helpers.check_file_path(input_group['reference_burst']['file_path'])
@@ -28,24 +31,26 @@ def validate_group(group_cfg: dict) -> None:
         # ensure only one safe file for reference rdr2geo processing
         if is_reference and i > 0:
             err_str = 'More that one safe file provided as reference'
-            logging.error(err_str)
+            error_channel.log(err_str)
             raise ValueError(err_str)
         helpers.check_file_path(safe_file)
 
     helpers.check_file_path(input_group['orbit_file_path'])
 
-    # check dynamical ancillayr file group
+    # Check 'dynamic_ancillary_file_groups' section of runconfig
+    # Check that DEM file exists and is GDAL-compatible
     dem_path = group_cfg['dynamic_ancillary_file_groups']['dem_file']
     helpers.check_file_path(dem_path)
     helpers.check_dem(dem_path)
 
-    # check product_path_group
+    # Check 'product_path_group' section of runconfig.
+    # Check that directories herein have writing permissions
     product_path_group = group_cfg['product_path_group']
     helpers.check_write_dir(product_path_group['product_path'])
     helpers.check_write_dir(product_path_group['scratch_path'])
     helpers.check_file_path(product_path_group['sas_output_file'])
 
-    # check polarizations
+    # Check polarizations to process.
     if 'polarization' not in group_cfg['processing']:
         group_cfg['processing']['polarization'] = ['HH', 'HV', 'VH', 'VV']
 
@@ -71,7 +76,7 @@ class RunConfig:
         """
         error_channel = journal.error('RunConfig.load_from_yaml')
         try:
-            # load schema to validate against
+            # Load schema corresponding to 'workflow_name' and to validate against
             schema = yamale.make_schema(
                 f'{helpers.WORKFLOW_SCRIPTS_DIR}/schemas/{workflow_name}.yaml',
                 parser='ruamel')
@@ -99,7 +104,7 @@ class RunConfig:
             error_channel.log(err_str)
             raise yamale.YamaleError(err_str) from yamale_err
 
-        # load default config
+        # load default runconfig
         parser = YAML(typ='safe')
         default_cfg = f'{helpers.WORKFLOW_SCRIPTS_DIR}/defaults/{workflow_name}.yaml'
         with open(default_cfg, 'r') as f_default:
@@ -108,7 +113,7 @@ class RunConfig:
         with open(yaml_path, 'r') as f_yaml:
             user = parser.load(f_yaml)
 
-        # copy user suppiled config into default config
+        # Copy user-supplied configuration options in default runconfig
         helpers.deep_update(cfg, user)
 
         validate_group(cfg['groups'])

@@ -2,10 +2,13 @@
 collection of useful functions used across workflows
 '''
 
-import journal
 import os
 
+import journal
 from osgeo import gdal
+
+WORKFLOW_SCRIPTS_DIR = os.path.dirname(os.path.realpath(__file__))
+
 
 def check_file_path(file_path: str) -> None:
     """Check if file_path exists. If not, raise an error.
@@ -20,6 +23,7 @@ def check_file_path(file_path: str) -> None:
         err_str = f'{file_path} not found'
         error_channel.log(err_str)
         raise FileNotFoundError(err_str)
+
 
 def deep_update(original, update):
     """Update default runconfig ('original') with user-supplied
@@ -50,7 +54,6 @@ def deep_update(original, update):
     # return updated original
     return original
 
-WORKFLOW_SCRIPTS_DIR = os.path.dirname(os.path.realpath(__file__))
 
 def check_write_dir(dst_path: str):
     """Check if directory in 'dst_path' is writeable.
@@ -83,6 +86,7 @@ def check_write_dir(dst_path: str):
         err_str = f"{dst_path} scratch directory lacks write permission."
         error_channel.log(err_str)
         raise PermissionError(err_str)
+
 
 def check_dem(dem_path: str):
     """Check if DEM in 'dem_path' is a GDAL-compatible file.

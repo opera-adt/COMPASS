@@ -10,7 +10,13 @@ from . import helpers
 
 
 def validate_group(group_cfg: dict) -> None:
-    '''check groups dict'''
+    """Check and validate runconfig entries.
+
+       Parameters
+       ----------
+       group_cfg : dict
+           Dictionary storing runconfig options to validate
+    """
     # check input group
     input_group = group_cfg['input_file_group']
 
@@ -46,7 +52,6 @@ def validate_group(group_cfg: dict) -> None:
 
 @dataclass(frozen=True)
 class RunConfig:
-
     '''dataclass containing CSLC runconfig'''
     name: str
     # for easy immutability, lazily keep dict read from yaml (for now?)
@@ -54,7 +59,16 @@ class RunConfig:
 
     @classmethod
     def load_from_yaml(cls, yaml_path: str, workflow_name: str) -> RunConfig:
-        '''init RunConfig from yaml file'''
+        """Initialize RunConfig class by loading options from
+           user-defined yaml file
+
+           Parameters
+           ----------
+           yaml_path : str
+               Path to yaml file containing the options to load
+           workflow_name: str
+               Name of the workflow for which uploading default options
+        """
         try:
             # load schema to validate against
             schema = yamale.make_schema(

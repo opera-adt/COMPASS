@@ -37,7 +37,7 @@ runconfig:
            product_type: CSLC_S1
 
        processing:
-           polarization: HH
+           polarization: [HH]
            rdr2geo:
                lines_per_block: 1000
            geo2rdr:

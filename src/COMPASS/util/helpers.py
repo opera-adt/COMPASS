@@ -7,17 +7,38 @@ import os
 from osgeo import gdal
 
 def check_file_path(file_path: str) -> None:
-    '''check if file path exists and raise error it does not'''
+    """Check if file_path exists. If not, raise an error.
+
+       Parameters
+       ----------
+       file_path : str
+           Path to file to be checked
+       """
     if not os.path.isfile(file_path):
         err_str = f'{file_path} not found'
         logging.error(err_str)
         raise FileNotFoundError(err_str)
 
 def deep_update(original, update):
-    '''
-    update default runconfig key with user supplied dict
-    https://stackoverflow.com/questions/3232943/update-value-of-a-nested-dictionary-of-varying-depth
-    '''
+    """Update default runconfig ('original') with user-supplied
+       dictionary ('update').
+
+       Parameters
+       ----------
+       original : dict
+          Dictionary with default options to be updated
+       update: dict
+          Dictionary with user-defined options to use in update
+
+       Returns
+       -------
+       original: dict
+          Default dictionary updated with user-defined options
+
+       References
+       ----------
+       https://stackoverflow.com/questions/3232943/update-value-of-a-nested-dictionary-of-varying-depth
+    """
     for key, val in update.items():
         if isinstance(val, dict):
             original[key] = deep_update(original.get(key, {}), val)
@@ -30,9 +51,14 @@ def deep_update(original, update):
 WORKFLOW_SCRIPTS_DIR = os.path.dirname(os.path.realpath(__file__))
 
 def check_write_dir(dst_path: str):
-    '''
-    Raise error if given path does not exist or not writeable.
-    '''
+    """Check if directory in 'dst_path' is writeable.
+       If not, raise an error.
+
+       Parameters
+       ----------
+       dst_path : str
+          File path to directory for which to check writing permission
+    """
     if not dst_path:
         dst_path = '.'
 
@@ -57,9 +83,14 @@ def check_write_dir(dst_path: str):
         raise PermissionError(err_str)
 
 def check_dem(dem_path: str):
-    '''
-    Raise error if DEM is not system file, netCDF, nor S3.
-    '''
+    """Check if DEM in 'dem_path' is a GDAL-compatible file.
+       If not, raise an error
+
+       Parameters
+       ----------
+       dem_path : str
+          File path to DEM for which to check GDAL-compatibility
+    """
     try:
         gdal.Open(dem_path)
     except:

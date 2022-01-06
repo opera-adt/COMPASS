@@ -36,7 +36,8 @@ def validate_group(group_cfg: dict) -> None:
             raise ValueError(err_str)
         helpers.check_file_path(safe_file)
 
-    helpers.check_file_path(input_group['orbit_file_path'])
+    for orbit_file in input_group['orbit_file_path']:
+        helpers.check_file_path(orbit_file)
 
     # Check 'dynamic_ancillary_file_groups' section of runconfig
     # Check that DEM file exists and is GDAL-compatible
@@ -79,7 +80,7 @@ class RunConfig:
         try:
             # Load schema corresponding to 'workflow_name' and to validate against
             schema = yamale.make_schema(
-                f'{helpers.WORKFLOW_SCRIPTS_DIR}/schemas/{workflow_name}.yaml',
+                f'{helpers.WORKFLOW_SCRIPTS_DIR}/schemas/cslc_s1.yaml',
                 parser='ruamel')
         except:
             err_str = f'unable to load schema for workflow {workflow_name}.'
@@ -107,7 +108,7 @@ class RunConfig:
 
         # load default runconfig
         parser = YAML(typ='safe')
-        default_cfg_path = f'{helpers.WORKFLOW_SCRIPTS_DIR}/defaults/{workflow_name}.yaml'
+        default_cfg_path = f'{helpers.WORKFLOW_SCRIPTS_DIR}/defaults/cslc_s1.yaml'
         with open(default_cfg_path, 'r') as f_default:
             default_cfg = parser.load(f_default)
 
@@ -117,9 +118,9 @@ class RunConfig:
         # Copy user-supplied configuration options in default runconfig
         helpers.deep_update(default_cfg, user_cfg)
 
-        validate_group(default_cfg['groups'])
+        validate_group(user_cfg['runconfig']['groups'])
 
-        return cls(default_cfg['name'], default_cfg['groups'])
+        return cls(user_cfg['runconfig']['name'], user_cfg['runconfig']['groups'])
 
     @property
     def burst_id(self) -> list[str]:

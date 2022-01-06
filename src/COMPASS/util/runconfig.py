@@ -106,19 +106,19 @@ class RunConfig:
 
         # load default runconfig
         parser = YAML(typ='safe')
-        default_cfg = f'{helpers.WORKFLOW_SCRIPTS_DIR}/defaults/{workflow_name}.yaml'
-        with open(default_cfg, 'r') as f_default:
-            cfg = parser.load(f_default)
+        default_cfg_path = f'{helpers.WORKFLOW_SCRIPTS_DIR}/defaults/{workflow_name}.yaml'
+        with open(default_cfg_path, 'r') as f_default:
+            default_cfg = parser.load(f_default)
 
         with open(yaml_path, 'r') as f_yaml:
-            user = parser.load(f_yaml)
+            user_cfg = parser.load(f_yaml)
 
         # Copy user-supplied configuration options in default runconfig
-        helpers.deep_update(cfg, user)
+        helpers.deep_update(default_cfg, user_cfg)
 
-        validate_group(cfg['groups'])
+        validate_group(default_cfg['groups'])
 
-        return cls(cfg['name'], cfg['groups'])
+        return cls(default_cfg['name'], default_cfg['groups'])
 
     @property
     def burst_id(self) -> list[str]:

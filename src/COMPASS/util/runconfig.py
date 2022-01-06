@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-import logging
+import journal
 import os
 
 from ruamel.yaml import YAML
@@ -69,6 +69,7 @@ class RunConfig:
            workflow_name: str
                Name of the workflow for which uploading default options
         """
+        error_channel = journal.error('RunConfig.load_from_yaml')
         try:
             # load schema to validate against
             schema = yamale.make_schema(
@@ -76,7 +77,7 @@ class RunConfig:
                 parser='ruamel')
         except:
             err_str = f'unable to load schema for workflow {workflow_name}.'
-            logging.error(err_str)
+            error_channel.log(err_str)
             raise ValueError(err_str)
 
         # load yaml file or string from command line
@@ -85,7 +86,7 @@ class RunConfig:
                 data = yamale.make_data(yaml_path, parser='ruamel')
             except yamale.YamaleError as yamale_err:
                 err_str = f'Yamale unable to load {workflow_name} runconfig yaml {yaml_path} for validation.'
-                logging.error(err_str)
+                error_channel.log(err_str)
                 raise yamale.YamaleError(err_str) from yamale_err
         else:
             raise FileNotFoundError
@@ -95,7 +96,7 @@ class RunConfig:
             yamale.validate(schema, data)
         except yamale.YamaleError as yamale_err:
             err_str = f'Validation fail for {workflow_name} runconfig yaml {yaml_path}.'
-            logging.error(err_str)
+            error_channel.log(err_str)
             raise yamale.YamaleError(err_str) from yamale_err
 
         # load default config

@@ -1,10 +1,11 @@
 from __future__ import annotations
-from dataclasses import dataclass
-import journal
-import os
 
-from ruamel.yaml import YAML
+import os
+from dataclasses import dataclass
+
+import journal
 import yamale
+from ruamel.yaml import YAML
 
 from . import helpers
 

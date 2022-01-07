@@ -10,8 +10,8 @@ import time
 import isce3
 
 from sentinel1_reader.sentinel1_reader import burst_from_zip
-from compass.util.runconfig import RunConfig
-from compass.util.yaml_argparse import YamlArgparse
+from compass.utils.runconfig import RunConfig
+from compass.utils.yaml_argparse import YamlArgparse
 
 def run(cfg):
     '''run rdr2geo with provided runconfig'''
@@ -78,7 +78,7 @@ if __name__ == "__main__":
     rdr2geo_parser = YamlArgparse()
 
     # get a runconfig dict from command line args
-    rdr2geo_runconfig = RunConfig.load_from_yaml(rdr2geo_parser.args, 'rdr2geo')
+    rdr2geo_runconfig = RunConfig.load_from_yaml(rdr2geo_parser.args.run_config_path, 'rdr2geo')
 
     # run rdr2geo
     run(rdr2geo_runconfig)

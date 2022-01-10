@@ -128,7 +128,7 @@ class RunConfig:
 
     @property
     def dem(self) -> str:
-        return self.groups['dynamic_ancillary_file_groups']['dem_file']
+        return self.groups['dynamic_ancillary_file_group']['dem_file']
 
     @property
     def is_reference(self) -> bool:

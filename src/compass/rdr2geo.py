@@ -3,7 +3,7 @@
 '''wrapper for rdr2geo'''
 
 from itertools import cycle
-import logging
+import journal
 import os
 import time
 
@@ -15,8 +15,10 @@ from compass.utils.yaml_argparse import YamlArgparse
 
 def run(cfg):
     '''run rdr2geo with provided runconfig'''
+    info_channel = journal.info("rdr2geo.run")
+    error_channel = journal.error("rdr2geo.run")
     t_start = time.process_time()
-    logging.info("starting rdr2geo")
+    journal.log("starting rdr2geo")
 
     # find bursts identified in cfg.burst_id
     bursts = []
@@ -33,6 +35,7 @@ def run(cfg):
 
     if not bursts:
         err_str = "Given burst IDs not found in provided safe file"
+        error_channel.log(err_str)
         raise ValueError(err_str)
 
     # common rdr2geo inits
@@ -69,7 +72,7 @@ def run(cfg):
         rdr2geo_obj.topo(dem_raster, output_path)
 
     dt = time.process_time() - t_start
-    logging.info(f"rdr2geo successfully ran in {dt:.3f} seconds")
+    info_channel.log(f"rdr2geo successfully ran in {dt:.3f} seconds")
 
 
 if __name__ == "__main__":

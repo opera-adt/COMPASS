@@ -2,14 +2,12 @@
 
 '''wrapper for rdr2geo'''
 
-from itertools import cycle
-import journal
 import os
 import time
 
 import isce3
+import journal
 
-from sentinel1_reader.sentinel1_reader import burst_from_zip
 from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -17,26 +15,9 @@ def run(cfg):
     '''run rdr2geo with provided runconfig'''
     info_channel = journal.info("rdr2geo.run")
     error_channel = journal.error("rdr2geo.run")
+
     t_start = time.process_time()
-    journal.log("starting rdr2geo")
-
-    # find bursts identified in cfg.burst_id
-    bursts = []
-    pols = cfg.polarization
-    i_subswaths = [1, 2, 3]
-    zip_list = zip(pols, cycle(i_subswaths)) if len(pols) > 3 else zip(
-        cycle(pols), i_subswaths)
-    for pol, i_subswath in zip_list:
-        temp_bursts = [
-            b for b in burst_from_zip(cfg.safe_file, i_subswath, pol)
-            if b.burst_id in cfg.burst_id
-        ]
-        bursts.extend(temp_bursts)
-
-    if not bursts:
-        err_str = "Given burst IDs not found in provided safe file"
-        error_channel.log(err_str)
-        raise ValueError(err_str)
+    info_channel.log("starting rdr2geo")
 
     # common rdr2geo inits
     dem_raster = isce3.io.Raster(cfg.dem)
@@ -44,14 +25,13 @@ def run(cfg):
     proj = isce3.core.make_projection(epsg)
     ellipsoid = proj.ellipsoid
 
-    # process rdr2geo for found bursts
-    for burst in bursts:
+    for burst in cfg.bursts:
         # get isce3 objs from burst
         rdr_grid = burst.as_isce3_radargrid()
-        isce3_orbit = burst.get_isce3_orbit(cfg.orbit_path)
+        isce3_orbit = burst.orbit
 
-        # init output directory
-        output_path = f'{cfg.sas_output_file}/{burst.burst_id}'
+        # init output directory in scratch
+        output_path = f'{cfg.scratch_path}/{burst.burst_id}'
         os.makedirs(output_path, exist_ok=True)
 
         # init rdr2geo obj
@@ -65,7 +45,7 @@ def run(cfg):
         rdr2geo_obj.compute_mask = False
 
         # set rdr2geo params
-        for key, val in cfg.rdr2geo_params:
+        for key, val in cfg.rdr2geo_params.__dict__.items():
             setattr(rdr2geo_obj, key, val)
 
         # run rdr2geo

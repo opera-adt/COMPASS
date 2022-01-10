@@ -1,13 +1,18 @@
 from __future__ import annotations
-
-import os
 from dataclasses import dataclass
+from itertools import cycle
+import os
+from types import SimpleNamespace
 
 import journal
 import yamale
 from ruamel.yaml import YAML
 
 from compass.utils import helpers
+from compass.utils.wrap_namespace import wrap_namespace
+from sentinel1_reader.sentinel1_burst_slc import Sentinel1BurstSlc
+from sentinel1_reader.sentinel1_orbit_reader import get_swath_orbit_file_from_list
+from sentinel1_reader.sentinel1_reader import burst_from_zip
 
 
 def validate_group(group_cfg: dict) -> None:
@@ -41,7 +46,7 @@ def validate_group(group_cfg: dict) -> None:
 
     # Check 'dynamic_ancillary_file_groups' section of runconfig
     # Check that DEM file exists and is GDAL-compatible
-    dem_path = group_cfg['dynamic_ancillary_file_groups']['dem_file']
+    dem_path = group_cfg['dynamic_ancillary_file_group']['dem_file']
     helpers.check_file_path(dem_path)
     helpers.check_dem(dem_path)
 
@@ -50,19 +55,69 @@ def validate_group(group_cfg: dict) -> None:
     product_path_group = group_cfg['product_path_group']
     helpers.check_write_dir(product_path_group['product_path'])
     helpers.check_write_dir(product_path_group['scratch_path'])
-    helpers.check_file_path(product_path_group['sas_output_file'])
+    helpers.check_write_dir(product_path_group['sas_output_file'])
 
     # Check polarizations to process.
     if 'polarization' not in group_cfg['processing']:
         group_cfg['processing']['polarization'] = ['HH', 'HV', 'VH', 'VV']
 
 
+def load_bursts(cfg: SimpleNamespace):
+    '''For each burst find corresponding orbit'''
+    error_channel = journal.error('runconfig.correlate_burst_to_orbit')
+
+    # dict to store bursts keyed by burst_ids
+    bursts = {}
+
+    # zip pol and IW subswath indices together
+    pols = cfg.processing.polarization
+    i_subswaths = [1, 2, 3]
+    zip_list = zip(pols, cycle(i_subswaths)) if len(pols) > 3 else zip(
+        cycle(pols), i_subswaths)
+
+    # extract given SAFE zips to find bursts identified in cfg.burst_id
+    for safe_file in cfg.input_file_group.safe_file_path:
+
+        # find orbit file
+        orbit_path = get_swath_orbit_file_from_list(safe_file, cfg.input_file_group.orbit_file_path)
+
+        if not orbit_path:
+            err_str = f"No orbit file correlates to safe file: {os.path.basename(safe_file)}"
+            error_channel.log(err_str)
+            raise ValueError(err_str)
+
+        # loop over pols and subswath index
+        for pol, i_subswath in zip_list:
+
+            # loop over burst objs extracted from SAFE zip
+            for b in burst_from_zip(safe_file, orbit_path, i_subswath, pol):
+
+                b_id = b.burst_id
+
+                # check if b_id is wanted and if already stored
+                if b_id in cfg.input_file_group.burst_id and b_id not in bursts.keys():
+                    bursts[b_id] = b
+
+    if not bursts:
+        err_str = "None of given burst IDs not found in provided safe files"
+        error_channel.log(err_str)
+        raise ValueError(err_str)
+
+    unaccounted_bursts = [b_id for b_id in cfg.input_file_group.burst_id if b_id not in bursts]
+    if unaccounted_bursts:
+        err_str = f"Following burst ID(s) not found in provided safe files: {unaccounted_bursts}"
+        error_channel.log(err_str)
+        raise ValueError(err_str)
+
+    return bursts.values()
+
+
 @dataclass(frozen=True)
 class RunConfig:
     '''dataclass containing CSLC runconfig'''
     name: str
-    # for easy immutability, lazily keep dict read from yaml (for now?)
-    groups: dict
+    groups: SimpleNamespace
+    bursts: list[Sentinel1BurstSlc]
 
     @classmethod
     def load_from_yaml(cls, yaml_path: str, workflow_name: str) -> RunConfig:
@@ -115,54 +170,59 @@ class RunConfig:
         with open(yaml_path, 'r') as f_yaml:
             user_cfg = parser.load(f_yaml)
 
-        # Copy user-supplied configuration options in default runconfig
+        # Copy user-supplied configuration options into default runconfig
         helpers.deep_update(default_cfg, user_cfg)
 
-        validate_group(user_cfg['runconfig']['groups'])
+        # Validate YAML values under groups dict
+        validate_group(default_cfg['runconfig']['groups'])
 
-        return cls(user_cfg['runconfig']['name'], user_cfg['runconfig']['groups'])
+        # Convert runconfig dict to SimpleNamespace
+        sns = wrap_namespace(default_cfg['runconfig']['groups'])
+
+        bursts = load_bursts(sns)
+
+        return cls(default_cfg['runconfig']['name'], sns, bursts)
 
     @property
     def burst_id(self) -> list[str]:
-        return self.groups['input_file_group']['burst_id']
+        return self.groups.input_file_group.burst_id
 
     @property
     def dem(self) -> str:
-        return self.groups['dynamic_ancillary_file_group']['dem_file']
+        return self.groups.dynamic_ancillary_file_group.dem_file
 
     @property
     def is_reference(self) -> bool:
-        return self.groups['input_file_group']['reference_burst'][
-            'is_reference']
+        return self.groups.input_file_group.reference_burst.is_reference
 
     @property
     def orbit_path(self) -> bool:
-        return self.groups['input_file_group']['orbit_file_path']
+        return self.groups.input_file_group.orbit_file_path
 
     @property
     def polarization(self) -> list[str]:
-        return self.groups['processing']['polarization']
+        return self.groups.processing.polarization
 
     @property
     def product_path(self):
-        return self.groups['product_path_group']['product_path']
+        return self.groups.product_path_group.product_path
 
     @property
     def reference_path(self) -> str:
-        return self.groups['reference_burst']['file_path']
+        return self.groups.reference_burst.file_path
 
     @property
     def rdr2geo_params(self) -> dict:
-        return self.groups['processing']['rdr2geo']
+        return self.groups.processing.rdr2geo
 
     @property
     def safe_files(self) -> list[str]:
-        return self.groups['input_file_group']['safe_file_path']
+        return self.groups.input_file_group.safe_file_path
 
     @property
     def sas_output_file(self):
-        return self.groups['product_path_group']['sas_output_file']
+        return self.groups.product_path_group.sas_output_file
 
     @property
     def scratch_path(self):
-        return self.groups['product_path_group']['scratch_path']
+        return self.groups.product_path_group.scratch_path

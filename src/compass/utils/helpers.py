@@ -1,6 +1,4 @@
-'''
-collection of useful functions used across workflows
-'''
+'''collection of useful functions used across workflows'''
 
 import os
 
@@ -11,12 +9,14 @@ WORKFLOW_SCRIPTS_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
 def check_file_path(file_path: str) -> None:
-    """Check if file_path exists. If not, raise an error.
+    """Check if file_path and polarizations exist else raise an error.
 
-       Parameters
-       ----------
-       file_path : str
-           Path to file to be checked
+    Parameters
+    ----------
+    file_path : str
+        Path to file to be checked
+    polarizations : list[str]
+        Path to file to be checked
     """
     error_channel = journal.error('helpers.check_file_path')
     if not os.path.isfile(file_path):
@@ -25,25 +25,29 @@ def check_file_path(file_path: str) -> None:
         raise FileNotFoundError(err_str)
 
 
+def get_file_mode(file_path: str):
+    # extract polarizations from file name
+    return os.path.basename(file_path).split('_')[-6][2:]
+
+
 def deep_update(original, update):
-    """Update default runconfig ('original') with user-supplied
-       dictionary ('update').
+    """Update default runconfig dict with user-supplied dict.
 
-       Parameters
-       ----------
-       original : dict
-          Dictionary with default options to be updated
-       update: dict
-          Dictionary with user-defined options to use in update
+    Parameters
+    ----------
+    original : dict
+        Dict with default options to be updated
+    update: dict
+        Dict with user-defined options used to update original/default
 
-       Returns
-       -------
-       original: dict
-          Default dictionary updated with user-defined options
+    Returns
+    -------
+    original: dict
+        Default dictionary updated with user-defined options
 
-       References
-       ----------
-       https://stackoverflow.com/questions/3232943/update-value-of-a-nested-dictionary-of-varying-depth
+    References
+    ----------
+    https://stackoverflow.com/questions/3232943/update-value-of-a-nested-dictionary-of-varying-depth
     """
     for key, val in update.items():
         if isinstance(val, dict):
@@ -56,13 +60,12 @@ def deep_update(original, update):
 
 
 def check_write_dir(dst_path: str):
-    """Check if directory in 'dst_path' is writeable.
-       If not, raise an error.
+    """Check if given directory is writeable; else raise error.
 
-       Parameters
-       ----------
-       dst_path : str
-          File path to directory for which to check writing permission
+    Parameters
+    ----------
+    dst_path : str
+        File path to directory for which to check writing permission
     """
     if not dst_path:
         dst_path = '.'
@@ -89,13 +92,12 @@ def check_write_dir(dst_path: str):
 
 
 def check_dem(dem_path: str):
-    """Check if DEM in 'dem_path' is a GDAL-compatible file.
-       If not, raise an error
+    """Check if given path is a GDAL-compatible file; else raise error
 
-       Parameters
-       ----------
-       dem_path : str
-          File path to DEM for which to check GDAL-compatibility
+    Parameters
+    ----------
+    dem_path : str
+        File path to DEM for which to check GDAL-compatibility
     """
     error_channel = journal.error('helpers.check_dem')
     try:

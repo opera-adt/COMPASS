@@ -7,9 +7,11 @@ import time
 
 import isce3
 import journal
+from osgeo import gdal
 
 from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
+
 
 def run(cfg):
     '''run rdr2geo with provided runconfig'''
@@ -36,10 +38,6 @@ def run(cfg):
         rdr_grid = burst.as_isce3_radargrid()
         isce3_orbit = burst.orbit
 
-        # init output directory in scratch
-        output_path = f'{cfg.scratch_path}/{burst.burst_id}'
-        os.makedirs(output_path, exist_ok=True)
-
         # init grid doppler
         grid_doppler = isce3.core.LUT2d()
 
@@ -56,15 +54,38 @@ def run(cfg):
             ellipsoid,
             grid_doppler)
 
-        # turn off shadow layover mask
-        rdr2geo_obj.compute_mask = False
-
         # set rdr2geo params
         for key, val in cfg.rdr2geo_params.__dict__.items():
             setattr(rdr2geo_obj, key, val)
 
+        # init output directory in product_path
+        output_path = f'{cfg.product_path}/{burst.burst_id}'
+        os.makedirs(output_path, exist_ok=True)
+
+        # prepare output rasters
+        topo_output = {'x':(True, gdal.GDT_Float64),
+                       'y':(True, gdal.GDT_Float64),
+                       'z':(True, gdal.GDT_Float64),
+                       'layoverShadowMask':(cfg.rdr2geo_params.compute_mask,
+                                            gdal.GDT_Byte)}
+        raster_list = [
+            isce3.io.Raster(f'{output_path}/{fname}.rdr', rdr_grid.width,
+                            rdr_grid.length, 1, dtype, 'ENVI')
+            if enabled else None
+            for fname, (enabled, dtype) in topo_output.items()]
+        x_raster, y_raster, z_raster, layover_shadow_raster = raster_list
+
         # run rdr2geo
-        rdr2geo_obj.topo(dem_raster, output_path)
+        rdr2geo_obj.topo(dem_raster, x_raster, y_raster, z_raster,
+                         layover_shadow_raster=layover_shadow_raster)
+
+        # remove undesired/None rasters from raster list
+        raster_list = [raster for raster in raster_list if raster is not None]
+
+        # save non-None rasters to vrt
+        output_vrt = isce3.io.Raster(f'{output_path}/topo.vrt', raster_list)
+
+        output_vrt.set_epsg(epsg)
 
     dt = time.time() - t_start
     info_channel.log(f"rdr2geo successfully ran in {dt:.3f} seconds")

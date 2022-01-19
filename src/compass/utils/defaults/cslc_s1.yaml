@@ -39,6 +39,7 @@ runconfig:
        processing:
            rdr2geo:
                lines_per_block: 1000
+               compute_mask: True
            geo2rdr:
                lines_per_block: 1000
            resample:

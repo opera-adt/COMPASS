@@ -72,6 +72,8 @@ rdr2geo_options:
    lines_per_block: int(min=1, required=False)
    # Secondary number of iterations
    extraiter: int(min=1, required=False)
+   # Enable/disable layover shadow mask output
+   compute_mask: bool(required=False)
 
 resample_options:
    # Lines per block to process in batch

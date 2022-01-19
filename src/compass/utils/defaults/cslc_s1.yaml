@@ -37,10 +37,20 @@ runconfig:
            product_type: CSLC_S1
 
        processing:
-           polarization: [HH]
            rdr2geo:
                lines_per_block: 1000
            geo2rdr:
                lines_per_block: 1000
            resample:
                lines_per_block: 1000
+
+       worker:
+           # OPTIONAL - To prevent downloading DEM / other data automatically. Default True
+           internet_access: False
+
+           # OPTIONAL - To explicitly use GPU capability if available. Default False
+           gpu_enabled: False
+
+           # Index of the GPU to use for processing, optional. Defaults to the
+           # first available CUDA device. Ignored if *gpu_enabled* is False.
+           gpu_id: 0

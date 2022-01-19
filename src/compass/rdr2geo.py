@@ -14,9 +14,8 @@ from compass.utils.yaml_argparse import YamlArgparse
 def run(cfg):
     '''run rdr2geo with provided runconfig'''
     info_channel = journal.info("rdr2geo.run")
-    error_channel = journal.error("rdr2geo.run")
 
-    t_start = time.process_time()
+    t_start = time.time()
     info_channel.log("starting rdr2geo")
 
     # common rdr2geo inits
@@ -24,6 +23,13 @@ def run(cfg):
     epsg = dem_raster.get_epsg()
     proj = isce3.core.make_projection(epsg)
     ellipsoid = proj.ellipsoid
+
+    # check if gpu ok to use
+    use_gpu = isce3.core.gpu_check.use_gpu(cfg.gpu_enabled, cfg.gpu_id)
+    if use_gpu:
+        # Set the current CUDA device.
+        device = isce3.cuda.core.Device(cfg.gpu_id)
+        isce3.cuda.core.set_device(device)
 
     for burst in cfg.bursts:
         # get isce3 objs from burst
@@ -34,12 +40,21 @@ def run(cfg):
         output_path = f'{cfg.scratch_path}/{burst.burst_id}'
         os.makedirs(output_path, exist_ok=True)
 
+        # init grid doppler
+        grid_doppler = isce3.core.LUT2d()
+
+        # init CPU or CUDA object accordingly
+        if use_gpu:
+            Rdr2Geo = isce3.cuda.geometry.Rdr2Geo
+        else:
+            Rdr2Geo = isce3.geometry.Rdr2Geo
+
         # init rdr2geo obj
-        rdr2geo_obj = isce3.cuda.geometry.Rdr2Geo(
+        rdr2geo_obj = Rdr2Geo(
             rdr_grid,
             isce3_orbit,
             ellipsoid,
-            isce3.core.LUT2d())
+            grid_doppler)
 
         # turn off shadow layover mask
         rdr2geo_obj.compute_mask = False
@@ -51,7 +66,7 @@ def run(cfg):
         # run rdr2geo
         rdr2geo_obj.topo(dem_raster, output_path)
 
-    dt = time.process_time() - t_start
+    dt = time.time() - t_start
     info_channel.log(f"rdr2geo successfully ran in {dt:.3f} seconds")
 
 

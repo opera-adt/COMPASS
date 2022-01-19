@@ -1,6 +1,8 @@
 '''Utility functions to convert nested dicts or lists to nested namespaces
 
-Copy and pasted from https://stackoverflow.com/a/50491016
+References
+----------
+https://stackoverflow.com/a/50491016
 '''
 
 from functools import singledispatch

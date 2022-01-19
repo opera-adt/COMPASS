@@ -18,10 +18,10 @@ from sentinel1_reader.sentinel1_reader import burst_from_zip
 def validate_group(group_cfg: dict) -> None:
     """Check and validate runconfig entries.
 
-       Parameters
-       ----------
-       group_cfg : dict
-           Dictionary storing runconfig options to validate
+    Parameters
+    ----------
+    group_cfg : dict
+        Dictionary storing runconfig options to validate
     """
     error_channel = journal.error('runconfig.validate_group')
 
@@ -33,13 +33,13 @@ def validate_group(group_cfg: dict) -> None:
     if not is_reference:
         helpers.check_file_path(input_group['reference_burst']['file_path'])
 
-    for i, safe_file in enumerate(input_group['safe_file_path']):
-        # ensure only one safe file for reference rdr2geo processing
-        if is_reference and i > 0:
-            err_str = 'More that one safe file provided as reference'
-            error_channel.log(err_str)
-            raise ValueError(err_str)
+    safe_pol_modes = []
+    for safe_file in input_group['safe_file_path']:
+        # Check if files exists
         helpers.check_file_path(safe_file)
+
+        # Get safe pol mode
+        safe_pol_modes.append(helpers.get_file_mode(safe_file))
 
     for orbit_file in input_group['orbit_file_path']:
         helpers.check_file_path(orbit_file)
@@ -57,13 +57,56 @@ def validate_group(group_cfg: dict) -> None:
     helpers.check_write_dir(product_path_group['scratch_path'])
     helpers.check_write_dir(product_path_group['sas_output_file'])
 
-    # Check polarizations to process.
-    if 'polarization' not in group_cfg['processing']:
-        group_cfg['processing']['polarization'] = ['HH', 'HV', 'VH', 'VV']
+    # Check polarizations to be processed.
+    have_default_pol = 'polarization' in group_cfg['processing']
+    if have_default_pol:
+        # Determine allowable SAFE polarization modes
+        cfg_pols = group_cfg['processing']['polarization']
+        cfg_pol_modes = []
+        if ('HH' in cfg_pols and 'HV' in cfg_pols) or ['HH'] == cfg_pols:
+            cfg_pol_modes = ['DH', 'SH']
+        if ('VV' in cfg_pols and 'VH' in cfg_pols) or ['VV'] == cfg_pols:
+            cfg_pol_modes = ['DV', 'SV']
+        # Check YAML has valid polarization
+        if not cfg_pol_modes:
+            err_str = f"Invalid polarization combo: {cfg_pols}"
+            error_channel.log(err_str)
+            raise ValueError(err_str)
+
+        # Check for SAFE files with non-matching polarization
+        mode_mismatch = any([safe_mode not in cfg_pol_modes
+                             for safe_mode in safe_pol_modes])
+        if mode_mismatch:
+            err_str = "Unexpected safe file polarization mode"
+            error_channel.log(err_str)
+            raise ValueError(err_str)
+    else:
+        # Check if all modes have H
+        if all(['H' in safe_mode for safe_mode in safe_pol_modes]):
+            group_cfg['processing']['polarization'] = ['HH']
+        # Check if all modes have V
+        elif all(['V' in safe_mode for safe_mode in safe_pol_modes]):
+            group_cfg['processing']['polarization'] = ['VV']
+        # Error: can not mix and match H and V
+        else:
+            err_str = "Safe files contain both H and V pols"
+            error_channel.log(err_str)
+            raise ValueError(err_str)
 
 
-def load_bursts(cfg: SimpleNamespace):
-    '''For each burst find corresponding orbit'''
+def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
+    '''For each burst find corresponding orbit'
+
+    Parameters
+    ----------
+    cfg : SimpleNamespace
+        Configuration of bursts to be loaded.
+
+    Returns
+    -------
+    _ : list[Sentinel1BurstSlc]
+        List of bursts loaded according to given configuration.
+    '''
     error_channel = journal.error('runconfig.correlate_burst_to_orbit')
 
     # dict to store bursts keyed by burst_ids
@@ -72,14 +115,15 @@ def load_bursts(cfg: SimpleNamespace):
     # zip pol and IW subswath indices together
     pols = cfg.processing.polarization
     i_subswaths = [1, 2, 3]
-    zip_list = zip(pols, cycle(i_subswaths)) if len(pols) > 3 else zip(
-        cycle(pols), i_subswaths)
+    zip_list = zip(cycle(pols), i_subswaths)
 
     # extract given SAFE zips to find bursts identified in cfg.burst_id
     for safe_file in cfg.input_file_group.safe_file_path:
 
         # find orbit file
-        orbit_path = get_swath_orbit_file_from_list(safe_file, cfg.input_file_group.orbit_file_path)
+        orbit_path = get_swath_orbit_file_from_list(
+            safe_file,
+            cfg.input_file_group.orbit_file_path)
 
         if not orbit_path:
             err_str = f"No orbit file correlates to safe file: {os.path.basename(safe_file)}"
@@ -103,7 +147,8 @@ def load_bursts(cfg: SimpleNamespace):
         error_channel.log(err_str)
         raise ValueError(err_str)
 
-    unaccounted_bursts = [b_id for b_id in cfg.input_file_group.burst_id if b_id not in bursts]
+    unaccounted_bursts = [b_id for b_id in cfg.input_file_group.burst_id
+                          if b_id not in bursts]
     if unaccounted_bursts:
         err_str = f"Following burst ID(s) not found in provided safe files: {unaccounted_bursts}"
         error_channel.log(err_str)
@@ -121,15 +166,14 @@ class RunConfig:
 
     @classmethod
     def load_from_yaml(cls, yaml_path: str, workflow_name: str) -> RunConfig:
-        """Initialize RunConfig class by loading options from
-           user-defined yaml file
+        """Initialize RunConfig class with options from given yaml file.
 
-           Parameters
-           ----------
-           yaml_path : str
-               Path to yaml file containing the options to load
-           workflow_name: str
-               Name of the workflow for which uploading default options
+        Parameters
+        ----------
+        yaml_path : str
+            Path to yaml file containing the options to load
+        workflow_name: str
+            Name of the workflow for which uploading default options
         """
         error_channel = journal.error('RunConfig.load_from_yaml')
         try:
@@ -226,3 +270,11 @@ class RunConfig:
     @property
     def scratch_path(self):
         return self.groups.product_path_group.scratch_path
+
+    @property
+    def gpu_enabled(self):
+        return self.groups.worker.gpu_enabled
+
+    @property
+    def gpu_id(self):
+        return self.groups.worker.gpu_id

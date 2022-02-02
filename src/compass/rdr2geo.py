@@ -33,7 +33,18 @@ def run(cfg):
         device = isce3.cuda.core.Device(cfg.gpu_id)
         isce3.cuda.core.set_device(device)
 
-    for burst in cfg.bursts:
+    # save SLC for all bursts
+    # run rdr2geo for only once per burst_id
+    for bursts in cfg.bursts:
+        # init output directory in product_path
+        output_path = f'{cfg.product_path}/{bursts[0].burst_id}'
+        os.makedirs(output_path, exist_ok=True)
+
+        # save SLC to ENVI for all bursts
+        for burst in bursts:
+            burst.slc_to_file(f'{output_path}/{burst.polarization}.slc')
+
+        # run rdr2geo for only 1 burst avoid redundancy
         # get isce3 objs from burst
         rdr_grid = burst.as_isce3_radargrid()
         isce3_orbit = burst.orbit
@@ -58,10 +69,6 @@ def run(cfg):
         for key, val in cfg.rdr2geo_params.__dict__.items():
             setattr(rdr2geo_obj, key, val)
 
-        # init output directory in product_path
-        output_path = f'{cfg.product_path}/{burst.burst_id}'
-        os.makedirs(output_path, exist_ok=True)
-
         # prepare output rasters
         topo_output = {'x':(True, gdal.GDT_Float64),
                        'y':(True, gdal.GDT_Float64),
@@ -83,9 +90,7 @@ def run(cfg):
         raster_list = [raster for raster in raster_list if raster is not None]
 
         # save non-None rasters to vrt
-        output_vrt = isce3.io.Raster(f'{output_path}/topo.vrt', raster_list)
-
-        output_vrt.set_epsg(epsg)
+        isce3.io.Raster(f'{output_path}/topo.vrt', raster_list)
 
     dt = time.time() - t_start
     info_channel.log(f"rdr2geo successfully ran in {dt:.3f} seconds")

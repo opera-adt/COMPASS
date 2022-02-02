@@ -1,4 +1,5 @@
 from __future__ import annotations
+from collections import defaultdict
 from dataclasses import dataclass
 from itertools import cycle
 import os
@@ -91,8 +92,9 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
     '''
     error_channel = journal.error('runconfig.correlate_burst_to_orbit')
 
-    # dict to store bursts keyed by burst_ids
-    bursts = {}
+    # dict to store list of bursts keyed by burst_ids
+    # use default dict to handle 2 polarizations within one burst id
+    bursts = defaultdict(list)
 
     # extract given SAFE zips to find bursts identified in cfg.burst_id
     for safe_file in cfg.input_file_group.safe_file_path:
@@ -130,9 +132,9 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
 
                 b_id = b.burst_id
 
-                # check if b_id is wanted and if already stored
-                if b_id in cfg.input_file_group.burst_id and b_id not in bursts.keys():
-                    bursts[b_id] = b
+                # if b_id is wanted then store
+                if b_id in cfg.input_file_group.burst_id:
+                    bursts[b_id].append(b)
 
     if not bursts:
         err_str = "Could not find any of the burst IDs in the provided safe files"
@@ -146,15 +148,18 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
         error_channel.log(err_str)
         raise ValueError(err_str)
 
-    return bursts.values()
+    return list(bursts.values())
 
 
 @dataclass(frozen=True)
 class RunConfig:
     '''dataclass containing CSLC runconfig'''
+    # workflow name
     name: str
+    # runconfig options converted from dict
     groups: SimpleNamespace
-    bursts: list[Sentinel1BurstSlc]
+    # list of lists where bursts in interior list have a common burst_id
+    bursts: list[list[Sentinel1BurstSlc]]
 
     @classmethod
     def load_from_yaml(cls, yaml_path: str, workflow_name: str) -> RunConfig:

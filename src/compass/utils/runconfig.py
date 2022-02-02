@@ -15,7 +15,7 @@ from sentinel1_reader.sentinel1_orbit_reader import get_swath_orbit_file_from_li
 from sentinel1_reader.sentinel1_reader import burst_from_zip
 
 
-def validate_group(group_cfg: dict) -> None:
+def validate_group_dict(group_cfg: dict) -> None:
     """Check and validate runconfig entries.
 
     Parameters
@@ -23,7 +23,7 @@ def validate_group(group_cfg: dict) -> None:
     group_cfg : dict
         Dictionary storing runconfig options to validate
     """
-    error_channel = journal.error('runconfig.validate_group')
+    error_channel = journal.error('runconfig.validate_group_dict')
 
     # Check 'input_file_group' section of runconfig
     input_group = group_cfg['input_file_group']
@@ -33,13 +33,14 @@ def validate_group(group_cfg: dict) -> None:
     if not is_reference:
         helpers.check_file_path(input_group['reference_burst']['file_path'])
 
-    safe_pol_modes = []
+    # Check SAFE files
+    run_pol_mode = group_cfg['processing']['polarization']
     for safe_file in input_group['safe_file_path']:
         # Check if files exists
         helpers.check_file_path(safe_file)
 
-        # Get safe pol mode
-        safe_pol_modes.append(helpers.get_file_polarization_mode(safe_file))
+        # Check safe pol mode
+        helpers.check_file_polarization_mode(safe_file, run_pol_mode)
 
     for orbit_file in input_group['orbit_file_path']:
         helpers.check_file_path(orbit_file)
@@ -56,42 +57,6 @@ def validate_group(group_cfg: dict) -> None:
     helpers.check_write_dir(product_path_group['product_path'])
     helpers.check_write_dir(product_path_group['scratch_path'])
     helpers.check_write_dir(product_path_group['sas_output_file'])
-
-    # Check polarizations to be processed.
-    have_default_pol = 'polarization' in group_cfg['processing']
-    if have_default_pol:
-        # Determine allowable SAFE polarization modes
-        cfg_pols = group_cfg['processing']['polarization']
-        cfg_pol_modes = []
-        if ('HH' in cfg_pols and 'HV' in cfg_pols) or ['HH'] == cfg_pols:
-            cfg_pol_modes = ['DH', 'SH']
-        if ('VV' in cfg_pols and 'VH' in cfg_pols) or ['VV'] == cfg_pols:
-            cfg_pol_modes = ['DV', 'SV']
-        # Check YAML has valid polarization
-        if not cfg_pol_modes:
-            err_str = f"Invalid polarization combo: {cfg_pols}"
-            error_channel.log(err_str)
-            raise ValueError(err_str)
-
-        # Check for SAFE files with non-matching polarization
-        mode_mismatch = any([safe_mode not in cfg_pol_modes
-                             for safe_mode in safe_pol_modes])
-        if mode_mismatch:
-            err_str = "Unexpected safe file polarization mode"
-            error_channel.log(err_str)
-            raise ValueError(err_str)
-    else:
-        # Check if all modes have H
-        if all(['H' in safe_mode for safe_mode in safe_pol_modes]):
-            group_cfg['processing']['polarization'] = ['HH']
-        # Check if all modes have V
-        elif all(['V' in safe_mode for safe_mode in safe_pol_modes]):
-            group_cfg['processing']['polarization'] = ['VV']
-        # Error: can not mix and match H and V
-        else:
-            err_str = "Safe files contain both H and V pols"
-            error_channel.log(err_str)
-            raise ValueError(err_str)
 
 
 def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
@@ -113,7 +78,8 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
     bursts = {}
 
     # zip pol and IW subswath indices together
-    pols = cfg.processing.polarization
+    mode_to_pols = {'co-pol':['VV'], 'cross-pol':['VH'], 'dual-pol':['VV', 'VH']}
+    pols = mode_to_pols[cfg.processing.polarization]
     i_subswaths = [1, 2, 3]
     zip_list = zip(cycle(pols), i_subswaths)
 
@@ -218,7 +184,7 @@ class RunConfig:
         helpers.deep_update(default_cfg, user_cfg)
 
         # Validate YAML values under groups dict
-        validate_group(default_cfg['runconfig']['groups'])
+        validate_group_dict(default_cfg['runconfig']['groups'])
 
         # Convert runconfig dict to SimpleNamespace
         sns = wrap_namespace(default_cfg['runconfig']['groups'])

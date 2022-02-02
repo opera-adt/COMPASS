@@ -32,15 +32,7 @@ runconfig:
            product_type: enum('CSLC_S1')
 
         # This section includes parameters to tweak the workflow
-        processing:
-           # Polarization to process. If not set, process all polarizations for that burst
-           polarization: any(list('HH', 'HV', 'VH', 'VV'), min=1, max=2, required=True)
-           # Options to run rdr2geo
-           rdr2geo: include('rdr2geo_options', required=False)
-           # Options to run geo2rdr
-           geo2rdr: include('geo2rdr_options', required=False)
-           # Options to run resample
-           resample: include('resample_options', required=False)
+        processing: include('processing_options', required=False)
 
         # Worker options (e.g. enable/disable GPU processing, select GPU device ID)
         worker: include('worker_options', required=False)
@@ -89,3 +81,13 @@ worker_options:
     # Index of the GPU to use for processing, optional. Defaults to the
     # first available CUDA device. Ignored if *gpu_enabled* is False.
     gpu_id: int(min=0, required=False)
+
+processing_options:
+   # Polarization to process. 3 modes below correspond to VV, VH, VV+VH
+   polarization: enum('co-pol', 'cross-pol', 'dual-pol', required=False)
+   # Options to run rdr2geo
+   rdr2geo: include('rdr2geo_options', required=False)
+   # Options to run geo2rdr
+   geo2rdr: include('geo2rdr_options', required=False)
+   # Options to run resample
+   resample: include('resample_options', required=False)

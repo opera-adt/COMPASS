@@ -35,12 +35,29 @@ def validate_group_dict(group_cfg: dict) -> None:
 
     # Check SAFE files
     run_pol_mode = group_cfg['processing']['polarization']
+    safe_pol_modes = []
     for safe_file in input_group['safe_file_path']:
         # Check if files exists
         helpers.check_file_path(safe_file)
 
-        # Check safe pol mode
-        helpers.check_file_polarization_mode(safe_file, run_pol_mode)
+        # Get and save safe pol mode ('SV', 'SH', 'DH', 'DV')
+        safe_pol_mode = helpers.get_file_polarization_mode(safe_file)
+        safe_pol_modes.append(safe_pol_mode)
+
+        # Raise error if given co-pol file and expecting cross-pol or dual-pol
+        if run_pol_mode != 'co-pol' and safe_pol_mode in ['SV', 'SH']:
+            err_str = f'{run_pol_mode} polarization lacks cross-pol in {safe_file}'
+            error_channel.log(err_str)
+            raise ValueError(err_str)
+
+    # Check SAFE file pols consistency. i.e. no *H/*V with *V/*H respectively
+    if len(safe_pol_modes) > 1:
+        first_safe_pol_mode = safe_pol_modes[0][1]
+        for safe_pol_mode in safe_pol_modes[1:]:
+            if safe_pol_mode[1] != first_safe_pol_mode:
+                err_str = 'SH/SV SAFE file mixed with DH/DV'
+                error_channel.log(err_str)
+                raise ValueError(err_str)
 
     for orbit_file in input_group['orbit_file_path']:
         helpers.check_file_path(orbit_file)
@@ -77,14 +94,23 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
     # dict to store bursts keyed by burst_ids
     bursts = {}
 
-    # zip pol and IW subswath indices together
-    mode_to_pols = {'co-pol':['VV'], 'cross-pol':['VH'], 'dual-pol':['VV', 'VH']}
-    pols = mode_to_pols[cfg.processing.polarization]
-    i_subswaths = [1, 2, 3]
-    zip_list = zip(cycle(pols), i_subswaths)
-
     # extract given SAFE zips to find bursts identified in cfg.burst_id
     for safe_file in cfg.input_file_group.safe_file_path:
+        # from SAFE file mode, create dict of runconfig pol mode to polarization(s)
+        safe_pol_mode = helpers.get_file_polarization_mode(safe_file)
+        if safe_pol_mode == 'SV':
+            mode_to_pols = {'co-pol':['VV']}
+        elif safe_pol_mode == 'DV':
+            mode_to_pols = {'co-pol':['VV'], 'cross-pol':['VH'], 'dual-pol':['VV', 'VH']}
+        elif safe_pol_mode == 'SH':
+            mode_to_pols = {'co-pol':['HH']}
+        else:
+            mode_to_pols = {'co-pol':['HH'], 'cross-pol':['HV'], 'dual-pol':['HH', 'HV']}
+        pols = mode_to_pols[cfg.processing.polarization]
+
+        # zip pol and IW subswath indices together
+        i_subswaths = [1, 2, 3]
+        zip_list = zip(cycle(pols), i_subswaths)
 
         # find orbit file
         orbit_path = get_swath_orbit_file_from_list(

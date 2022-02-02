@@ -25,24 +25,31 @@ def check_file_path(file_path: str) -> None:
         raise FileNotFoundError(err_str)
 
 
-def check_file_polarization_mode(file_path: str, expected_mode: str) -> None:
+def get_file_polarization_mode(file_path: str) -> str:
     '''Check polarization mode from file name
 
-    SAFE file name parsed according to:
-    https://sentinel.esa.int/web/sentinel/user-guides/sentinel-1-sar/naming-conventions
+    Taking PP from SAFE file name with following format:
+    MMM_BB_TTTR_LFPP_YYYYMMDDTHHMMSS_YYYYMMDDTHHMMSS_OOOOOO_DDDDDD_CCCC.SAFE
 
     Parameters
     ----------
     file_path : str
         SAFE file name to parse
-    expected_mode : str
-        (co-pol, cross-pol. dual-pol)
+
+    Returns
+    -------
+    original: dict
+        Default dictionary updated with user-defined options
+
+    References
+    ----------
+    https://sentinel.esa.int/web/sentinel/user-guides/sentinel-1-sar/naming-conventions
     '''
+    # index split tokens from rear to account for R in TTTR being possibly
+    # replaced with '_'
     safe_pol_mode = os.path.basename(file_path).split('_')[-6][2:]
-    if expected_mode != 'co-pol' and safe_pol_mode == 'SV':
-        err_str = f'Cross-pol missing in {safe_file}'
-        error_channel.log(err_str)
-        raise ValueError(err_str)
+
+    return safe_pol_mode
 
 
 def deep_update(original, update):

@@ -39,7 +39,7 @@ def validate_group(group_cfg: dict) -> None:
         helpers.check_file_path(safe_file)
 
         # Get safe pol mode
-        safe_pol_modes.append(helpers.get_file_mode(safe_file))
+        safe_pol_modes.append(helpers.get_file_polarization_mode(safe_file))
 
     for orbit_file in input_group['orbit_file_path']:
         helpers.check_file_path(orbit_file)

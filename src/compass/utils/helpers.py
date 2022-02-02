@@ -25,8 +25,22 @@ def check_file_path(file_path: str) -> None:
         raise FileNotFoundError(err_str)
 
 
-def get_file_mode(file_path: str):
-    # extract polarizations from file name
+def get_file_polarization_mode(file_path: str) -> str:
+    '''Get polarization mode from file name
+
+    File name parsed according to:
+    https://sentinel.esa.int/web/sentinel/user-guides/sentinel-1-sar/naming-conventions
+
+    Parameters
+    ----------
+    file_path : str
+        File name to parse
+
+    Returns
+    -------
+    _ : str
+        Polarization mode (SH, SV, DH, DV)
+    '''
     return os.path.basename(file_path).split('_')[-6][2:]
 
 
@@ -101,7 +115,7 @@ def check_dem(dem_path: str):
     """
     error_channel = journal.error('helpers.check_dem')
     try:
-        gdal.Open(dem_path)
+        gdal.Open(dem_path, gdal.GA_ReadOnly)
     except:
         err_str = f'{dem_path} cannot be opened by GDAL'
         error_channel.log(err_str)

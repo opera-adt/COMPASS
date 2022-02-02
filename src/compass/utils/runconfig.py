@@ -109,7 +109,7 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
                     bursts[b_id] = b
 
     if not bursts:
-        err_str = "None of given burst IDs not found in provided safe files"
+        err_str = "Could not find any of the burst IDs in the provided safe files"
         error_channel.log(err_str)
         raise ValueError(err_str)
 

@@ -125,16 +125,26 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
             raise ValueError(err_str)
 
         # loop over pols and subswath index
+        #import ipdb; ipdb.set_trace()
         for pol, i_subswath in zip_list:
 
             # loop over burst objs extracted from SAFE zip
-            for b in burst_from_zip(safe_file, orbit_path, i_subswath, pol):
+            for burst in burst_from_zip(safe_file, orbit_path, i_subswath, pol):
 
-                b_id = b.burst_id
+                burst_id = burst.burst_id
 
-                # if b_id is wanted then store
-                if b_id in cfg.input_file_group.burst_id:
-                    bursts[b_id].append(b)
+                # is burst_id wanted?
+                burst_id_wanted = burst_id in cfg.input_file_group.burst_id
+
+                # does burst_id + pol exist?
+                burst_id_pol_exist = False
+                if burst_id in bursts:
+                    if any([True for b in bursts[burst_id] if b.pol == pol]):
+                        burst_id_pol_exist = True
+
+                # add burst if wanted and doesn't already exist
+                if burst_id_wanted and not burst_id_pol_exist:
+                    bursts[burst_id].append(burst)
 
     if not bursts:
         err_str = "Could not find any of the burst IDs in the provided safe files"

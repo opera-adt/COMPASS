@@ -32,7 +32,9 @@ def validate_group_dict(group_cfg: dict) -> None:
     # burst is assigned and valid (required by geo2rdr and resample)
     is_reference = input_group['reference_burst']['is_reference']
     if not is_reference:
-        helpers.check_file_path(input_group['reference_burst']['file_path'])
+        for file_path in input_group['reference_burst']['file_path']:
+            helpers.check_directory(file_path)
+
 
     # Check SAFE files
     run_pol_mode = group_cfg['processing']['polarization']
@@ -158,6 +160,7 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
         error_channel.log(err_str)
         raise ValueError(err_str)
 
+
     return list(bursts.values())
 
 
@@ -260,11 +263,19 @@ class RunConfig:
 
     @property
     def reference_path(self) -> str:
-        return self.groups.reference_burst.file_path
+        return self.groups.input_file_group.reference_burst.file_path
 
     @property
     def rdr2geo_params(self) -> dict:
         return self.groups.processing.rdr2geo
+
+    @property
+    def geo2rdr_params(self) -> dict:
+        return self.groups.processing.geo2rdr
+
+    @property
+    def resample_params(self) -> dict:
+        return self.groups.processing.resample
 
     @property
     def safe_files(self) -> list[str]:

@@ -45,7 +45,7 @@ reference_burst_options:
     is_reference: bool()
     # File path to reference burst to which coregister secondary burst.
     # Only used if the flag is_reference is set to False.
-    file_path: str(required=False)
+    file_path: list(str(), min=1, required=False)
 
 geo2rdr_options:
    # Convergence threshold for rdr2geo algorithm

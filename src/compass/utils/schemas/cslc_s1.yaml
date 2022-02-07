@@ -11,13 +11,13 @@ runconfig:
            # Required. List of orbit (EOF) files
            orbit_file_path: list(str(), min=1)
            # List of (unique) burst ID to process
-           burst_id: list(str(), min=1, required=False)
+           burst_id: list(str(), min=1, required=True)
            # Reference burst options
            reference_burst: include('reference_burst_options', required=False)
 
         dynamic_ancillary_file_group:
            # Digital Elevation Model.
-           dem_file: include(str(), required=False)
+           dem_file: str(required=False)
 
         product_path_group:
            # Directory where PGE will place results
@@ -32,20 +32,12 @@ runconfig:
            product_type: enum('CSLC_S1')
 
         # This section includes parameters to tweak the workflow
-        processing:
-           # Polarization to process. If not set, process all polarizations for that burst
-           polarization: any(list('HH', 'HV', 'VH', 'VV'), min=1, max=4), str(min=2, max=2), required=False)
+        processing: include('processing_options', required=False)
 
-           # Options to run rdr2geo
-           rdr2geo: include('rdr2geo_options', required=False)
+        # Worker options (e.g. enable/disable GPU processing, select GPU device ID)
+        worker: include('worker_options', required=False)
 
-           # Options to run geo2rdr
-           geo2rdr: include('rdr2geo_geo2rdr_shared_options', required=False)
-
-           # Options to run resample
-           resample: include('resample_options', required=False)
-
-
+---
 # Group of processing options
 reference_burst_options:
     # Required. Flag indicating reference burst.
@@ -55,7 +47,7 @@ reference_burst_options:
     # Only used if the flag is_reference is set to False.
     file_path: str(required=False)
 
-rdr2geo_geo2rdr_shared_options:
+geo2rdr_options:
    # Convergence threshold for rdr2geo algorithm
    threshold: num(min=0, required=False)
    # Maximum number of iterations
@@ -64,13 +56,38 @@ rdr2geo_geo2rdr_shared_options:
    lines_per_block: int(min=1, required=False)
 
 rdr2geo_options:
-   # rdr2geo and geo2rdr shared options
-   include('rdr2geo_geo2rdr_shared_options', required=False)
+   # Convergence threshold for rdr2geo algorithm
+   threshold: num(min=0, required=False)
+   # Maximum number of iterations
+   numiter: int(min=1, required=False)
+   # Lines per block to process in batch
+   lines_per_block: int(min=1, required=False)
    # Secondary number of iterations
    extraiter: int(min=1, required=False)
+   # Enable/disable layover shadow mask output
+   compute_mask: bool(required=False)
 
 resample_options:
    # Lines per block to process in batch
    lines_per_block: int(min=1, required=False)
 
+worker_options:
+    # To prevent downloading DEM / other data automatically. Default True
+    internet_access: bool(required=False)
 
+    # Enable/Disable GPU processing capabilities. Default False
+    gpu_enabled: bool(required=False)
+
+    # Index of the GPU to use for processing, optional. Defaults to the
+    # first available CUDA device. Ignored if *gpu_enabled* is False.
+    gpu_id: int(min=0, required=False)
+
+processing_options:
+   # Polarization to process. 3 modes below correspond to VV, VH, VV+VH
+   polarization: enum('co-pol', 'cross-pol', 'dual-pol', required=False)
+   # Options to run rdr2geo
+   rdr2geo: include('rdr2geo_options', required=False)
+   # Options to run geo2rdr
+   geo2rdr: include('geo2rdr_options', required=False)
+   # Options to run resample
+   resample: include('resample_options', required=False)

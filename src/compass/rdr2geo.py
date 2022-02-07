@@ -90,7 +90,8 @@ def run(cfg):
         raster_list = [raster for raster in raster_list if raster is not None]
 
         # save non-None rasters to vrt
-        isce3.io.Raster(f'{output_path}/topo.vrt', raster_list)
+        output_vrt = isce3.io.Raster(f'{output_path}/topo.vrt', raster_list)
+        output_vrt.set_epsg(rdr2geo_obj.epsg_out)
 
     dt = time.time() - t_start
     info_channel.log(f"rdr2geo successfully ran in {dt:.3f} seconds")

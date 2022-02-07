@@ -42,11 +42,11 @@ def run(cfg: dict):
         geo2rdr = isce3.geometry.Geo2Rdr
 
     # Get specific geo2rdr parameters from runconfig
-    threshold = cfg.geo2rdr_params.__dict__["threshold"]
-    iters = cfg.geo2rdr_params.__dict__["numiter"]
-    blocksize = cfg.geo2rdr_params.__dict__["lines_per_block"]
+    threshold = cfg.geo2rdr_params.threshold
+    iters = cfg.geo2rdr_params.numiter
+    blocksize = cfg.geo2rdr_params.lines_per_block
 
-    for file_path,bursts in zip(cfg.reference_path, cfg.bursts):
+    for file_path, bursts in zip(cfg.reference_path, cfg.bursts):
         # Create output directory
         output_path = f'{cfg.scratch_path}/' \
                       f'{bursts[0].burst_id}/geo2rdr'

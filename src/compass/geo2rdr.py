@@ -32,10 +32,14 @@ def run(cfg: dict):
     ellipsoid = proj.ellipsoid
 
     # Check if user wants to use GPU for processing
+    # Initialize CPU or GPU geo2rdr object
     use_gpu = isce3.core.gpu_check.use_gpu(cfg.gpu_enabled, cfg.gpu_id)
     if use_gpu:
         device = isce3.core.cuda.Device(cfg.gpu_id)
         isce3.cuda.core.set_device(device)
+        geo2rdr = isce3.cuda.geometry.Geo2Rdr
+    else:
+        geo2rdr = isce3.geometry.Geo2Rdr
 
     # Get specific geo2rdr parameters from runconfig
     threshold = cfg.geo2rdr_params.__dict__["threshold"]
@@ -55,12 +59,6 @@ def run(cfg: dict):
         for burst in bursts:
             rdr_grid = burst.as_isce3_radargrid()
             orbit = burst.orbit
-
-            # Initialize CPU or GPU geo2rdr object
-            if use_gpu:
-                geo2rdr = isce3.cuda.geometry.Geo2Rdr
-            else:
-                geo2rdr = isce3.geometry.Geo2Rdr
 
             # Initialize geo2rdr object
             geo2rdr_obj = geo2rdr(rdr_grid, orbit, ellipsoid,

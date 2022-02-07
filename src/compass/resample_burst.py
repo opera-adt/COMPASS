@@ -27,10 +27,14 @@ def run(cfg: dict):
     t_start = time.time()
 
     # Check if user wants to use GPU for processing
+    # Instantiate and initialize resample object
     use_gpu = isce3.core.gpu_check.use_gpu(cfg.gpu_enabled, cfg.gpu_id)
     if use_gpu:
         device = isce3.core.cuda.Device(cfg.gpu_id)
         isce3.cuda.core.set_device(device)
+        resamp = isce3.cuda.image.ResampSlc
+    else:
+        resamp = isce3.image.ResampSlc
 
     # Get common resample parameters
     blocksize = cfg.resample_params.lines_per_block
@@ -46,12 +50,6 @@ def run(cfg: dict):
 
             # Extract azimuth carrier polynomials
             az_poly = burst.get_az_carrier_poly(index_as_coord=True)
-
-            # Instantiate and initialize resample object
-            if use_gpu:
-               resamp = isce3.cuda.image.ResampSlc
-            else:
-               resamp = isce3.image.ResampSlc
 
             resamp_obj = resamp(rdr_grid, burst.doppler.lut2d,
                                 az_poly)

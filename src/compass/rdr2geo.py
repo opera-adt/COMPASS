@@ -26,12 +26,15 @@ def run(cfg):
     proj = isce3.core.make_projection(epsg)
     ellipsoid = proj.ellipsoid
 
-    # check if gpu ok to use
+    # check if gpu ok to use and init CPU or CUDA object accordingly
     use_gpu = isce3.core.gpu_check.use_gpu(cfg.gpu_enabled, cfg.gpu_id)
     if use_gpu:
         # Set the current CUDA device.
         device = isce3.cuda.core.Device(cfg.gpu_id)
         isce3.cuda.core.set_device(device)
+        Rdr2Geo = isce3.cuda.geometry.Rdr2Geo
+    else:
+        Rdr2Geo = isce3.geometry.Rdr2Geo
 
     # save SLC for all bursts
     # run rdr2geo for only once per burst_id
@@ -51,12 +54,6 @@ def run(cfg):
 
         # init grid doppler
         grid_doppler = isce3.core.LUT2d()
-
-        # init CPU or CUDA object accordingly
-        if use_gpu:
-            Rdr2Geo = isce3.cuda.geometry.Rdr2Geo
-        else:
-            Rdr2Geo = isce3.geometry.Rdr2Geo
 
         # init rdr2geo obj
         rdr2geo_obj = Rdr2Geo(

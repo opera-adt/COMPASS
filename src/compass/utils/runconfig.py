@@ -138,13 +138,17 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
                 # does burst_id + pol exist?
                 burst_id_pol_exist = False
                 if burst_id in bursts:
-                    if any([True for b in bursts[burst_id] if b.pol == pol]):
+                    if any([True for b in bursts[burst_id]
+                            if b.polarization == pol]):
                         burst_id_pol_exist = True
 
-                # if not rdr2geo/reference, then ok to add more than 1 instance
-                # of burst_id + pol
+                # ok to add logic table
+                # is_ref\id_pol_exist | true  | false
+                # --------------------+-------+-------
+                # true                | false | true
+                # false               | true  | true
                 is_ref = cfg.input_file_group.reference_burst.is_reference
-                ok_to_add = not is_ref and not burst_id_pol_exist
+                ok_to_add = not is_ref or not burst_id_pol_exist
 
                 # add burst if wanted and doesn't already exist
                 if burst_id_wanted and ok_to_add:

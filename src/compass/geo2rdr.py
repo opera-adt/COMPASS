@@ -35,7 +35,7 @@ def run(cfg: dict):
     # Initialize CPU or GPU geo2rdr object
     use_gpu = isce3.core.gpu_check.use_gpu(cfg.gpu_enabled, cfg.gpu_id)
     if use_gpu:
-        device = isce3.core.cuda.Device(cfg.gpu_id)
+        device = isce3.cuda.core.Device(cfg.gpu_id)
         isce3.cuda.core.set_device(device)
         geo2rdr = isce3.cuda.geometry.Geo2Rdr
     else:
@@ -46,28 +46,46 @@ def run(cfg: dict):
     iters = cfg.geo2rdr_params.numiter
     blocksize = cfg.geo2rdr_params.lines_per_block
 
-    for file_path, bursts in zip(cfg.reference_path, cfg.bursts):
-        # Create output directory
-        output_path = f'{cfg.scratch_path}/' \
-                      f'{bursts[0].burst_id}/geo2rdr'
-        os.makedirs(output_path, exist_ok=True)
+    # Process all bursts
+    for bursts in cfg.bursts:
+        # Create top output path
+        top_output_path = f'{cfg.scratch_path}/{bursts[0].burst_id}'
+        os.makedirs(top_output_path, exist_ok=True)
 
-        # Get topo layers
-        topo_raster = isce3.io.Raster(f'{file_path}/topo.vrt')
+        # Keep track of dates processed
+        dates_processed = []
 
-        # Get 1st burst and associated radar grid + orbit
-        # geo2rdr does not need polarization
-        burst = bursts[0]
-        rdr_grid = burst.as_isce3_radargrid()
-        orbit = burst.orbit
+        # Process bursts with same burst ID
+        for burst in bursts:
+            # Extract date string and create directory
+            date_str = str(burst.sensing_start.date())
 
-        # Initialize geo2rdr object
-        geo2rdr_obj = geo2rdr(rdr_grid, orbit, ellipsoid,
-                              isce3.core.LUT2d(),
-                              threshold, iters,
-                              blocksize)
-        # Execute geo2rdr
-        geo2rdr_obj.geo2rdr(topo_raster, output_path)
+            # If date has been processed, do not re-run geo2rdr
+            # This avoid geo2rdr reprocessing for dual-pol
+            if date_str in dates_processed:
+                continue
+            dates_processed.append(date_str)
+
+            # Create date directory
+            burst_output_path = f'{top_output_path}/{date_str}'
+            os.makedirs(burst_output_path, exist_ok=True)
+
+            # Get topo layers
+            input_path = f'{cfg.reference_path}/{burst.burst_id}'
+            topo_raster = isce3.io.Raster(f'{input_path}/topo.vrt')
+
+            # Get radar grid and orbit
+            rdr_grid = burst.as_isce3_radargrid()
+            orbit = burst.orbit
+
+            # Initialize geo2rdr object
+            geo2rdr_obj = geo2rdr(rdr_grid, orbit, ellipsoid,
+                                  isce3.core.LUT2d(),
+                                  threshold, iters,
+                                  blocksize)
+
+            # Execute geo2rdr
+            geo2rdr_obj.geo2rdr(topo_raster, burst_output_path)
 
     dt = time.time() - t_start
     info_channel.log(f"geo2rdr successfully ran in {dt:.3f} seconds")

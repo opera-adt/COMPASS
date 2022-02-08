@@ -32,9 +32,7 @@ def validate_group_dict(group_cfg: dict) -> None:
     # burst is assigned and valid (required by geo2rdr and resample)
     is_reference = input_group['reference_burst']['is_reference']
     if not is_reference:
-        for file_path in input_group['reference_burst']['file_path']:
-            helpers.check_directory(file_path)
-
+        helpers.check_directory(input_group['reference_burst']['file_path'])
 
     # Check SAFE files
     run_pol_mode = group_cfg['processing']['polarization']
@@ -80,7 +78,7 @@ def validate_group_dict(group_cfg: dict) -> None:
 
 
 def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
-    '''For each burst find corresponding orbit'
+    '''Return bursts based on parameters in given runconfig
 
     Parameters
     ----------
@@ -127,7 +125,6 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
             raise ValueError(err_str)
 
         # loop over pols and subswath index
-        #import ipdb; ipdb.set_trace()
         for pol, i_subswath in zip_list:
 
             # loop over burst objs extracted from SAFE zip
@@ -144,8 +141,13 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
                     if any([True for b in bursts[burst_id] if b.pol == pol]):
                         burst_id_pol_exist = True
 
+                # if not rdr2geo/reference, then ok to add more than 1 instance
+                # of burst_id + pol
+                is_ref = cfg.input_file_group.reference_burst.is_reference
+                ok_to_add = not is_ref and not burst_id_pol_exist
+
                 # add burst if wanted and doesn't already exist
-                if burst_id_wanted and not burst_id_pol_exist:
+                if burst_id_wanted and ok_to_add:
                     bursts[burst_id].append(burst)
 
     if not bursts:

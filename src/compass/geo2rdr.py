@@ -55,18 +55,19 @@ def run(cfg: dict):
         # Get topo layers
         topo_raster = isce3.io.Raster(f'{file_path}/topo.vrt')
 
-        # Get radar grid and orbit for the burst
-        for burst in bursts:
-            rdr_grid = burst.as_isce3_radargrid()
-            orbit = burst.orbit
+        # Get 1st burst and associated radar grid + orbit
+        # geo2rdr does not need polarization
+        burst = bursts[0]
+        rdr_grid = burst.as_isce3_radargrid()
+        orbit = burst.orbit
 
-            # Initialize geo2rdr object
-            geo2rdr_obj = geo2rdr(rdr_grid, orbit, ellipsoid,
-                                  isce3.core.LUT2d(),
-                                  threshold, iters,
-                                  blocksize)
-            # Execute geo2rdr
-            geo2rdr_obj.geo2rdr(topo_raster, output_path)
+        # Initialize geo2rdr object
+        geo2rdr_obj = geo2rdr(rdr_grid, orbit, ellipsoid,
+                              isce3.core.LUT2d(),
+                              threshold, iters,
+                              blocksize)
+        # Execute geo2rdr
+        geo2rdr_obj.geo2rdr(topo_raster, output_path)
 
     dt = time.time() - t_start
     info_channel.log(f"geo2rdr successfully ran in {dt:.3f} seconds")

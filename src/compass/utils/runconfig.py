@@ -12,7 +12,7 @@ from ruamel.yaml import YAML
 from compass.utils import helpers
 from compass.utils.wrap_namespace import wrap_namespace
 from sentinel1_reader.sentinel1_burst_slc import Sentinel1BurstSlc
-from sentinel1_reader.sentinel1_orbit_reader import get_swath_orbit_file_from_list
+from sentinel1_reader.sentinel1_orbit_reader import get_orbit_file_from_list
 from sentinel1_reader.sentinel1_reader import burst_from_zip
 
 
@@ -32,9 +32,7 @@ def validate_group_dict(group_cfg: dict) -> None:
     # burst is assigned and valid (required by geo2rdr and resample)
     is_reference = input_group['reference_burst']['is_reference']
     if not is_reference:
-        for file_path in input_group['reference_burst']['file_path']:
-            helpers.check_directory(file_path)
-
+        helpers.check_directory(input_group['reference_burst']['file_path'])
 
     # Check SAFE files
     run_pol_mode = group_cfg['processing']['polarization']
@@ -80,7 +78,7 @@ def validate_group_dict(group_cfg: dict) -> None:
 
 
 def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
-    '''For each burst find corresponding orbit'
+    '''Return bursts based on parameters in given runconfig
 
     Parameters
     ----------
@@ -117,7 +115,7 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
         zip_list = zip(cycle(pols), i_subswaths)
 
         # find orbit file
-        orbit_path = get_swath_orbit_file_from_list(
+        orbit_path = get_orbit_file_from_list(
             safe_file,
             cfg.input_file_group.orbit_file_path)
 
@@ -127,7 +125,6 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
             raise ValueError(err_str)
 
         # loop over pols and subswath index
-        #import ipdb; ipdb.set_trace()
         for pol, i_subswath in zip_list:
 
             # loop over burst objs extracted from SAFE zip
@@ -141,11 +138,20 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
                 # does burst_id + pol exist?
                 burst_id_pol_exist = False
                 if burst_id in bursts:
-                    if any([True for b in bursts[burst_id] if b.pol == pol]):
+                    if any([True for b in bursts[burst_id]
+                            if b.polarization == pol]):
                         burst_id_pol_exist = True
 
+                # ok to add logic table
+                # is_ref\id_pol_exist | true  | false
+                # --------------------+-------+-------
+                # true                | false | true
+                # false               | true  | true
+                is_ref = cfg.input_file_group.reference_burst.is_reference
+                ok_to_add = not is_ref or not burst_id_pol_exist
+
                 # add burst if wanted and doesn't already exist
-                if burst_id_wanted and not burst_id_pol_exist:
+                if burst_id_wanted and ok_to_add:
                     bursts[burst_id].append(burst)
 
     if not bursts:

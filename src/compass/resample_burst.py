@@ -39,11 +39,14 @@ def run(cfg: dict):
     # Get common resample parameters
     blocksize = cfg.resample_params.lines_per_block
 
+    # Process all bursts
+    # cfg.bursts is list[list[burst]]. This loop iterates over outer list.
     for bursts in cfg.bursts:
         # Create top output path
         top_output_path = f'{cfg.product_path}/{bursts[0].burst_id}'
         os.makedirs(top_output_path, exist_ok=True)
 
+        # Process inner list of bursts that share same burst ID
         for burst in bursts:
             # Extract date string and create directory
             date_str = str(burst.sensing_start.date())
@@ -72,7 +75,7 @@ def run(cfg: dict):
 
             # Get original SLC as raster object
             sec_burst_path = f'{cfg.scratch_path}/{burst.burst_id}_{date_str}_{pol}.slc'
-            burst.slc_to_file(sec_burst_path)
+            burst.slc_to_vrt_file(sec_burst_path)
             original_raster = isce3.io.Raster(sec_burst_path)
 
             # Prepare resamled SLC as raster object
@@ -80,8 +83,7 @@ def run(cfg: dict):
             resampled_raster = isce3.io.Raster(coreg_burst_path,
                                                rg_off_raster.width,
                                                rg_off_raster.length,
-                                               rg_off_raster.num_bands,
-                                               gdal.GDT_CFloat32,
+                                               1, gdal.GDT_CFloat32,
                                                'ENVI')
 
             resamp_obj.resamp(original_raster, resampled_raster,

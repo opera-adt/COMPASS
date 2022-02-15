@@ -138,17 +138,15 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
                 # does burst_id + pol exist?
                 burst_id_pol_exist = False
                 if burst_id in bursts:
-                    if any([True for b in bursts[burst_id]
-                            if b.polarization == pol]):
-                        burst_id_pol_exist = True
+                    burst_id_pol_exist = any([True for b in bursts[burst_id]
+                                              if b.polarization == pol])
 
-                # ok to add logic table
-                # is_ref\id_pol_exist | true  | false
-                # --------------------+-------+-------
-                # true                | false | true
-                # false               | true  | true
-                is_ref = cfg.input_file_group.reference_burst.is_reference
-                ok_to_add = not is_ref or not burst_id_pol_exist
+                # check if not a reference burst
+                not_ref = not cfg.input_file_group.reference_burst.is_reference
+
+                # if not reference burst, then always ok to add
+                # if is reference burst, only ok to add if id/pol combo does not exist
+                ok_to_add = not_ref or not burst_id_pol_exist
 
                 # add burst if wanted and doesn't already exist
                 if burst_id_wanted and ok_to_add:

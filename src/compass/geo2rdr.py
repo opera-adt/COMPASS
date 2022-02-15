@@ -47,6 +47,7 @@ def run(cfg: dict):
     blocksize = cfg.geo2rdr_params.lines_per_block
 
     # Process all bursts
+    # cfg.bursts is list[list[burst]]. This loop iterates over outer list.
     for bursts in cfg.bursts:
         # Create top output path
         top_output_path = f'{cfg.scratch_path}/{bursts[0].burst_id}'
@@ -55,13 +56,12 @@ def run(cfg: dict):
         # Keep track of dates processed
         dates_processed = []
 
-        # Process bursts with same burst ID
+        # Process inner list of bursts that share same burst ID
         for burst in bursts:
             # Extract date string and create directory
             date_str = str(burst.sensing_start.date())
 
-            # If date has been processed, do not re-run geo2rdr
-            # This avoid geo2rdr reprocessing for dual-pol
+            # This ensures running geo2rdr only once; avoiding running for the different polarizations of the same burst_id
             if date_str in dates_processed:
                 continue
             dates_processed.append(date_str)

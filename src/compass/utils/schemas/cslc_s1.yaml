@@ -70,6 +70,8 @@ rdr2geo_options:
 resample_options:
    # Lines per block to process in batch
    lines_per_block: int(min=1, required=False)
+   # Flatten resampled SLC
+   flatten: bool(required=False)
 
 worker_options:
     # To prevent downloading DEM / other data automatically. Default True

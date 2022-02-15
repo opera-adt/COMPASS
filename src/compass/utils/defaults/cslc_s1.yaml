@@ -47,6 +47,7 @@ runconfig:
                numiter: 25
            resample:
                lines_per_block: 1000
+               flatten: False
 
        worker:
            # OPTIONAL - To prevent downloading DEM / other data automatically. Default True

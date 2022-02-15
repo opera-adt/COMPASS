@@ -87,7 +87,8 @@ def run(cfg: dict):
                                                'ENVI')
 
             resamp_obj.resamp(original_raster, resampled_raster,
-                              rg_off_raster, az_off_raster)
+                              rg_off_raster, az_off_raster,
+                              flatten=cfg.resample_params.flatten)
 
     dt = time.time() - t_start
     info_channel.log(f"resample burst successfully ran in {dt:.3f} seconds")

@@ -1,12 +1,12 @@
 """Wrapper for resample burst"""
-import time
 import os
+import time
 
 import isce3
 import journal
-
 from osgeo import gdal
 
+from compass.utils.reference_radar_grid import file_to_rdr_grid
 from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -42,9 +42,16 @@ def run(cfg: dict):
     # Process all bursts
     # cfg.bursts is list[list[burst]]. This loop iterates over outer list.
     for bursts in cfg.bursts:
+        # get burst ID of current list of bursts
+        burst_id = bursts[0].burst_id
+
         # Create top output path
-        top_output_path = f'{cfg.product_path}/{bursts[0].burst_id}'
+        top_output_path = f'{cfg.product_path}/{burst_id}'
         os.makedirs(top_output_path, exist_ok=True)
+
+        # Get reference burst radar grid
+        ref_grid_path = f'{cfg.reference_path}/{burst_id}/radar_grid.txt'
+        ref_rdr_grid = file_to_rdr_grid(ref_grid_path)
 
         # Process inner list of bursts that share same burst ID
         for burst in bursts:
@@ -64,17 +71,17 @@ def run(cfg: dict):
 
             # Init resample SLC object
             resamp_obj = resamp(rdr_grid, burst.doppler.lut2d,
-                                az_poly)
+                                az_poly, ref_rdr_grid=ref_rdr_grid)
             resamp_obj.lines_per_tile = blocksize
 
             # Get range and azimuth offsets
             offset_path = f'{cfg.scratch_path}/' \
-                          f'{burst.burst_id}/{date_str}'
+                          f'{burst_id}/{date_str}'
             rg_off_raster = isce3.io.Raster(f'{offset_path}/range.off')
             az_off_raster = isce3.io.Raster(f'{offset_path}/azimuth.off')
 
             # Get original SLC as raster object
-            sec_burst_path = f'{cfg.scratch_path}/{burst.burst_id}_{date_str}_{pol}.slc'
+            sec_burst_path = f'{cfg.scratch_path}/{burst_id}_{date_str}_{pol}.slc'
             burst.slc_to_vrt_file(sec_burst_path)
             original_raster = isce3.io.Raster(sec_burst_path)
 

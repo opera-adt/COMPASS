@@ -9,6 +9,7 @@ import isce3
 import journal
 from osgeo import gdal
 
+from compass.utils.reference_radar_grid import rdr_grid_to_file
 from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -44,12 +45,17 @@ def run(cfg):
         os.makedirs(output_path, exist_ok=True)
 
         # save SLC to ENVI for all bursts
+        # run rdr2geo for only 1 burst avoid redundancy
         for burst in bursts:
             burst.slc_to_file(f'{output_path}/{burst.polarization}.slc')
 
-        # run rdr2geo for only 1 burst avoid redundancy
-        # get isce3 objs from burst
+        # get radar grid of last SLC written and save for resample flattening
         rdr_grid = burst.as_isce3_radargrid()
+        ref_grid_path = f'{output_path}/radar_grid.txt'
+        rdr_grid_to_file(ref_grid_path, rdr_grid)
+        file_to_rdr_grid(ref_grid_path)
+
+        # get isce3 objs from burst
         isce3_orbit = burst.orbit
 
         # init grid doppler

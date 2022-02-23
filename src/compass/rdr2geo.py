@@ -53,7 +53,6 @@ def run(cfg):
         rdr_grid = burst.as_isce3_radargrid()
         ref_grid_path = f'{output_path}/radar_grid.txt'
         rdr_grid_to_file(ref_grid_path, rdr_grid)
-        file_to_rdr_grid(ref_grid_path)
 
         # get isce3 objs from burst
         isce3_orbit = burst.orbit

@@ -12,7 +12,7 @@ from ruamel.yaml import YAML
 from compass.utils import helpers
 from compass.utils.wrap_namespace import wrap_namespace
 from sentinel1_reader.sentinel1_burst_slc import Sentinel1BurstSlc
-from sentinel1_reader.sentinel1_orbit_reader import get_swath_orbit_file_from_list
+from sentinel1_reader.sentinel1_orbit_reader import get_orbit_file_from_list
 from sentinel1_reader.sentinel1_reader import burst_from_zip
 
 
@@ -115,7 +115,7 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
         zip_list = zip(cycle(pols), i_subswaths)
 
         # find orbit file
-        orbit_path = get_swath_orbit_file_from_list(
+        orbit_path = get_orbit_file_from_list(
             safe_file,
             cfg.input_file_group.orbit_file_path)
 
@@ -186,7 +186,7 @@ class RunConfig:
         try:
             # Load schema corresponding to 'workflow_name' and to validate against
             schema = yamale.make_schema(
-                f'{helpers.WORKFLOW_SCRIPTS_DIR}/schemas/cslc_s1.yaml',
+                f'{helpers.WORKFLOW_SCRIPTS_DIR}/schemas/{workflow_name}.yaml',
                 parser='ruamel')
         except:
             err_str = f'unable to load schema for workflow {workflow_name}.'

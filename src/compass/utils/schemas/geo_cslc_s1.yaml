@@ -1,0 +1,100 @@
+runconfig:
+    name: str()
+
+    groups:
+        pge_name_group:
+           pge_name: enum('CSLC_S1_PGE')
+
+        input_file_group:
+           # Required. List of SAFE files (min=1)
+           safe_file_path: list(str(), min=1)
+           # Required. List of orbit (EOF) files
+           orbit_file_path: list(str(), min=1)
+           # List of (unique) burst ID to process
+           burst_id: list(str(), min=1, required=True)
+
+        dynamic_ancillary_file_group:
+           # Digital Elevation Model.
+           dem_file: str(required=False)
+
+        product_path_group:
+           # Directory where PGE will place results
+           product_path: str()
+           # Directory where SAS can write temporary data
+           scratch_path: str()
+           # Intermediate file name. SAS writes the output to this file.
+           # PGE may rename the product according to file naming convention
+           sas_output_file: str()
+
+        primary_executable:
+          product_type: enum('CSLC_S1')
+
+        # This section includes parameters to tweak the workflow
+        processing: include('processing_options', required=False)
+
+        # Worker options (e.g. enable/disable GPU processing, select GPU device ID)
+        worker: include('worker_options', required=False)
+
+---
+# Group of processing options
+processing_options:
+   # Polarization to process. 3 modes below correspond to VV, VH, VV+VH
+   polarization: enum('co-pol', 'cross-pol', 'dual-pol', required=False)
+   # Options to run geocoding
+   geocoding: include('geocoding_options', required=False)
+   # Options to run geo2rdr
+   geo2rdr: include('geo2rdr_options', required=False)
+   # Range split-spectrum options
+   range_split_spectrum: include('range_split_spectrum_options', required=False)
+
+geocoding_options:
+   # DEM margin
+   dem_margin: num(required=False)
+   # Number of lines to process in batch
+   lines_per_block: int(min=1, required=False)
+   # Product EPSG code. Same as DEM if not provided
+   output_epsg: int(min=1024, max=32767, required=False)
+   # Product posting along X (same units as output_epsg)
+   x_posting: num(min=0, required=False)
+   # Product posting along Y (same units as output_epsg)
+   y_posting: num(min=0, required=False)
+   # Controls the product grid along X (same units as output_epsg)
+   x_snap: num(min=0, required=False)
+   # Controls the product grid along Y (same units as output_epsg)
+   y_snap: num(min=0, required=False)
+   # Top-left coordinates (same units as output_epsg)
+   top_left:
+     x: num(required=False)
+     y: num(required=False)
+   # Bottom-right coordinates (same units as output_epsg)
+   bottom_right:
+     x: num(required=False)
+     y: num(required=False)
+
+geo2rdr_options:
+  # Convergence threshold for geo2rdr algorithm
+  threshold: num(min=0, required=False)
+  # Maximum number of iterations
+  numiter: int(min=1, required=False)
+  # Lines per block to process in batch
+  lines_per_block: int(min=1, required=False)
+
+range_split_spectrum_options:
+  # Boolean flag to enable/disable split-spectrum
+  enabled: bool(required=False)
+  # Lines per block to process in batch
+  lines_per_block: int(min=1, required=False)
+  # Bandwidth of the low-band sub-image
+  low_band_bandwidth: num(min=0, required=False)
+  # Bandwidth of the high-band sub-image
+  high_band_bandwidth: num(min=0, required=False)
+
+worker_options:
+  # To prevent downloading DEM / other data automatically. Default True
+  internet_access: bool(required=False)
+  # Enable/Disable GPU processing capabilities. Default False
+  gpu_enabled: bool(required=False)
+  # Index of the GPU to use for processing, optional. Defaults to the
+  # first available CUDA device. Ignored if *gpu_enabled* is False.
+  gpu_id: int(min=0, required=False)
+

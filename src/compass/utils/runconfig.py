@@ -16,7 +16,7 @@ from sentinel1_reader.sentinel1_orbit_reader import get_orbit_file_from_list
 from sentinel1_reader.sentinel1_reader import burst_from_zip
 
 
-def validate_group_dict(group_cfg: dict) -> None:
+def validate_group_dict(group_cfg: dict, workflow_name) -> None:
     """Check and validate runconfig entries.
 
     Parameters
@@ -30,9 +30,10 @@ def validate_group_dict(group_cfg: dict) -> None:
     input_group = group_cfg['input_file_group']
     # If is_reference flag is False, check that file path to reference
     # burst is assigned and valid (required by geo2rdr and resample)
-    is_reference = input_group['reference_burst']['is_reference']
-    if not is_reference:
-        helpers.check_file_path(input_group['reference_burst']['file_path'])
+    if workflow_name == 'cslc_s1':
+       is_reference = input_group['reference_burst']['is_reference']
+       if not is_reference:
+          helpers.check_file_path(input_group['reference_burst']['file_path'])
 
     # Check SAFE files
     run_pol_mode = group_cfg['processing']['polarization']
@@ -214,7 +215,7 @@ class RunConfig:
 
         # load default runconfig
         parser = YAML(typ='safe')
-        default_cfg_path = f'{helpers.WORKFLOW_SCRIPTS_DIR}/defaults/cslc_s1.yaml'
+        default_cfg_path = f'{helpers.WORKFLOW_SCRIPTS_DIR}/defaults/{workflow_name}.yaml'
         with open(default_cfg_path, 'r') as f_default:
             default_cfg = parser.load(f_default)
 
@@ -225,7 +226,7 @@ class RunConfig:
         helpers.deep_update(default_cfg, user_cfg)
 
         # Validate YAML values under groups dict
-        validate_group_dict(default_cfg['runconfig']['groups'])
+        validate_group_dict(default_cfg['runconfig']['groups'], workflow_name)
 
         # Convert runconfig dict to SimpleNamespace
         sns = wrap_namespace(default_cfg['runconfig']['groups'])
@@ -265,6 +266,18 @@ class RunConfig:
     @property
     def rdr2geo_params(self) -> dict:
         return self.groups.processing.rdr2geo
+
+    @property
+    def geo2rdr_params(self) -> dict:
+        return self.groups.processing.geo2rdr
+
+    @property
+    def geocoding_params(self) -> dict:
+        return self.groups.processing.geocoding
+
+    @property
+    def split_spectrum_params(self) -> dict:
+        return self.groups.processing.range_split_spectrum
 
     @property
     def safe_files(self) -> list[str]:

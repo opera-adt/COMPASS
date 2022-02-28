@@ -48,6 +48,8 @@ processing_options:
    range_split_spectrum: include('range_split_spectrum_options', required=False)
 
 geocoding_options:
+   # Boolean flag to enable/disable flattenin
+   flatten: bool(required=False)
    # DEM margin
    dem_margin: num(required=False)
    # Number of lines to process in batch

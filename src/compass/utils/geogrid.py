@@ -18,8 +18,31 @@ def assign_check_epsg(epsg, epsg_default):
 
 def assign_check_spacing(x_spacing, y_spacing,
                          x_default_spacing, y_default_spacing):
+    '''
+    Check validity of input spacings and assign default spacings
+    if one or both input spacings are None
+
+    Parameters:
+    ----------
+    x_spacing: float
+       Input spacing of the geogrid along X-direction
+    y_spacing: float
+       Input spacing of the geogrid along Y-direction
+    x_default_spacing: float
+       Default spacing of the geogrid along X-direction
+    y_default_spacing: float
+       Default spacing of the geogrid along Y-direction
+
+    Returns:
+    -------
+    x_spacing: float
+       Verified geogrid spacing along X-direction
+    y_spacing: float
+       Verified geogrid spacing along Y-direction
+    '''
     error_channel = journal.error('geogrid.assign_check_spacing')
-    # Check if spacing are correctly assigned
+
+    # Check tha x-y_spacings are valid (positive)
     if y_spacing is not None:
         assert y_spacing > 0.0
         y_spacing = -1.0 * y_spacing
@@ -32,6 +55,8 @@ def assign_check_spacing(x_spacing, y_spacing,
         assert x_default_spacing > 0.0
         x_spacing = x_default_spacing
 
+    # Check that x-y_spacings have been correctly assigned
+    # (check on default spacings)
     if x_spacing <= 0:
         err_str = f'Pixel spacing in X/longitude direction needs to be >=0 (x_spacing: {x_spacing})'
         error_channel.log(err_str)
@@ -45,13 +70,37 @@ def assign_check_spacing(x_spacing, y_spacing,
 
 def assign_check_geogrid(geo_grid, x_start=None, y_start=None,
                          x_end=None, y_end=None):
+    '''
+    Initialize geogrid with user defined parameters.
+    Check the validity of user-defined parameters
+
+    Parameters:
+    ----------
+    geo_grid: isce3.product.bbox_to_geogrid
+       ISCE3 object defining the geogrid
+    x_start: float
+       Geogrid top-left X coordinate
+    y_start: float
+       Geogrid top-left Y coordinate
+    x_end: float
+       Geogrid bottom-right X coordinate
+    y_end: float
+       Geogrid bottom-right Y coordinate
+
+    Returns:
+    -------
+    geo_grid: isce3.product.bbox_to_geogrid
+       ISCE3 geogrid initialized with user-defined inputs
+    '''
+
+    # Check assigned input coordinates and initialize geogrid accordingly
     if None in [x_start, y_start, x_end, y_end]:
         if x_start is not None:
             new_end_x = geo_grid.start_x + geo_grid.spacing_x * geo_grid.width
             geo_grid.start_x = x_start
             geo_grid.width = int(np.ceil((new_end_x - x_start) /
                                          geo_grid.spacing_x))
-            # Restore user-defined x_end if provided
+        # Restore geogrid end point if provided by the user
         if x_end is not None:
             geo_grid.width = int(np.ceil((x_end - geo_grid.start_x) /
                                          geo_grid.spacing_x))
@@ -64,7 +113,8 @@ def assign_check_geogrid(geo_grid, x_start=None, y_start=None,
             geo_grid.length = int(np.ceil((y_end - geo_grid.start_y) /
                                           geo_grid.spacing_y))
     else:
-        # All info have been assigned. Modify geogrid accordingly
+        # If all the start/end coordinates have been assigned,
+        # initialize the geogrid with them
         width = _grid_size(x_end, x_start, geo_grid.spacing_x)
         length = _grid_size(y_end, y_start, geo_grid.spacing_y)
         geo_grid = isce3.product.GeoGridParameters(x_start, y_start,
@@ -72,11 +122,29 @@ def assign_check_geogrid(geo_grid, x_start=None, y_start=None,
                                                    geo_grid.spacing_y,
                                                    width, length,
                                                    geo_grid.epsg)
-
     return geo_grid
 
 
 def check_geogrid_endpoints(geo_grid, x_end=None, y_end=None):
+    '''
+    Check validity of geogrid end points
+
+    Parameters:
+    -----------
+    geo_grid: isce3.product.bbox_to_geogrid
+       ISCE3 object defining the geogrid
+    x_end: float
+       Geogrid bottom right X coordinate
+    y_end: float
+       Geogrid bottom right Y coordinates
+
+    Returns:
+    -------
+    x_end: float
+       Verified geogrid bottom-right X coordinate
+    y_end: float
+       Verified geogrid bottom-right Y coordinate
+    '''
     end_pt = lambda start, sz, spacing: start + spacing * sz
 
     if x_end is None:
@@ -87,20 +155,34 @@ def check_geogrid_endpoints(geo_grid, x_end=None, y_end=None):
 
 
 def check_snap_values(x_snap, y_snap, x_spacing, y_spacing):
+    '''
+    Check validity of snap values
+
+    Parameters:
+    ----------
+    x_snap: float
+       Snap value along X-direction
+    y_snap: float
+       Snap value along Y-direction
+    x_spacing: float
+       Spacing of the geogrid along X-direction
+    y_spacing: float
+       Spacing of the geogrid along Y-direction
+    '''
     error_channel = journal.error('geogrid.check_snap_values')
 
-    # Check that snap values are >=0
+    # Check that snap values in X/Y-directions are positive
     if x_snap is not None and x_snap <= 0:
         err_str = f'Snap value in X direction must be > 0 (x_snap: {x_snap})'
         error_channel.log(err_str)
         raise ValueError(err_str)
-
     if y_snap is not None and y_snap <= 0:
         err_str = f'Snap value in Y direction must be > 0 (y_snap: {y_snap})'
         error_channel.log(err_str)
         raise ValueError(err_str)
 
-    # Check that snap values are integer multiples of spacings
+    # Check that snap values in X/Y are integer multiples of the geogrid
+    # spacings in X/Y directions
     if x_snap is not None and x_snap % x_spacing != 0.0:
         err_str = f'x_snap must be exact multiple of spacing in X direction (x_snap % x_spacing !=0)'
         error_channel.log(err_str)
@@ -112,6 +194,27 @@ def check_snap_values(x_snap, y_snap, x_spacing, y_spacing):
 
 
 def snap_geogrid(geo_grid, x_snap, y_snap, x_end, y_end):
+    '''
+    Snap geogrid based on user-defined snapping values
+
+    Parameters:
+    ----------
+    geo_grid: isce3.product.bbox_to_geogrid
+       ISCE3 object definining the geogrid
+    x_snap: float
+       Snap value along X-direction
+    y_snap: float
+       Snap value along Y-direction
+    x_end: float
+       Bottom-right X coordinate
+    y_end: float
+       Bottom-right Y coordinate
+
+    Returns:
+    -------
+    geo_grid: isce3.product.bbox_to_geogrid
+        ISCE3 object containing the snapped geogrid
+    '''
     if x_end is None: x_end = geo_grid.end_x
     if y_end is None: y_end = geo_grid.end_y
 
@@ -129,8 +232,6 @@ def snap_geogrid(geo_grid, x_snap, y_snap, x_end, y_end):
 
 
 def generate_geogrid(radar_grid, orbit, dem_raster, geo_dict):
-    error_channel = journal.error('geogrid.create_geogrid')
-
     # Unpack values from geocoding disctionary
     epsg_dict = geo_dict.output_epsg
     x_start_dict = geo_dict.top_left.x
@@ -176,10 +277,8 @@ def generate_geogrid(radar_grid, orbit, dem_raster, geo_dict):
                                     y_end_dict)
     # Check end point of geogrid before compute snaps
     x_end, y_end = check_geogrid_endpoints(geo_grid, x_end_dict, y_end_dict)
-
     # Check snap values
     check_snap_values(x_snap_dict, y_snap_dict, x_spacing, y_spacing)
-
     # Snap coordinates
     geo_grid = snap_geogrid(geo_grid, x_snap_dict, y_snap_dict, x_end, y_end)
     return geo_grid

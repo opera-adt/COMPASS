@@ -50,7 +50,9 @@ def run(cfg: dict):
         os.makedirs(top_output_path, exist_ok=True)
 
         # Get reference burst radar grid
-        ref_grid_path = f'{cfg.reference_path}/{burst_id}/radar_grid.txt'
+        burst_path = f'{cfg.reference_path}/{burst_id}'
+        grid_path = os.listdir(burst_path)[0]
+        ref_grid_path = f'{burst_path}/{grid_path}/radar_grid.txt'
         ref_rdr_grid = file_to_rdr_grid(ref_grid_path)
 
         # Process inner list of bursts that share same burst ID

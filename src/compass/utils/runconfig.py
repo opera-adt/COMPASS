@@ -32,7 +32,27 @@ def validate_group_dict(group_cfg: dict) -> None:
     # burst is assigned and valid (required by geo2rdr and resample)
     is_reference = input_group['reference_burst']['is_reference']
     if not is_reference:
-        helpers.check_directory(input_group['reference_burst']['file_path'])
+        # check if reference directory exists
+        ref_path = input_group['reference_burst']['file_path']
+        helpers.check_directory(ref_path)
+
+        for burst_id in input_group['burst_id']:
+            # check if a directory exists for each burst ID
+            burst_id_path = f'{ref_path}/{burst_id}'
+            helpers.check_directory(burst_id_path)
+
+            # ensure only 1 directory under burst ID path
+            n_dir_in_burst_id_path = len(os.listdir(burst_id_path))
+
+            if (n_dir_in_burst_id_path == 0):
+                err_str = f'no directories found under {burst_id_path}'
+
+            if (n_dir_in_burst_id_path > 1):
+                err_str = f'more than one directory found under {burst_id_path}'
+
+            if (n_dir_in_burst_id_path != 1):
+                error_channel.log(err_str)
+                raise ValueError(err_str)
 
     # Check SAFE files
     run_pol_mode = group_cfg['processing']['polarization']

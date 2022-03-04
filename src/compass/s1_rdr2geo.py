@@ -40,8 +40,11 @@ def run(cfg):
     # save SLC for all bursts
     # run rdr2geo for only once per burst_id
     for bursts in cfg.bursts:
+        # extract date string and create directory
+        date_str = str(bursts[0].sensing_start.date())
+
         # init output directory in product_path
-        output_path = f'{cfg.product_path}/{bursts[0].burst_id}'
+        output_path = f'{cfg.product_path}/{bursts[0].burst_id}/{date_str}'
         os.makedirs(output_path, exist_ok=True)
 
         # save SLC to ENVI for all bursts

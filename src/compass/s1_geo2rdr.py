@@ -70,9 +70,10 @@ def run(cfg: dict):
             burst_output_path = f'{top_output_path}/{date_str}'
             os.makedirs(burst_output_path, exist_ok=True)
 
-            # Get topo layers
-            input_path = f'{cfg.reference_path}/{burst.burst_id}'
-            topo_raster = isce3.io.Raster(f'{input_path}/topo.vrt')
+            # Get topo layers from vrt
+            burst_path = f'{cfg.reference_path}/{burst.burst_id}'
+            vrt_path = os.listdir(burst_path)[0]
+            topo_raster = isce3.io.Raster(f'{burst_path}/{vrt_path}/topo.vrt')
 
             # Get radar grid and orbit
             rdr_grid = burst.as_isce3_radargrid()

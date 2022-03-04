@@ -81,7 +81,7 @@ def run(cfg: dict):
             az_off_raster = isce3.io.Raster(f'{offset_path}/azimuth.off')
 
             # Get original SLC as raster object
-            sec_burst_path = f'{cfg.scratch_path}/{burst_id}_{date_str}_{pol}.slc'
+            sec_burst_path = f'{cfg.scratch_path}/{burst_id}_{date_str}_{pol}.slc.vrt'
             burst.slc_to_vrt_file(sec_burst_path)
             original_raster = isce3.io.Raster(sec_burst_path)
 

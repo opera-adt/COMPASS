@@ -16,6 +16,65 @@ from sentinel1_reader.sentinel1_orbit_reader import get_orbit_file_from_list
 from sentinel1_reader.sentinel1_reader import burst_from_zip
 
 
+def load_validate_yaml(yaml_path: str, workflow_name: str) -> dict:
+    """Initialize RunConfig class with options from given yaml file.
+
+    Parameters
+    ----------
+    yaml_path : str
+        Path to yaml file containing the options to load
+    workflow_name: str
+        Name of the workflow for which uploading default options
+    """
+    error_channel = journal.error('runconfig.load_validate_yaml')
+
+    try:
+        # Load schema corresponding to 'workflow_name' and to validate against
+        schema = yamale.make_schema(
+            f'{helpers.WORKFLOW_SCRIPTS_DIR}/schemas/{workflow_name}.yaml',
+            parser='ruamel')
+    except:
+        err_str = f'unable to load schema for workflow {workflow_name}.'
+        error_channel.log(err_str)
+        raise ValueError(err_str)
+
+    # load yaml file or string from command line
+    if os.path.isfile(yaml_path):
+        try:
+            data = yamale.make_data(yaml_path, parser='ruamel')
+        except yamale.YamaleError as yamale_err:
+            err_str = f'Yamale unable to load {workflow_name} runconfig yaml {yaml_path} for validation.'
+            error_channel.log(err_str)
+            raise yamale.YamaleError(err_str) from yamale_err
+    else:
+        raise FileNotFoundError
+
+    # validate yaml file taken from command line
+    try:
+        yamale.validate(schema, data)
+    except yamale.YamaleError as yamale_err:
+        err_str = f'Validation fail for {workflow_name} runconfig yaml {yaml_path}.'
+        error_channel.log(err_str)
+        raise yamale.YamaleError(err_str) from yamale_err
+
+    # load default runconfig
+    parser = YAML(typ='safe')
+    default_cfg_path = f'{helpers.WORKFLOW_SCRIPTS_DIR}/defaults/{workflow_name}.yaml'
+    with open(default_cfg_path, 'r') as f_default:
+        default_cfg = parser.load(f_default)
+
+    with open(yaml_path, 'r') as f_yaml:
+        user_cfg = parser.load(f_yaml)
+
+    # Copy user-supplied configuration options into default runconfig
+    helpers.deep_update(default_cfg, user_cfg)
+
+    # Validate YAML values under groups dict
+    validate_group_dict(default_cfg['runconfig']['groups'], workflow_name)
+
+    return default_cfg
+
+
 def validate_group_dict(group_cfg: dict, workflow_name) -> None:
     """Check and validate runconfig entries.
 
@@ -78,7 +137,7 @@ def validate_group_dict(group_cfg: dict, workflow_name) -> None:
     helpers.check_write_dir(product_path_group['sas_output_file'])
 
 
-def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
+def load_bursts(cfg: dict) -> list[Sentinel1BurstSlc]:
     '''For each burst find corresponding orbit'
 
     Parameters
@@ -183,57 +242,15 @@ class RunConfig:
         workflow_name: str
             Name of the workflow for which uploading default options
         """
-        error_channel = journal.error('RunConfig.load_from_yaml')
-        try:
-            # Load schema corresponding to 'workflow_name' and to validate against
-            schema = yamale.make_schema(
-                f'{helpers.WORKFLOW_SCRIPTS_DIR}/schemas/{workflow_name}.yaml',
-                parser='ruamel')
-        except:
-            err_str = f'unable to load schema for workflow {workflow_name}.'
-            error_channel.log(err_str)
-            raise ValueError(err_str)
-
-        # load yaml file or string from command line
-        if os.path.isfile(yaml_path):
-            try:
-                data = yamale.make_data(yaml_path, parser='ruamel')
-            except yamale.YamaleError as yamale_err:
-                err_str = f'Yamale unable to load {workflow_name} runconfig yaml {yaml_path} for validation.'
-                error_channel.log(err_str)
-                raise yamale.YamaleError(err_str) from yamale_err
-        else:
-            raise FileNotFoundError
-
-        # validate yaml file taken from command line
-        try:
-            yamale.validate(schema, data)
-        except yamale.YamaleError as yamale_err:
-            err_str = f'Validation fail for {workflow_name} runconfig yaml {yaml_path}.'
-            error_channel.log(err_str)
-            raise yamale.YamaleError(err_str) from yamale_err
-
-        # load default runconfig
-        parser = YAML(typ='safe')
-        default_cfg_path = f'{helpers.WORKFLOW_SCRIPTS_DIR}/defaults/{workflow_name}.yaml'
-        with open(default_cfg_path, 'r') as f_default:
-            default_cfg = parser.load(f_default)
-
-        with open(yaml_path, 'r') as f_yaml:
-            user_cfg = parser.load(f_yaml)
-
-        # Copy user-supplied configuration options into default runconfig
-        helpers.deep_update(default_cfg, user_cfg)
-
-        # Validate YAML values under groups dict
-        validate_group_dict(default_cfg['runconfig']['groups'], workflow_name)
+        cfg = load_validate_yaml(yaml_path, workflow_name)
 
         # Convert runconfig dict to SimpleNamespace
-        sns = wrap_namespace(default_cfg['runconfig']['groups'])
+        sns = wrap_namespace(cfg['runconfig']['groups'])
 
+        # Load bursts
         bursts = load_bursts(sns)
 
-        return cls(default_cfg['runconfig']['name'], sns, bursts)
+        return cls(cfg['runconfig']['name'], sns, bursts)
 
     @property
     def burst_id(self) -> list[str]:
@@ -270,10 +287,6 @@ class RunConfig:
     @property
     def geo2rdr_params(self) -> dict:
         return self.groups.processing.geo2rdr
-
-    @property
-    def geocoding_params(self) -> dict:
-        return self.groups.processing.geocoding
 
     @property
     def split_spectrum_params(self) -> dict:

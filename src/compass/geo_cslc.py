@@ -1,12 +1,12 @@
-import isce3
-import journal
 import os
 import time
+
+import isce3
+import journal
 from osgeo import gdal
 
-from compass.utils.runconfig import RunConfig
+from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.yaml_argparse import YamlArgparse
-from compass.utils.geogrid import generate_geogrid
 
 
 def run(cfg):
@@ -38,8 +38,11 @@ def run(cfg):
     flatten = cfg.geocoding_params.flatten
 
     for bursts in cfg.bursts:
-        output_path = f'{cfg.product_path}/{bursts[0].burst_id}'
-        scratch_path = f'{cfg.scratch_path}/{bursts[0].burst_id}'
+        burst_id = bursts[0].burst_id
+        geo_grid = cfg.geogrids[burst_id]
+
+        output_path = f'{cfg.product_path}/{burst_id}'
+        scratch_path = f'{cfg.scratch_path}/{burst_id}'
         os.makedirs(output_path, exist_ok=True)
         os.makedirs(scratch_path, exist_ok=True)
         for burst in bursts:
@@ -47,9 +50,6 @@ def run(cfg):
             native_doppler = burst.doppler.lut2d
             orbit = burst.orbit
 
-            # Generate geogrid for the burst
-            geo_grid = generate_geogrid(radar_grid, orbit, dem_raster,
-                                        cfg.geocoding_params)
             # Get azimuth polynomial coefficients for this burst
             az_carrier_poly2d = burst.get_az_carrier_poly()
 
@@ -88,8 +88,8 @@ if __name__ == "__main__":
     geo_parser = YamlArgparse()
 
     # Get a runconfig dict from command line argumens
-    runconfig = RunConfig.load_from_yaml(geo_parser.run_config_path,
-                                         'geo_cslc_s1')
+    runconfig = GeoRunConfig.load_from_yaml(geo_parser.run_config_path,
+                                            'geo_cslc_s1')
 
     # Run geocode burst workflow
     run(runconfig)

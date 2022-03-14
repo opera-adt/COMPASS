@@ -11,6 +11,21 @@ import isce3
 
 
 def assign_check_epsg(epsg, epsg_default):
+    '''
+    Assign and check user-defined epsg
+
+    Parameters:
+    ----------
+    epsg: int
+      User-defined EPSG code to check
+    epsg_default: int
+      Default epsg code to assign
+
+    Returns:
+    -------
+    epsg: int
+      Checked EPSG code to use in geogrid
+    '''
     if epsg is None: epsg = epsg_default
     assert 1024 <= epsg <= 32767
     return epsg
@@ -184,11 +199,11 @@ def check_snap_values(x_snap, y_snap, x_spacing, y_spacing):
     # Check that snap values in X/Y are integer multiples of the geogrid
     # spacings in X/Y directions
     if x_snap is not None and x_snap % x_spacing != 0.0:
-        err_str = f'x_snap must be exact multiple of spacing in X direction (x_snap % x_spacing !=0)'
+        err_str = 'x_snap must be exact multiple of spacing in X direction (x_snap % x_spacing !=0)'
         error_channel.log(err_str)
         raise ValueError(err_str)
     if y_snap is not None and y_snap % y_spacing != 0.0:
-        err_str = f'y_snap must be exact multiple of spacing in Y direction (y_snap % y_spacing !=0)'
+        err_str = 'y_snap must be exact multiple of spacing in Y direction (y_snap % y_spacing !=0)'
         error_channel.log(err_str)
         raise ValueError(err_str)
 

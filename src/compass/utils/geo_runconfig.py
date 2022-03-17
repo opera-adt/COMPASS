@@ -79,3 +79,7 @@ class GeoRunConfig(RunConfig):
     @property
     def geocoding_params(self) -> dict:
         return self.groups.processing.geocoding
+
+    @property
+    def split_spectrum_params(self) -> dict:
+        return self.groups.processing.range_split_spectrum

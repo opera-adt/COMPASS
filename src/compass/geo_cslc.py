@@ -7,6 +7,7 @@ from osgeo import gdal
 
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.yaml_argparse import YamlArgparse
+from compass.utils.range_split_spectrum import range_split_spectrum
 
 
 def run(cfg):
@@ -53,10 +54,15 @@ def run(cfg):
             # Get azimuth polynomial coefficients for this burst
             az_carrier_poly2d = burst.get_az_carrier_poly()
 
-            # Save burst prior to geocoding
-            temp_slc_path = f'{scratch_path}/{burst.burst_id}_temp.tiff'
-            burst.slc_to_file(temp_slc_path, 'GTiff')
-            rdr_burst_raster = isce3.io.Raster(temp_slc_path)
+            # Split the range bandwidth of the burst, if required
+            if cfg.split_spectrum_params.enabled:
+                rdr_burst_raster = range_split_spectrum(burst,
+                                                        cfg.split_spectrum_params,
+                                                        scratch_path)
+            else:
+                temp_slc_path = f'{scratch_path}/{burst.burst_id}_temp.tiff'
+                burst.slc_to_file(temp_slc_path, 'GTiff')
+                rdr_burst_raster = isce3.io.Raster(temp_slc_path)
 
             # Generate output geocoded burst raster
             geo_burst_raster = isce3.io.Raster(

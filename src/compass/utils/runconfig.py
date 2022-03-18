@@ -11,9 +11,10 @@ from ruamel.yaml import YAML
 
 from compass.utils import helpers
 from compass.utils.wrap_namespace import wrap_namespace
-from sentinel1_reader.sentinel1_burst_slc import Sentinel1BurstSlc
-from sentinel1_reader.sentinel1_orbit_reader import get_orbit_file_from_list
-from sentinel1_reader.sentinel1_reader import burst_from_zip
+from s1reader.s1_burst_slc import Sentinel1BurstSlc
+from s1reader.s1_orbit import get_orbit_file_from_list
+from s1reader.s1_reader import burst_from_zip
+
 
 
 def validate_group_dict(group_cfg: dict) -> None:

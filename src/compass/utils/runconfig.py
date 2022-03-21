@@ -33,7 +33,7 @@ def validate_group_dict(group_cfg: dict) -> None:
     # burst is assigned and valid (required by geo2rdr and resample)
     is_reference = input_group['reference_burst']['is_reference']
     if not is_reference:
-        # check if reference directory exists
+        # check if reference directory holding burst_id directories exists
         ref_path = input_group['reference_burst']['file_path']
         helpers.check_directory(ref_path)
 

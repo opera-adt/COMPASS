@@ -56,6 +56,11 @@ def run(cfg: dict):
         # Keep track of dates processed
         dates_processed = []
 
+        # Get topo layers from vrt
+        burst_path = f'{cfg.reference_path}/{bursts[0].burst_id}'
+        vrt_path = os.listdir(burst_path)[0]
+        topo_raster = isce3.io.Raster(f'{burst_path}/{vrt_path}/topo.vrt')
+
         # Process inner list of bursts that share same burst ID
         for burst in bursts:
             # Extract date string and create directory
@@ -69,11 +74,6 @@ def run(cfg: dict):
             # Create date directory
             burst_output_path = f'{top_output_path}/{date_str}'
             os.makedirs(burst_output_path, exist_ok=True)
-
-            # Get topo layers from vrt
-            burst_path = f'{cfg.reference_path}/{burst.burst_id}'
-            vrt_path = os.listdir(burst_path)[0]
-            topo_raster = isce3.io.Raster(f'{burst_path}/{vrt_path}/topo.vrt')
 
             # Get radar grid and orbit
             rdr_grid = burst.as_isce3_radargrid()

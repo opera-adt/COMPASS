@@ -1,10 +1,12 @@
 from __future__ import annotations
 from dataclasses import dataclass
+import sys
 
 from isce3.product import GeoGridParameters
 import journal
+from ruamel.yaml import YAML
 
-from compass.utils.geogrid import generate_geogrids
+from compass.utils.geogrid import generate_geogrids, geogrid_as_dict
 from compass.utils.runconfig import load_bursts, load_validate_yaml, RunConfig
 from compass.utils.wrap_namespace import wrap_namespace
 
@@ -83,3 +85,18 @@ class GeoRunConfig(RunConfig):
     @property
     def split_spectrum_params(self) -> dict:
         return self.groups.processing.range_split_spectrum
+
+    def as_dict(self):
+        # convert to dict first then dump to yaml
+        self_as_dict = super().as_dict()
+
+        self_as_dict['geogrids']= {b_id:geogrid_as_dict(geogrid)
+                                   for b_id, geogrid in self.geogrids.items()}
+
+        return self_as_dict
+
+    def to_yaml(self):
+        self_as_dict = self.as_dict()
+        yaml = YAML(typ='safe')
+        import ipdb; ipdb.set_trace()
+        yaml.dump(self_as_dict, sys.stdout)

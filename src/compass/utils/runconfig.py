@@ -4,13 +4,14 @@ from dataclasses import dataclass
 from itertools import cycle
 import os
 from types import SimpleNamespace
+import sys
 
 import journal
 import yamale
 from ruamel.yaml import YAML
 
 from compass.utils import helpers
-from compass.utils.wrap_namespace import wrap_namespace
+from compass.utils.wrap_namespace import wrap_namespace, unwrap_to_dict
 from s1reader.s1_burst_slc import Sentinel1BurstSlc
 from s1reader.s1_orbit import get_orbit_file_from_list
 from s1reader.s1_reader import burst_from_zip
@@ -312,3 +313,22 @@ class RunConfig:
     @property
     def gpu_id(self):
         return self.groups.worker.gpu_id
+
+    def as_dict(self):
+        # convert to dict first then dump to yaml
+        self_as_dict = {}
+        for key, val in self.__dict__.items():
+            if key == 'groups':
+                val = unwrap_to_dict(val)
+            elif key == 'bursts':
+                date_str = lambda b : str(b.sensing_start).split()[0]
+                val = {bursts[0].burst_id: {date_str(b):b.as_dict()
+                                            for b in bursts}
+                       for bursts in val}
+            self_as_dict[key] = val
+        return self_as_dict
+
+    def to_yaml(self):
+        self_as_dict = self.as_dict()
+        yaml = YAML(typ='safe')
+        yaml.dump(self_as_dict, sys.stdout)

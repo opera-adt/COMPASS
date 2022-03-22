@@ -69,7 +69,7 @@ def run(cfg):
                 f'{output_path}/geo_{burst.burst_id}.tiff',
                 geo_grid.width, geo_grid.length,
                 rdr_burst_raster.num_bands, gdal.GDT_CFloat32,
-                'GTiff')
+                'COG')
             # Extract burst boundaries
             burst_bounds = [burst.first_valid_line, burst.last_valid_line,
                             burst.first_valid_sample, burst.last_valid_sample]
@@ -81,8 +81,8 @@ def run(cfg):
                                       image_grid_doppler, ellipsoid, threshold,
                                       iters,
                                       blocksize, dem_margin, flatten,
-                                      azimuth_carrier=az_carrier_poly2d,
-                                      subraster_bounds=burst_bounds)
+                                      azimuth_carrier=az_carrier_poly2d)
+                                      #subraster_bounds=burst_bounds)
             # Set geo transformation
             geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,
                             geo_grid.start_y, 0, geo_grid.spacing_y]

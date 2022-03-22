@@ -314,3 +314,8 @@ def generate_geogrids(all_bursts, geo_dict, dem):
             geo_grids[burst_id] = geo_grid
 
     return geo_grids
+
+def geogrid_as_dict(grid):
+    geogrid_dict = {attr:getattr(grid, attr) for attr in grid.__dir__()
+                    if attr != 'print' and attr[:2] != '__'}
+    return geogrid_dict

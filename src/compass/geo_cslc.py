@@ -8,8 +8,8 @@ from osgeo import gdal
 from shapely.geometry import MultiPoint
 
 from compass.utils.geo_runconfig import GeoRunConfig
-from compass.utils.yaml_argparse import YamlArgparse
 from compass.utils.range_split_spectrum import range_split_spectrum
+from compass.utils.yaml_argparse import YamlArgparse
 
 
 def run(cfg):
@@ -91,7 +91,7 @@ def run(cfg):
             geo_burst_raster.set_geotransform(geotransform)
             geo_burst_raster.set_epsg(epsg)
             del geo_burst_raster
-            
+
             # Get polygon including valid areas (to be dumped in metadata)
             filename = f'{output_path}/geo_{burst.burst_id}'
             poly = get_valid_polygon(filename, np.nan)
@@ -154,11 +154,11 @@ def get_valid_polygon(filename, invalid_value):
     burst = ds.GetRasterBand(1).ReadAsArray()
 
     if np.isnan(invalid_value):
-       idy, idx = np.where((~np.isnan(burst.real)) &
-                           (~np.isnan(burst.imag)))
+        idy, idx = np.where((~np.isnan(burst.real)) &
+                            (~np.isnan(burst.imag)))
     else:
-        idy, idx = np.where((burst.real==invalid_value) &
-                            (burst.imag==invalid_value))
+        idy, idx = np.where((burst.real == invalid_value) &
+                            (burst.imag == invalid_value))
     tgt_x = []
     tgt_y = []
 

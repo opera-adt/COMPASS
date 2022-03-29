@@ -83,6 +83,10 @@ def range_split_spectrum(burst, cfg_split_spectrum,
     length, width = burst.shape
     lines_per_block = cfg_split_spectrum.lines_per_block
 
+    # In ISCE3, we can use raised cosine to implement S1-A/B Hamming
+    window_type = burst.range_window_type
+    window_type='Cosine' if window_type.casefold() == 'hamming' else window_type
+
     # Extract bandwidths (bw) and create frequency vectors
     half_bw = 0.5 * burst.range_bandwidth
     low_bw = cfg_split_spectrum.low_band_bandwidth

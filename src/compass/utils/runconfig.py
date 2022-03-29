@@ -14,8 +14,7 @@ from compass.utils import helpers
 from compass.utils.wrap_namespace import wrap_namespace, unwrap_to_dict
 from s1reader.s1_burst_slc import Sentinel1BurstSlc
 from s1reader.s1_orbit import get_orbit_file_from_list
-from s1reader.s1_reader import burst_from_zip
-
+from s1reader.s1_reader import load_bursts as s1_load_bursts
 
 
 def load_validate_yaml(yaml_path: str, workflow_name: str) -> dict:
@@ -191,7 +190,8 @@ def load_bursts(cfg: dict) -> list[Sentinel1BurstSlc]:
         for pol, i_subswath in zip_list:
 
             # loop over burst objs extracted from SAFE zip
-            for burst in burst_from_zip(safe_file, orbit_path, i_subswath, pol):
+            for burst in s1_load_bursts(safe_file, orbit_path, i_subswath,
+                                        pol):
 
                 burst_id = burst.burst_id
 

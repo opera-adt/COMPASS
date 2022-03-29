@@ -81,8 +81,8 @@ def run(cfg):
                                       image_grid_doppler, ellipsoid, threshold,
                                       iters,
                                       blocksize, dem_margin, flatten,
-                                      azimuth_carrier=az_carrier_poly2d)
-                                      #subraster_bounds=burst_bounds)
+                                      azimuth_carrier=az_carrier_poly2d,
+                                      subraster_bounds=burst_bounds)
             # Set geo transformation
             geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,
                             geo_grid.start_y, 0, geo_grid.spacing_y]

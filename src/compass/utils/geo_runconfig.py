@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+import json
 import sys
 
 from isce3.product import GeoGridParameters
@@ -87,6 +88,8 @@ class GeoRunConfig(RunConfig):
         return self.groups.processing.range_split_spectrum
 
     def as_dict(self):
+        ''' Convert self to dict for write to YAML/JSON
+        '''
         # convert to dict first then dump to yaml
         self_as_dict = super().as_dict()
 
@@ -95,8 +98,27 @@ class GeoRunConfig(RunConfig):
 
         return self_as_dict
 
-    def to_yaml(self):
+    def to_yaml(self, dst):
+        ''' Write self to YAML
+
+        Parameter:
+        ---------
+        dst: file pointer
+           Where to write YAML
+
+        '''
         self_as_dict = self.as_dict()
         yaml = YAML(typ='safe')
-        import ipdb; ipdb.set_trace()
-        yaml.dump(self_as_dict, sys.stdout)
+        yaml.dump(self_as_dict, dst)
+
+    def to_json(self, dst):
+        ''' Write self to JSON
+
+        Parameter:
+        ---------
+        dst: file pointer
+           Where to write JSON
+
+        '''
+        self_as_dict = self.as_dict()
+        json.dump(self_as_dict, dst)

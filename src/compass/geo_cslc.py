@@ -72,19 +72,25 @@ def run(cfg):
                 geo_grid.width, geo_grid.length,
                 rdr_burst_raster.num_bands, gdal.GDT_CFloat32,
                 'ENVI')
+
             # Extract burst boundaries
-            burst_bounds = [burst.first_valid_line, burst.last_valid_line,
-                            burst.first_valid_sample, burst.last_valid_sample]
+            b_bounds = np.s_[burst.first_valid_line:burst.last_valid_line,
+                             burst.first_valid_sample:burst.last_valid_sample]
+
+            # Create sliced radar grid from burst boundaries
+            sliced_radar_grid = burst.as_isce3_radargrid()[b_bounds]
+
             # Geocode
             isce3.geocode.geocode_slc(geo_burst_raster, rdr_burst_raster,
                                       dem_raster,
-                                      radar_grid, geo_grid, orbit,
+                                      radar_grid, sliced_radar_grid,
+                                      geo_grid, orbit,
                                       native_doppler,
                                       image_grid_doppler, ellipsoid, threshold,
                                       iters,
                                       blocksize, dem_margin, flatten,
-                                      azimuth_carrier=az_carrier_poly2d,
-                                      subraster_bounds=burst_bounds)
+                                      azimuth_carrier=az_carrier_poly2d)
+
             # Set geo transformation
             geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,
                             geo_grid.start_y, 0, geo_grid.spacing_y]

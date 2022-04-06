@@ -187,10 +187,10 @@ if __name__ == "__main__":
     runconfig = GeoRunConfig.load_from_yaml(geo_parser.run_config_path,
                                             'geo_cslc_s1')
 
+    # Run geocode burst workflow
+    run(runconfig)
+
     # Save burst metadata and runconfig parameters
     json_path = f'{runconfig.product_path}/metadata.json'
     with open(json_path, 'w') as f_json:
         runconfig.to_json(f_json)
-
-    # Run geocode burst workflow
-    run(runconfig)

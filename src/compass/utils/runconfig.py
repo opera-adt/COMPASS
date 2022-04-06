@@ -1,5 +1,4 @@
 from __future__ import annotations
-from collections import defaultdict
 from dataclasses import dataclass
 from itertools import cycle
 import os
@@ -154,8 +153,7 @@ def load_bursts(cfg: dict) -> list[Sentinel1BurstSlc]:
     error_channel = journal.error('runconfig.correlate_burst_to_orbit')
 
     # dict to store list of bursts keyed by burst_ids
-    # use default dict to handle 2 polarizations within one burst id
-    bursts = defaultdict(list)
+    bursts = []
 
     # extract given SAFE zips to find bursts identified in cfg.burst_id
     for safe_file in cfg.input_file_group.safe_file_path:
@@ -185,42 +183,57 @@ def load_bursts(cfg: dict) -> list[Sentinel1BurstSlc]:
             error_channel.log(err_str)
             raise ValueError(err_str)
 
+        id_pols_found = []
+        burst_ids_found = []
         # loop over pols and subswath index
         #import ipdb; ipdb.set_trace()
         for pol, i_subswath in zip_list:
 
             # loop over burst objs extracted from SAFE zip
-            for burst in s1_load_bursts(safe_file, orbit_path, i_subswath,
-                                        pol):
-
+            for burst in s1_load_bursts(safe_file, orbit_path, i_subswath, pol):
+                # get burst ID and save if new
                 burst_id = burst.burst_id
+                if burst_id not in burst_ids_found:
+                    burst_ids_found.append(burst_id)
 
-                # is burst_id wanted?
-                burst_id_wanted = burst_id in cfg.input_file_group.burst_id
+                # is burst_id wanted? skip if not listed in config
+                if burst_id not in cfg.input_file_group.burst_id:
+                    continue
 
-                # does burst_id + pol exist?
-                burst_id_pol_exist = False
-                if burst_id in bursts:
-                    if any([True for b in bursts[burst_id] if b.pol == pol]):
-                        burst_id_pol_exist = True
+                # get polarization and save as tuple with burst ID
+                pol = burst.polarization
+                id_pol = (burst_id, pol)
 
-                # add burst if wanted and doesn't already exist
-                if burst_id_wanted and not burst_id_pol_exist:
-                    bursts[burst_id].append(burst)
+                # has burst_id + pol combo been found?
+                burst_id_pol_exist = id_pol in id_pols_found
+                if not burst_id_pol_exist:
+                    id_pols_found.append(id_pol)
 
+                # check if not a reference burst
+                not_ref = not cfg.input_file_group.reference_burst.is_reference
+
+                # if not reference burst, then always ok to add
+                # if reference burst, ok to add if id+pol combo does not exist
+                # no duplicate id+pol combos for reference bursts
+                if not_ref or not burst_id_pol_exist:
+                    bursts.append(burst)
+
+    # check if no bursts were found
     if not bursts:
         err_str = "Could not find any of the burst IDs in the provided safe files"
         error_channel.log(err_str)
         raise ValueError(err_str)
 
+    # make sure all specified bursts were found
+    burst_ids_found = set(burst_ids_found)
     unaccounted_bursts = [b_id for b_id in cfg.input_file_group.burst_id
-                          if b_id not in bursts]
+                          if b_id not in burst_ids_found]
     if unaccounted_bursts:
         err_str = f"Following burst ID(s) not found in provided safe files: {unaccounted_bursts}"
         error_channel.log(err_str)
         raise ValueError(err_str)
 
-    return list(bursts.values())
+    return bursts
 
 
 @dataclass(frozen=True)
@@ -231,7 +244,7 @@ class RunConfig:
     # runconfig options converted from dict
     groups: SimpleNamespace
     # list of lists where bursts in interior list have a common burst_id
-    bursts: list[list[Sentinel1BurstSlc]]
+    bursts: list[Sentinel1BurstSlc]
 
     @classmethod
     def load_from_yaml(cls, yaml_path: str, workflow_name: str) -> RunConfig:

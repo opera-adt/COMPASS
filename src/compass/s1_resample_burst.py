@@ -40,10 +40,9 @@ def run(cfg: dict):
     blocksize = cfg.resample_params.lines_per_block
 
     # Process all bursts
-    # cfg.bursts is list[list[burst]]. This loop iterates over outer list.
-    for bursts in cfg.bursts:
-        # get burst ID of current list of bursts
-        burst_id = bursts[0].burst_id
+    for burst in cfg.bursts:
+        # get burst ID of current burst
+        burst_id = burst.burst_id
 
         # Create top output path
         top_output_path = f'{cfg.product_path}/{burst_id}'
@@ -55,49 +54,47 @@ def run(cfg: dict):
         ref_grid_path = f'{burst_path}/{grid_path}/radar_grid.txt'
         ref_rdr_grid = file_to_rdr_grid(ref_grid_path)
 
-        # Process inner list of bursts that share same burst ID
-        for burst in bursts:
-            # Extract date string and create directory
-            date_str = str(burst.sensing_start.date())
-            burst_output_path = f'{top_output_path}/{date_str}'
-            os.makedirs(burst_output_path, exist_ok=True)
+        # Extract date string and create directory
+        date_str = str(burst.sensing_start.date())
+        burst_output_path = f'{top_output_path}/{date_str}'
+        os.makedirs(burst_output_path, exist_ok=True)
 
-            # Extract polarization
-            pol = burst.polarization
+        # Extract polarization
+        pol = burst.polarization
 
-            # Get radar grid
-            rdr_grid = burst.as_isce3_radargrid()
+        # Get radar grid
+        rdr_grid = burst.as_isce3_radargrid()
 
-            # Extract azimuth carrier polynomials
-            az_poly = burst.get_az_carrier_poly(index_as_coord=True)
+        # Extract azimuth carrier polynomials
+        az_poly = burst.get_az_carrier_poly(index_as_coord=True)
 
-            # Init resample SLC object
-            resamp_obj = resamp(rdr_grid, burst.doppler.lut2d,
-                                az_poly, ref_rdr_grid=ref_rdr_grid)
-            resamp_obj.lines_per_tile = blocksize
+        # Init resample SLC object
+        resamp_obj = resamp(rdr_grid, burst.doppler.lut2d,
+                            az_poly, ref_rdr_grid=ref_rdr_grid)
+        resamp_obj.lines_per_tile = blocksize
 
-            # Get range and azimuth offsets
-            offset_path = f'{cfg.scratch_path}/' \
-                          f'{burst_id}/{date_str}'
-            rg_off_raster = isce3.io.Raster(f'{offset_path}/range.off')
-            az_off_raster = isce3.io.Raster(f'{offset_path}/azimuth.off')
+        # Get range and azimuth offsets
+        offset_path = f'{cfg.scratch_path}/' \
+                      f'{burst_id}/{date_str}'
+        rg_off_raster = isce3.io.Raster(f'{offset_path}/range.off')
+        az_off_raster = isce3.io.Raster(f'{offset_path}/azimuth.off')
 
-            # Get original SLC as raster object
-            sec_burst_path = f'{cfg.scratch_path}/{burst_id}_{date_str}_{pol}.slc.vrt'
-            burst.slc_to_vrt_file(sec_burst_path)
-            original_raster = isce3.io.Raster(sec_burst_path)
+        # Get original SLC as raster object
+        sec_burst_path = f'{cfg.scratch_path}/{burst_id}_{date_str}_{pol}.slc.vrt'
+        burst.slc_to_vrt_file(sec_burst_path)
+        original_raster = isce3.io.Raster(sec_burst_path)
 
-            # Prepare resamled SLC as raster object
-            coreg_burst_path = f'{burst_output_path}/{pol}.slc'
-            resampled_raster = isce3.io.Raster(coreg_burst_path,
-                                               rg_off_raster.width,
-                                               rg_off_raster.length,
-                                               1, gdal.GDT_CFloat32,
-                                               'ENVI')
+        # Prepare resamled SLC as raster object
+        coreg_burst_path = f'{burst_output_path}/{pol}.slc'
+        resampled_raster = isce3.io.Raster(coreg_burst_path,
+                                           rg_off_raster.width,
+                                           rg_off_raster.length,
+                                           1, gdal.GDT_CFloat32,
+                                           'ENVI')
 
-            resamp_obj.resamp(original_raster, resampled_raster,
-                              rg_off_raster, az_off_raster,
-                              flatten=cfg.resample_params.flatten)
+        resamp_obj.resamp(original_raster, resampled_raster,
+                          rg_off_raster, az_off_raster,
+                          flatten=cfg.resample_params.flatten)
 
     dt = time.time() - t_start
     info_channel.log(f"resample burst successfully ran in {dt:.3f} seconds")

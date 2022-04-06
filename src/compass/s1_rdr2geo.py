@@ -37,20 +37,29 @@ def run(cfg):
     else:
         Rdr2Geo = isce3.geometry.Rdr2Geo
 
+    # Keep track of ids processed
+    id_processed = []
+
     # save SLC for all bursts
     # run rdr2geo for only once per burst_id
-    for bursts in cfg.bursts:
+    for burst in cfg.bursts:
         # extract date string and create directory
-        date_str = str(bursts[0].sensing_start.date())
+        date_str = str(burst.sensing_start.date())
+        burst_id = burst.burst_id
 
         # init output directory in product_path
-        output_path = f'{cfg.product_path}/{bursts[0].burst_id}/{date_str}'
+        output_path = f'{cfg.product_path}/{burst_id}/{date_str}'
         os.makedirs(output_path, exist_ok=True)
 
         # save SLC to ENVI for all bursts
         # run rdr2geo for only 1 burst avoid redundancy
-        for burst in bursts:
-            burst.slc_to_file(f'{output_path}/{burst.polarization}.slc')
+        burst.slc_to_file(f'{output_path}/{burst.polarization}.slc')
+
+        # skip burst if id already rdr2geo processed
+        # save id if not processed to avoid rdr2geo reprocessing
+        if burst_id in id_processed:
+            continue
+        id_processed.append(burst_id)
 
         # get radar grid of last SLC written and save for resample flattening
         rdr_grid = burst.as_isce3_radargrid()

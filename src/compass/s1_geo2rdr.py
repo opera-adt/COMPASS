@@ -46,47 +46,46 @@ def run(cfg: dict):
     iters = cfg.geo2rdr_params.numiter
     blocksize = cfg.geo2rdr_params.lines_per_block
 
-    # Process all bursts
-    # cfg.bursts is list[list[burst]]. This loop iterates over outer list.
-    for bursts in cfg.bursts:
+    # Keep track of id+dates processed
+    id_dates_processed = []
+
+    # Run geo2rdr once per burst ID + date
+    for burst in cfg.bursts:
+        # Extract date string and create directory
+        burst_id = burst.burst_id
+        date_str = str(burst.sensing_start.date())
+        id_date = (burst_id, date_str)
+
         # Create top output path
-        top_output_path = f'{cfg.scratch_path}/{bursts[0].burst_id}'
+        top_output_path = f'{cfg.scratch_path}/{burst_id}'
         os.makedirs(top_output_path, exist_ok=True)
 
-        # Keep track of dates processed
-        dates_processed = []
+        # This ensures running geo2rdr only once; avoiding running for the different polarizations of the same burst_id
+        if id_date in id_dates_processed:
+            continue
+        id_dates_processed.append(id_date)
 
         # Get topo layers from vrt
-        burst_path = f'{cfg.reference_path}/{bursts[0].burst_id}'
+        burst_path = f'{cfg.reference_path}/{burst_id}'
         vrt_path = os.listdir(burst_path)[0]
         topo_raster = isce3.io.Raster(f'{burst_path}/{vrt_path}/topo.vrt')
 
-        # Process inner list of bursts that share same burst ID
-        for burst in bursts:
-            # Extract date string and create directory
-            date_str = str(burst.sensing_start.date())
+        # Create date directory
+        burst_output_path = f'{top_output_path}/{date_str}'
+        os.makedirs(burst_output_path, exist_ok=True)
 
-            # This ensures running geo2rdr only once; avoiding running for the different polarizations of the same burst_id
-            if date_str in dates_processed:
-                continue
-            dates_processed.append(date_str)
+        # Get radar grid and orbit
+        rdr_grid = burst.as_isce3_radargrid()
+        orbit = burst.orbit
 
-            # Create date directory
-            burst_output_path = f'{top_output_path}/{date_str}'
-            os.makedirs(burst_output_path, exist_ok=True)
+        # Initialize geo2rdr object
+        geo2rdr_obj = geo2rdr(rdr_grid, orbit, ellipsoid,
+                              isce3.core.LUT2d(),
+                              threshold, iters,
+                              blocksize)
 
-            # Get radar grid and orbit
-            rdr_grid = burst.as_isce3_radargrid()
-            orbit = burst.orbit
-
-            # Initialize geo2rdr object
-            geo2rdr_obj = geo2rdr(rdr_grid, orbit, ellipsoid,
-                                  isce3.core.LUT2d(),
-                                  threshold, iters,
-                                  blocksize)
-
-            # Execute geo2rdr
-            geo2rdr_obj.geo2rdr(topo_raster, burst_output_path)
+        # Execute geo2rdr
+        geo2rdr_obj.geo2rdr(topo_raster, burst_output_path)
 
     dt = time.time() - t_start
     info_channel.log(f"geo2rdr successfully ran in {dt:.3f} seconds")

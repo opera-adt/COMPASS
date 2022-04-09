@@ -1,4 +1,5 @@
 """Wrapper for geo2rdr"""
+from datetime import timedelta
 import os
 import time
 
@@ -46,10 +47,10 @@ def run(cfg: dict):
     iters = cfg.geo2rdr_params.numiter
     blocksize = cfg.geo2rdr_params.lines_per_block
 
-    # Keep track of id+dates processed
+    # list to keep track of id+dates pairs processed
     id_dates_processed = []
 
-    # Run geo2rdr once per burst ID + date
+    # Run geo2rdr once per burst ID + date pair
     for burst in cfg.bursts:
         # Extract date string and create directory
         burst_id = burst.burst_id
@@ -87,8 +88,8 @@ def run(cfg: dict):
         # Execute geo2rdr
         geo2rdr_obj.geo2rdr(topo_raster, burst_output_path)
 
-    dt = time.time() - t_start
-    info_channel.log(f"geo2rdr successfully ran in {dt:.3f} seconds")
+    dt = str(timedelta(seconds=time.time() - t_start))
+    info_channel.log(f"geo2rdr successfully ran in {dt} (hr:min:sec)")
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@
 
 '''wrapper for rdr2geo'''
 
+from datetime import timedelta
 import os
 import time
 
@@ -37,11 +38,11 @@ def run(cfg):
     else:
         Rdr2Geo = isce3.geometry.Rdr2Geo
 
-    # Keep track of ids processed
+    # list to keep track of ids processed
     id_processed = []
 
-    # save SLC for all bursts
     # run rdr2geo for only once per burst_id
+    # save SLC for all bursts
     for burst in cfg.bursts:
         # extract date string and create directory
         date_str = str(burst.sensing_start.date())
@@ -107,8 +108,8 @@ def run(cfg):
         output_vrt = isce3.io.Raster(f'{output_path}/topo.vrt', raster_list)
         output_vrt.set_epsg(rdr2geo_obj.epsg_out)
 
-    dt = time.time() - t_start
-    info_channel.log(f"rdr2geo successfully ran in {dt:.3f} seconds")
+    dt = str(timedelta(seconds=time.time() - t_start))
+    info_channel.log(f"rdr2geo successfully ran in {dt} (hr:min:sec)")
 
 
 if __name__ == "__main__":

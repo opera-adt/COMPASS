@@ -1,4 +1,5 @@
 """Wrapper for resample burst"""
+from datetime import timedelta
 import os
 import time
 
@@ -96,8 +97,8 @@ def run(cfg: dict):
                           rg_off_raster, az_off_raster,
                           flatten=cfg.resample_params.flatten)
 
-    dt = time.time() - t_start
-    info_channel.log(f"resample burst successfully ran in {dt:.3f} seconds")
+    dt = str(timedelta(seconds=time.time() - t_start))
+    info_channel.log(f"resample burst successfully ran in {dt} (hr:min:sec)")
 
 
 if __name__ == "__main__":

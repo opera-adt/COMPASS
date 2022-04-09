@@ -183,20 +183,23 @@ def load_bursts(cfg: dict) -> list[Sentinel1BurstSlc]:
             error_channel.log(err_str)
             raise ValueError(err_str)
 
+        # list of burst ID + polarization tuples
+        # used to prevent reference repeats
         id_pols_found = []
+
+        # list of burst IDs found to ensure all
+        # used to ensure all IDs in config processed
         burst_ids_found = []
-        # loop over pols and subswath index
-        #import ipdb; ipdb.set_trace()
+
+        # loop over pol and subswath index combinations
         for pol, i_subswath in zip_list:
 
             # loop over burst objs extracted from SAFE zip
             for burst in s1_load_bursts(safe_file, orbit_path, i_subswath, pol):
-                # get burst ID and save if new
+                # get burst ID
                 burst_id = burst.burst_id
-                if burst_id not in burst_ids_found:
-                    burst_ids_found.append(burst_id)
 
-                # is burst_id wanted? skip if not listed in config
+                # is burst_id wanted? skip if not given in config
                 if burst_id not in cfg.input_file_group.burst_id:
                     continue
 
@@ -216,6 +219,7 @@ def load_bursts(cfg: dict) -> list[Sentinel1BurstSlc]:
                 # if reference burst, ok to add if id+pol combo does not exist
                 # no duplicate id+pol combos for reference bursts
                 if not_ref or not burst_id_pol_exist:
+                    burst_ids_found.append(burst_id)
                     bursts.append(burst)
 
     # check if no bursts were found
@@ -226,9 +230,9 @@ def load_bursts(cfg: dict) -> list[Sentinel1BurstSlc]:
 
     # make sure all specified bursts were found
     burst_ids_found = set(burst_ids_found)
-    unaccounted_bursts = [b_id for b_id in cfg.input_file_group.burst_id
-                          if b_id not in burst_ids_found]
-    if unaccounted_bursts:
+    cfg_burst_ids = set(cfg.input_file_group.burst_id)
+    unaccounted_bursts = burst_ids_found - cfg_burst_ids
+    if burst_ids_found != cfg_burst_ids:
         err_str = f"Following burst ID(s) not found in provided safe files: {unaccounted_bursts}"
         error_channel.log(err_str)
         raise ValueError(err_str)

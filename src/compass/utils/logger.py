@@ -50,8 +50,7 @@ class Logger:
 
         if not channel:
             self.channel = journal.info('logger.Logger')
-        self.workflow = (workflow
-                         if workflow else f"{basename(__file__)}")
+        self.workflow = "CSLC"
         self.error_code_base = (error_code_base
                                 if error_code_base else Logger.LOGGER_CODE_BASE)
 
@@ -105,7 +104,7 @@ class Logger:
         now_tag = datetime.datetime.now()
         time_tag = now_tag.strftime("%Y-%m-%dT%H:%M:%S.%f")
         message = f'{time_tag}, {severity}, {workflow}, {module}, ' \
-                  f'{str(error_code_base + error_code_offset)},' \
+                  f'{str(error_code_base + error_code_offset)}, ' \
                   f'{location}, {description}'
 
         self.channel.log(message)
@@ -132,10 +131,4 @@ class Logger:
         severity = get_severity_from_error_code(error_code_offset)
         self.write(severity, module, error_code_offset, description,
                    additional_back_frames=additional_back_frames + 1)
-
-
-
-
-
-
 

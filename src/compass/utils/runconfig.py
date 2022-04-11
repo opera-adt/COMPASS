@@ -81,7 +81,7 @@ def validate_group_dict(group_cfg: dict) -> None:
     helpers.check_write_dir(os.path.dirname(log_group['path']))
 
     write_mode = log_group['write_mode']
-    journal.debug.journal.device = log_group['path']
+    journal.debug.journal.device = "journal.file"
     journal.debug.journal.device.log = open(log_group['path'], write_mode)
 
 

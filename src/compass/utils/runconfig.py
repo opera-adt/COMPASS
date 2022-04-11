@@ -76,6 +76,14 @@ def validate_group_dict(group_cfg: dict) -> None:
     helpers.check_write_dir(product_path_group['scratch_path'])
     helpers.check_write_dir(product_path_group['sas_output_file'])
 
+    # Check if logging dir is writeable
+    log_group = group_cfg['logging']
+    helpers.check_write_dir(os.path.dirname(log_group['path']))
+
+    write_mode = log_group['write_mode']
+    journal.debug.journal.device = log_group['path']
+    journal.debug.journal.device.log = open(log_group['path'], write_mode)
+
 
 def get_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
     '''For each burst find corresponding orbit'

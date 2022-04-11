@@ -9,6 +9,7 @@ import isce3
 import journal
 from osgeo import gdal
 
+from compass.utils.logger import Logger
 from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
 

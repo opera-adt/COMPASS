@@ -1,7 +1,51 @@
-# COMPASS
+## COMPASS
+
 COregistered Multi-temPorAl Sar Slc
 
-# License
+🚨 This toolbox is still in **pre-alpha** stage and undergoing **rapid development**. 🚨
+
+### Install
+
+
+The following will install COMPASS into a conda environment.
+
+
+1. Download source code:
+
+```bash
+git clone https://github.com/opera-adt/COMPASS.git
+```
+
+2. Install dependencies:
+
+```bash
+conda install -c conda-forge --file COMPASS/requirements.txt
+```
+
+3. Download `s1-reader` and install via pip:
+
+```bash
+git clone https://github.com/opera-adt/s1-reader.git
+python -m pip install ./s1-reader
+```
+
+4. Install `COMPASS` via pip:
+
+```bash
+# run "pip install -e" to install in development mode
+python -m pip install ./COMPASS
+```
+
+### Usage
+
+The following command executes COMPASS for rdr2geo to resample SLC from terminal:
+
+```bash
+python -m compass.s1_cslc <path rdr2geo yaml>
+python -m compass.s1_cslc <path geo2rdr+resample yaml>
+```
+
+### License
 **Copyright (c) 2021** California Institute of Technology (“Caltech”). U.S. Government
 sponsorship acknowledged.
 

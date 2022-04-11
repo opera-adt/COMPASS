@@ -46,6 +46,10 @@ runconfig:
            resample:
                lines_per_block: 1000
 
+       logging:
+           path:
+           write_mode: 'w'
+
        worker:
            # OPTIONAL - To prevent downloading DEM / other data automatically. Default True
            internet_access: False

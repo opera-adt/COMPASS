@@ -13,7 +13,7 @@ from compass.utils import helpers
 from compass.utils.wrap_namespace import wrap_namespace
 from s1reader.s1_burst_slc import Sentinel1BurstSlc
 from s1reader.s1_orbit import get_orbit_file_from_list
-from s1reader.s1_reader import burst_from_zip
+from s1reader.s1_reader import load_bursts
 
 
 def validate_group_dict(group_cfg: dict) -> None:
@@ -77,7 +77,7 @@ def validate_group_dict(group_cfg: dict) -> None:
     helpers.check_write_dir(product_path_group['sas_output_file'])
 
 
-def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
+def get_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
     '''For each burst find corresponding orbit'
 
     Parameters
@@ -129,7 +129,7 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
         for pol, i_subswath in zip_list:
 
             # loop over burst objs extracted from SAFE zip
-            for burst in burst_from_zip(safe_file, orbit_path, i_subswath, pol):
+            for burst in load_bursts(safe_file, orbit_path, i_subswath, pol):
 
                 burst_id = burst.burst_id
 
@@ -230,7 +230,7 @@ class RunConfig:
         # Convert runconfig dict to SimpleNamespace
         sns = wrap_namespace(default_cfg['runconfig']['groups'])
 
-        bursts = load_bursts(sns)
+        bursts = get_bursts(sns)
 
         return cls(default_cfg['runconfig']['name'], sns, bursts)
 

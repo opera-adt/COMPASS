@@ -32,6 +32,7 @@ runconfig:
       processing:
           polarization: co-pol
           geocoding:
+              output_format: ENVI
               flatten: True
               dem_margin: 0.1
               lines_per_block: 1000

@@ -71,7 +71,7 @@ def run(cfg):
                 f'{output_path}/geo_{burst.burst_id}',
                 geo_grid.width, geo_grid.length,
                 rdr_burst_raster.num_bands, gdal.GDT_CFloat32,
-                'ENVI')
+                cfg.geocoding_params.output_format)
 
             # Extract burst boundaries
             b_bounds = np.s_[burst.first_valid_line:burst.last_valid_line,

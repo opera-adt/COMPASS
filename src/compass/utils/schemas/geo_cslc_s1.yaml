@@ -48,6 +48,8 @@ processing_options:
    range_split_spectrum: include('range_split_spectrum_options', required=False)
 
 geocoding_options:
+   # Format of output file
+   output_format: enum('ENVI', 'GTiff', 'COG', required=False)
    # Boolean flag to enable/disable flattenin
    flatten: bool(required=False)
    # DEM margin

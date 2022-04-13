@@ -17,10 +17,10 @@ def run(cfg):
     Run geocode burst workflow with user-defined
     args stored in dictionary runconfig *cfg*
 
-    Parameter:
+    Parameters
     ---------
     cfg: dict
-       Dictionary with user runconfig options
+        Dictionary with user runconfig options
     '''
     info_channel = journal.info("geo_cslc.run")
 
@@ -75,7 +75,7 @@ def run(cfg):
 
             # Extract burst boundaries
             b_bounds = np.s_[burst.first_valid_line:burst.last_valid_line,
-                             burst.first_valid_sample:burst.last_valid_sample]
+                       burst.first_valid_sample:burst.last_valid_sample]
 
             # Create sliced radar grid representing valid region of the burst
             sliced_radar_grid = burst.as_isce3_radargrid()[b_bounds]
@@ -110,21 +110,21 @@ def pixel2coords(ds, xpix, ypix):
     '''
     Get coordinates of pixel location (x_pix, y_pix)
 
-    Parameters:
+    Parameters
     ----------
     ds: gdal.Open
-       GDAL dataset handle
+        GDAL dataset handle
     xpix: int
-       Location of pixel along columns
+        Location of pixel along columns
     ypix: int
-       Location of pixel along rows
+        Location of pixel along rows
 
-    Returns:
+    Returns
     -------
     px: float
-       X coordinates corresponding to xpix
+        X coordinates corresponding to xpix
     py: float
-       Y coordinates corresponding to ypix
+        Y coordinates corresponding to ypix
     '''
     geo_transf = ds.GetGeoTransform()
     xmin = geo_transf[0]
@@ -143,14 +143,14 @@ def get_valid_polygon(filename, invalid_value):
     Get boundary polygon for raster in 'filename'.
      Polygon includes only valid pixels
 
-    Parameters:
+    Parameters
     ----------
     filename: str
         File path where raster is stored
     invalid_value: np.nan or float
         Invalid data value for raster in 'filename'
 
-    Returns:
+    Returns
     --------
     poly: shapely.Polygon
         Shapely polygon including valid values

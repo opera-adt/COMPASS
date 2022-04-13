@@ -8,20 +8,20 @@ def range_split_spectrum(burst, cfg_split_spectrum,
                          scratch_path):
     '''
     Split burst range spectrum
-    Parameters:
+    Parameters
     ----------
     burst: Sentinel1BurstSlc
-       S1-A/B burst object
+        S1-A/B burst object
     cfg_split_spectrum: dict
-       Dictionary with split-spetrum options
+        Dictionary with split-spetrum options
     scratch_path: str
-       Directory for storing temp files
+        Directory for storing temp files
 
-    Returns:
+    Returns
     -------
     burst_raster: isce3.io.Raster
-       3-bands ISCE3 Raster. Band #1: low band;
-       Band #2: main band; Band #3: high band
+        3-bands ISCE3 Raster. Band #1: low band;
+        Band #2: main band; Band #3: high band
     '''
     length, width = burst.shape
     lines_per_block = cfg_split_spectrum.lines_per_block
@@ -79,9 +79,10 @@ def range_split_spectrum(burst, cfg_split_spectrum,
             block_length = lines_per_block
 
         # Read a block of valid burst data
-        burst_data = in_ds.GetRasterBand(1).ReadAsArray(burst.first_valid_sample,
-                                                        burst.first_valid_line + line_start,
-                                                        valid_width, block_length)
+        burst_data = in_ds.GetRasterBand(1).ReadAsArray(
+            burst.first_valid_sample,
+            burst.first_valid_line + line_start,
+            valid_width, block_length)
         # Get the low band sub-image and corresponding metadata
         burst_low_data, burst_low_meta = split_spectrum_params.bandpass_shift_spectrum(
             slc_raster=burst_data, low_frequency=low_band_freqs[0],

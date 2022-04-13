@@ -16,8 +16,8 @@ def check_geocode_dict(geocode_cfg: dict) -> None:
     error_channel = journal.error('runconfig.check_and_prepare_geocode_params')
 
     # check output EPSG
-    if 'output_epsg' in geocode_cfg:
-        output_epsg = geocode_cfg['output_epsg']
+    output_epsg = geocode_cfg['output_epsg']
+    if output_epsg is not None:
         # check 1024 <= output_epsg <= 32767:
         if output_epsg < 1024 or 32767 < output_epsg:
             err_str = f'output epsg {output_epsg} in YAML out of bounds'

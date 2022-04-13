@@ -245,6 +245,42 @@ def snap_geogrid(geo_grid, x_snap, y_snap, x_end, y_end):
         geo_grid.width = _grid_size(end_x, geo_grid.start_x, geo_grid.spacing_x)
     return geo_grid
 
+def get_point_epsg(lat, lon):
+    '''
+    Get EPSG code based on latitude and longitude
+    coordinates of a point
+
+    Parameters
+    ----------
+    lat: float
+        Latitude coordinate of the point
+    lon: float
+        Longitude coordinate of the point
+
+    Returns
+    -------
+    epsg: int
+        UTM zone
+    '''
+    error_channel = journal.error('geogrid.get_point_epsg')
+
+    if lon >= 180.0:
+        lon = lon - 360.0
+
+    if lat >= 60.0:
+        return 3413
+    elif lat <= -60.0:
+        return 3031
+    elif lat > 0:
+        return 32601 + int(np.round((lon + 177) / 6.0))
+    elif lat < 0:
+        return 32701 + int(np.round((lon + 177) / 6.0))
+    else:
+        err_str = "'Could not determine EPSG for {0}, {1}'.format(lon, lat))"
+        error_channel.log(err_str)
+        raise ValueError(err_str)
+
+
 
 def generate_geogrids(all_bursts, geo_dict, dem):
     dem_raster = isce3.io.Raster(dem)
@@ -261,6 +297,7 @@ def generate_geogrids(all_bursts, geo_dict, dem):
     y_snap_dict = geo_dict['y_snap']
 
     # Check epsg. If None, assign DEM epsg
+
     epsg = assign_check_epsg(epsg_dict, dem_raster.get_epsg())
 
     geo_grids = {}
@@ -270,6 +307,12 @@ def generate_geogrids(all_bursts, geo_dict, dem):
 
             if burst_id in geo_grids:
                 continue
+
+            # Compute Burst epsg if not assigned in runconfig
+            if epsg_dict is None:
+                epsg_default = get_point_epsg(burst.center.y,
+                                              burst.center.x)
+            epsg = assign_check_epsg(epsg_dict, epsg_default)
 
             radar_grid = burst.as_isce3_radargrid()
             orbit = burst.orbit

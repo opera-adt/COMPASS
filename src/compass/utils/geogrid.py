@@ -281,7 +281,6 @@ def get_point_epsg(lat, lon):
         raise ValueError(err_str)
 
 
-
 def generate_geogrids(all_bursts, geo_dict, dem):
     dem_raster = isce3.io.Raster(dem)
 
@@ -295,10 +294,6 @@ def generate_geogrids(all_bursts, geo_dict, dem):
     y_end_dict = geo_dict['bottom_right']['y']
     x_snap_dict = geo_dict['x_snap']
     y_snap_dict = geo_dict['y_snap']
-
-    # Check epsg. If None, assign DEM epsg
-
-    epsg = assign_check_epsg(epsg_dict, dem_raster.get_epsg())
 
     geo_grids = {}
     for common_id_bursts in all_bursts:

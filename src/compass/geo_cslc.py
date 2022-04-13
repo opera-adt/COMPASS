@@ -77,7 +77,7 @@ def run(cfg):
             b_bounds = np.s_[burst.first_valid_line:burst.last_valid_line,
                              burst.first_valid_sample:burst.last_valid_sample]
 
-            # Create sliced radar grid from burst boundaries
+            # Create sliced radar grid representing valid region of the burst
             sliced_radar_grid = burst.as_isce3_radargrid()[b_bounds]
 
             # Geocode
@@ -187,7 +187,7 @@ if __name__ == "__main__":
     runconfig = GeoRunConfig.load_from_yaml(geo_parser.run_config_path,
                                             'geo_cslc_s1')
 
-    # Save metadata for stitching
+    # Save burst metadata and runconfig parameters
     json_path = f'{runconfig.product_path}/metadata.json'
     with open(json_path, 'w') as f_json:
         runconfig.to_json(f_json)

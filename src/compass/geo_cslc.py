@@ -62,8 +62,8 @@ def run(cfg):
                                                         cfg.split_spectrum_params,
                                                         scratch_path)
             else:
-                temp_slc_path = f'{scratch_path}/{burst.burst_id}_temp.tiff'
-                burst.slc_to_file(temp_slc_path, 'GTiff')
+                temp_slc_path = f'{scratch_path}/{burst.burst_id}_temp.vrt'
+                burst.slc_to_vrt_file(temp_slc_path)
                 rdr_burst_raster = isce3.io.Raster(temp_slc_path)
 
             # Generate output geocoded burst raster

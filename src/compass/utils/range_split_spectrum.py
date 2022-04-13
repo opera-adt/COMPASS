@@ -85,7 +85,7 @@ def range_split_spectrum(burst, cfg_split_spectrum,
 
     # In ISCE3, we can use raised cosine to implement S1-A/B Hamming
     window_type = burst.range_window_type
-    window_type='Cosine' if window_type.casefold() == 'hamming' else window_type
+    window_type = 'Cosine' if window_type.casefold() == 'hamming' else window_type
 
     # Extract bandwidths (bw) and create frequency vectors
     half_bw = 0.5 * burst.range_bandwidth
@@ -144,7 +144,7 @@ def range_split_spectrum(burst, cfg_split_spectrum,
             high_frequency=low_band_freqs[1],
             new_center_frequency=low_center_freq,
             fft_size=valid_width, window_shape=burst.range_window_coefficient,
-            window_function=burst.range_window_type, resampling=False
+            window_function=window_type, resampling=False
         )
         # Get the high sub-image and corresponding metadata
         burst_high_data, burst_high_metadata = split_spectrum_params.bandpass_shift_spectrum(
@@ -152,7 +152,7 @@ def range_split_spectrum(burst, cfg_split_spectrum,
             high_frequency=high_band_freqs[1],
             new_center_frequency=high_center_freq,
             fft_size=valid_width, window_shape=burst.range_window_coefficient,
-            window_function=burst.range_window_type, resampling=False
+            window_function=window_type, resampling=False
         )
         # Write back all the processed data
         out_ds.GetRasterBand(1).WriteArray(burst_low_data[0:block_length],

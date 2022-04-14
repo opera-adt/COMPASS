@@ -84,7 +84,7 @@ def range_split_spectrum(burst, cfg_split_spectrum,
             burst.first_valid_line + line_start,
             valid_width, block_length)
         # Get the low band sub-image and corresponding metadata
-        burst_low_data, burst_low_meta = split_spectrum_params.bandpass_shift_spectrum(
+        burst_low_data, _ = split_spectrum_params.bandpass_shift_spectrum(
             slc_raster=burst_data, low_frequency=low_band_freqs[0],
             high_frequency=low_band_freqs[1],
             new_center_frequency=low_center_freq,
@@ -92,7 +92,7 @@ def range_split_spectrum(burst, cfg_split_spectrum,
             window_function=window_type, resampling=False
         )
         # Get the high sub-image and corresponding metadata
-        burst_high_data, burst_high_metadata = split_spectrum_params.bandpass_shift_spectrum(
+        burst_high_data, _ = split_spectrum_params.bandpass_shift_spectrum(
             slc_raster=burst_data, low_frequency=high_band_freqs[0],
             high_frequency=high_band_freqs[1],
             new_center_frequency=high_center_freq,

@@ -1,7 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import json
-import sys
 
 from isce3.product import GeoGridParameters
 import journal

@@ -101,84 +101,8 @@ def run(cfg):
         geo_burst_raster.set_epsg(epsg)
         del geo_burst_raster
 
-        # Get polygon including valid areas (to be dumped in metadata)
-        filename = f'{output_path}/geo_{burst_id}_{pol}'
-        poly = get_valid_polygon(filename, np.nan)
-
     dt = time.time() - t_start
     info_channel.log(f'geocode burst successfully ran in {dt:.3f} seconds')
-
-
-def pixel2coords(ds, xpix, ypix):
-    '''
-    Get coordinates of pixel location (x_pix, y_pix)
-
-    Parameters
-    ----------
-    ds: gdal.Open
-        GDAL dataset handle
-    xpix: int
-        Location of pixel along columns
-    ypix: int
-        Location of pixel along rows
-
-    Returns
-    -------
-    px: float
-        X coordinates corresponding to xpix
-    py: float
-        Y coordinates corresponding to ypix
-    '''
-    geo_transf = ds.GetGeoTransform()
-    xmin = geo_transf[0]
-    xsize = geo_transf[1]
-    ymin = geo_transf[3]
-    ysize = geo_transf[5]
-
-    px = xpix * xsize + xmin
-    py = ypix * ysize + ymin
-
-    return (px, py)
-
-
-def get_valid_polygon(filename, invalid_value):
-    '''
-    Get boundary polygon for raster in 'filename'.
-     Polygon includes only valid pixels
-
-    Parameters
-    ----------
-    filename: str
-        File path where raster is stored
-    invalid_value: np.nan or float
-        Invalid data value for raster in 'filename'
-
-    Returns
-    --------
-    poly: shapely.Polygon
-        Shapely polygon including valid values
-    '''
-    # Optimize this with block-processing?
-    ds = gdal.Open(filename, gdal.GA_ReadOnly)
-    burst = ds.GetRasterBand(1).ReadAsArray()
-
-    if np.isnan(invalid_value):
-        idy, idx = np.where((~np.isnan(burst.real)) &
-                            (~np.isnan(burst.imag)))
-    else:
-        idy, idx = np.where((burst.real == invalid_value) &
-                            (burst.imag == invalid_value))
-    tgt_x = []
-    tgt_y = []
-
-    for x_idx, y_idy in zip(idx[::100], idy[::100]):
-        px, py = pixel2coords(ds, x_idx, y_idy)
-        tgt_x.append(px)
-        tgt_y.append(py)
-
-    points = MultiPoint(list(zip(tgt_x, tgt_y)))
-    poly = points.convex_hull
-    return poly
 
 
 if __name__ == "__main__":
@@ -191,9 +115,9 @@ if __name__ == "__main__":
                                             'geo_cslc_s1')
 
     # Run geocode burst workflow
-    run(runconfig)
+    #run(runconfig)
 
     # Save burst metadata and runconfig parameters
     json_path = f'{runconfig.product_path}/metadata.json'
     with open(json_path, 'w') as f_json:
-        runconfig.to_json(f_json)
+        runconfig.to_file(f_json, 'json')

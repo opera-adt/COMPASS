@@ -46,7 +46,7 @@ def range_split_spectrum(burst, cfg_split_spectrum,
     # Initialize the split-spectrum parameter object. Note, constructor
     # requires frequency (A/B) but this is not used anywhere below
     rdr_grid = burst.as_isce3_radargrid()
-    split_spectrum_params = splitspectrum.SplitSpectrum(
+    split_spectrum_obj = splitspectrum.SplitSpectrum(
         rg_sample_freq=burst.range_sampling_rate,
         rg_bandwidth=burst.range_bandwidth,
         center_frequency=burst.radar_center_frequency,
@@ -84,19 +84,19 @@ def range_split_spectrum(burst, cfg_split_spectrum,
             burst.first_valid_line + line_start,
             valid_width, block_length)
         # Get the low band sub-image and corresponding metadata
-        burst_low_data, _ = split_spectrum_params.bandpass_shift_spectrum(
+        burst_low_data, _ = split_spectrum_obj.bandpass_shift_spectrum(
             slc_raster=burst_data, low_frequency=low_band_freqs[0],
             high_frequency=low_band_freqs[1],
             new_center_frequency=low_center_freq,
-            fft_size=valid_width, window_shape=burst.range_window_coefficient,
+            fft_size=valid_width, window_shape=1.0 - 2.0 * burst.range_window_coefficient,
             window_function=window_type, resampling=False
         )
         # Get the high sub-image and corresponding metadata
-        burst_high_data, _ = split_spectrum_params.bandpass_shift_spectrum(
+        burst_high_data, _ = split_spectrum_obj.bandpass_shift_spectrum(
             slc_raster=burst_data, low_frequency=high_band_freqs[0],
             high_frequency=high_band_freqs[1],
             new_center_frequency=high_center_freq,
-            fft_size=valid_width, window_shape=burst.range_window_coefficient,
+            fft_size=valid_width, window_shape=1.0 - 2.0 * burst.range_window_coefficient,
             window_function=window_type, resampling=False
         )
         # Write back all the processed data

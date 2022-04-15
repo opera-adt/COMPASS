@@ -25,6 +25,7 @@ def range_split_spectrum(burst, cfg_split_spectrum,
     '''
     length, width = burst.shape
     lines_per_block = cfg_split_spectrum.lines_per_block
+    burst_id_pol = '_'.join([burst.burst_id, burst.polarization])
 
     # In ISCE3, we can use raised cosine to implement S1-A/B Hamming
     window_type = burst.range_window_type
@@ -54,7 +55,7 @@ def range_split_spectrum(burst, cfg_split_spectrum,
         freq='A')
 
     # Save the burst locally
-    burst_path = f'{scratch_path}/burst_temp.vrt'
+    burst_path = f'{scratch_path}/{burst_id_pol}_temp.vrt'
     burst.slc_to_vrt_file(burst_path)
 
     # The output burst will
@@ -64,7 +65,7 @@ def range_split_spectrum(burst, cfg_split_spectrum,
     length = in_ds.RasterYSize
     width = in_ds.RasterXSize
     driver = gdal.GetDriverByName('ENVI')
-    out_ds = driver.Create(f'{scratch_path}/{burst.burst_id}_low_main_high',
+    out_ds = driver.Create(f'{scratch_path}/{burst_id_pol}_low_main_high',
                            width, length, 3, gdal.GDT_CFloat32)
 
     # Prepare necessary variables for block processing
@@ -108,6 +109,6 @@ def range_split_spectrum(burst, cfg_split_spectrum,
     out_ds.FlushCache()
     out_ds = None
     burst_raster = isce3.io.Raster(
-        f'{scratch_path}/{burst.burst_id}_low_main_high')
+        f'{scratch_path}/{burst_id_pol}_low_main_high')
 
     return burst_raster

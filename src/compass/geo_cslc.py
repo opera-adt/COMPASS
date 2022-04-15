@@ -40,67 +40,70 @@ def run(cfg):
     dem_margin = cfg.geocoding_params.dem_margin
     flatten = cfg.geocoding_params.flatten
 
-    for bursts in cfg.bursts:
-        burst_id = bursts[0].burst_id
+    for burst in cfg.bursts:
+        date_str = str(burst.sensing_start.date())
+        burst_id = burst.burst_id
+        pol = burst.polarization
         geo_grid = cfg.geogrids[burst_id]
 
-        output_path = f'{cfg.product_path}/{burst_id}'
-        scratch_path = f'{cfg.scratch_path}/{burst_id}'
+        output_path = f'{cfg.product_path}/{burst_id}/{date_str}'
         os.makedirs(output_path, exist_ok=True)
+
+        scratch_path = f'{cfg.scratch_path}/{burst_id}/{date_str}'
         os.makedirs(scratch_path, exist_ok=True)
-        for burst in bursts:
-            radar_grid = burst.as_isce3_radargrid()
-            native_doppler = burst.doppler.lut2d
-            orbit = burst.orbit
 
-            # Get azimuth polynomial coefficients for this burst
-            az_carrier_poly2d = burst.get_az_carrier_poly()
+        radar_grid = burst.as_isce3_radargrid()
+        native_doppler = burst.doppler.lut2d
+        orbit = burst.orbit
 
-            # Split the range bandwidth of the burst, if required
-            if cfg.split_spectrum_params.enabled:
-                rdr_burst_raster = range_split_spectrum(burst,
-                                                        cfg.split_spectrum_params,
-                                                        scratch_path)
-            else:
-                temp_slc_path = f'{scratch_path}/{burst.burst_id}_temp.vrt'
-                burst.slc_to_vrt_file(temp_slc_path)
-                rdr_burst_raster = isce3.io.Raster(temp_slc_path)
+        # Get azimuth polynomial coefficients for this burst
+        az_carrier_poly2d = burst.get_az_carrier_poly()
 
-            # Generate output geocoded burst raster
-            geo_burst_raster = isce3.io.Raster(
-                f'{output_path}/geo_{burst.burst_id}',
-                geo_grid.width, geo_grid.length,
-                rdr_burst_raster.num_bands, gdal.GDT_CFloat32,
-                cfg.geocoding_params.output_format)
+        # Split the range bandwidth of the burst, if required
+        if cfg.split_spectrum_params.enabled:
+            rdr_burst_raster = range_split_spectrum(burst,
+                                                    cfg.split_spectrum_params,
+                                                    scratch_path)
+        else:
+            temp_slc_path = f'{scratch_path}/{burst_id}_{pol}_temp.vrt'
+            burst.slc_to_vrt_file(temp_slc_path)
+            rdr_burst_raster = isce3.io.Raster(temp_slc_path)
 
-            # Extract burst boundaries
-            b_bounds = np.s_[burst.first_valid_line:burst.last_valid_line,
-                       burst.first_valid_sample:burst.last_valid_sample]
+        # Generate output geocoded burst raster
+        geo_burst_raster = isce3.io.Raster(
+            f'{output_path}/geo_{burst_id}_{pol}',
+            geo_grid.width, geo_grid.length,
+            rdr_burst_raster.num_bands, gdal.GDT_CFloat32,
+            cfg.geocoding_params.output_format)
 
-            # Create sliced radar grid representing valid region of the burst
-            sliced_radar_grid = burst.as_isce3_radargrid()[b_bounds]
+        # Extract burst boundaries
+        b_bounds = np.s_[burst.first_valid_line:burst.last_valid_line,
+                   burst.first_valid_sample:burst.last_valid_sample]
 
-            # Geocode
-            isce3.geocode.geocode_slc(geo_burst_raster, rdr_burst_raster,
-                                      dem_raster,
-                                      radar_grid, sliced_radar_grid,
-                                      geo_grid, orbit,
-                                      native_doppler,
-                                      image_grid_doppler, ellipsoid, threshold,
-                                      iters,
-                                      blocksize, dem_margin, flatten,
-                                      azimuth_carrier=az_carrier_poly2d)
+        # Create sliced radar grid representing valid region of the burst
+        sliced_radar_grid = burst.as_isce3_radargrid()[b_bounds]
 
-            # Set geo transformation
-            geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,
-                            geo_grid.start_y, 0, geo_grid.spacing_y]
-            geo_burst_raster.set_geotransform(geotransform)
-            geo_burst_raster.set_epsg(epsg)
-            del geo_burst_raster
+        # Geocode
+        isce3.geocode.geocode_slc(geo_burst_raster, rdr_burst_raster,
+                                  dem_raster,
+                                  radar_grid, sliced_radar_grid,
+                                  geo_grid, orbit,
+                                  native_doppler,
+                                  image_grid_doppler, ellipsoid, threshold,
+                                  iters,
+                                  blocksize, dem_margin, flatten,
+                                  azimuth_carrier=az_carrier_poly2d)
 
-            # Get polygon including valid areas (to be dumped in metadata)
-            filename = f'{output_path}/geo_{burst.burst_id}'
-            poly = get_valid_polygon(filename, np.nan)
+        # Set geo transformation
+        geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,
+                        geo_grid.start_y, 0, geo_grid.spacing_y]
+        geo_burst_raster.set_geotransform(geotransform)
+        geo_burst_raster.set_epsg(epsg)
+        del geo_burst_raster
+
+        # Get polygon including valid areas (to be dumped in metadata)
+        filename = f'{output_path}/geo_{burst_id}_{pol}'
+        poly = get_valid_polygon(filename, np.nan)
 
     dt = time.time() - t_start
     info_channel.log(f'geocode burst successfully ran in {dt:.3f} seconds')

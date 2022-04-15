@@ -305,9 +305,8 @@ def generate_geogrids(all_bursts, geo_dict, dem):
                 continue
 
             # Compute Burst epsg if not assigned in runconfig
-            if epsg_dict is None:
-                epsg_default = get_point_epsg(burst.center.y,
-                                              burst.center.x)
+            epsg_default = get_point_epsg(burst.center.y,
+                                          burst.center.x)
             epsg = assign_check_epsg(epsg_dict, epsg_default)
 
             radar_grid = burst.as_isce3_radargrid()

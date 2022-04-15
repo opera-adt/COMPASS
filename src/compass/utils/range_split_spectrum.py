@@ -4,6 +4,27 @@ from isce3.splitspectrum import splitspectrum
 from osgeo import gdal
 
 
+def find_next_power(number):
+    '''
+    Finds the next power of 2 of 'number'
+    Parameters
+    ----------
+    number: int
+        Number for which to find next power of two
+    Returns
+    -------
+    power: int
+        Next power of 2 of 'number'
+    '''
+    power = 1
+    if (number and not (number & (number - 1))):
+        return number
+
+    while (power < number):
+        power <<= 1
+    return power
+
+
 def range_split_spectrum(burst, cfg_split_spectrum,
                          scratch_path):
     '''
@@ -87,7 +108,8 @@ def range_split_spectrum(burst, cfg_split_spectrum,
             slc_raster=burst_data, low_frequency=low_band_freqs[0],
             high_frequency=low_band_freqs[1],
             new_center_frequency=low_center_freq,
-            fft_size=width, window_shape=1.0 - burst.range_window_coefficient,
+            fft_size=find_next_power(width),
+            window_shape=1.0 - burst.range_window_coefficient,
             window_function=window_type, resampling=False
         )
         # Get the high sub-image and corresponding metadata
@@ -95,7 +117,8 @@ def range_split_spectrum(burst, cfg_split_spectrum,
             slc_raster=burst_data, low_frequency=high_band_freqs[0],
             high_frequency=high_band_freqs[1],
             new_center_frequency=high_center_freq,
-            fft_size=width, window_shape=1.0 - burst.range_window_coefficient,
+            fft_size=find_next_power(width),
+            window_shape=1.0 - burst.range_window_coefficient,
             window_function=window_type, resampling=False
         )
         # Write back all the processed data

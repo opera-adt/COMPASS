@@ -60,35 +60,33 @@ def range_split_spectrum(burst, cfg_split_spectrum,
     # The output burst will
     # contain 3 bands: Band #1: low-band image; Band #2 main-band image;
     # Band #3: high-band image.
-    valid_length = burst.last_valid_line - burst.first_valid_line
-    valid_width = burst.last_valid_sample - burst.first_valid_sample
     in_ds = gdal.Open(burst_path, gdal.GA_ReadOnly)
+    length = in_ds.RasterYSize
+    width = in_ds.RasterXSize
     driver = gdal.GetDriverByName('ENVI')
     out_ds = driver.Create(f'{scratch_path}/{burst.burst_id}_low_main_high',
                            width, length, 3, gdal.GDT_CFloat32)
 
     # Prepare necessary variables for block processing
-    lines_per_block = min(valid_length, lines_per_block)
-    num_blocks = int(np.ceil(valid_length / lines_per_block))
+    lines_per_block = min(length, lines_per_block)
+    num_blocks = int(np.ceil(length / lines_per_block))
 
     for block in range(num_blocks):
         line_start = block * lines_per_block
         if block == num_blocks - 1:
-            block_length = valid_length - line_start
+            block_length = length - line_start
         else:
             block_length = lines_per_block
 
         # Read a block of valid burst data
-        burst_data = in_ds.GetRasterBand(1).ReadAsArray(
-            burst.first_valid_sample,
-            burst.first_valid_line + line_start,
-            valid_width, block_length)
+        burst_data = in_ds.GetRasterBand(1).ReadAsArray(0, line_start,
+                                                        width, block_length)
         # Get the low band sub-image and corresponding metadata
         burst_low_data, _ = split_spectrum_obj.bandpass_shift_spectrum(
             slc_raster=burst_data, low_frequency=low_band_freqs[0],
             high_frequency=low_band_freqs[1],
             new_center_frequency=low_center_freq,
-            fft_size=valid_width, window_shape=1.0 - 2.0 * burst.range_window_coefficient,
+            fft_size=width, window_shape=1.0 - burst.range_window_coefficient,
             window_function=window_type, resampling=False
         )
         # Get the high sub-image and corresponding metadata
@@ -96,19 +94,16 @@ def range_split_spectrum(burst, cfg_split_spectrum,
             slc_raster=burst_data, low_frequency=high_band_freqs[0],
             high_frequency=high_band_freqs[1],
             new_center_frequency=high_center_freq,
-            fft_size=valid_width, window_shape=1.0 - 2.0 * burst.range_window_coefficient,
+            fft_size=width, window_shape=1.0 - burst.range_window_coefficient,
             window_function=window_type, resampling=False
         )
         # Write back all the processed data
         out_ds.GetRasterBand(1).WriteArray(burst_low_data[0:block_length],
-                                           yoff=line_start + burst.first_valid_line,
-                                           xoff=burst.first_valid_sample)
+                                           yoff=line_start)
         out_ds.GetRasterBand(2).WriteArray(burst_data[0:block_length],
-                                           yoff=line_start + burst.first_valid_line,
-                                           xoff=burst.first_valid_sample)
+                                           yoff=line_start)
         out_ds.GetRasterBand(3).WriteArray(burst_high_data[0:block_length],
-                                           yoff=line_start + burst.first_valid_line,
-                                           xoff=burst.first_valid_sample)
+                                           yoff=line_start)
 
     out_ds.FlushCache()
     out_ds = None

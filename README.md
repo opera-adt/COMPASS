@@ -20,16 +20,10 @@ git clone https://github.com/opera-adt/COMPASS.git
 
 ```bash
 conda install -c conda-forge --file COMPASS/requirements.txt
+python -m pip install git+https://github.com/opera-adt/s1-reader.git
 ```
 
-3. Download `s1-reader` and install via pip:
-
-```bash
-git clone https://github.com/opera-adt/s1-reader.git
-python -m pip install ./s1-reader
-```
-
-4. Install `COMPASS` via pip:
+3. Install `COMPASS` via pip:
 
 ```bash
 # run "pip install -e" to install in development mode

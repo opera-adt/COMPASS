@@ -6,9 +6,7 @@ COregistered Multi-temPorAl Sar Slc
 
 ### Install
 
-
 The following will install COMPASS into a conda environment.
-
 
 1. Download source code:
 

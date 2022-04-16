@@ -1,5 +1,6 @@
 """Wrapper for resample burst"""
 from datetime import timedelta
+import glob
 import os
 import time
 
@@ -10,6 +11,42 @@ from osgeo import gdal
 from compass.utils.reference_radar_grid import file_to_rdr_grid
 from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
+
+
+def find_ref_radar_grids(ref_path, burst_ids):
+    ''' Find all reference radar grids info
+
+    Parameters
+    ----------
+    ref_path: str
+        Path where reference radar grids processing is stored
+    burst_ids: list[str]
+        Burst IDs for reference radar grids
+
+    Returns
+    -------
+    ref_radar_grids: dict
+        Dict of radar grids values found associated with burst ID keys
+    '''
+    rdr_grid_files = glob.glob(f'{ref_path}/**/radar_grid.txt',
+                               recursive=True)
+
+    if not rdr_grid_files:
+        raise FileNotFoundError(f'No reference radar grids not found in {ref_path}')
+
+    ref_rdr_grids ={}
+    for burst_id in burst_ids:
+        b_id_rdr_grid_files = [f for f in rdr_grid_files if burst_id in f]
+
+        if not b_id_rdr_grid_files:
+            raise FileNotFoundError(f'Reference radar grid not found for {burst_id}')
+
+        if len(b_id_rdr_grid_files) > 1:
+            raise FileExistsError(f'More than one reference radar grid found for {burst_id}')
+
+        ref_rdr_grids[burst_id] = file_to_rdr_grid(b_id_rdr_grid_files[0])
+
+    return ref_rdr_grids
 
 
 def run(cfg: dict):
@@ -40,6 +77,9 @@ def run(cfg: dict):
     # Get common resample parameters
     blocksize = cfg.resample_params.lines_per_block
 
+    # Dict for found reference grids (avoid finding for repeated burst IDs)
+    ref_rdr_grids = find_ref_radar_grids(cfg.reference_path, cfg.burst_id)
+
     # Process all bursts
     for burst in cfg.bursts:
         # get burst ID of current burst
@@ -50,10 +90,7 @@ def run(cfg: dict):
         os.makedirs(top_output_path, exist_ok=True)
 
         # Get reference burst radar grid
-        burst_path = f'{cfg.reference_path}/{burst_id}'
-        grid_path = os.listdir(burst_path)[0]
-        ref_grid_path = f'{burst_path}/{grid_path}/radar_grid.txt'
-        ref_rdr_grid = file_to_rdr_grid(ref_grid_path)
+        ref_rdr_grid = ref_rdr_grids[burst_id]
 
         # Extract date string and create directory
         date_str = str(burst.sensing_start.date())

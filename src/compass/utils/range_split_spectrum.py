@@ -23,7 +23,7 @@ def find_next_power(number):
 
     while (power < number):
         power <<= 1
-    return power
+    return number
 
 
 def range_split_spectrum(burst, cfg_split_spectrum,
@@ -86,8 +86,6 @@ def range_split_spectrum(burst, cfg_split_spectrum,
     # contain 3 bands: Band #1: low-band image; Band #2 main-band image;
     # Band #3: high-band image.
     in_ds = gdal.Open(burst_path, gdal.GA_ReadOnly)
-    length = in_ds.RasterYSize
-    width = in_ds.RasterXSize
     driver = gdal.GetDriverByName('ENVI')
     out_ds = driver.Create(f'{scratch_path}/{burst_id_pol}_low_main_high',
                            width, length, 3, gdal.GDT_CFloat32)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+import glob
 from itertools import cycle
 import os
 from types import SimpleNamespace
@@ -9,6 +10,7 @@ import yamale
 from ruamel.yaml import YAML
 
 from compass.utils import helpers
+from compass.utils.reference_radar_grid import file_to_rdr_grid
 from compass.utils.wrap_namespace import wrap_namespace
 from s1reader.s1_burst_slc import Sentinel1BurstSlc
 from s1reader.s1_orbit import get_orbit_file_from_list
@@ -27,31 +29,6 @@ def validate_group_dict(group_cfg: dict) -> None:
 
     # Check 'input_file_group' section of runconfig
     input_group = group_cfg['input_file_group']
-    # If is_reference flag is False, check that file path to reference
-    # burst is assigned and valid (required by geo2rdr and resample)
-    is_reference = input_group['reference_burst']['is_reference']
-    if not is_reference:
-        # check if reference directory holding burst_id directories exists
-        ref_path = input_group['reference_burst']['file_path']
-        helpers.check_directory(ref_path)
-
-        for burst_id in input_group['burst_id']:
-            # check if a directory exists for each burst ID
-            burst_id_path = f'{ref_path}/{burst_id}'
-            helpers.check_directory(burst_id_path)
-
-            # ensure only 1 directory under burst ID path
-            n_dir_in_burst_id_path = len(os.listdir(burst_id_path))
-
-            if (n_dir_in_burst_id_path == 0):
-                err_str = f'no directories found under {burst_id_path}'
-
-            if (n_dir_in_burst_id_path > 1):
-                err_str = f'more than one directory found under {burst_id_path}'
-
-            if (n_dir_in_burst_id_path != 1):
-                error_channel.log(err_str)
-                raise ValueError(err_str)
 
     # Check SAFE files
     run_pol_mode = group_cfg['processing']['polarization']
@@ -199,6 +176,51 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
     return bursts
 
 
+def get_ref_radar_grid_info(ref_path, burst_ids):
+    ''' Find all reference radar grids info
+
+    Parameters
+    ----------
+    ref_path: str
+        Path where reference radar grids processing is stored
+    burst_ids: list[str]
+        Burst IDs for reference radar grids
+
+    Returns
+    -------
+    ref_radar_grids: dict
+        Dict of reference radar path and grid values found associated with
+        burst ID keys
+    '''
+    rdr_grid_files = glob.glob(f'{ref_path}/**/radar_grid.txt',
+                               recursive=True)
+
+    if not rdr_grid_files:
+        raise FileNotFoundError(f'No reference radar grids not found in {ref_path}')
+
+    ref_rdr_grids ={}
+    for burst_id in burst_ids:
+        b_id_rdr_grid_files = [f for f in rdr_grid_files if burst_id in f]
+
+        if not b_id_rdr_grid_files:
+            raise FileNotFoundError(f'Reference radar grid not found for {burst_id}')
+
+        if len(b_id_rdr_grid_files) > 1:
+            raise FileExistsError(f'More than one reference radar grid found for {burst_id}')
+
+        ref_rdr_path = os.path.dirname(b_id_rdr_grid_files[0])
+        ref_rdr_grid = file_to_rdr_grid(b_id_rdr_grid_files[0])
+        ref_rdr_grids[burst_id] = ReferenceRadarInfo(ref_rdr_path, ref_rdr_grid)
+
+    return ref_rdr_grids
+
+
+@dataclass(frozen=True)
+class ReferenceRadarInfo:
+    path: str
+    grid: isce3.product.RadarGridParameters
+
+
 @dataclass(frozen=True)
 class RunConfig:
     '''dataclass containing CSLC runconfig'''
@@ -208,6 +230,9 @@ class RunConfig:
     groups: SimpleNamespace
     # list of lists where bursts in interior list have a common burst_id
     bursts: list[Sentinel1BurstSlc]
+    # dict of reference radar paths and grids values keyed on burst ID
+    # (empty/unused if rdr2geo)
+    reference_radar_info: dict
 
     @classmethod
     def load_from_yaml(cls, yaml_path: str, workflow_name: str) -> RunConfig:
@@ -270,7 +295,15 @@ class RunConfig:
 
         bursts = load_bursts(sns)
 
-        return cls(default_cfg['runconfig']['name'], sns, bursts)
+        # Load reference grids if not reference run i.e. not running rdr2geo
+        ref_rdr_grids = {}
+        if not sns.input_file_group.reference_burst.is_reference:
+            ref_rdr_grids = get_ref_radar_grid_info(
+                sns.input_file_group.reference_burst.file_path,
+                sns.input_file_group.burst_id)
+
+        return cls(default_cfg['runconfig']['name'], sns, bursts,
+                   ref_rdr_grids)
 
     @property
     def burst_id(self) -> list[str]:

@@ -67,9 +67,8 @@ def run(cfg: dict):
         id_dates_processed.append(id_date)
 
         # Get topo layers from vrt
-        burst_path = f'{cfg.reference_path}/{burst_id}'
-        vrt_path = os.listdir(burst_path)[0]
-        topo_raster = isce3.io.Raster(f'{burst_path}/{vrt_path}/topo.vrt')
+        burst_path = cfg.reference_radar_info[burst_id].path
+        topo_raster = isce3.io.Raster(f'{burst_path}/topo.vrt')
 
         # Create date directory
         burst_output_path = f'{top_output_path}/{date_str}'

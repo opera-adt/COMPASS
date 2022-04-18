@@ -115,7 +115,7 @@ if __name__ == "__main__":
                                             'geo_cslc_s1')
 
     # Run geocode burst workflow
-    #run(runconfig)
+    run(runconfig)
 
     # Save burst metadata and runconfig parameters
     json_path = f'{runconfig.product_path}/metadata.json'

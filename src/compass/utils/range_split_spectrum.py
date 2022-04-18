@@ -26,27 +26,6 @@ def find_next_power(number):
     return power
 
 
-def find_next_power(number):
-    '''
-    Finds the next power of 2 of 'number'
-    Parameters
-    ----------
-    number: int
-        Number for which to find next power of two
-    Returns
-    -------
-    power: int
-        Next power of 2 of 'number'
-    '''
-    power = 1
-    if (number and not (number & (number - 1))):
-        return number
-
-    while (power < number):
-        power <<= 1
-    return power
-
-
 def range_split_spectrum(burst, cfg_split_spectrum,
                          scratch_path):
     '''

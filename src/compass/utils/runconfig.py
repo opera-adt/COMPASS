@@ -15,7 +15,7 @@ from compass.utils.reference_radar_grid import file_to_rdr_grid
 from compass.utils.wrap_namespace import wrap_namespace
 from s1reader.s1_burst_slc import Sentinel1BurstSlc
 from s1reader.s1_orbit import get_orbit_file_from_list
-from s1reader.s1_reader import load_bursts as s1_load_bursts
+from s1reader.s1_reader import load_bursts
 
 
 def validate_group_dict(group_cfg: dict) -> None:
@@ -74,7 +74,7 @@ def validate_group_dict(group_cfg: dict) -> None:
     helpers.check_write_dir(product_path_group['sas_output_file'])
 
 
-def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
+def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
     '''Return bursts based on parameters in given runconfig
 
     Parameters
@@ -294,7 +294,7 @@ class RunConfig:
         # Convert runconfig dict to SimpleNamespace
         sns = wrap_namespace(default_cfg['runconfig']['groups'])
 
-        bursts = load_bursts(sns)
+        bursts = runconfig_to_bursts(sns)
 
         # Load reference grids if not reference run i.e. not running rdr2geo
         ref_rdr_grids = {}

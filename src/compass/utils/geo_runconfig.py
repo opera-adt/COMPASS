@@ -7,6 +7,7 @@ import journal
 from ruamel.yaml import YAML
 
 from compass.utils.geogrid import generate_geogrids, geogrid_as_dict
+from compass.utils.raster_polygon import add_poly_to_dict
 from compass.utils.runconfig import load_bursts, load_validate_yaml, RunConfig
 from compass.utils.wrap_namespace import wrap_namespace
 
@@ -97,27 +98,30 @@ class GeoRunConfig(RunConfig):
 
         return self_as_dict
 
-    def to_yaml(self, dst):
+
+    def to_file(self, dst, fmt:str, add_burst_boundary=False):
         ''' Write self to YAML
 
         Parameter:
         ---------
         dst: file pointer
-           Where to write YAML
-
+            File object to write metadata to
+        fmt: ['yaml', 'json']
+            Format of output
+        add_burst_boundary: bool
+            If true add burst boundary string to each burst entry in dict.
+            Reads geocoded burst rasters; only viable after running geo_cslc.
         '''
         self_as_dict = self.as_dict()
-        yaml = YAML(typ='safe')
-        yaml.dump(self_as_dict, dst)
 
-    def to_json(self, dst):
-        ''' Write self to JSON
+        if add_burst_boundary:
+            for b_dict in self_as_dict['bursts']:
+                add_poly_to_dict(some_dir, b_dict)
 
-        Parameter:
-        ---------
-        dst: file pointer
-           Where to write JSON
-
-        '''
-        self_as_dict = self.as_dict()
-        json.dump(self_as_dict, dst)
+        if fmt == 'yaml':
+            yaml = YAML(typ='safe')
+            yaml.dump(self_as_dict, dst)
+        elif fmt == 'json':
+            json.dump(self_as_dict, dst)
+        else:
+            raise ValueError(f'{fmt} unsupported. Only "json" or "yaml" supported')

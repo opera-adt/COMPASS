@@ -282,7 +282,7 @@ def get_point_epsg(lat, lon):
         raise ValueError(err_str)
 
 
-def generate_geogrids(all_bursts, geo_dict, dem):
+def generate_geogrids(bursts, geo_dict, dem):
     dem_raster = isce3.io.Raster(dem)
 
     # Unpack values from geocoding disctionary
@@ -297,59 +297,48 @@ def generate_geogrids(all_bursts, geo_dict, dem):
     y_snap_dict = geo_dict['y_snap']
 
     geo_grids = {}
-    for common_id_bursts in all_bursts:
-        for burst in common_id_bursts:
-            burst_id = burst.burst_id
+    for burst in bursts:
+        burst_id = burst.burst_id
 
-            if burst_id in geo_grids:
-                continue
+        if burst_id in geo_grids:
+            continue
 
-            # Compute Burst epsg if not assigned in runconfig
-            epsg_default = get_point_epsg(burst.center.y,
-                                          burst.center.x)
-            epsg = assign_check_epsg(epsg_dict, epsg_default)
+        # Compute Burst epsg if not assigned in runconfig
+        epsg_default = get_point_epsg(burst.center.y,
+                                      burst.center.x)
+        epsg = assign_check_epsg(epsg_dict, epsg_default)
 
-            radar_grid = burst.as_isce3_radargrid()
-            orbit = burst.orbit
+        radar_grid = burst.as_isce3_radargrid()
+        orbit = burst.orbit
 
-            # Check spacing in X/Y direction
-            if epsg == dem_raster.get_epsg():
-                x_spacing, y_spacing = assign_check_spacing(x_spacing_dict,
-                                                            y_spacing_dict,
-                                                            dem_raster.dx,
-                                                            dem_raster.dy)
-            else:
-                # Assign default spacing based on the selected epsg
-                epsg_spatial_ref = osr.SpatialReference()
-                epsg_spatial_ref.ImportFromEPSG(epsg)
-                if epsg_spatial_ref.IsGeographic():
-                    # Assign lat/lon default spacings in degrees
-                    x_spacing, y_spacing = assign_check_spacing(x_spacing_dict,
-                                                                y_spacing_dict,
-                                                                4.5e-5, 9.0e-5)
-                else:
-                    # Assign spacing in meters
-                    x_spacing, y_spacing = assign_check_spacing(x_spacing_dict,
-                                                                y_spacing_dict,
-                                                                5.0, 10.0)
+        # Check spacing in X/Y direction
+        if epsg == dem_raster.get_epsg():
+            x_spacing, y_spacing = assign_check_spacing(x_spacing_dict,
+                                                        y_spacing_dict,
+                                                        4.5e-5, 9.0e-5)
+        else:
+            # Assign spacing in meters
+            x_spacing, y_spacing = assign_check_spacing(x_spacing_dict,
+                                                        y_spacing_dict,
+                                                        5.0, 10.0)
 
-            # Initialize geogrid with the info checked at this stage
-            geo_grid_in = isce3.product.bbox_to_geogrid(radar_grid, orbit,
-                                                        isce3.core.LUT2d(),
-                                                        x_spacing, y_spacing, epsg)
-            # Check and further initialize geo_grid
-            geo_grid = assign_check_geogrid(geo_grid_in, x_start_dict,
-                                            y_start_dict, x_end_dict,
-                                            y_end_dict)
+        # Initialize geogrid with the info checked at this stage
+        geo_grid_in = isce3.product.bbox_to_geogrid(radar_grid, orbit,
+                                                    isce3.core.LUT2d(),
+                                                    x_spacing, y_spacing, epsg)
+        # Check and further initialize geo_grid
+        geo_grid = assign_check_geogrid(geo_grid_in, x_start_dict,
+                                        y_start_dict, x_end_dict,
+                                        y_end_dict)
 
-            # Check end point of geogrid before compute snaps
-            x_end, y_end = check_geogrid_endpoints(geo_grid, x_end_dict, y_end_dict)
-            # Check snap values
-            check_snap_values(x_snap_dict, y_snap_dict, x_spacing, y_spacing)
-            # Snap coordinates
-            geo_grid = snap_geogrid(geo_grid, x_snap_dict, y_snap_dict, x_end, y_end)
+        # Check end point of geogrid before compute snaps
+        x_end, y_end = check_geogrid_endpoints(geo_grid, x_end_dict, y_end_dict)
+        # Check snap values
+        check_snap_values(x_snap_dict, y_snap_dict, x_spacing, y_spacing)
+        # Snap coordinates
+        geo_grid = snap_geogrid(geo_grid, x_snap_dict, y_snap_dict, x_end, y_end)
 
-            geo_grids[burst_id] = geo_grid
+        geo_grids[burst_id] = geo_grid
 
     return geo_grids
 

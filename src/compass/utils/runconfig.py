@@ -1,5 +1,4 @@
 from __future__ import annotations
-from collections import defaultdict
 from dataclasses import dataclass
 from itertools import cycle
 import os
@@ -138,7 +137,7 @@ def validate_group_dict(group_cfg: dict, workflow_name) -> None:
     helpers.check_write_dir(product_path_group['sas_output_file'])
 
 
-def load_bursts(cfg: dict) -> list[Sentinel1BurstSlc]:
+def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
     '''For each burst find corresponding orbit'
 
     Parameters
@@ -154,8 +153,7 @@ def load_bursts(cfg: dict) -> list[Sentinel1BurstSlc]:
     error_channel = journal.error('runconfig.correlate_burst_to_orbit')
 
     # dict to store list of bursts keyed by burst_ids
-    # use default dict to handle 2 polarizations within one burst id
-    bursts = defaultdict(list)
+    bursts = []
 
     # extract given SAFE zips to find bursts identified in cfg.burst_id
     for safe_file in cfg.input_file_group.safe_file_path:
@@ -185,42 +183,64 @@ def load_bursts(cfg: dict) -> list[Sentinel1BurstSlc]:
             error_channel.log(err_str)
             raise ValueError(err_str)
 
-        # loop over pols and subswath index
-        #import ipdb; ipdb.set_trace()
+        # list of burst ID + polarization tuples
+        # used to prevent reference repeats
+        id_pols_found = []
+
+        # list of burst IDs found to ensure all
+        # used to ensure all IDs in config processed
+        burst_ids_found = []
+
+        # loop over pol and subswath index combinations
         for pol, i_subswath in zip_list:
 
             # loop over burst objs extracted from SAFE zip
-            for burst in s1_load_bursts(safe_file, orbit_path, i_subswath,
-                                        pol):
-
+            for burst in s1_load_bursts(safe_file, orbit_path, i_subswath, pol):
+                # get burst ID
                 burst_id = burst.burst_id
 
-                # is burst_id wanted?
-                burst_id_wanted = burst_id in cfg.input_file_group.burst_id
+                # is burst_id wanted? skip if not given in config
+                if burst_id not in cfg.input_file_group.burst_id:
+                    continue
 
-                # does burst_id + pol exist?
-                burst_id_pol_exist = False
-                if burst_id in bursts:
-                    if any([True for b in bursts[burst_id] if b.pol == pol]):
-                        burst_id_pol_exist = True
+                # get polarization and save as tuple with burst ID
+                pol = burst.polarization
+                id_pol = (burst_id, pol)
 
-                # add burst if wanted and doesn't already exist
-                if burst_id_wanted and not burst_id_pol_exist:
-                    bursts[burst_id].append(burst)
+                # has burst_id + pol combo been found?
+                burst_id_pol_exist = id_pol in id_pols_found
+                if not burst_id_pol_exist:
+                    id_pols_found.append(id_pol)
 
+                # check if not a reference burst (radar grid workflow only)
+                if 'reference_burst' in cfg.input_file_group.__dict__:
+                    not_ref = not cfg.input_file_group.reference_burst.is_reference
+                else:
+                    not_ref = True
+
+                # if not reference burst, then always ok to add
+                # if reference burst, ok to add if id+pol combo does not exist
+                # no duplicate id+pol combos for reference bursts
+                if not_ref or not burst_id_pol_exist:
+                    burst_ids_found.append(burst_id)
+                    bursts.append(burst)
+
+    # check if no bursts were found
     if not bursts:
         err_str = "Could not find any of the burst IDs in the provided safe files"
         error_channel.log(err_str)
         raise ValueError(err_str)
 
-    unaccounted_bursts = [b_id for b_id in cfg.input_file_group.burst_id
-                          if b_id not in bursts]
-    if unaccounted_bursts:
+    # make sure all specified bursts were found
+    burst_ids_found = set(burst_ids_found)
+    cfg_burst_ids = set(cfg.input_file_group.burst_id)
+    unaccounted_bursts = burst_ids_found - cfg_burst_ids
+    if burst_ids_found != cfg_burst_ids:
         err_str = f"Following burst ID(s) not found in provided safe files: {unaccounted_bursts}"
         error_channel.log(err_str)
         raise ValueError(err_str)
 
-    return list(bursts.values())
+    return bursts
 
 
 @dataclass(frozen=True)
@@ -231,7 +251,7 @@ class RunConfig:
     # runconfig options converted from dict
     groups: SimpleNamespace
     # list of lists where bursts in interior list have a common burst_id
-    bursts: list[list[Sentinel1BurstSlc]]
+    bursts: list[Sentinel1BurstSlc]
 
     @classmethod
     def load_from_yaml(cls, yaml_path: str, workflow_name: str) -> RunConfig:
@@ -321,10 +341,15 @@ class RunConfig:
             if key == 'groups':
                 val = unwrap_to_dict(val)
             elif key == 'bursts':
-                date_str = lambda b : str(b.sensing_start).split()[0]
-                val = {bursts[0].burst_id: {date_str(b):b.as_dict()
-                                            for b in bursts}
-                       for bursts in val}
+                # just date in datetime obj as string
+                date_str = lambda b : str(b.sensing_start.date()).split()[0]
+
+                # create an unique burst key
+                burst_as_key = lambda b : '_'.join([b.burst_id,
+                                                    date_str(b),
+                                                    b.polarization])
+
+                val = {burst_as_key(burst): burst.as_dict() for burst in val}
             self_as_dict[key] = val
         return self_as_dict
 

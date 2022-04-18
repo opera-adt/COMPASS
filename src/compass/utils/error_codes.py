@@ -1,8 +1,6 @@
 """
-==============
-error_codes.py
-==============
-Error codes for use with OPERA PGEs.
+Error codes (from OPERA PGE)
+TO DO: Add ISCE3 specific error codes
 """
 
 from enum import IntEnum, auto, unique

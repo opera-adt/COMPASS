@@ -5,6 +5,7 @@ from itertools import cycle
 import os
 from types import SimpleNamespace
 
+import isce3
 import journal
 import yamale
 from ruamel.yaml import YAML

@@ -9,6 +9,7 @@ import isce3
 import journal
 from osgeo import gdal
 
+from compass.utils.logger import Logger
 from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -16,9 +17,10 @@ from compass.utils.yaml_argparse import YamlArgparse
 def run(cfg):
     '''run rdr2geo with provided runconfig'''
     info_channel = journal.info("rdr2geo.run")
+    logging = Logger(channel=info_channel, workflow='CSLC')
 
     t_start = time.time()
-    info_channel.log("starting rdr2geo")
+    logging.info('rdr2geo.py', 9999, "starting rdr2geo")
 
     # common rdr2geo inits
     dem_raster = isce3.io.Raster(cfg.dem)
@@ -94,7 +96,7 @@ def run(cfg):
         output_vrt.set_epsg(rdr2geo_obj.epsg_out)
 
     dt = time.time() - t_start
-    info_channel.log(f"rdr2geo successfully ran in {dt:.3f} seconds")
+    logging.info("rdr2geo.py", 9999, f"rdr2geo successfully ran in {dt:.3f} seconds")
 
 
 if __name__ == "__main__":

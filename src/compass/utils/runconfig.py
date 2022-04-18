@@ -9,11 +9,12 @@ import journal
 import yamale
 from ruamel.yaml import YAML
 
+from compass.utils.logger import Logger
 from compass.utils import helpers
 from compass.utils.wrap_namespace import wrap_namespace
 from s1reader.s1_burst_slc import Sentinel1BurstSlc
 from s1reader.s1_orbit import get_orbit_file_from_list
-from s1reader.s1_reader import burst_from_zip
+from s1reader.s1_reader import load_bursts
 
 
 def validate_group_dict(group_cfg: dict) -> None:
@@ -24,7 +25,8 @@ def validate_group_dict(group_cfg: dict) -> None:
     group_cfg : dict
         Dictionary storing runconfig options to validate
     """
-    error_channel = journal.error('runconfig.validate_group_dict')
+    channel = journal.error('runconfig.validate_group_dict')
+    logging = Logger(channel=channel, workflow='CSLC')
 
     # Check 'input_file_group' section of runconfig
     input_group = group_cfg['input_file_group']
@@ -48,8 +50,7 @@ def validate_group_dict(group_cfg: dict) -> None:
         # Raise error if given co-pol file and expecting cross-pol or dual-pol
         if run_pol_mode != 'co-pol' and safe_pol_mode in ['SV', 'SH']:
             err_str = f'{run_pol_mode} polarization lacks cross-pol in {safe_file}'
-            error_channel.log(err_str)
-            raise ValueError(err_str)
+            logging.critical('runconfig.py', 9999, err_str)
 
     # Check SAFE file pols consistency. i.e. no *H/*V with *V/*H respectively
     if len(safe_pol_modes) > 1:
@@ -57,8 +58,7 @@ def validate_group_dict(group_cfg: dict) -> None:
         for safe_pol_mode in safe_pol_modes[1:]:
             if safe_pol_mode[1] != first_safe_pol_mode:
                 err_str = 'SH/SV SAFE file mixed with DH/DV'
-                error_channel.log(err_str)
-                raise ValueError(err_str)
+                logging.critical('runconfig.py', 9999, err_str)
 
     for orbit_file in input_group['orbit_file_path']:
         helpers.check_file_path(orbit_file)
@@ -76,8 +76,14 @@ def validate_group_dict(group_cfg: dict) -> None:
     helpers.check_write_dir(product_path_group['scratch_path'])
     helpers.check_write_dir(product_path_group['sas_output_file'])
 
+    # Check if logging dir is writeable
+    log_group = group_cfg['logging']
+    helpers.check_write_dir(os.path.dirname(log_group['path']))
 
-def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
+    journal.logfile(log_group['path'])
+
+
+def get_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
     '''For each burst find corresponding orbit'
 
     Parameters
@@ -90,7 +96,8 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
     _ : list[Sentinel1BurstSlc]
         List of bursts loaded according to given configuration.
     '''
-    error_channel = journal.error('runconfig.correlate_burst_to_orbit')
+    channel = journal.error('runconfig.correlate_burst_to_orbit')
+    logging = Logger(channel=channel, workflow='CSLC')
 
     # dict to store list of bursts keyed by burst_ids
     # use default dict to handle 2 polarizations within one burst id
@@ -121,15 +128,13 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
 
         if not orbit_path:
             err_str = f"No orbit file correlates to safe file: {os.path.basename(safe_file)}"
-            error_channel.log(err_str)
-            raise ValueError(err_str)
+            logging.critical('runconfig.py', 9999, err_str)
 
         # loop over pols and subswath index
-        #import ipdb; ipdb.set_trace()
         for pol, i_subswath in zip_list:
 
             # loop over burst objs extracted from SAFE zip
-            for burst in burst_from_zip(safe_file, orbit_path, i_subswath, pol):
+            for burst in load_bursts(safe_file, orbit_path, i_subswath, pol):
 
                 burst_id = burst.burst_id
 
@@ -148,15 +153,13 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
 
     if not bursts:
         err_str = "Could not find any of the burst IDs in the provided safe files"
-        error_channel.log(err_str)
-        raise ValueError(err_str)
+        logging.critical('runconfig.py', 9999, err_str)
 
     unaccounted_bursts = [b_id for b_id in cfg.input_file_group.burst_id
                           if b_id not in bursts]
     if unaccounted_bursts:
         err_str = f"Following burst ID(s) not found in provided safe files: {unaccounted_bursts}"
-        error_channel.log(err_str)
-        raise ValueError(err_str)
+        logging.critical('runconfig.py', 9999, err_str)
 
     return list(bursts.values())
 
@@ -182,7 +185,8 @@ class RunConfig:
         workflow_name: str
             Name of the workflow for which uploading default options
         """
-        error_channel = journal.error('RunConfig.load_from_yaml')
+        channel = journal.error('RunConfig.load_from_yaml')
+        logging = Logger(channel=channel, workflow='CSLC')
         try:
             # Load schema corresponding to 'workflow_name' and to validate against
             schema = yamale.make_schema(
@@ -190,8 +194,7 @@ class RunConfig:
                 parser='ruamel')
         except:
             err_str = f'unable to load schema for workflow {workflow_name}.'
-            error_channel.log(err_str)
-            raise ValueError(err_str)
+            logging.critical('runconfig.py', 9999, err_str)
 
         # load yaml file or string from command line
         if os.path.isfile(yaml_path):
@@ -199,8 +202,7 @@ class RunConfig:
                 data = yamale.make_data(yaml_path, parser='ruamel')
             except yamale.YamaleError as yamale_err:
                 err_str = f'Yamale unable to load {workflow_name} runconfig yaml {yaml_path} for validation.'
-                error_channel.log(err_str)
-                raise yamale.YamaleError(err_str) from yamale_err
+                logging.critical('runconfig.py', 9999, err_str)
         else:
             raise FileNotFoundError
 
@@ -209,7 +211,7 @@ class RunConfig:
             yamale.validate(schema, data)
         except yamale.YamaleError as yamale_err:
             err_str = f'Validation fail for {workflow_name} runconfig yaml {yaml_path}.'
-            error_channel.log(err_str)
+            logging.critical('runconfig.py', 9999, err_str)
             raise yamale.YamaleError(err_str) from yamale_err
 
         # load default runconfig
@@ -230,7 +232,7 @@ class RunConfig:
         # Convert runconfig dict to SimpleNamespace
         sns = wrap_namespace(default_cfg['runconfig']['groups'])
 
-        bursts = load_bursts(sns)
+        bursts = get_bursts(sns)
 
         return cls(default_cfg['runconfig']['name'], sns, bursts)
 

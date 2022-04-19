@@ -1,11 +1,16 @@
-from compass import rdr2geo
+from compass import s1_rdr2geo, s1_geo2rdr, s1_resample_burst
 from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
 
 
 def run(cfg):
+    # If boolean flag "is_reference" is true
+    # Run rdr2geo and archive reference burst
     if cfg.is_reference:
-        rdr2geo.run(cfg)
+        s1_rdr2geo.run(cfg)
+    else:
+        s1_geo2rdr.run(cfg)
+        s1_resample_burst.run(cfg)
 
 
 if __name__ == "__main__":

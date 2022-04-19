@@ -1,19 +1,21 @@
 from __future__ import annotations
-from collections import defaultdict
 from dataclasses import dataclass
+import glob
 from itertools import cycle
 import os
 from types import SimpleNamespace
 
+import isce3
 import journal
 import yamale
 from ruamel.yaml import YAML
 
 from compass.utils import helpers
+from compass.utils.reference_radar_grid import file_to_rdr_grid
 from compass.utils.wrap_namespace import wrap_namespace
 from s1reader.s1_burst_slc import Sentinel1BurstSlc
 from s1reader.s1_orbit import get_orbit_file_from_list
-from s1reader.s1_reader import burst_from_zip
+from s1reader.s1_reader import load_bursts
 
 
 def validate_group_dict(group_cfg: dict) -> None:
@@ -28,11 +30,6 @@ def validate_group_dict(group_cfg: dict) -> None:
 
     # Check 'input_file_group' section of runconfig
     input_group = group_cfg['input_file_group']
-    # If is_reference flag is False, check that file path to reference
-    # burst is assigned and valid (required by geo2rdr and resample)
-    is_reference = input_group['reference_burst']['is_reference']
-    if not is_reference:
-        helpers.check_file_path(input_group['reference_burst']['file_path'])
 
     # Check SAFE files
     run_pol_mode = group_cfg['processing']['polarization']
@@ -77,8 +74,8 @@ def validate_group_dict(group_cfg: dict) -> None:
     helpers.check_write_dir(product_path_group['sas_output_file'])
 
 
-def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
-    '''For each burst find corresponding orbit'
+def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
+    '''Return bursts based on parameters in given runconfig
 
     Parameters
     ----------
@@ -93,8 +90,7 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
     error_channel = journal.error('runconfig.correlate_burst_to_orbit')
 
     # dict to store list of bursts keyed by burst_ids
-    # use default dict to handle 2 polarizations within one burst id
-    bursts = defaultdict(list)
+    bursts = []
 
     # extract given SAFE zips to find bursts identified in cfg.burst_id
     for safe_file in cfg.input_file_group.safe_file_path:
@@ -124,41 +120,106 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
             error_channel.log(err_str)
             raise ValueError(err_str)
 
-        # loop over pols and subswath index
-        #import ipdb; ipdb.set_trace()
+        # list of burst ID + polarization tuples
+        # used to prevent reference repeats
+        id_pols_found = []
+
+        # list of burst IDs found to ensure all
+        # used to ensure all IDs in config processed
+        burst_ids_found = []
+
+        # loop over pol and subswath index combinations
         for pol, i_subswath in zip_list:
 
             # loop over burst objs extracted from SAFE zip
-            for burst in burst_from_zip(safe_file, orbit_path, i_subswath, pol):
-
+            for burst in load_bursts(safe_file, orbit_path, i_subswath, pol):
+                # get burst ID
                 burst_id = burst.burst_id
 
-                # is burst_id wanted?
-                burst_id_wanted = burst_id in cfg.input_file_group.burst_id
+                # is burst_id wanted? skip if not given in config
+                if burst_id not in cfg.input_file_group.burst_id:
+                    continue
 
-                # does burst_id + pol exist?
-                burst_id_pol_exist = False
-                if burst_id in bursts:
-                    if any([True for b in bursts[burst_id] if b.pol == pol]):
-                        burst_id_pol_exist = True
+                # get polarization and save as tuple with burst ID
+                pol = burst.polarization
+                id_pol = (burst_id, pol)
 
-                # add burst if wanted and doesn't already exist
-                if burst_id_wanted and not burst_id_pol_exist:
-                    bursts[burst_id].append(burst)
+                # has burst_id + pol combo been found?
+                burst_id_pol_exist = id_pol in id_pols_found
+                if not burst_id_pol_exist:
+                    id_pols_found.append(id_pol)
 
+                # check if not a reference burst
+                not_ref = not cfg.input_file_group.reference_burst.is_reference
+
+                # if not reference burst, then always ok to add
+                # if reference burst, ok to add if id+pol combo does not exist
+                # no duplicate id+pol combos for reference bursts
+                if not_ref or not burst_id_pol_exist:
+                    burst_ids_found.append(burst_id)
+                    bursts.append(burst)
+
+    # check if no bursts were found
     if not bursts:
         err_str = "Could not find any of the burst IDs in the provided safe files"
         error_channel.log(err_str)
         raise ValueError(err_str)
 
-    unaccounted_bursts = [b_id for b_id in cfg.input_file_group.burst_id
-                          if b_id not in bursts]
-    if unaccounted_bursts:
+    # make sure all specified bursts were found
+    burst_ids_found = set(burst_ids_found)
+    cfg_burst_ids = set(cfg.input_file_group.burst_id)
+    unaccounted_bursts = burst_ids_found - cfg_burst_ids
+    if burst_ids_found != cfg_burst_ids:
         err_str = f"Following burst ID(s) not found in provided safe files: {unaccounted_bursts}"
         error_channel.log(err_str)
         raise ValueError(err_str)
 
-    return list(bursts.values())
+    return bursts
+
+
+def get_ref_radar_grid_info(ref_path, burst_ids):
+    ''' Find all reference radar grids info
+
+    Parameters
+    ----------
+    ref_path: str
+        Path where reference radar grids processing is stored
+    burst_ids: list[str]
+        Burst IDs for reference radar grids
+
+    Returns
+    -------
+    ref_radar_grids: dict
+        Dict of reference radar path and grid values found associated with
+        burst ID keys
+    '''
+    rdr_grid_files = glob.glob(f'{ref_path}/**/radar_grid.txt',
+                               recursive=True)
+
+    if not rdr_grid_files:
+        raise FileNotFoundError(f'No reference radar grids not found in {ref_path}')
+
+    ref_rdr_grids ={}
+    for burst_id in burst_ids:
+        b_id_rdr_grid_files = [f for f in rdr_grid_files if burst_id in f]
+
+        if not b_id_rdr_grid_files:
+            raise FileNotFoundError(f'Reference radar grid not found for {burst_id}')
+
+        if len(b_id_rdr_grid_files) > 1:
+            raise FileExistsError(f'More than one reference radar grid found for {burst_id}')
+
+        ref_rdr_path = os.path.dirname(b_id_rdr_grid_files[0])
+        ref_rdr_grid = file_to_rdr_grid(b_id_rdr_grid_files[0])
+        ref_rdr_grids[burst_id] = ReferenceRadarInfo(ref_rdr_path, ref_rdr_grid)
+
+    return ref_rdr_grids
+
+
+@dataclass(frozen=True)
+class ReferenceRadarInfo:
+    path: str
+    grid: isce3.product.RadarGridParameters
 
 
 @dataclass(frozen=True)
@@ -169,7 +230,10 @@ class RunConfig:
     # runconfig options converted from dict
     groups: SimpleNamespace
     # list of lists where bursts in interior list have a common burst_id
-    bursts: list[list[Sentinel1BurstSlc]]
+    bursts: list[Sentinel1BurstSlc]
+    # dict of reference radar paths and grids values keyed on burst ID
+    # (empty/unused if rdr2geo)
+    reference_radar_info: dict
 
     @classmethod
     def load_from_yaml(cls, yaml_path: str, workflow_name: str) -> RunConfig:
@@ -230,9 +294,17 @@ class RunConfig:
         # Convert runconfig dict to SimpleNamespace
         sns = wrap_namespace(default_cfg['runconfig']['groups'])
 
-        bursts = load_bursts(sns)
+        bursts = runconfig_to_bursts(sns)
 
-        return cls(default_cfg['runconfig']['name'], sns, bursts)
+        # Load reference grids if not reference run i.e. not running rdr2geo
+        ref_rdr_grids = {}
+        if not sns.input_file_group.reference_burst.is_reference:
+            ref_rdr_grids = get_ref_radar_grid_info(
+                sns.input_file_group.reference_burst.file_path,
+                sns.input_file_group.burst_id)
+
+        return cls(default_cfg['runconfig']['name'], sns, bursts,
+                   ref_rdr_grids)
 
     @property
     def burst_id(self) -> list[str]:
@@ -260,11 +332,19 @@ class RunConfig:
 
     @property
     def reference_path(self) -> str:
-        return self.groups.reference_burst.file_path
+        return self.groups.input_file_group.reference_burst.file_path
 
     @property
     def rdr2geo_params(self) -> dict:
         return self.groups.processing.rdr2geo
+
+    @property
+    def geo2rdr_params(self) -> dict:
+        return self.groups.processing.geo2rdr
+
+    @property
+    def resample_params(self) -> dict:
+        return self.groups.processing.resample
 
     @property
     def safe_files(self) -> list[str]:

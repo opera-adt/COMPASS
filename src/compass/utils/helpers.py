@@ -16,8 +16,6 @@ def check_file_path(file_path: str) -> None:
     ----------
     file_path : str
         Path to file to be checked
-    polarizations : list[str]
-        Path to file to be checked
     """
     error_channel = journal.error('helpers.check_file_path')
     if not os.path.isfile(file_path):
@@ -25,6 +23,20 @@ def check_file_path(file_path: str) -> None:
         error_channel.log(err_str)
         raise FileNotFoundError(err_str)
 
+
+def check_directory(file_path: str) -> None:
+    """Check if directory in file_path exists else raise an error.
+
+    Parameters
+    ----------
+    file_path: str
+       Path to directory to be checked
+    """
+    error_channel = journal.error('helpers.check_directory')
+    if not os.path.isdir(file_path):
+        err_str = f'{file_path} not found'
+        error_channel.log(err_str)
+        raise FileNotFoundError(err_str)
 
 def get_file_polarization_mode(file_path: str) -> str:
     '''Check polarization mode from file name

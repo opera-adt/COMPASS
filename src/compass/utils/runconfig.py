@@ -1,19 +1,22 @@
 from __future__ import annotations
 from dataclasses import dataclass
+import glob
 from itertools import cycle
 import os
 from types import SimpleNamespace
 import sys
 
+import isce3
 import journal
 import yamale
 from ruamel.yaml import YAML
 
 from compass.utils import helpers
+from compass.utils.reference_radar_grid import file_to_rdr_grid
 from compass.utils.wrap_namespace import wrap_namespace, unwrap_to_dict
 from s1reader.s1_burst_slc import Sentinel1BurstSlc
 from s1reader.s1_orbit import get_orbit_file_from_list
-from s1reader.s1_reader import load_bursts as s1_load_bursts
+from s1reader.s1_reader import load_bursts
 
 
 def load_validate_yaml(yaml_path: str, workflow_name: str) -> dict:
@@ -137,8 +140,8 @@ def validate_group_dict(group_cfg: dict, workflow_name) -> None:
     helpers.check_write_dir(product_path_group['sas_output_file'])
 
 
-def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
-    '''For each burst find corresponding orbit'
+def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
+    '''Return bursts based on parameters in given runconfig
 
     Parameters
     ----------
@@ -195,7 +198,7 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
         for pol, i_subswath in zip_list:
 
             # loop over burst objs extracted from SAFE zip
-            for burst in s1_load_bursts(safe_file, orbit_path, i_subswath, pol):
+            for burst in load_bursts(safe_file, orbit_path, i_subswath, pol):
                 # get burst ID
                 burst_id = burst.burst_id
 
@@ -243,6 +246,51 @@ def load_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
     return bursts
 
 
+def get_ref_radar_grid_info(ref_path, burst_ids):
+    ''' Find all reference radar grids info
+
+    Parameters
+    ----------
+    ref_path: str
+        Path where reference radar grids processing is stored
+    burst_ids: list[str]
+        Burst IDs for reference radar grids
+
+    Returns
+    -------
+    ref_radar_grids: dict
+        Dict of reference radar path and grid values found associated with
+        burst ID keys
+    '''
+    rdr_grid_files = glob.glob(f'{ref_path}/**/radar_grid.txt',
+                               recursive=True)
+
+    if not rdr_grid_files:
+        raise FileNotFoundError(f'No reference radar grids not found in {ref_path}')
+
+    ref_rdr_grids ={}
+    for burst_id in burst_ids:
+        b_id_rdr_grid_files = [f for f in rdr_grid_files if burst_id in f]
+
+        if not b_id_rdr_grid_files:
+            raise FileNotFoundError(f'Reference radar grid not found for {burst_id}')
+
+        if len(b_id_rdr_grid_files) > 1:
+            raise FileExistsError(f'More than one reference radar grid found for {burst_id}')
+
+        ref_rdr_path = os.path.dirname(b_id_rdr_grid_files[0])
+        ref_rdr_grid = file_to_rdr_grid(b_id_rdr_grid_files[0])
+        ref_rdr_grids[burst_id] = ReferenceRadarInfo(ref_rdr_path, ref_rdr_grid)
+
+    return ref_rdr_grids
+
+
+@dataclass(frozen=True)
+class ReferenceRadarInfo:
+    path: str
+    grid: isce3.product.RadarGridParameters
+
+
 @dataclass(frozen=True)
 class RunConfig:
     '''dataclass containing CSLC runconfig'''
@@ -252,6 +300,9 @@ class RunConfig:
     groups: SimpleNamespace
     # list of lists where bursts in interior list have a common burst_id
     bursts: list[Sentinel1BurstSlc]
+    # dict of reference radar paths and grids values keyed on burst ID
+    # (empty/unused if rdr2geo)
+    reference_radar_info: dict
 
     @classmethod
     def load_from_yaml(cls, yaml_path: str, workflow_name: str) -> RunConfig:
@@ -269,10 +320,17 @@ class RunConfig:
         # Convert runconfig dict to SimpleNamespace
         sns = wrap_namespace(cfg['runconfig']['groups'])
 
-        # Load bursts
-        bursts = load_bursts(sns)
+        bursts = runconfig_to_bursts(sns)
 
-        return cls(cfg['runconfig']['name'], sns, bursts)
+        # Load reference grids if not reference run i.e. not running rdr2geo
+        ref_rdr_grids = {}
+        if not sns.input_file_group.reference_burst.is_reference:
+            ref_rdr_grids = get_ref_radar_grid_info(
+                sns.input_file_group.reference_burst.file_path,
+                sns.input_file_group.burst_id)
+
+        return cls(default_cfg['runconfig']['name'], sns, bursts,
+                   ref_rdr_grids)
 
     @property
     def burst_id(self) -> list[str]:
@@ -300,7 +358,7 @@ class RunConfig:
 
     @property
     def reference_path(self) -> str:
-        return self.groups.reference_burst.file_path
+        return self.groups.input_file_group.reference_burst.file_path
 
     @property
     def rdr2geo_params(self) -> dict:
@@ -313,6 +371,10 @@ class RunConfig:
     @property
     def split_spectrum_params(self) -> dict:
         return self.groups.processing.range_split_spectrum
+
+    @property
+    def resample_params(self) -> dict:
+        return self.groups.processing.resample
 
     @property
     def safe_files(self) -> list[str]:

@@ -10,6 +10,7 @@ import isce3
 import journal
 from osgeo import gdal
 
+from compass.utils.reference_radar_grid import rdr_grid_to_file
 from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -27,12 +28,15 @@ def run(cfg):
     proj = isce3.core.make_projection(epsg)
     ellipsoid = proj.ellipsoid
 
-    # check if gpu ok to use
+    # check if gpu ok to use and init CPU or CUDA object accordingly
     use_gpu = isce3.core.gpu_check.use_gpu(cfg.gpu_enabled, cfg.gpu_id)
     if use_gpu:
         # Set the current CUDA device.
         device = isce3.cuda.core.Device(cfg.gpu_id)
         isce3.cuda.core.set_device(device)
+        Rdr2Geo = isce3.cuda.geometry.Rdr2Geo
+    else:
+        Rdr2Geo = isce3.geometry.Rdr2Geo
 
     # list to keep track of ids processed
     id_processed = []
@@ -58,19 +62,16 @@ def run(cfg):
             continue
         id_processed.append(burst_id)
 
-        # run rdr2geo for only 1 burst avoid redundancy
-        # get isce3 objs from burst
+        # get radar grid of last SLC written and save for resample flattening
         rdr_grid = burst.as_isce3_radargrid()
+        ref_grid_path = f'{output_path}/radar_grid.txt'
+        rdr_grid_to_file(ref_grid_path, rdr_grid)
+
+        # get isce3 objs from burst
         isce3_orbit = burst.orbit
 
         # init grid doppler
         grid_doppler = isce3.core.LUT2d()
-
-        # init CPU or CUDA object accordingly
-        if use_gpu:
-            Rdr2Geo = isce3.cuda.geometry.Rdr2Geo
-        else:
-            Rdr2Geo = isce3.geometry.Rdr2Geo
 
         # init rdr2geo obj
         rdr2geo_obj = Rdr2Geo(

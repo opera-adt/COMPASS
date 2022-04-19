@@ -10,7 +10,7 @@ WORKFLOW_SCRIPTS_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
 def check_file_path(file_path: str) -> None:
-    """Check if file_path and polarizations exist else raise an error.
+    """Check if file_path exist else raise an error.
 
     Parameters
     ----------

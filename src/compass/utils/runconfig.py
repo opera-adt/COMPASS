@@ -1,7 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import glob
-from itertools import cycle
 import os
 from types import SimpleNamespace
 import sys
@@ -160,6 +159,16 @@ def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
 
     # extract given SAFE zips to find bursts identified in cfg.burst_id
     for safe_file in cfg.input_file_group.safe_file_path:
+        # get orbit file
+        orbit_path = get_orbit_file_from_list(
+            safe_file,
+            cfg.input_file_group.orbit_file_path)
+
+        if not orbit_path:
+            err_str = f"No orbit file correlates to safe file: {os.path.basename(safe_file)}"
+            error_channel.log(err_str)
+            raise ValueError(err_str)
+
         # from SAFE file mode, create dict of runconfig pol mode to polarization(s)
         safe_pol_mode = helpers.get_file_polarization_mode(safe_file)
         if safe_pol_mode == 'SV':
@@ -174,17 +183,8 @@ def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
 
         # zip pol and IW subswath indices together
         i_subswaths = [1, 2, 3]
-        zip_list = zip(cycle(pols), i_subswaths)
-
-        # find orbit file
-        orbit_path = get_orbit_file_from_list(
-            safe_file,
-            cfg.input_file_group.orbit_file_path)
-
-        if not orbit_path:
-            err_str = f"No orbit file correlates to safe file: {os.path.basename(safe_file)}"
-            error_channel.log(err_str)
-            raise ValueError(err_str)
+        pol_subswath_index_pairs = [(pol, i)
+                                    for pol in pols for i in i_subswaths]
 
         # list of burst ID + polarization tuples
         # used to prevent reference repeats
@@ -195,7 +195,7 @@ def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
         burst_ids_found = []
 
         # loop over pol and subswath index combinations
-        for pol, i_subswath in zip_list:
+        for pol, i_subswath in pol_subswath_index_pairs:
 
             # loop over burst objs extracted from SAFE zip
             for burst in load_bursts(safe_file, orbit_path, i_subswath, pol):

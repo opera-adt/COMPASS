@@ -8,7 +8,8 @@ from ruamel.yaml import YAML
 
 from compass.utils.geogrid import generate_geogrids, geogrid_as_dict
 from compass.utils.raster_polygon import add_poly_to_dict
-from compass.utils.runconfig import load_bursts, load_validate_yaml, RunConfig
+from compass.utils.runconfig import (runconfig_to_bursts, load_validate_yaml,
+                                     RunConfig)
 from compass.utils.wrap_namespace import wrap_namespace
 
 
@@ -71,21 +72,50 @@ class GeoRunConfig(RunConfig):
         sns = wrap_namespace(groups_cfg)
 
         # Load bursts
-        bursts = load_bursts(sns)
+        bursts = runconfig_to_bursts(sns)
 
         # Load geogrids
         dem_file = groups_cfg['dynamic_ancillary_file_group']['dem_file']
         geogrids = generate_geogrids(bursts, geocoding_dict, dem_file)
 
-        return cls(cfg['runconfig']['name'], sns, bursts, geogrids)
+        # Empty reference dict for runconfig constructor
+        empty_ref_dict = {}
+
+        return cls(cfg['runconfig']['name'], sns, bursts, empty_ref_dict,
+                   geogrids)
 
     @property
     def geocoding_params(self) -> dict:
         return self.groups.processing.geocoding
 
     @property
+    def burst_id(self) -> str:
+        return self.bursts[0].burst_id
+
+    @property
+    def sensing_start(self):
+        return self.bursts[0].sensing_start
+
+    @property
+    def polarization(self) -> str:
+        return self.bursts[0].polarization
+
+    @property
     def split_spectrum_params(self) -> dict:
         return self.groups.processing.range_split_spectrum
+
+    @property
+    def output_dir(self) -> str:
+        date_str = self.sensing_start.strftime("%Y%m%d")
+        burst_id = self.burst_id
+        return f'{super().product_path}/{burst_id}/{date_str}'
+
+    @property
+    def file_stem(self) -> str:
+        burst_id = self.burst_id
+        pol = self.polarization
+        return f'geo_{burst_id}_{pol}'
+
 
     def as_dict(self):
         ''' Convert self to dict for write to YAML/JSON
@@ -99,7 +129,7 @@ class GeoRunConfig(RunConfig):
         return self_as_dict
 
 
-    def to_file(self, dst, fmt:str, add_burst_boundary=False):
+    def to_file(self, dst, fmt:str, add_burst_boundary=True):
         ''' Write self to YAML
 
         Parameter:
@@ -115,8 +145,15 @@ class GeoRunConfig(RunConfig):
         self_as_dict = self.as_dict()
 
         if add_burst_boundary:
-            for b_dict in self_as_dict['bursts']:
-                add_poly_to_dict(some_dir, b_dict)
+            # get path to geocoded raster
+            geo_raster_path = f'{self.output_dir}/{self.file_stem}'
+
+            # get key for single burst
+            k = list(self_as_dict['bursts'].keys())[0]
+            # retrieve single burst
+            b_dict = self_as_dict['bursts'][k]
+
+            add_poly_to_dict(geo_raster_path, b_dict)
 
         if fmt == 'yaml':
             yaml = YAML(typ='safe')

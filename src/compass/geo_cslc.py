@@ -5,7 +5,6 @@ import isce3
 import journal
 import numpy as np
 from osgeo import gdal
-from shapely.geometry import MultiPoint
 
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.range_split_spectrum import range_split_spectrum
@@ -41,13 +40,12 @@ def run(cfg):
     flatten = cfg.geocoding_params.flatten
 
     for burst in cfg.bursts:
-        date_str = str(burst.sensing_start.date())
+        date_str = burst.sensing_start.strftime("%Y%m%d")
         burst_id = burst.burst_id
         pol = burst.polarization
         geo_grid = cfg.geogrids[burst_id]
 
-        output_path = f'{cfg.product_path}/{burst_id}/{date_str}'
-        os.makedirs(output_path, exist_ok=True)
+        os.makedirs(cfg.output_dir, exist_ok=True)
 
         scratch_path = f'{cfg.scratch_path}/{burst_id}/{date_str}'
         os.makedirs(scratch_path, exist_ok=True)
@@ -71,7 +69,7 @@ def run(cfg):
 
         # Generate output geocoded burst raster
         geo_burst_raster = isce3.io.Raster(
-            f'{output_path}/geo_{burst_id}_{pol}',
+            f'{cfg.output_dir}/{cfg.file_stem}',
             geo_grid.width, geo_grid.length,
             rdr_burst_raster.num_bands, gdal.GDT_CFloat32,
             cfg.geocoding_params.output_format)
@@ -111,13 +109,13 @@ if __name__ == "__main__":
     geo_parser = YamlArgparse()
 
     # Get a runconfig dict from command line argumens
-    runconfig = GeoRunConfig.load_from_yaml(geo_parser.run_config_path,
-                                            'geo_cslc_s1')
+    cfg = GeoRunConfig.load_from_yaml(geo_parser.run_config_path,
+                                      'geo_cslc_s1')
 
     # Run geocode burst workflow
-    run(runconfig)
+    run(cfg)
 
     # Save burst metadata and runconfig parameters
-    json_path = f'{runconfig.product_path}/metadata.json'
+    json_path = f'{cfg.output_dir}/{cfg.file_stem}.json'
     with open(json_path, 'w') as f_json:
-        runconfig.to_file(f_json, 'json')
+        cfg.to_file(f_json, 'json')

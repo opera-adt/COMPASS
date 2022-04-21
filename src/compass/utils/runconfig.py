@@ -32,8 +32,10 @@ def load_validate_yaml(yaml_path: str, workflow_name: str) -> dict:
 
     try:
         # Load schema corresponding to 'workflow_name' and to validate against
+        schema_name = workflow_name if workflow_name == 'geo_cslc_s1' \
+            else 'cslc_s1'
         schema = yamale.make_schema(
-            f'{helpers.WORKFLOW_SCRIPTS_DIR}/schemas/{workflow_name}.yaml',
+            f'{helpers.WORKFLOW_SCRIPTS_DIR}/schemas/{schema_name}.yaml',
             parser='ruamel')
     except:
         err_str = f'unable to load schema for workflow {workflow_name}.'
@@ -92,9 +94,9 @@ def validate_group_dict(group_cfg: dict, workflow_name) -> None:
     # If is_reference flag is False, check that file path to reference
     # burst is assigned and valid (required by geo2rdr and resample)
     if workflow_name == 'cslc_s1':
-       is_reference = input_group['reference_burst']['is_reference']
-       if not is_reference:
-          helpers.check_file_path(input_group['reference_burst']['file_path'])
+        is_reference = input_group['reference_burst']['is_reference']
+        if not is_reference:
+            helpers.check_file_path(input_group['reference_burst']['file_path'])
 
     # Check SAFE files
     run_pol_mode = group_cfg['processing']['polarization']
@@ -329,8 +331,7 @@ class RunConfig:
                 sns.input_file_group.reference_burst.file_path,
                 sns.input_file_group.burst_id)
 
-        return cls(default_cfg['runconfig']['name'], sns, bursts,
-                   ref_rdr_grids)
+        return cls(cfg['runconfig']['name'], sns, bursts, ref_rdr_grids)
 
     @property
     def burst_id(self) -> list[str]:
@@ -397,14 +398,14 @@ class RunConfig:
         return self.groups.worker.gpu_id
 
     def as_dict(self):
-        # convert to dict first then dump to yaml
+        # convert to dict first then dump to yaml or json
         self_as_dict = {}
         for key, val in self.__dict__.items():
             if key == 'groups':
                 val = unwrap_to_dict(val)
             elif key == 'bursts':
                 # just date in datetime obj as string
-                date_str = lambda b : str(b.sensing_start.date()).split()[0]
+                date_str = lambda b : b.sensing_start.date().strftime('%Y%m%d')
 
                 # create an unique burst key
                 burst_as_key = lambda b : '_'.join([b.burst_id,

@@ -2,6 +2,7 @@
 Functions for computing and adding boundary polygon to geo_runconfig dicts
 '''
 from datetime import datetime
+import os
 
 import numpy as np
 from osgeo import gdal
@@ -10,60 +11,25 @@ from shapely.geometry import MultiPoint
 from compass.utils import helpers
 
 
-def add_poly_to_dict(top_output_dir, burst_dict):
+def add_poly_to_dict(geo_raster_path, burst_dict):
     '''Add boundary polygon string for associated geocoded raster
 
     Parameters
     ----------
-    top_output_dir: str
-        Path to parent directory where geocoded products are saved. Expected
-        directory structure:
-            top_output_dir
-            └── <burst date MMDDYYYY>
-                └── geo_<burst_id>_<pol>
+    geo_raster_path: str
+        Path to geocoded raster
     burst_dict: dict
         Burst dict where poly is to be added
     '''
-    validate_burst_dict(burst_dict)
-
-    burst_id = burst_dict['burst_id']
-    date_str = datetime(burst_dict['sensing_start']).date()
-    pol = burst_dict['polarization']
-
-    # Set output path and check if it exists
-    burst_output_dir = f'{top_output_dir}/{date_str}/{burst_id}_{pol}'
-    helpers.check_file_path(burst_output_dir)
+    if not os.path.isfile(geo_raster_path):
+        raise FileNotFoundError('cannont generate raster boundary - '
+                                f'{geo_raster_path} not found')
 
     # Get polygon including valid areas (to be dumped in metadata)
-    filename = f'{burst_output_dir}/geo_{burst_id}_{pol}'
-    poly = get_boundary_polygon(filename, np.nan)
+    poly = get_boundary_polygon(geo_raster_path, np.nan)
 
     # Add polygon to dict
-    burst_dict['poly'] = poly.wkt
-
-
-def validate_burst_dict(burst_dict):
-    '''Validate requisite values in burst dict
-
-    burst_dict: dict
-        Burst dict to be validated
-    '''
-    # Make sure requisite keys present
-    for key in ['burst_id', 'sensing_start', 'polarization']:
-        if key not in burst_dict:
-            raise KeyError(f'{key} not found in burst_dict')
-
-    # Check date format is correct
-    try:
-        _ = datetime(burst_dict['sensing_start'])
-    except ValueError:
-        print(f'{burst_dict["sensing_start"]} is not correctly formatted for datetime conversion')
-
-    # Make sure polarization is valid
-    valid_pols = ['vv', 'vh', 'hh', 'hv']
-    burst_pol = burst_dict['polarization']
-    if burst_pol not in valid_pols:
-        raise ValueError(f'{burst_pol} not in valid polarizations {valid_pols}')
+    burst_dict['poly'] = str(poly.wkt)
 
 
 def get_boundary_polygon(filename, invalid_value):

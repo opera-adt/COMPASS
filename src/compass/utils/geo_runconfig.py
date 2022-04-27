@@ -4,10 +4,11 @@ import json
 
 from isce3.product import GeoGridParameters
 import journal
+import numpy as np
 from ruamel.yaml import YAML
 
 from compass.utils.geogrid import generate_geogrids, geogrid_as_dict
-from compass.utils.raster_polygon import add_poly_to_dict
+from compass.utils.raster_polygon import get_boundary_polygon
 from compass.utils.runconfig import (runconfig_to_bursts, load_validate_yaml,
                                      RunConfig)
 from compass.utils.wrap_namespace import wrap_namespace
@@ -129,8 +130,8 @@ class GeoRunConfig(RunConfig):
         return self_as_dict
 
 
-    def to_file(self, dst, fmt:str, add_burst_boundary=True):
-        ''' Write self to YAML
+    def to_metadata_file(self, dst, fmt:str, add_burst_boundary=True):
+        ''' Write restructured self to YAML
 
         Parameter:
         ---------
@@ -144,21 +145,30 @@ class GeoRunConfig(RunConfig):
         '''
         self_as_dict = self.as_dict()
 
+        # make burst attributes immediately accessible
+        meta_dict = list(self_as_dict['bursts'].values())[0]
+        meta_dict['sensing_stop'] = str(self.bursts[0].sensing_stop)
+
+        # add geogrid
+        meta_dict['geogrid'] = self_as_dict['geogrids'][self.burst_id]
+
+        # add runconfig groups attributes
+        meta_dict['runconfig'] = self_as_dict['groups']
+
         if add_burst_boundary:
-            # get path to geocoded raster
+            # get path to geocoded raster and add to meta_dict
             geo_raster_path = f'{self.output_dir}/{self.file_stem}'
+            poly = get_boundary_polygon(geo_raster_path, np.nan)
+            meta_dict['poly'] = str(poly.wkt)
 
-            # get key for single burst
-            k = list(self_as_dict['bursts'].keys())[0]
-            # retrieve single burst
-            b_dict = self_as_dict['bursts'][k]
-
-            add_poly_to_dict(geo_raster_path, b_dict)
+        meta_dict['nodata'] = 'NO_DATA_VALUE'
+        meta_dict['input_data_ipf_version'] = '?'
+        meta_dict['isce3_version'] = '?'
 
         if fmt == 'yaml':
             yaml = YAML(typ='safe')
-            yaml.dump(self_as_dict, dst)
+            yaml.dump(meta_dict, dst)
         elif fmt == 'json':
-            json.dump(self_as_dict, dst)
+            json.dump(meta_dict, dst)
         else:
             raise ValueError(f'{fmt} unsupported. Only "json" or "yaml" supported')

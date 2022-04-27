@@ -11,27 +11,6 @@ from shapely.geometry import MultiPoint
 from compass.utils import helpers
 
 
-def add_poly_to_dict(geo_raster_path, burst_dict):
-    '''Add boundary polygon string for associated geocoded raster
-
-    Parameters
-    ----------
-    geo_raster_path: str
-        Path to geocoded raster
-    burst_dict: dict
-        Burst dict where poly is to be added
-    '''
-    if not os.path.isfile(geo_raster_path):
-        raise FileNotFoundError('cannont generate raster boundary - '
-                                f'{geo_raster_path} not found')
-
-    # Get polygon including valid areas (to be dumped in metadata)
-    poly = get_boundary_polygon(geo_raster_path, np.nan)
-
-    # Add polygon to dict
-    burst_dict['poly'] = str(poly.wkt)
-
-
 def get_boundary_polygon(filename, invalid_value):
     '''
     Get boundary polygon for raster in 'filename'.
@@ -49,6 +28,10 @@ def get_boundary_polygon(filename, invalid_value):
     poly: shapely.Polygon
         Shapely polygon including valid values
     '''
+    if not os.path.isfile(filename):
+        raise FileNotFoundError('cannont generate raster boundary - '
+                                f'{filename} not found')
+
     # Optimize this with block-processing?
     ds = gdal.Open(filename, gdal.GA_ReadOnly)
     burst = ds.GetRasterBand(1).ReadAsArray()

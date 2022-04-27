@@ -118,4 +118,4 @@ if __name__ == "__main__":
     # Save burst metadata and runconfig parameters
     json_path = f'{cfg.output_dir}/{cfg.file_stem}.json'
     with open(json_path, 'w') as f_json:
-        cfg.to_file(f_json, 'json')
+        cfg.to_metadata_file(f_json, 'json')

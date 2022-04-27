@@ -149,6 +149,13 @@ class GeoRunConfig(RunConfig):
         meta_dict = list(self_as_dict['bursts'].values())[0]
         meta_dict['sensing_stop'] = str(self.bursts[0].sensing_stop)
 
+        # clear not useful burst key/vals
+        meta_dict.pop('shape')
+        for frst_lst in ['first', 'last']:
+            for ln_smpl in ['line', 'sample']:
+                key = f'{frst_lst}_valid_{ln_smpl}'
+                meta_dict.pop(key)
+
         # add geogrid
         meta_dict['geogrid'] = self_as_dict['geogrids'][self.burst_id]
 

@@ -6,6 +6,7 @@ import journal
 import numpy as np
 from osgeo import gdal
 
+from compass.utils.geo_cslc_metadata import GeoCslcMetadata
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.range_split_spectrum import range_split_spectrum
 from compass.utils.yaml_argparse import YamlArgparse
@@ -115,7 +116,8 @@ if __name__ == "__main__":
     # Run geocode burst workflow
     run(cfg)
 
-    # Save burst metadata and runconfig parameters
+    # Save burst metadata
+    metadata = GeoCslcMetadata.from_georunconfig(cfg)
     json_path = f'{cfg.output_dir}/{cfg.file_stem}.json'
     with open(json_path, 'w') as f_json:
-        cfg.to_metadata_file(f_json, 'json')
+        metadata.to_file(f_json, 'json')

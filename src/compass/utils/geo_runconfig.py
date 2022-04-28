@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 
+import isce3
 from isce3.product import GeoGridParameters
 import journal
 import numpy as np
@@ -130,8 +131,8 @@ class GeoRunConfig(RunConfig):
         return self_as_dict
 
 
-    def to_metadata_file(self, dst, fmt:str, add_burst_boundary=True):
-        ''' Write restructured self to YAML
+    def to_file(self, dst, fmt:str, add_burst_boundary=True):
+        ''' Write self to file
 
         Parameter:
         ---------
@@ -145,37 +146,14 @@ class GeoRunConfig(RunConfig):
         '''
         self_as_dict = self.as_dict()
 
-        # make burst attributes immediately accessible
-        meta_dict = list(self_as_dict['bursts'].values())[0]
-        meta_dict['sensing_stop'] = str(self.bursts[0].sensing_stop)
-
-        # clear not useful burst key/vals
-        meta_dict.pop('shape')
-        for frst_lst in ['first', 'last']:
-            for ln_smpl in ['line', 'sample']:
-                key = f'{frst_lst}_valid_{ln_smpl}'
-                meta_dict.pop(key)
-
-        # add geogrid
-        meta_dict['geogrid'] = self_as_dict['geogrids'][self.burst_id]
-
-        # add runconfig groups attributes
-        meta_dict['runconfig'] = self_as_dict['groups']
-
-        if add_burst_boundary:
-            # get path to geocoded raster and add to meta_dict
-            geo_raster_path = f'{self.output_dir}/{self.file_stem}'
-            poly = get_boundary_polygon(geo_raster_path, np.nan)
-            meta_dict['poly'] = str(poly.wkt)
-
-        meta_dict['nodata'] = 'NO_DATA_VALUE'
-        meta_dict['input_data_ipf_version'] = '?'
-        meta_dict['isce3_version'] = '?'
+        self_as_dict['nodata'] = 'NO_DATA_VALUE'
+        self_as_dict['input_data_ipf_version'] = '?'
+        self_as_dict['isce3_version'] = isce3.__version__
 
         if fmt == 'yaml':
             yaml = YAML(typ='safe')
-            yaml.dump(meta_dict, dst)
+            yaml.dump(self_as_dict, dst)
         elif fmt == 'json':
-            json.dump(meta_dict, dst)
+            json.dumps(self_as_dict, dst, indent=4)
         else:
             raise ValueError(f'{fmt} unsupported. Only "json" or "yaml" supported')

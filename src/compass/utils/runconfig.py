@@ -419,4 +419,4 @@ class RunConfig:
     def to_yaml(self):
         self_as_dict = self.as_dict()
         yaml = YAML(typ='safe')
-        yaml.dump(self_as_dict, sys.stdout)
+        yaml.dump(self_as_dict, sys.stdout, indent=4)

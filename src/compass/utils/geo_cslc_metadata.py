@@ -7,9 +7,13 @@ import isce3
 from isce3.core import LUT2d, Poly1d, Orbit
 from isce3.product import GeoGridParameters
 import numpy as np
+from ruamel.yaml import YAML
 from s1reader.s1_burst_slc import Doppler
+from shapely.geometry import Polygon
 
-from compass.utils.wrap_namespace import wrap_namespace
+from compass.utils.geo_runconfig import GeoRunConfig
+from compass.utils.raster_polygon import get_boundary_polygon
+from compass.utils.wrap_namespace import wrap_namespace, unwrap_to_dict
 
 def _poly1d_from_dict(poly1d_dict) -> Poly1d:
     return Poly1d(poly1d_dict['coeffs'], poly1d_dict['mean'],
@@ -42,7 +46,7 @@ def _orbit_from_dict(orbit_dict) -> Orbit:
 
 
 @dataclass(frozen=True)
-class GeoBurstMetadata():
+class GeoCslcMetadata():
     # subset of burst class attributes
     sensing_start: datetime
     sensing_stop: datetime
@@ -55,7 +59,7 @@ class GeoBurstMetadata():
     range_sampling_rate: float
     range_pixel_spacing: float
     azimuth_fm_rate: Poly1d
-    doppler: Doppler
+    doppler: Poly1d
     range_bandwidth: float
     polarization: str # {VV, VH, HH, HV}
     burst_id: str # t{track_number}_iw{1,2,3}_b{burst_index}
@@ -73,12 +77,49 @@ class GeoBurstMetadata():
 
     runconfig: SimpleNamespace
     geogrid: GeoGridParameters
+    boundary: Polygon
     nodata: str
     input_data_ipf_version: str
     isce3_version: str
 
     @classmethod
-    def load_from_file(cls, file_path: str):
+    def from_georunconfig(cls, cfg: GeoRunConfig):
+        '''Create GeoBurstMetadata class from GeoRunConfig object
+
+        Parameter:
+        ---------
+        cfg : GeoRunConfig
+            GeoRunConfi containing geocoded burst metadata
+        '''
+        burst = cfg.bursts[0]
+        burst_id = burst.burst_id
+
+        geogrid = cfg.geogrids[burst_id]
+
+        # get boundary from geocoded raster
+        geo_raster_path = f'{cfg.output_dir}/{cfg.file_stem}'
+        geo_boundary = get_boundary_polygon(geo_raster_path, np.nan)
+
+        # place holders
+        nodata_val = '?'
+        ipf_ver = '?'
+        isce3_ver = '?'
+
+        return cls(burst.sensing_start, burst.sensing_stop,
+                   burst.radar_center_frequency, burst.wavelength,
+                   burst.azimuth_steer_rate, burst.azimuth_time_interval,
+                   burst.slant_range_time, burst.starting_range,
+                   burst.range_sampling_rate, burst.range_pixel_spacing,
+                   burst.azimuth_fm_rate, burst.doppler.poly1d,
+                   burst.range_bandwidth, burst.polarization, burst_id,
+                   burst.platform_id, burst.center, burst.border, burst.orbit,
+                   burst.orbit_direction, burst.tiff_path, burst.i_burst,
+                   burst.range_window_type, burst.range_window_coefficient,
+                   cfg.groups, geogrid, geo_boundary, nodata_val, ipf_ver,
+                   isce3_ver)
+
+    @classmethod
+    def from_file(cls, file_path: str, fmt: str):
         '''Create GeoBurstMetadata class from json file
 
         Parameter:
@@ -86,18 +127,26 @@ class GeoBurstMetadata():
         file_path: str
             File containing geocoded burst metadata
         '''
-        with open(file_path, 'r') as fid:
-            meta_dict = json.load(fid)
+        if fmt == 'yaml':
+            yaml = YAML(typ='safe')
+            load = yaml.load
+        elif fmt == 'json':
+            load = json.load
+        else:
+            raise ValueError(f'{fmt} unsupported. Only "json" or "yaml" supported')
 
-        fmt = "%Y-%m-%d %H:%M:%S.%f"
-        sensing_start = datetime.strptime(meta_dict['sensing_start'], fmt)
-        sensing_stop = datetime.strptime(meta_dict['sensing_stop'], fmt)
+        with open(file_path, 'r') as fid:
+            meta_dict = load(fid)
+
+        datetime_fmt = "%Y-%m-%d %H:%M:%S.%f"
+        sensing_start = datetime.strptime(meta_dict['sensing_start'],
+                                          datetime_fmt)
+        sensing_stop = datetime.strptime(meta_dict['sensing_stop'],
+                                         datetime_fmt)
 
         azimuth_fm_rate = _poly1d_from_dict(meta_dict['azimuth_fm_rate'])
 
-        dopp_poly1d = _poly1d_from_dict(meta_dict['doppler']['poly1d'])
-        dopp_lut2d = _lut2d_from_dict(meta_dict['doppler']['lut2d'])
-        doppler = Doppler(dopp_poly1d, dopp_lut2d)
+        dopp_poly1d = _poly1d_from_dict(meta_dict['doppler'])
 
         orbit = _orbit_from_dict(meta_dict['orbit'])
 
@@ -112,9 +161,15 @@ class GeoBurstMetadata():
                                     grid_dict['length'], grid_dict['width'],
                                     grid_dict['epsg'])
 
-        nodata_val = meta_dict['nodata']
-        ipf_ver = meta_dict['input_data_ipf_version']
-        isce3_ver = meta_dict['isce3_version']
+        # get boundary from geocoded raster
+        product_path = cfg.product_path_group.product_path
+        date_str = sensing_start.strftime("%Y%m%d")
+        burst_id = meta_dict['burst_id']
+        pol = meta_dict['polarization']
+        output_dir = f'{product_path}/{burst_id}/{date_str}'
+        file_stem = f'geo_{burst_id}_{pol}'
+        geo_raster_path = f'{output_dir}/{file_stem}'
+        geo_boundary = get_boundary_polygon(geo_raster_path, np.nan)
 
         return cls(sensing_start, sensing_stop,
                    meta_dict['radar_center_frequency'],
@@ -122,11 +177,85 @@ class GeoBurstMetadata():
                    meta_dict['azimuth_time_interval'],
                    meta_dict['slant_range_time'], meta_dict['starting_range'],
                    meta_dict['range_sampling_rate'],
-                   meta_dict['range_pixel_spacing'], azimuth_fm_rate, doppler,
-                   meta_dict['range_bandwidth'], meta_dict['polarization'],
-                   meta_dict['burst_id'], meta_dict['platform_id'],
+                   meta_dict['range_pixel_spacing'], azimuth_fm_rate,
+                   dopp_poly1d, meta_dict['range_bandwidth'], pol,
+                   meta_dict['burst_id'],  meta_dict['platform_id'],
                    meta_dict['center'], meta_dict['border'], orbit,
                    meta_dict['orbit_direction'], meta_dict['tiff_path'],
                    meta_dict['i_burst'], meta_dict['range_window_type'],
-                   meta_dict['range_window_coefficient'],
-                   cfg, geogrid, nodata_val, ipf_ver, isce3_ver)
+                   meta_dict['range_window_coefficient'], cfg, geogrid,
+                   geo_boundary, meta_dict['nodata'],
+                   meta_dict['input_data_ipf_version'],
+                   meta_dict['isce3_version'])
+
+    def as_dict(self):
+        ''' Convert self to dict for write to YAML/JSON
+        '''
+        self_as_dict = {}
+        for key, val in self.__dict__.items():
+            if key in ['boundary', 'sensing_start', 'sensing_stop']:
+                val = str(val)
+            elif isinstance(val, np.float64):
+                val = float(val)
+            elif key == 'border':
+                val = val[0].wkt
+            elif key == 'center':
+                val = val.coords[0]
+            elif key in ['azimuth_fm_rate', 'doppler']:
+                temp = {}
+                temp['order'] = val.order
+                temp['mean'] = val.mean
+                temp['std'] = val.std
+                temp['coeffs'] = val.coeffs
+                val = temp
+            elif key == 'orbit':
+                temp = {}
+                temp['ref_epoch'] = str(val.reference_epoch)
+                temp['time'] = {}
+                temp['time']['first'] = val.time.first
+                temp['time']['spacing'] = val.time.spacing
+                temp['time']['last'] = val.time.last
+                temp['time']['size'] = val.time.size
+                temp['position_x'] = val.position[:,0].tolist()
+                temp['position_y'] = val.position[:,1].tolist()
+                temp['position_z'] = val.position[:,2].tolist()
+                temp['velocity_x'] = val.velocity[:,0].tolist()
+                temp['velocity_y'] = val.velocity[:,1].tolist()
+                temp['velocity_z'] = val.velocity[:,2].tolist()
+                val = temp
+            elif key == 'runconfig':
+                val = unwrap_to_dict(val)
+            elif key == 'geogrid':
+                temp = {}
+                temp['start_x'] = val.start_x
+                temp['start_y'] = val.start_y
+                temp['spacing_x'] = val.spacing_x
+                temp['spacing_y'] = val.spacing_y
+                temp['length'] = val.length
+                temp['width'] = val.width
+                temp['epsg'] = val.epsg
+                val = temp
+
+            self_as_dict[key] = val
+
+        return self_as_dict
+
+    def to_file(self, dst, fmt:str):
+        '''Write self to file
+
+        Parameter:
+        ---------
+        dst: file pointer
+            File object to write metadata to
+        fmt: ['yaml', 'json']
+            Format of output
+        '''
+        self_as_dict = self.as_dict()
+
+        if fmt == 'yaml':
+            yaml = YAML(typ='safe')
+            yaml.dump(self_as_dict, dst)
+        elif fmt == 'json':
+            json.dump(self_as_dict, dst, indent=4)
+        else:
+            raise ValueError(f'{fmt} unsupported. Only "json" or "yaml" supported')

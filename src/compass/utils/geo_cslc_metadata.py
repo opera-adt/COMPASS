@@ -9,7 +9,7 @@ from isce3.product import GeoGridParameters
 import numpy as np
 from osgeo import osr
 from ruamel.yaml import YAML
-from shapely.geometry import Polygon
+from shapely.geometry import Point, Polygon
 
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.raster_polygon import get_boundary_polygon
@@ -64,8 +64,8 @@ class GeoCslcMetadata():
     polarization: str # {VV, VH, HH, HV}
     burst_id: str # t{track_number}_iw{1,2,3}_b{burst_index}
     platform_id: str # S1{A,B}
-    center: tuple # {center lon, center lat} in degrees
-    border: list # list of lon, lat coordinate tuples (in degrees) representing burst border
+    center: Point # {center lon, center lat} in degrees
+    border: Polygon # list of lon, lat coordinate tuples (in degrees) representing burst border
     orbit: isce3.core.Orbit
     orbit_direction: str
     # VRT params
@@ -77,7 +77,6 @@ class GeoCslcMetadata():
 
     runconfig: SimpleNamespace
     geogrid: GeoGridParameters
-    boundary: Polygon
     nodata: str
     input_data_ipf_version: str
     isce3_version: str
@@ -89,7 +88,7 @@ class GeoCslcMetadata():
         Parameter:
         ---------
         cfg : GeoRunConfig
-            GeoRunConfi containing geocoded burst metadata
+            GeoRunConfig containing geocoded burst metadata
         '''
         burst = cfg.bursts[0]
         burst_id = burst.burst_id
@@ -99,21 +98,12 @@ class GeoCslcMetadata():
         # get boundary from geocoded raster
         geo_raster_path = f'{cfg.output_dir}/{cfg.file_stem}'
         geo_boundary = get_boundary_polygon(geo_raster_path, np.nan)
+        center = geo_boundary.centroid
 
         # place holders
         nodata_val = '?'
         ipf_ver = '?'
         isce3_ver = '?'
-
-        # Transform center coordinate of the burst
-        epsg = geogrid.epsg
-        llh = osr.SpatialReference()
-        llh.ImportFromEPSG(4326)
-        tgt = osr.SpatialReference()
-        tgt.ImportFromEPSG(int(epsg))
-        trans = osr.CoordinateTransformation(llh, tgt)
-        cx, cy, _ = trans.TransformPoint(burst.center.y,
-                                         burst.center.x, 0)
 
         return cls(burst.sensing_start, burst.sensing_stop,
                    burst.radar_center_frequency, burst.wavelength,
@@ -122,11 +112,11 @@ class GeoCslcMetadata():
                    burst.range_sampling_rate, burst.range_pixel_spacing,
                    burst.azimuth_fm_rate, burst.doppler.poly1d,
                    burst.range_bandwidth, burst.polarization, burst_id,
-                   burst.platform_id, (cx, cy), burst.border, burst.orbit,
+                   burst.platform_id, center, geo_boundary, burst.orbit,
                    burst.orbit_direction, burst.tiff_path, burst.i_burst,
                    burst.range_window_type, burst.range_window_coefficient,
-                   cfg.groups, geogrid, geo_boundary, nodata_val, ipf_ver,
-                   isce3_ver)
+                   cfg.groups, geogrid, nodata_val, ipf_ver, isce3_ver)
+
 
     @classmethod
     def from_file(cls, file_path: str, fmt: str):
@@ -180,6 +170,7 @@ class GeoCslcMetadata():
         file_stem = f'geo_{burst_id}_{pol}'
         geo_raster_path = f'{output_dir}/{file_stem}'
         geo_boundary = get_boundary_polygon(geo_raster_path, np.nan)
+        center = geo_boundary.centroid
 
         return cls(sensing_start, sensing_stop,
                    meta_dict['radar_center_frequency'],
@@ -190,12 +181,11 @@ class GeoCslcMetadata():
                    meta_dict['range_pixel_spacing'], azimuth_fm_rate,
                    dopp_poly1d, meta_dict['range_bandwidth'], pol,
                    meta_dict['burst_id'],  meta_dict['platform_id'],
-                   meta_dict['center'], meta_dict['border'], orbit,
-                   meta_dict['orbit_direction'], meta_dict['tiff_path'],
-                   meta_dict['i_burst'], meta_dict['range_window_type'],
+                   center, geo_boundary, orbit, meta_dict['orbit_direction'],
+                   meta_dict['tiff_path'], meta_dict['i_burst'],
+                   meta_dict['range_window_type'],
                    meta_dict['range_window_coefficient'], cfg, geogrid,
-                   geo_boundary, meta_dict['nodata'],
-                   meta_dict['input_data_ipf_version'],
+                   meta_dict['nodata'], meta_dict['input_data_ipf_version'],
                    meta_dict['isce3_version'])
 
     def as_dict(self):
@@ -203,14 +193,10 @@ class GeoCslcMetadata():
         '''
         self_as_dict = {}
         for key, val in self.__dict__.items():
-            if key in ['boundary', 'sensing_start', 'sensing_stop']:
+            if key in ['border', 'center', 'sensing_start', 'sensing_stop']:
                 val = str(val)
             elif isinstance(val, np.float64):
                 val = float(val)
-            elif key == 'border':
-                val = val[0].wkt
-            elif key == 'center':
-                val = val
             elif key in ['azimuth_fm_rate', 'doppler']:
                 temp = {}
                 temp['order'] = val.order

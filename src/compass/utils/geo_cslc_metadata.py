@@ -7,6 +7,7 @@ import isce3
 from isce3.core import LUT2d, Poly1d, Orbit
 from isce3.product import GeoGridParameters
 import numpy as np
+from osgeo import osr
 from ruamel.yaml import YAML
 from shapely.geometry import Polygon
 
@@ -104,6 +105,16 @@ class GeoCslcMetadata():
         ipf_ver = '?'
         isce3_ver = '?'
 
+        # Transform center coordinate of the burst
+        epsg = geogrid.epsg
+        llh = osr.SpatialReference()
+        llh.ImportFromEPSG(4326)
+        tgt = osr.SpatialReference()
+        tgt.ImportFromEPSG(int(epsg))
+        trans = osr.CoordinateTransformation(llh, tgt)
+        cx, cy, _ = trans.TransformPoint(burst.center.y,
+                                         burst.center.x, 0)
+
         return cls(burst.sensing_start, burst.sensing_stop,
                    burst.radar_center_frequency, burst.wavelength,
                    burst.azimuth_steer_rate, burst.azimuth_time_interval,
@@ -111,7 +122,7 @@ class GeoCslcMetadata():
                    burst.range_sampling_rate, burst.range_pixel_spacing,
                    burst.azimuth_fm_rate, burst.doppler.poly1d,
                    burst.range_bandwidth, burst.polarization, burst_id,
-                   burst.platform_id, burst.center, burst.border, burst.orbit,
+                   burst.platform_id, (cx, cy), burst.border, burst.orbit,
                    burst.orbit_direction, burst.tiff_path, burst.i_burst,
                    burst.range_window_type, burst.range_window_coefficient,
                    cfg.groups, geogrid, geo_boundary, nodata_val, ipf_ver,
@@ -199,7 +210,7 @@ class GeoCslcMetadata():
             elif key == 'border':
                 val = val[0].wkt
             elif key == 'center':
-                val = val.coords[0]
+                val = val
             elif key in ['azimuth_fm_rate', 'doppler']:
                 temp = {}
                 temp['order'] = val.order

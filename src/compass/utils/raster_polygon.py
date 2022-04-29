@@ -1,14 +1,11 @@
 '''
 Functions for computing and adding boundary polygon to geo_runconfig dicts
 '''
-from datetime import datetime
 import os
 
 import numpy as np
 from osgeo import gdal
 from shapely.geometry import MultiPoint
-
-from compass.utils import helpers
 
 
 def get_boundary_polygon(filename, invalid_value):

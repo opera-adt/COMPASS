@@ -5,11 +5,9 @@ import json
 import isce3
 from isce3.product import GeoGridParameters
 import journal
-import numpy as np
 from ruamel.yaml import YAML
 
 from compass.utils.geogrid import generate_geogrids, geogrid_as_dict
-from compass.utils.raster_polygon import get_boundary_polygon
 from compass.utils.runconfig import (runconfig_to_bursts, load_validate_yaml,
                                      RunConfig)
 from compass.utils.wrap_namespace import wrap_namespace

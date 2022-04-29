@@ -8,7 +8,6 @@ from isce3.core import LUT2d, Poly1d, Orbit
 from isce3.product import GeoGridParameters
 import numpy as np
 from ruamel.yaml import YAML
-from s1reader.s1_burst_slc import Doppler
 from shapely.geometry import Polygon
 
 from compass.utils.geo_runconfig import GeoRunConfig

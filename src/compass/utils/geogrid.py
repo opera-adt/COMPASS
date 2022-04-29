@@ -4,7 +4,6 @@ Collection of function for determining and setting the geogrid
 
 import numpy as np
 import journal
-from osgeo import osr
 
 from nisar.workflows.geogrid import _grid_size
 import isce3

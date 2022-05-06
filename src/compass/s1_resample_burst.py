@@ -49,7 +49,7 @@ def run(cfg: dict):
         os.makedirs(top_output_path, exist_ok=True)
 
         # Get reference burst radar grid
-        ref_rdr_grid = cfg.reference_radar_info[burst_id].grid
+        ref_rdr_grid = cfg.reference_radar_info.grid
 
         # Extract date string and create directory
         date_str = str(burst.sensing_start.date())

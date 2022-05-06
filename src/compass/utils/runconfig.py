@@ -254,7 +254,7 @@ def get_ref_radar_grid_info(ref_path, burst_id):
     Returns
     -------
     ref_radar_grids:
-        Dict of reference radar path and grid values found associated with
+        reference radar path and grid values found associated with
         burst ID keys
     '''
     rdr_grid_files = glob.glob(f'{ref_path}/**/radar_grid.txt',
@@ -274,7 +274,7 @@ def get_ref_radar_grid_info(ref_path, burst_id):
     ref_rdr_path = os.path.dirname(b_id_rdr_grid_files[0])
     ref_rdr_grid = file_to_rdr_grid(b_id_rdr_grid_files[0])
 
-    return ref_rdr_grid
+    return ReferenceRadarInfo(ref_rdr_path, ref_rdr_grid)
 
 
 @dataclass(frozen=True)
@@ -315,13 +315,12 @@ class RunConfig:
         bursts = runconfig_to_bursts(sns)
 
         # Load reference grids if not reference run i.e. not running rdr2geo
-        ref_rdr_grid = {}
         if not sns.input_file_group.reference_burst.is_reference:
-            ref_rdr_grid = get_ref_radar_grid_info(
+            ref_rdr_grid_info = get_ref_radar_grid_info(
                 sns.input_file_group.reference_burst.file_path,
                 sns.input_file_group.burst_id)
 
-        return cls(cfg['runconfig']['name'], sns, bursts, ref_rdr_grid)
+        return cls(cfg['runconfig']['name'], sns, bursts, ref_rdr_grid_info)
 
     @property
     def burst_id(self) -> list[str]:

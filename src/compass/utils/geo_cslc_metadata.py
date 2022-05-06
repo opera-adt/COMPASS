@@ -96,7 +96,10 @@ class GeoCslcMetadata():
         geogrid = cfg.geogrids[burst_id]
 
         # get boundary from geocoded raster
-        geo_raster_path = f'{cfg.output_dir}/{cfg.file_stem}'
+        burst_id = burst.burst_id
+        date_str = burst.sensing_start.strftime("%Y%m%d")
+        pol = burst.polarization
+        geo_raster_path = f'{cfg.output_dir}/{burst_id}_{date_str}_{pol}.slc'
         geo_boundary = get_boundary_polygon(geo_raster_path, np.nan)
         center = geo_boundary.centroid
 

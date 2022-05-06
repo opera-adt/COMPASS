@@ -87,7 +87,7 @@ def range_split_spectrum(burst, cfg_split_spectrum,
     # Band #3: high-band image.
     in_ds = gdal.Open(burst_path, gdal.GA_ReadOnly)
     driver = gdal.GetDriverByName('ENVI')
-    out_ds = driver.Create(f'{scratch_path}/{burst_id_pol}_low_main_high',
+    out_ds = driver.Create(f'{scratch_path}/{burst_id_pol}_low_main_high.slc',
                            width, length, 3, gdal.GDT_CFloat32)
 
     # Prepare necessary variables for block processing
@@ -131,6 +131,6 @@ def range_split_spectrum(burst, cfg_split_spectrum,
     out_ds.FlushCache()
     out_ds = None
     burst_raster = isce3.io.Raster(
-        f'{scratch_path}/{burst_id_pol}_low_main_high')
+        f'{scratch_path}/{burst_id_pol}_low_main_high.slc')
 
     return burst_raster

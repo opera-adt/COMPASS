@@ -70,7 +70,7 @@ def run(cfg):
 
         # Generate output geocoded burst raster
         geo_burst_raster = isce3.io.Raster(
-            f'{cfg.output_dir}/{cfg.file_stem}',
+            f'{cfg.output_dir}/{burst_id}_{date_str}_{pol}.slc',
             geo_grid.width, geo_grid.length,
             rdr_burst_raster.num_bands, gdal.GDT_CFloat32,
             cfg.geocoding_params.output_format)
@@ -118,6 +118,10 @@ if __name__ == "__main__":
 
     # Save burst metadata
     metadata = GeoCslcMetadata.from_georunconfig(cfg)
-    json_path = f'{cfg.output_dir}/{cfg.file_stem}.json'
-    with open(json_path, 'w') as f_json:
-        metadata.to_file(f_json, 'json')
+    for burst in cfg.bursts:
+        burst_id = burst.burst_id
+        date_str = burst.sensing_start.strftime("%Y%m%d")
+        pol = burst.polarization
+        json_path = f'{cfg.output_dir}/{burst_id}_{date_str}_{pol}.json'
+        with open(json_path, 'w') as f_json:
+            metadata.to_file(f_json, 'json')

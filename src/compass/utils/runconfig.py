@@ -315,6 +315,7 @@ class RunConfig:
         bursts = runconfig_to_bursts(sns)
 
         # Load reference grids if not reference run i.e. not running rdr2geo
+        ref_rdr_grid_info = None
         if not sns.input_file_group.reference_burst.is_reference:
             ref_rdr_grid_info = get_ref_radar_grid_info(
                 sns.input_file_group.reference_burst.file_path,

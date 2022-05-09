@@ -55,8 +55,10 @@ runconfig:
           range_split_spectrum:
               enabled: False
               lines_per_block: 1000
-              low_band_bandwidth:
-              high_band_bandwidth:
+              # Low-band bandwidth in Hz
+              low_band_bandwidth: 10000000
+              # High-band bandwidth in Hz
+              high_band_bandwidth: 10000000
 
       worker:
           # Optional. To prevent downloading DEM or other data (default: False)

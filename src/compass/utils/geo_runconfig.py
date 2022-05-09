@@ -49,7 +49,7 @@ def check_geocode_dict(geocode_cfg: dict) -> None:
 class GeoRunConfig(RunConfig):
     '''dataclass containing GCSLC runconfig'''
     # dict of geogrids associated to burst IDs
-    geogrids: dict[str:GeoGridParameters]
+    geogrids: dict[str, GeoGridParameters]
 
     @classmethod
     def load_from_yaml(cls, yaml_path: str, workflow_name: str) -> GeoRunConfig:

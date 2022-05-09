@@ -2,6 +2,7 @@
 
 import os
 
+import isce3
 import journal
 from osgeo import gdal
 
@@ -9,7 +10,7 @@ WORKFLOW_SCRIPTS_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
 def check_file_path(file_path: str) -> None:
-    """Check if file_path and polarizations exist else raise an error.
+    """Check if file_path exist else raise an error.
 
     Parameters
     ----------
@@ -138,5 +139,11 @@ def check_dem(dem_path: str):
         gdal.Open(dem_path, gdal.GA_ReadOnly)
     except:
         err_str = f'{dem_path} cannot be opened by GDAL'
+        error_channel.log(err_str)
+        raise ValueError(err_str)
+
+    epsg = isce3.io.Raster(dem_path).get_epsg()
+    if not 1024 <= epsg <= 32767:
+        err_str = f'DEM epsg of {epsg} out of bounds'
         error_channel.log(err_str)
         raise ValueError(err_str)

@@ -7,7 +7,6 @@ import isce3
 from isce3.core import LUT2d, Poly1d, Orbit
 from isce3.product import GeoGridParameters
 import numpy as np
-from osgeo import osr
 from ruamel.yaml import YAML
 from shapely.geometry import Point, Polygon
 

@@ -49,7 +49,7 @@ def check_geocode_dict(geocode_cfg: dict) -> None:
 class GeoRunConfig(RunConfig):
     '''dataclass containing GCSLC runconfig'''
     # dict of geogrids associated to burst IDs
-    geogrids: dict[str:GeoGridParameters]
+    geogrids: dict[str, GeoGridParameters]
 
     @classmethod
     def load_from_yaml(cls, yaml_path: str, workflow_name: str) -> GeoRunConfig:
@@ -119,6 +119,8 @@ class GeoRunConfig(RunConfig):
 
     def as_dict(self):
         ''' Convert self to dict for write to YAML/JSON
+
+        Unable to dataclasses.asdict() because isce3 objects can not be pickled
         '''
         # convert to dict first then dump to yaml
         self_as_dict = super().as_dict()

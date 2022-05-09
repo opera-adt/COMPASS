@@ -388,7 +388,10 @@ class RunConfig:
         return self.groups.worker.gpu_id
 
     def as_dict(self):
-        # convert to dict first then dump to yaml or json
+        ''' Convert self to dict for write to YAML/JSON
+
+        Unable to dataclasses.asdict() because isce3 objects can not be pickled
+        '''
         self_as_dict = {}
         for key, val in self.__dict__.items():
             if key == 'groups':

@@ -119,6 +119,8 @@ class GeoRunConfig(RunConfig):
 
     def as_dict(self):
         ''' Convert self to dict for write to YAML/JSON
+
+        Unable to dataclasses.asdict() because isce3 objects can not be pickled
         '''
         # convert to dict first then dump to yaml
         self_as_dict = super().as_dict()

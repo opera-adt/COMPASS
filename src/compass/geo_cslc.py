@@ -111,7 +111,7 @@ if __name__ == "__main__":
 
     # Get a runconfig dict from command line argumens
     cfg = GeoRunConfig.load_from_yaml(geo_parser.run_config_path,
-                                      'geo_cslc_s1')
+                                      's1_cslc_geo')
 
     # Run geocode burst workflow
     run(cfg)

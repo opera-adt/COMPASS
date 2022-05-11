@@ -6,7 +6,10 @@ import isce3
 import journal
 from osgeo import gdal
 
-WORKFLOW_SCRIPTS_DIR = os.path.dirname(os.path.realpath(__file__))
+import compass
+
+
+WORKFLOW_SCRIPTS_DIR = os.path.dirname(compass.__file__)
 
 
 def check_file_path(file_path: str) -> None:

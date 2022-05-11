@@ -32,8 +32,8 @@ def load_validate_yaml(yaml_path: str, workflow_name: str) -> dict:
 
     try:
         # Load schema corresponding to 'workflow_name' and to validate against
-        schema_name = workflow_name if workflow_name == 'geo_cslc_s1' \
-            else 'cslc_s1'
+        schema_name = workflow_name if workflow_name == 's1_cslc_geo' \
+            else 's1_cslc_radar'
         schema = yamale.make_schema(
             f'{helpers.WORKFLOW_SCRIPTS_DIR}/schemas/{schema_name}.yaml',
             parser='ruamel')
@@ -93,7 +93,7 @@ def validate_group_dict(group_cfg: dict, workflow_name) -> None:
     input_group = group_cfg['input_file_group']
     # If is_reference flag is False, check that file path to reference
     # burst is assigned and valid (required by geo2rdr and resample)
-    if workflow_name == 'cslc_s1':
+    if workflow_name == 's1_cslc_radar':
         is_reference = input_group['reference_burst']['is_reference']
         if not is_reference:
             helpers.check_directory(input_group['reference_burst']['file_path'])

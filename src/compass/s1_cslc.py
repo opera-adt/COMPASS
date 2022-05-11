@@ -19,7 +19,7 @@ if __name__ == "__main__":
     arg_parser = YamlArgparse()
 
     # get a runconfig dict from command line args
-    runconfig = RunConfig.load_from_yaml(arg_parser.run_config_path, 'cslc_s1')
+    runconfig = RunConfig.load_from_yaml(arg_parser.run_config_path, 's1_cslc_radar')
 
     # run rdr2geo
     run(runconfig)

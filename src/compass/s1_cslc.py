@@ -1,4 +1,4 @@
-from compass import s1_rdr2geo, s1_geo2rdr, s1_resample_burst
+from compass import s1_rdr2geo, s1_geo2rdr, s1_resample
 from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -10,7 +10,7 @@ def run(cfg):
         s1_rdr2geo.run(cfg)
     else:
         s1_geo2rdr.run(cfg)
-        s1_resample_burst.run(cfg)
+        s1_resample.run(cfg)
 
 
 if __name__ == "__main__":

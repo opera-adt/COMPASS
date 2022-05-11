@@ -10,7 +10,7 @@ import isce3
 import journal
 from osgeo import gdal
 
-from compass.utils.reference_radar_grid import rdr_grid_to_file
+from compass.utils.radar_grid import rdr_grid_to_file
 from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
 

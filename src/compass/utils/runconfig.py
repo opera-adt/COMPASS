@@ -11,7 +11,7 @@ import yamale
 from ruamel.yaml import YAML
 
 from compass.utils import helpers
-from compass.utils.reference_radar_grid import file_to_rdr_grid
+from compass.utils.radar_grid import file_to_rdr_grid
 from compass.utils.wrap_namespace import wrap_namespace, unwrap_to_dict
 from s1reader.s1_burst_slc import Sentinel1BurstSlc
 from s1reader.s1_orbit import get_orbit_file_from_list

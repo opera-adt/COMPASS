@@ -7,9 +7,11 @@ from isce3.product import GeoGridParameters
 import journal
 from ruamel.yaml import YAML
 
-from compass.utils.geogrid import generate_geogrids, geogrid_as_dict
-from compass.utils.runconfig import (runconfig_to_bursts, load_validate_yaml,
-                                     RunConfig)
+from compass.utils.geo_grid import generate_geogrids, geogrid_as_dict
+from compass.utils.runconfig import (
+    runconfig_to_bursts,
+    load_validate_yaml,
+    RunConfig)
 from compass.utils.wrap_namespace import wrap_namespace
 
 

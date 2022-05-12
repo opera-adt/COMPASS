@@ -144,7 +144,7 @@ class GeoRunConfig(RunConfig):
             Format of output
         add_burst_boundary: bool
             If true add burst boundary string to each burst entry in dict.
-            Reads geocoded burst rasters; only viable after running geo_cslc.
+            Reads geocoded burst rasters; only viable after running s1_geocode_slc.
         '''
         self_as_dict = self.as_dict()
 

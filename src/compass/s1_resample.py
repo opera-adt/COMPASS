@@ -20,7 +20,7 @@ def run(cfg: dict):
     cfg: dict
       Runconfig dictionary with user-defined options
     """
-    info_channel = journal.info("resample_burst.run")
+    info_channel = journal.info("s1_resample.run")
     info_channel.log("Starting resample burst")
 
     # Tracking time elapsed for processing

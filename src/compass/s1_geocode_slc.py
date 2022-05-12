@@ -6,7 +6,7 @@ import journal
 import numpy as np
 from osgeo import gdal
 
-from compass.utils.geo_cslc_metadata import GeoCslcMetadata
+from compass.utils.geo_metadata import GeoCslcMetadata
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.range_split_spectrum import range_split_spectrum
 from compass.utils.yaml_argparse import YamlArgparse
@@ -22,7 +22,7 @@ def run(cfg):
     cfg: dict
         Dictionary with user runconfig options
     '''
-    info_channel = journal.info("geo_cslc.run")
+    info_channel = journal.info("s1_geocode_slc.run")
 
     # Start tracking processing time
     t_start = time.time()

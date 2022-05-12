@@ -20,7 +20,7 @@ def run(cfg: dict):
     cfg: dict
       Dictionary with user-defined options
     """
-    info_channel = journal.info("geo2rdr.run")
+    info_channel = journal.info("s1_geo2rdr.run")
     info_channel.log('Starting geo2rdr')
 
     # Tracking time elapsed for processing

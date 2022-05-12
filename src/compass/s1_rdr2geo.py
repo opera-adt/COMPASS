@@ -17,7 +17,7 @@ from compass.utils.yaml_argparse import YamlArgparse
 
 def run(cfg):
     '''run rdr2geo with provided runconfig'''
-    info_channel = journal.info("rdr2geo.run")
+    info_channel = journal.info("s1_rdr2geo.run")
 
     t_start = time.time()
     info_channel.log("starting rdr2geo")

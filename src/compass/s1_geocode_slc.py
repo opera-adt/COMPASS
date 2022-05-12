@@ -101,6 +101,12 @@ def run(cfg):
         geo_burst_raster.set_epsg(epsg)
         del geo_burst_raster
 
+        # Save burst metadata
+        metadata = GeoCslcMetadata.from_georunconfig(cfg)
+        json_path = f'{cfg.output_dir}/{burst_id}_{date_str}_{pol}.json'
+        with open(json_path, 'w') as f_json:
+            metadata.to_file(f_json, 'json')
+
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     info_channel.log(f"s1_geocode_slc burst successfully ran in {dt} (hr:min:sec)")
 
@@ -115,13 +121,3 @@ if __name__ == "__main__":
 
     # Run geocode burst workflow
     run(cfg)
-
-    # Save burst metadata
-    metadata = GeoCslcMetadata.from_georunconfig(cfg)
-    for burst in cfg.bursts:
-        burst_id = burst.burst_id
-        date_str = burst.sensing_start.strftime("%Y%m%d")
-        pol = burst.polarization
-        json_path = f'{cfg.output_dir}/{burst_id}_{date_str}_{pol}.json'
-        with open(json_path, 'w') as f_json:
-            metadata.to_file(f_json, 'json')

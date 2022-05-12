@@ -20,7 +20,7 @@ def run(cfg):
     info_channel = journal.info("s1_rdr2geo.run")
 
     t_start = time.time()
-    info_channel.log("starting rdr2geo")
+    info_channel.log("Starting s1_rdr2geo burst")
 
     # common rdr2geo inits
     dem_raster = isce3.io.Raster(cfg.dem)
@@ -45,7 +45,7 @@ def run(cfg):
     # save SLC for all bursts
     for burst in cfg.bursts:
         # extract date string and create directory
-        date_str = str(burst.sensing_start.date())
+        date_str = burst.sensing_start.strftime("%Y%m%d")
         burst_id = burst.burst_id
 
         # init output directory in product_path
@@ -108,17 +108,17 @@ def run(cfg):
         output_vrt = isce3.io.Raster(f'{output_path}/topo.vrt', raster_list)
         output_vrt.set_epsg(rdr2geo_obj.epsg_out)
 
-    dt = str(timedelta(seconds=time.time() - t_start))
-    info_channel.log(f"rdr2geo successfully ran in {dt} (hr:min:sec)")
+    dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
+    info_channel.log(f"s1_rdr2geo burst successfully ran in {dt} (hr:min:sec)")
 
 
 if __name__ == "__main__":
     '''run rdr2geo from command line'''
     # load command line args
-    rdr2geo_parser = YamlArgparse()
+    parser = YamlArgparse()
 
     # get a runconfig dict from command line args
-    rdr2geo_runconfig = RunConfig.load_from_yaml(rdr2geo_parser.args.run_config_path, 'rdr2geo')
+    cfg = RunConfig.load_from_yaml(parser.args.run_config_path, 's1_rdr2geo')
 
     # run rdr2geo
-    run(rdr2geo_runconfig)
+    run(cfg)

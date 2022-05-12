@@ -1,3 +1,4 @@
+from datetime import timedelta
 import os
 import time
 
@@ -26,7 +27,7 @@ def run(cfg):
 
     # Start tracking processing time
     t_start = time.time()
-    info_channel.log("Starting geocode burst")
+    info_channel.log("Starting s1_geocode_slc burst")
 
     # Common initializations
     dem_raster = isce3.io.Raster(cfg.dem)
@@ -100,18 +101,17 @@ def run(cfg):
         geo_burst_raster.set_epsg(epsg)
         del geo_burst_raster
 
-    dt = time.time() - t_start
-    info_channel.log(f'geocode burst successfully ran in {dt:.3f} seconds')
+    dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
+    info_channel.log(f"s1_geocode_slc burst successfully ran in {dt} (hr:min:sec)")
 
 
 if __name__ == "__main__":
     '''Run geocode cslc workflow from command line'''
     # load arguments from command line
-    geo_parser = YamlArgparse()
+    parser = YamlArgparse()
 
     # Get a runconfig dict from command line argumens
-    cfg = GeoRunConfig.load_from_yaml(geo_parser.run_config_path,
-                                      's1_cslc_geo')
+    cfg = GeoRunConfig.load_from_yaml(parser.run_config_path, 's1_cslc_geo')
 
     # Run geocode burst workflow
     run(cfg)

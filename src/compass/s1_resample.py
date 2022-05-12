@@ -21,7 +21,7 @@ def run(cfg: dict):
       Runconfig dictionary with user-defined options
     """
     info_channel = journal.info("s1_resample.run")
-    info_channel.log("Starting resample burst")
+    info_channel.log("Starting s1_resample burst")
 
     # Tracking time elapsed for processing
     t_start = time.time()
@@ -52,7 +52,7 @@ def run(cfg: dict):
         ref_rdr_grid = cfg.reference_radar_info.grid
 
         # Extract date string and create directory
-        date_str = str(burst.sensing_start.date())
+        date_str = burst.sensing_start.strftime("%Y%m%d")
         burst_output_path = f'{top_output_path}/{date_str}'
         os.makedirs(burst_output_path, exist_ok=True)
 
@@ -93,17 +93,16 @@ def run(cfg: dict):
                           rg_off_raster, az_off_raster,
                           flatten=cfg.resample_params.flatten)
 
-    dt = str(timedelta(seconds=time.time() - t_start))
-    info_channel.log(f"resample burst successfully ran in {dt} (hr:min:sec)")
+    dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
+    info_channel.log(f"s1_resample burst successfully ran in {dt} (hr:min:sec)")
 
 
 if __name__ == "__main__":
     """Run resample burst from command line"""
-    resample_parser = YamlArgparse()
+    parser = YamlArgparse()
 
     # Get a runconfig dict from command line arguments
-    resample_runconfig = RunConfig.load_from_yaml(
-        resample_parser.args.run_config_path, 'resample_burst')
+    cfg = RunConfig.load_from_yaml(parser.args.run_config_path, 's1_resample')
 
     # Run resample burst
-    run(resample_runconfig)
+    run(cfg)

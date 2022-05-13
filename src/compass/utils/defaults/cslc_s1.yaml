@@ -10,7 +10,7 @@ runconfig:
            safe_file_path:
            # Required. List of orbit (EOF) files (min=1)
            orbit_file_path:
-           # List of (unique) burst IDs to process
+           # Required. The unique burst ID to process
            burst_id:
            # Options for reference burst
            reference_burst:
@@ -43,8 +43,11 @@ runconfig:
                compute_mask: True
            geo2rdr:
                lines_per_block: 1000
+               threshold: 1.0e-8
+               numiter: 25
            resample:
                lines_per_block: 1000
+               flatten: False
 
        worker:
            # OPTIONAL - To prevent downloading DEM / other data automatically. Default True

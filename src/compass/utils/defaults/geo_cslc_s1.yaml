@@ -1,0 +1,70 @@
+runconfig:
+  name: cslc_s1_workflow_default
+
+  groups:
+      pge_name_group:
+          pge_name: CSLC_S1_PGE
+
+      input_file_group:
+          # Required. List of SAFE files (min=1)
+          safe_file_path:
+          # Required. List of orbit (EOF) files (min=1)
+          orbit_file_path:
+          # Required. The unique burst ID to process
+          burst_id:
+
+      dynamic_ancillary_file_group:
+          # Digital elevation model
+          dem_file:
+
+      product_path_group:
+          # Directory where PGE will place results
+          product_path:
+          # Directory where SAS writes temporary data
+          scratch_path:
+          # Intermediate file name. SAS writes the output to this file.
+          # PGE may rename the product according to file naming convention
+          sas_output_file:
+
+      primary_executable:
+          product_type: CSLC_S1
+
+      processing:
+          polarization: co-pol
+          geocoding:
+              output_format: ENVI
+              flatten: True
+              # Dem margin (in units of input DEM)
+              dem_margin: 0.1
+              lines_per_block: 1000
+              output_epsg:
+              x_posting:
+              y_posting:
+              x_snap:
+              y_snap:
+              top_left:
+                  x:
+                  y:
+              bottom_right:
+                  x:
+                  y:
+          geo2rdr:
+              lines_per_block: 1000
+              threshold: 1.0e-8
+              numiter: 25
+          range_split_spectrum:
+              enabled: False
+              lines_per_block: 1000
+              # Low-band bandwidth in Hz
+              low_band_bandwidth: 10000000
+              # High-band bandwidth in Hz
+              high_band_bandwidth: 10000000
+
+      worker:
+          # Optional. To prevent downloading DEM or other data (default: False)
+          internet_access: False
+          # Optional. Use GPU capabilities if available (default: False)
+          gpu_enabled: False
+          # Optional. Index of GPU to be used for processing. Ignored if
+          # *gpu_enabled* is False (default: 0)
+          gpu_id: 0

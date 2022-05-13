@@ -33,9 +33,9 @@ python -m pip install ./COMPASS
 The following commands generate coregistered SLC in radar or geo-coordinates from terminal:
 
 ```bash
-s1_cslc.py <path to s1_cslc_radar yaml file for reference burst>
-s1_cslc.py <path to s1_cslc_radar yaml file for secondary burst>
-s1_cslc.py <path to s1_cslc_geo   yaml file>
+s1_cslc.py --grid geo   <path to s1_cslc_geo   yaml file>
+s1_cslc.py --grid radar <path to s1_cslc_radar yaml file for reference burst>
+s1_cslc.py --grid radar <path to s1_cslc_radar yaml file for secondary burst>
 ```
 
 ### License

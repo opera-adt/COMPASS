@@ -10,6 +10,7 @@ import isce3
 import journal
 from osgeo import gdal
 
+from compass.utils.helpers import get_module_name
 from compass.utils.radar_grid import rdr_grid_to_file
 from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
@@ -17,10 +18,12 @@ from compass.utils.yaml_argparse import YamlArgparse
 
 def run(cfg):
     '''run rdr2geo with provided runconfig'''
-    info_channel = journal.info("s1_rdr2geo.run")
+    module_name = get_module_name(__file__)
+    info_channel = journal.info(f"{module_name}.run")
+    info_channel.log(f"Starting {module_name} burst")
 
+    # Tracking time elapsed for processing
     t_start = time.time()
-    info_channel.log("Starting s1_rdr2geo burst")
 
     # common rdr2geo inits
     dem_raster = isce3.io.Raster(cfg.dem)
@@ -109,7 +112,7 @@ def run(cfg):
         output_vrt.set_epsg(rdr2geo_obj.epsg_out)
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
-    info_channel.log(f"s1_rdr2geo burst successfully ran in {dt} (hr:min:sec)")
+    info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
 
 
 if __name__ == "__main__":

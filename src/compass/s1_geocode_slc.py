@@ -9,6 +9,7 @@ from osgeo import gdal
 
 from compass.utils.geo_metadata import GeoCslcMetadata
 from compass.utils.geo_runconfig import GeoRunConfig
+from compass.utils.helpers import get_module_name
 from compass.utils.range_split_spectrum import range_split_spectrum
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -23,11 +24,12 @@ def run(cfg):
     cfg: dict
         Dictionary with user runconfig options
     '''
-    info_channel = journal.info("s1_geocode_slc.run")
+    module_name = get_module_name(__file__)
+    info_channel = journal.info(f"{module_name}.run")
+    info_channel.log(f"Starting {module_name} burst")
 
     # Start tracking processing time
     t_start = time.time()
-    info_channel.log("Starting s1_geocode_slc burst")
 
     # Common initializations
     dem_raster = isce3.io.Raster(cfg.dem)
@@ -108,7 +110,7 @@ def run(cfg):
             metadata.to_file(f_json, 'json')
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
-    info_channel.log(f"s1_geocode_slc burst successfully ran in {dt} (hr:min:sec)")
+    info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
 
 
 if __name__ == "__main__":

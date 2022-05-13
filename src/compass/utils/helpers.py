@@ -11,6 +11,10 @@ import compass
 
 WORKFLOW_SCRIPTS_DIR = os.path.dirname(compass.__file__)
 
+# get the basename given an input file path
+# example: get_module_name(__file__)
+get_module_name = lambda x : os.path.basename(x).split('.')[0]
+
 
 def check_file_path(file_path: str) -> None:
     """Check if file_path exist else raise an error.

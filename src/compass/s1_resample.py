@@ -7,6 +7,7 @@ import isce3
 import journal
 from osgeo import gdal
 
+from compass.utils.helpers import get_module_name
 from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -20,8 +21,9 @@ def run(cfg: dict):
     cfg: dict
       Runconfig dictionary with user-defined options
     """
-    info_channel = journal.info("s1_resample.run")
-    info_channel.log("Starting s1_resample burst")
+    module_name = get_module_name(__file__)
+    info_channel = journal.info(f"{module_name}.run")
+    info_channel.log(f"Starting {module_name} burst")
 
     # Tracking time elapsed for processing
     t_start = time.time()
@@ -94,7 +96,7 @@ def run(cfg: dict):
                           flatten=cfg.resample_params.flatten)
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
-    info_channel.log(f"s1_resample burst successfully ran in {dt} (hr:min:sec)")
+    info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
 
 
 if __name__ == "__main__":

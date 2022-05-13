@@ -10,7 +10,7 @@ class YamlArgparse():
         if add_grid_type:
             parser.add_argument('-g','--grid','--grid-type', dest='grid_type', type=str,
                                 default='geo', choices=['geo', 'radar'],
-                                help='Grid (coordinates) type for CSLC, (default: %(default)s).')
+                                help='Grid (coordinates) type of the output CSLC')
 
         # parse arguments
         self.args = parser.parse_args()

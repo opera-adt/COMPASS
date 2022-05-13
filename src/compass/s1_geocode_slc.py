@@ -120,7 +120,8 @@ if __name__ == "__main__":
     parser = YamlArgparse()
 
     # Get a runconfig dict from command line argumens
-    cfg = GeoRunConfig.load_from_yaml(parser.run_config_path, 's1_cslc_geo')
+    cfg = GeoRunConfig.load_from_yaml(parser.run_config_path,
+                                      workflow_name='s1_cslc_geo')
 
     # Run geocode burst workflow
     run(cfg)

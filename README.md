@@ -30,11 +30,12 @@ python -m pip install ./COMPASS
 
 ### Usage
 
-The following command executes COMPASS for rdr2geo to resample SLC from terminal:
+The following commands generate coregistered SLC in radar or geo-coordinates from terminal:
 
 ```bash
-python -m compass.s1_cslc <path rdr2geo yaml>
-python -m compass.s1_cslc <path geo2rdr+resample yaml>
+s1_cslc.py --grid geo   <path to s1_cslc_geo   yaml file>
+s1_cslc.py --grid radar <path to s1_cslc_radar yaml file for reference burst>
+s1_cslc.py --grid radar <path to s1_cslc_radar yaml file for secondary burst>
 ```
 
 ### License

@@ -4,13 +4,22 @@ from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
 
 
-def main():
-    parser = YamlArgparse(add_grid_type=True)
+def run(run_config_path: str, grid_type: str):
+    """
+    Run CSLC with user-defined options.
 
-    if parser.args.grid_type == 'radar':
+    Parameters
+    ----------
+    run_config_path: str
+        File path with user-defined options in yaml format
+    grid_type: str
+        Grid type of the output CSLC
+    """
+
+    if grid_type == 'radar':
         # CSLC workflow in radar coordinates
         # get a runconfig dict from command line args
-        cfg = RunConfig.load_from_yaml(parser.run_config_path, 's1_cslc_radar')
+        cfg = RunConfig.load_from_yaml(run_config_path, 's1_cslc_radar')
 
         if cfg.is_reference:
             # reference burst - run rdr2geo and archive it
@@ -21,13 +30,19 @@ def main():
             s1_geo2rdr.run(cfg)
             s1_resample.run(cfg)
 
-    elif parser.args.grid_type == 'geo':
+    elif grid_type == 'geo':
         # CSLC workflow in geo-coordinates
         # get a runconfig dict from command line argumens
-        cfg = GeoRunConfig.load_from_yaml(parser.run_config_path, 's1_cslc_geo')
+        cfg = GeoRunConfig.load_from_yaml(run_config_path, 's1_cslc_geo')
 
         # run geocode_slc
         s1_geocode_slc.run(cfg)
+
+
+def main():
+    parser = YamlArgparse(add_grid_type=True)
+
+    run(parser.run_config_path, parser.args.grid_type)
 
 
 if __name__ == "__main__":

@@ -17,7 +17,13 @@ from compass.utils.yaml_argparse import YamlArgparse
 
 
 def run(cfg):
-    '''run rdr2geo with provided runconfig'''
+    '''run rdr2geo with provided runconfig
+
+    Parameters
+    ----------
+    cfg: dict
+        Runconfig dictionary with user-defined options
+    '''
     module_name = get_module_name(__file__)
     info_channel = journal.info(f"{module_name}.run")
     info_channel.log(f"Starting {module_name} burst")

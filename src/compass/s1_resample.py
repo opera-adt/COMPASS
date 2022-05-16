@@ -19,7 +19,7 @@ def run(cfg: dict):
     Parameters
     ----------
     cfg: dict
-      Runconfig dictionary with user-defined options
+        Runconfig dictionary with user-defined options
     """
     module_name = get_module_name(__file__)
     info_channel = journal.info(f"{module_name}.run")

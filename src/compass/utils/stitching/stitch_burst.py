@@ -8,6 +8,7 @@ import isce3
 import journal
 import pandas as pd
 import shapely.wkt
+from datetime import datetime
 from compass.utils import helpers
 from osgeo import gdal, ogr
 from shapely.geometry import Polygon
@@ -291,12 +292,16 @@ def get_stitching_dict(indir):
             metadata = read_metadata(path)
             # Read info and store in dictionary
             cfg['burst_id'].append(get_metadata(metadata, 'burst_id'))
-            filename = get_metadata(metadata, 'granule_id')
+            datestr = get_metadata(metadata, 'sensing_start')
+            date = datetime.fromisoformat(datestr).strftime("%Y%m%d")
+            filename = f"{get_metadata(metadata, 'burst_id')}_{date}_VV.slc"
             cfg['granule_id'].append(f'{indir}/{dir}/{filename}')
-            poly = get_metadata(metadata, 'polygon')
+            poly = get_metadata(metadata, 'border')
             cfg['polygon'].append(shapely.wkt.loads(poly))
-            cfg['date'].append(get_metadata(metadata, 'date'))
-            cfg['epsg'].append(get_metadata(metadata, 'epsg'))
+            cfg['date'].append(date)
+            geogrid = get_metadata(metadata, 'geogrid')
+            cfg['epsg'].append(geogrid['epsg'])
+
 
     return pd.DataFrame(data=cfg)
 

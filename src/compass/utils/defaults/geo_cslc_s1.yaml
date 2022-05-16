@@ -13,7 +13,7 @@ runconfig:
           # Required. Path to the burst data
           burst_file_path:
           # Required. Path to light metadata file
-          ligh_metadata_path:
+          light_metadata_path:
           # Required. The unique burst ID to process
           burst_id:
 

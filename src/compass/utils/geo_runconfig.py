@@ -7,9 +7,11 @@ from isce3.product import GeoGridParameters
 import journal
 from ruamel.yaml import YAML
 
-from compass.utils.geogrid import generate_geogrids, geogrid_as_dict
-from compass.utils.runconfig import (runconfig_to_bursts, load_validate_yaml,
-                                     RunConfig)
+from compass.utils.geo_grid import generate_geogrids, geogrid_as_dict
+from compass.utils.runconfig import (
+    runconfig_to_bursts,
+    load_validate_yaml,
+    RunConfig)
 from compass.utils.wrap_namespace import wrap_namespace
 
 
@@ -142,7 +144,7 @@ class GeoRunConfig(RunConfig):
             Format of output
         add_burst_boundary: bool
             If true add burst boundary string to each burst entry in dict.
-            Reads geocoded burst rasters; only viable after running geo_cslc.
+            Reads geocoded burst rasters; only viable after running s1_geocode_slc.
         '''
         self_as_dict = self.as_dict()
 

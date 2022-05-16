@@ -10,17 +10,26 @@ import isce3
 import journal
 from osgeo import gdal
 
-from compass.utils.reference_radar_grid import rdr_grid_to_file
+from compass.utils.helpers import get_module_name
+from compass.utils.radar_grid import rdr_grid_to_file
 from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
 
 
 def run(cfg):
-    '''run rdr2geo with provided runconfig'''
-    info_channel = journal.info("rdr2geo.run")
+    '''run rdr2geo with provided runconfig
 
+    Parameters
+    ----------
+    cfg: dict
+        Runconfig dictionary with user-defined options
+    '''
+    module_name = get_module_name(__file__)
+    info_channel = journal.info(f"{module_name}.run")
+    info_channel.log(f"Starting {module_name} burst")
+
+    # Tracking time elapsed for processing
     t_start = time.time()
-    info_channel.log("starting rdr2geo")
 
     # common rdr2geo inits
     dem_raster = isce3.io.Raster(cfg.dem)
@@ -45,7 +54,7 @@ def run(cfg):
     # save SLC for all bursts
     for burst in cfg.bursts:
         # extract date string and create directory
-        date_str = str(burst.sensing_start.date())
+        date_str = burst.sensing_start.strftime("%Y%m%d")
         burst_id = burst.burst_id
 
         # init output directory in product_path
@@ -108,17 +117,18 @@ def run(cfg):
         output_vrt = isce3.io.Raster(f'{output_path}/topo.vrt', raster_list)
         output_vrt.set_epsg(rdr2geo_obj.epsg_out)
 
-    dt = str(timedelta(seconds=time.time() - t_start))
-    info_channel.log(f"rdr2geo successfully ran in {dt} (hr:min:sec)")
+    dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
+    info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
 
 
 if __name__ == "__main__":
     '''run rdr2geo from command line'''
     # load command line args
-    rdr2geo_parser = YamlArgparse()
+    parser = YamlArgparse()
 
     # get a runconfig dict from command line args
-    rdr2geo_runconfig = RunConfig.load_from_yaml(rdr2geo_parser.args.run_config_path, 'rdr2geo')
+    cfg = RunConfig.load_from_yaml(parser.args.run_config_path,
+                                   workflow_name='s1_cslc_radar')
 
     # run rdr2geo
-    run(rdr2geo_runconfig)
+    run(cfg)

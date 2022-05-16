@@ -13,11 +13,10 @@ from xml.etree import ElementTree
 from osgeo import osr
 from s1reader.s1_reader import load_bursts
 from s1reader.s1_orbit import get_orbit_file_from_list
-from compass.geo_cslc import run
 from compass.utils import helpers
 from compass.utils.runconfig import load_validate_yaml
 
-from compass.utils.geogrid import get_point_epsg
+from compass.utils.geo_grid import get_point_epsg
 from compass.utils.geo_runconfig import GeoRunConfig
 
 # Required for orbit download
@@ -324,7 +323,7 @@ def create_runconfig(burst, safe, orbit_path, dem_file, work_dir,
         Spacing of geocoded burst along Y-direction
     '''
     # Load default runconfig and fill it with user-defined options
-    yaml_path = f'{helpers.WORKFLOW_SCRIPTS_DIR}/defaults/geo_cslc_s1.yaml'
+    yaml_path = f'{helpers.WORKFLOW_SCRIPTS_DIR}/defaults/s1_cslc_geo.yaml'
     with open(yaml_path, 'r') as stream:
         yaml_cfg = yaml.safe_load(stream)
 

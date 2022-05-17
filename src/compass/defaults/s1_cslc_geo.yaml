@@ -11,9 +11,9 @@ runconfig:
           # Required. List of orbit (EOF) files (min=1)
           orbit_file_path:
           # Required. Path to the burst data
-          burst_file_path:
+          burst_file_path: burst.vrt
           # Required. Path to light metadata file
-          light_metadata_path:
+          light_metadata_path: burst_metadata.json
           # Required. The unique burst ID to process
           burst_id:
 

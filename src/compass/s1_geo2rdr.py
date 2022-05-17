@@ -93,7 +93,8 @@ def run(cfg: dict):
 
 if __name__ == "__main__":
     """Run geo2rdr from command line"""
-    geo2rdr_parser = YamlArgparse()
+    parser = YamlArgparse()
+    parser.parse()
 
     # Get a runconfig dict from command line arguments
     geo2rdr_runconfig = RunConfig.load_from_yaml(

@@ -29,18 +29,20 @@ def zero_dem(params):
     ds = None
 
 
-def solve_geocentric_lat(params):
+def solve_geocentric_lat(slant_range, params):
     temp = 1 + params.h_sat / params.ellipsoid.a
-    temp1 = rng / params.ellipsoid.a
-    temp2 = rng / (params.ellipsoid.a + params.h_sat)
+    temp1 = slant_range / params.ellipsoid.a
+    temp2 = slant_range / (params.ellipsoid.a + params.h_sat)
 
     cosang = 0.5 * (temp + (1.0/temp) - temp1 * temp2)
     angdiff = np.arccos(cosang);
 
-    if (params.look_side * satomega > 0):
-        x = satlat0 + angdiff
+    look_side_int = 1 if params.look_side == isce3.core.LookSide.Left \
+        else -1
+    if (look_side_int * params.omega > 0):
+        x = params.lat0 + angdiff
     else:
-        x = satlat0 - angdiff
+        x = params.lat0 - angdiff
 
     return x
 
@@ -86,6 +88,10 @@ def common_params(lat):
     params.n_sv = 10
     params.n_samples = 20
     params.h_sat = 700000.0
+    params.slant_range0 = 80000.0
+    params.d_slant_range = 10.0
+    params.az_time0 = 5.0
+    params.d_az_time = 2.0
     params.orbit_dt = 10.0
     params.epsg = 4326
     params.look_side = isce3.core.LookSide.Right
@@ -107,12 +113,9 @@ def create_burst(params):
     radar_freq = dont_matter_for_now
     wavelength = 0.24
     azimuth_steer_rate = 0.024389943375862838
-    azimuth_time_interval = 2.0
     slant_range_time = dont_matter_for_now
-    starting_range = 800000.0
     iw2_mid_range = dont_matter_for_now
     range_sampling_rate = dont_matter_for_now
-    range_pxl_spacing = 10.0
     shape = (1, params.n_samples)
     az_fm_rate = dont_matter_for_now
     doppler = Doppler(isce3.core.Poly1d([1]), isce3.core.LUT2d())
@@ -138,9 +141,9 @@ def create_burst(params):
     prf_raw_data = dont_matter_for_now
 
     burst = Sentinel1BurstSlc(params.sensing_start, radar_freq, wavelength,
-                              azimuth_steer_rate, azimuth_time_interval,
-                              slant_range_time, starting_range, iw2_mid_range,
-                              range_sampling_rate, range_pxl_spacing,
+                              azimuth_steer_rate, params.d_az_time,
+                              slant_range_time, params.slant_range0, iw2_mid_range,
+                              range_sampling_rate, params.d_slant_range,
                               shape, az_fm_rate, doppler,
                               rng_processing_bandwidth, pol, burst_id,
                               platform_id, center_pts,
@@ -153,13 +156,31 @@ def create_burst(params):
     return burst
 
 
+def compute_expected_llh(test_params):
+    i = np.arange(test_params.n_samples)
+    ellipsoid = test_params.ellipsoid
+    az_time = test_params.az_time0 + i * test_params.d_az_time
+    slant_range = test_params.slant_range0 + i * test_params.d_slant_range
+    lon = test_params.lon0 + test_params.omega * az_time
+    c_lon = np.cos(lon)
+    s_lon = np.sin(lon)
+    lat = np.arccos(solve_geocentric_lat(slant_range, test_params))
+    c_lat = np.cos(lat)
+    s_lat = np.sin(lat)
+    xyz_vec = np.vstack([ellipsoid.a * c_lat * c_lon,
+                         ellipsoid.a * c_lat * s_lon,
+                         ellipsoid.b * s_lat])
+    llh = [ellipsoid.xyz_to_lon_lat(xyz_pt) for xyz_pt in xyz_vec]
+    return llh
+
+
 def cfg_45_lat():
     cfg = SimpleNamespace()
 
-    params = common_params(45)
+    cfg.test_params = common_params(45)
 
     # create and set DEM raster
-    zero_dem(params)
+    zero_dem(cfg.test_params)
 
     # set rdr2geo params
     rdr2geo_params = SimpleNamespace()
@@ -171,8 +192,8 @@ def cfg_45_lat():
     cfg.rdr2geo_params = rdr2geo_params
 
     # make list with single burst
-    cfg.bursts = [create_burst(params)]
-    cfg.dem = params.dem
+    cfg.bursts = [create_burst(cfg.test_params)]
+    cfg.dem = cfg.test_params.dem
     cfg.gpu_enabled = False
     cfg.gpu_id = 0
     cfg.product_path = 'test_out'

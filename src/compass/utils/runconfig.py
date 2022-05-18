@@ -241,7 +241,7 @@ def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
     return bursts
 
 
-def get_ref_radar_grid_info(ref_path, burst_id):
+def get_ref_radar_grid_info(ref_path, burst_id, date_str):
     ''' Find all reference radar grids info
 
     Parameters
@@ -250,6 +250,8 @@ def get_ref_radar_grid_info(ref_path, burst_id):
         Path where reference radar grids processing is stored
     burst_id: str
         Burst IDs for reference radar grids
+    date_str: str
+        Date string associated to burst
 
     Returns
     -------
@@ -257,9 +259,9 @@ def get_ref_radar_grid_info(ref_path, burst_id):
         reference radar path and grid values found associated with
         burst ID keys
     '''
-    rdr_grid_files = glob.glob(f'{ref_path}/**/radar_grid.txt',
+    rdr_grid_files = glob.glob(f'{ref_path}/{burst_id}/{date_str}/radar_grid.txt',
                                recursive=True)
-
+    print(rdr_grid_files)
     if not rdr_grid_files:
         raise FileNotFoundError(f'No reference radar grids not found in {ref_path}')
 
@@ -313,13 +315,14 @@ class RunConfig:
         sns = wrap_namespace(cfg['runconfig']['groups'])
 
         bursts = runconfig_to_bursts(sns)
+        date_str = bursts[0].sensing_start.strftime("%Y%m%d")
 
         # Load reference grids if not reference run i.e. not running rdr2geo
         ref_rdr_grid_info = None
         if not sns.input_file_group.reference_burst.is_reference:
             ref_rdr_grid_info = get_ref_radar_grid_info(
                 sns.input_file_group.reference_burst.file_path,
-                sns.input_file_group.burst_id)
+                sns.input_file_group.burst_id, date_str)
 
         return cls(cfg['runconfig']['name'], sns, bursts, ref_rdr_grid_info)
 

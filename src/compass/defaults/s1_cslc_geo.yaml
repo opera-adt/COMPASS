@@ -39,7 +39,6 @@ runconfig:
               output_format: ENVI
               flatten: True
               # Dem margin (in units of input DEM)
-              dem_margin: 0.1
               lines_per_block: 1000
               output_epsg:
               x_posting:

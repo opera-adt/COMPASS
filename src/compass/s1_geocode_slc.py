@@ -40,7 +40,6 @@ def run(cfg):
     threshold = cfg.geo2rdr_params.threshold
     iters = cfg.geo2rdr_params.numiter
     blocksize = cfg.geo2rdr_params.lines_per_block
-    dem_margin = cfg.geocoding_params.dem_margin
     flatten = cfg.geocoding_params.flatten
 
     # process one burst only
@@ -93,8 +92,7 @@ def run(cfg):
                               geo_grid, orbit,
                               native_doppler,
                               image_grid_doppler, ellipsoid, threshold,
-                              iters,
-                              blocksize, dem_margin, flatten,
+                              iters, blocksize, flatten,
                               azimuth_carrier=az_carrier_poly2d)
 
     # Set geo transformation

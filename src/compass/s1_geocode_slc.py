@@ -7,6 +7,7 @@ import journal
 import numpy as np
 from osgeo import gdal
 
+from compass.utils.cloud_optimized_geotiff import save_as_cog
 from compass.utils.geo_metadata import GeoCslcMetadata
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.helpers import get_module_name
@@ -41,6 +42,7 @@ def run(cfg):
     iters = cfg.geo2rdr_params.numiter
     blocksize = cfg.geo2rdr_params.lines_per_block
     flatten = cfg.geocoding_params.flatten
+    output_format = cfg.geocoding_params.output_format
 
     # process one burst only
     burst = cfg.bursts[0]
@@ -72,11 +74,14 @@ def run(cfg):
         rdr_burst_raster = isce3.io.Raster(temp_slc_path)
 
     # Generate output geocoded burst raster
+    if output_format == 'COG':
+        output_format ='GTiff'
+
     geo_burst_raster = isce3.io.Raster(
         f'{cfg.output_dir}/{burst_id}_{date_str}_{pol}.slc',
         geo_grid.width, geo_grid.length,
         rdr_burst_raster.num_bands, gdal.GDT_CFloat32,
-        cfg.geocoding_params.output_format)
+        output_format)
 
     # Extract burst boundaries
     b_bounds = np.s_[burst.first_valid_line:burst.last_valid_line,
@@ -101,6 +106,11 @@ def run(cfg):
     geo_burst_raster.set_geotransform(geotransform)
     geo_burst_raster.set_epsg(epsg)
     del geo_burst_raster
+
+    # If output_format is COG save as such
+    if cfg.geocoding_params.output_format == 'COG':
+        save_as_cog(f'{cfg.output_dir}/{burst_id}_{date_str}_{pol}.slc',
+                    scratch_path)
 
     # Save burst metadata
     metadata = GeoCslcMetadata.from_georunconfig(cfg)

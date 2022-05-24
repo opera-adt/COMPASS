@@ -36,8 +36,6 @@ def save_as_cog(filename, scratch_dir = '.', flag_compress=True,
 
     if is_integer:
         resamp_algorithm = 'NEAREST'
-    else:
-        resamp_algorithm = 'CUBICSPLINE'
 
     gdal_ds.BuildOverviews(resamp_algorithm, overviews_list,
                            gdal.TermProgress_nocb)
@@ -51,7 +49,7 @@ def save_as_cog(filename, scratch_dir = '.', flag_compress=True,
     temp_file = tempfile.NamedTemporaryFile(
                     dir=scratch_dir, suffix='.tif').name
 
-    tile_size = 256
+    tile_size = 512
     ovr_tile_size = tile_size
     gdal_translate_options = [
         'TILED=YES',
@@ -63,16 +61,10 @@ def save_as_cog(filename, scratch_dir = '.', flag_compress=True,
     if flag_compress:
         gdal_translate_options += ['COMPRESS=DEFLATE']
 
-    if is_integer:
-        gdal_translate_options += ['PREDICTOR=2']
-    else:
-        gdal_translate_options = ['PREDICTOR=3']
-
     gdal.Translate(temp_file, filename,
                    creationOptions=gdal_translate_options)
 
     shutil.move(temp_file, filename)
-
     info_channel.log('COG step 3: validate')
 
     argv = ['--full-check=yes', filename]

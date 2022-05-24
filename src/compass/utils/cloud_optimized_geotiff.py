@@ -3,7 +3,7 @@ import shutil
 import tempfile
 import journal
 from osgeo import gdal, osr
-from compass.utils import validate_cloud_optimized_geotiff.main as validate_cog
+from compass.utils.validate_cloud_optimized_geotiff import main as validate_cog
 
 def save_as_cog(filename, scratch_dir = '.', flag_compress=True,
                 resamp_algorithm=None):
@@ -39,7 +39,7 @@ def save_as_cog(filename, scratch_dir = '.', flag_compress=True,
     else:
         resamp_algorithm = 'CUBICSPLINE'
 
-    gdal_ds.BuildOverviews('CUBICSPLINE', overviews_list,
+    gdal_ds.BuildOverviews(resamp_algorithm, overviews_list,
                            gdal.TermProgress_nocb)
 
     del gdal_ds  # close the dataset (Python object and pointers)

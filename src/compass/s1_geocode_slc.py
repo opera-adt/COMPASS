@@ -110,7 +110,7 @@ def run(cfg):
     # If output_format is COG save as such
     if cfg.geocoding_params.output_format == 'COG':
         save_as_cog(f'{cfg.output_dir}/{burst_id}_{date_str}_{pol}.slc',
-                    scratch_path)
+                    scratch_path, resamp_algorithm='average_magphase')
 
     # Save burst metadata
     metadata = GeoCslcMetadata.from_georunconfig(cfg)

@@ -494,7 +494,7 @@ def main(slc_dir, dem_file, burst_id, ref_date=None, orbit_dir=None,
                     with open(runfile_name, 'w') as rsh:
                         path = os.path.dirname(os.path.realpath(__file__))
                         rsh.write(
-                            f'python {path}/geo_cslc.py {runconfig_path}\n')
+                            f'python {path}/s1_cslc.py {runconfig_path}\n')
                 else:
                     info.log(f'{burst.burst_id} not part of the stack')
 

@@ -65,7 +65,7 @@ def run(cfg: dict):
         rdr_grid = burst.as_isce3_radargrid()
 
         # Extract azimuth carrier polynomials
-        az_poly = burst.get_az_carrier_poly(index_as_coord=True)
+        az_poly = burst.get_az_carrier_poly()
 
         # Init resample SLC object
         resamp_obj = resamp(rdr_grid, burst.doppler.lut2d,
@@ -84,7 +84,7 @@ def run(cfg: dict):
         original_raster = isce3.io.Raster(sec_burst_path)
 
         # Prepare resamled SLC as raster object
-        coreg_burst_path = f'{burst_output_path}/{pol}.slc'
+        coreg_burst_path = f'{burst_output_path}/{burst_id}_{date_str}_{pol}.slc'
         resampled_raster = isce3.io.Raster(coreg_burst_path,
                                            rg_off_raster.width,
                                            rg_off_raster.length,

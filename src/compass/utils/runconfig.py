@@ -1,6 +1,5 @@
 from __future__ import annotations
 from dataclasses import dataclass
-import glob
 import os
 from types import SimpleNamespace
 import sys
@@ -257,22 +256,13 @@ def get_ref_radar_grid_info(ref_path, burst_id):
         reference radar path and grid values found associated with
         burst ID keys
     '''
-    rdr_grid_files = glob.glob(f'{ref_path}/**/radar_grid.txt',
-                               recursive=True)
+    rdr_grid_files = f'{ref_path}/radar_grid.txt'
 
-    if not rdr_grid_files:
+    if not os.path.isfile(rdr_grid_files):
         raise FileNotFoundError(f'No reference radar grids not found in {ref_path}')
 
-    b_id_rdr_grid_files = [f for f in rdr_grid_files if burst_id in f]
-
-    if not b_id_rdr_grid_files:
-        raise FileNotFoundError(f'Reference radar grid not found for {burst_id}')
-
-    if len(b_id_rdr_grid_files) > 1:
-        raise FileExistsError(f'More than one reference radar grid found for {burst_id}')
-
-    ref_rdr_path = os.path.dirname(b_id_rdr_grid_files[0])
-    ref_rdr_grid = file_to_rdr_grid(b_id_rdr_grid_files[0])
+    ref_rdr_path = os.path.dirname(rdr_grid_files)
+    ref_rdr_grid = file_to_rdr_grid(rdr_grid_files)
 
     return ReferenceRadarInfo(ref_rdr_path, ref_rdr_grid)
 

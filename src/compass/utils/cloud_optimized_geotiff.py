@@ -42,11 +42,13 @@ from compass.utils.validate_cloud_optimized_geotiff import main as validate_cog
 
 
 def Usage():
-    print('Usage: validate_cloud_optimized_geotiff.py [-q] [--full-check=yes/no/auto] test.tif')
+    print(
+        'Usage: validate_cloud_optimized_geotiff.py [-q] [--full-check=yes/no/auto] test.tif')
     print('')
     print('Options:')
     print('-q: quiet mode')
-    print('--full-check=yes/no/auto: check tile/strip leader/trailer bytes. auto=yes for local files, and no for remote files')
+    print(
+        '--full-check=yes/no/auto: check tile/strip leader/trailer bytes. auto=yes for local files, and no for remote files')
     return 1
 
 
@@ -59,14 +61,14 @@ def full_check_band(f, band_name, band, errors,
                     block_leader_size_as_uint4,
                     block_trailer_last_4_bytes_repeated,
                     mask_interleaved_with_imagery):
-
     block_size = band.GetBlockSize()
     mask_band = None
     if mask_interleaved_with_imagery:
         mask_band = band.GetMaskBand()
         mask_block_size = mask_band.GetBlockSize()
         if block_size != mask_block_size:
-            errors += [band_name + ': mask block size is different from its imagery band']
+            errors += [
+                band_name + ': mask block size is different from its imagery band']
             mask_band = None
 
     yblocks = (band.YSize + block_size[1] - 1) // block_size[1]
@@ -77,20 +79,24 @@ def full_check_band(f, band_name, band, errors,
 
             offset = band.GetMetadataItem('BLOCK_OFFSET_%d_%d' % (x, y), 'TIFF')
             offset = int(offset) if offset is not None else 0
-            bytecount = band.GetMetadataItem('BLOCK_SIZE_%d_%d' % (x, y), 'TIFF')
+            bytecount = band.GetMetadataItem('BLOCK_SIZE_%d_%d' % (x, y),
+                                             'TIFF')
             bytecount = int(bytecount) if bytecount is not None else 0
 
             if offset > 0:
                 if block_order_row_major and offset < last_offset:
                     errors += [band_name +
-                               ': offset of block (%d, %d) is smaller than previous block' % (x, y)]
+                               ': offset of block (%d, %d) is smaller than previous block' % (
+                               x, y)]
 
                 if block_leader_size_as_uint4:
                     gdal.VSIFSeekL(f, offset - 4, 0)
-                    leader_size = struct.unpack('<I', gdal.VSIFReadL(4, 1, f))[0]
+                    leader_size = struct.unpack('<I', gdal.VSIFReadL(4, 1, f))[
+                        0]
                     if leader_size != bytecount:
-                        errors += [band_name + ': for block (%d, %d), size in leader bytes is %d instead of %d' % (
-                            x, y, leader_size, bytecount)]
+                        errors += [
+                            band_name + ': for block (%d, %d), size in leader bytes is %d instead of %d' % (
+                                x, y, leader_size, bytecount)]
 
                 if block_trailer_last_4_bytes_repeated:
                     if bytecount >= 4:
@@ -98,23 +104,29 @@ def full_check_band(f, band_name, band, errors,
                         last_bytes = gdal.VSIFReadL(8, 1, f)
                         if last_bytes[0:4] != last_bytes[4:8]:
                             errors += [band_name +
-                                       ': for block (%d, %d), trailer bytes are invalid' % (x, y)]
+                                       ': for block (%d, %d), trailer bytes are invalid' % (
+                                       x, y)]
 
             if mask_band:
-                offset_mask = mask_band.GetMetadataItem('BLOCK_OFFSET_%d_%d' % (x, y), 'TIFF')
+                offset_mask = mask_band.GetMetadataItem(
+                    'BLOCK_OFFSET_%d_%d' % (x, y), 'TIFF')
                 offset_mask = int(offset_mask) if offset_mask is not None else 0
                 if offset > 0 and offset_mask > 0:
-                    #bytecount_mask = int(mask_band.GetMetadataItem('BLOCK_SIZE_%d_%d' % (x,y), 'TIFF'))
+                    # bytecount_mask = int(mask_band.GetMetadataItem('BLOCK_SIZE_%d_%d' % (x,y), 'TIFF'))
                     expected_offset_mask = offset + bytecount + \
-                        (4 if block_leader_size_as_uint4 else 0) + \
-                        (4 if block_trailer_last_4_bytes_repeated else 0)
+                                           (
+                                               4 if block_leader_size_as_uint4 else 0) + \
+                                           (
+                                               4 if block_trailer_last_4_bytes_repeated else 0)
                     if offset_mask != expected_offset_mask:
-                        errors += ['Mask of ' + band_name + ': for block (%d, %d), offset is %d, whereas %d was expected' % (
-                            x, y, offset_mask, expected_offset_mask)]
+                        errors += [
+                            'Mask of ' + band_name + ': for block (%d, %d), offset is %d, whereas %d was expected' % (
+                                x, y, offset_mask, expected_offset_mask)]
                 elif offset == 0 and offset_mask > 0:
                     if block_order_row_major and offset_mask < last_offset:
                         errors += ['Mask of ' + band_name +
-                                   ': offset of block (%d, %d) is smaller than previous block' % (x, y)]
+                                   ': offset of block (%d, %d) is smaller than previous block' % (
+                                   x, y)]
 
                     offset = offset_mask
 
@@ -190,7 +202,8 @@ def validate_cog(ds, check_tiled=True, full_check=False):
         if not f:
             raise ValidateCloudOptimizedGeoTIFFException("Cannot open file")
         signature = struct.unpack('B' * 4, gdal.VSIFReadL(4, 1, f))
-        bigtiff = signature in ((0x49, 0x49, 0x2B, 0x00), (0x4D, 0x4D, 0x00, 0x2B))
+        bigtiff = signature in (
+        (0x49, 0x49, 0x2B, 0x00), (0x4D, 0x4D, 0x00, 0x2B))
         if bigtiff:
             expected_ifd_pos = 16
         else:
@@ -198,7 +211,8 @@ def validate_cog(ds, check_tiled=True, full_check=False):
         gdal.VSIFSeekL(f, expected_ifd_pos, 0)
         pattern = "GDAL_STRUCTURAL_METADATA_SIZE=%06d bytes\n" % 0
         got = gdal.VSIFReadL(len(pattern), 1, f).decode('LATIN1')
-        if len(got) == len(pattern) and got.startswith('GDAL_STRUCTURAL_METADATA_SIZE='):
+        if len(got) == len(pattern) and got.startswith(
+                'GDAL_STRUCTURAL_METADATA_SIZE='):
             size = int(got[len('GDAL_STRUCTURAL_METADATA_SIZE='):][0:6])
             extra_md = gdal.VSIFReadL(size, 1, f).decode('LATIN1')
             block_order_row_major = 'BLOCK_ORDER=ROW_MAJOR' in extra_md
@@ -206,14 +220,16 @@ def validate_cog(ds, check_tiled=True, full_check=False):
             block_trailer_last_4_bytes_repeated = 'BLOCK_TRAILER=LAST_4_BYTES_REPEATED' in extra_md
             mask_interleaved_with_imagery = 'MASK_INTERLEAVED_WITH_IMAGERY=YES' in extra_md
             if 'KNOWN_INCOMPATIBLE_EDITION=YES' in extra_md:
-                errors += ["KNOWN_INCOMPATIBLE_EDITION=YES is declared in the file"]
+                errors += [
+                    "KNOWN_INCOMPATIBLE_EDITION=YES is declared in the file"]
             expected_ifd_pos += len(pattern) + size
             expected_ifd_pos += expected_ifd_pos % 2  # IFD offset starts on a 2-byte boundary
         gdal.VSIFCloseL(f)
 
         if expected_ifd_pos != ifd_offsets[0]:
             errors += [
-                'The offset of the main IFD should be %d. It is %d instead' % (expected_ifd_pos, ifd_offsets[0])]
+                'The offset of the main IFD should be %d. It is %d instead' % (
+                expected_ifd_pos, ifd_offsets[0])]
 
     details['ifd_offsets'] = {}
     details['ifd_offsets']['main'] = ifd_offset
@@ -266,7 +282,8 @@ def validate_cog(ds, check_tiled=True, full_check=False):
         blockxsize, blockysize = band.GetBlockSize()
         for y in range(int((band.YSize + blockysize - 1) / blockysize)):
             for x in range(int((band.XSize + blockxsize - 1) / blockxsize)):
-                block_offset = band.GetMetadataItem('BLOCK_OFFSET_%d_%d' % (x, y), 'TIFF')
+                block_offset = band.GetMetadataItem(
+                    'BLOCK_OFFSET_%d_%d' % (x, y), 'TIFF')
                 if block_offset:
                     return int(block_offset)
         return 0
@@ -296,7 +313,8 @@ def validate_cog(ds, check_tiled=True, full_check=False):
                 'The offset of the first block of overview of index %d should '
                 'be after the one of the overview of index %d' %
                 (i - 1, i)]
-    if len(data_offsets) >= 2 and data_offsets[0] != 0 and data_offsets[0] < data_offsets[1]:
+    if len(data_offsets) >= 2 and data_offsets[0] != 0 and data_offsets[0] < \
+            data_offsets[1]:
         errors += [
             'The offset of the first block of the main resolution image '
             'should be after the one of the overview of index %d' %
@@ -373,7 +391,8 @@ def validate(argv):
 
     try:
         ret = 0
-        warnings, errors, details = validate_cog(filename, full_check=full_check)
+        warnings, errors, details = validate_cog(filename,
+                                                 full_check=full_check)
         if warnings:
             if not quiet:
                 print('The following warnings were found:')
@@ -393,7 +412,8 @@ def validate(argv):
                 print('%s is a valid cloud optimized GeoTIFF' % filename)
 
         if not quiet and not warnings and not errors:
-            headers_size = min(details['data_offsets'][k] for k in details['data_offsets'])
+            headers_size = min(
+                details['data_offsets'][k] for k in details['data_offsets'])
             if headers_size == 0:
                 headers_size = gdal.VSIStatL(filename).size
             print('\nThe size of all IFD headers is %d bytes' % headers_size)
@@ -406,7 +426,7 @@ def validate(argv):
     return ret
 
 
-def save_as(filename, scratch_dir = '.', flag_compress=True,
+def save_as(filename, scratch_dir='.', flag_compress=True,
             resamp_algorithm=None):
     """Save (overwrite) a GeoTIFF file as a cloud-optimized GeoTIFF.
        Parameters
@@ -431,7 +451,7 @@ def save_as(filename, scratch_dir = '.', flag_compress=True,
     gdal_ds = gdal.Open(filename, 1)
     gdal_dtype = gdal_ds.GetRasterBand(1).DataType
     dtype_name = gdal.GetDataTypeName(gdal_dtype).lower()
-    is_integer = 'byte' in dtype_name  or 'int' in dtype_name
+    is_integer = 'byte' in dtype_name or 'int' in dtype_name
 
     overviews_list = [4, 16, 64, 128]
 
@@ -448,7 +468,7 @@ def save_as(filename, scratch_dir = '.', flag_compress=True,
 
     info_channel.log('COG step 2: save as COG')
     temp_file = tempfile.NamedTemporaryFile(
-                    dir=scratch_dir, suffix='.tif').name
+        dir=scratch_dir, suffix='.tif').name
 
     tile_size = 512
     ovr_tile_size = tile_size

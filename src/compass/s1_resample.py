@@ -65,7 +65,7 @@ def run(cfg: dict):
         rdr_grid = burst.as_isce3_radargrid()
 
         # Extract azimuth carrier polynomials
-        az_poly = burst.get_az_carrier_poly(index_as_coord=True)
+        az_poly = burst.get_az_carrier_poly()
 
         # Init resample SLC object
         resamp_obj = resamp(rdr_grid, burst.doppler.lut2d,

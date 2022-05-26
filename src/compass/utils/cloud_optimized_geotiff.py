@@ -427,7 +427,7 @@ def validate(argv):
 
 
 def save_as(filename, scratch_dir='.', flag_compress=True,
-            resamp_algorithm=None):
+            resamp_algorithm='average_magphase'):
     """Save (overwrite) a GeoTIFF file as a cloud-optimized GeoTIFF.
        Parameters
        ----------
@@ -464,7 +464,7 @@ def save_as(filename, scratch_dir='.', flag_compress=True,
     del gdal_ds  # close the dataset (Python object and pointers)
     external_overview_file = filename + '.ovr'
     if os.path.isfile(external_overview_file):
-        os.path.remove(external_overview_file)
+        os.remove(external_overview_file)
 
     info_channel.log('COG step 2: save as COG')
     temp_file = tempfile.NamedTemporaryFile(

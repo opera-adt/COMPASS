@@ -259,7 +259,7 @@ def get_ref_radar_grid_info(ref_path, burst_id, date_str):
         reference radar path and grid values found associated with
         burst ID keys
     '''
-    rdr_grid_files = glob.glob(f'{ref_path}/{burst_id}/{date_str}/radar_grid.txt',
+    rdr_grid_files = glob.glob(f'{ref_path}/radar_grid.txt',
                                recursive=True)
     print(rdr_grid_files)
     if not rdr_grid_files:

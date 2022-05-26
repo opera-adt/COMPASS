@@ -7,7 +7,7 @@ import journal
 import numpy as np
 from osgeo import gdal
 
-from compass.utils.cloud_optimized_geotiff import save_as_cog
+from compass.utils.cloud_optimized_geotiff import save_as
 from compass.utils.geo_metadata import GeoCslcMetadata
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.helpers import get_module_name
@@ -109,8 +109,8 @@ def run(cfg):
 
     # If output_format is COG save as such
     if cfg.geocoding_params.output_format == 'COG':
-        save_as_cog(f'{cfg.output_dir}/{burst_id}_{date_str}_{pol}.slc',
-                    scratch_path, resamp_algorithm='average_magphase')
+        save_as(f'{cfg.output_dir}/{burst_id}_{date_str}_{pol}.slc',
+                scratch_path, resamp_algorithm='average_magphase')
 
     # Save burst metadata
     metadata = GeoCslcMetadata.from_georunconfig(cfg)

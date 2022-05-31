@@ -1,0 +1,143 @@
+runconfig:
+    name: str()
+
+    groups:
+        pge_name_group:
+           pge_name: enum('RTC_S1_PGE')
+
+        input_file_group:
+           # Required. List of SAFE files (min=1)
+           safe_file_path: list(str(), min=1)
+           # Required. List of orbit (EOF) files
+           orbit_file_path: list(str(), min=1)
+           # Required. The unique burst ID to process
+           burst_id: str(required=False)
+
+        dynamic_ancillary_file_group:
+           # Digital Elevation Model.
+           dem_file: str(required=False)
+
+        product_path_group:
+           # Directory where PGE will place results
+           product_path: str()
+           # Directory where SAS can write temporary data
+           scratch_path: str()
+           # Intermediate file name. SAS writes the output to this file.
+           # PGE may rename the product according to file naming convention
+           sas_output_file: str()
+           sas_output_dir: str(required=True)
+
+        primary_executable:
+          product_type: enum('RTC_S1')
+
+        # This section includes parameters to tweak the workflow
+        processing: include('processing_options', required=False)
+
+        # Worker options (e.g. enable/disable GPU processing, select GPU device ID)
+        worker: include('worker_options', required=False)
+
+
+---
+geo2rdr_options:
+   # Convergence threshold for rdr2geo algorithm
+   threshold: num(min=0, required=False)
+   # Maximum number of iterations
+   numiter: int(min=1, required=False)
+
+# Group of processing options
+processing_options:
+   # Polarization to process. 3 modes below correspond to VV, VH, VV+VH
+   polarization: enum('co-pol', 'cross-pol', 'dual-pol', required=False)
+
+   # Options to run geo2rdr
+   geo2rdr: include('geo2rdr_options', required=False)
+   # Range split-spectrum options
+   range_split_spectrum: include('range_split_spectrum_options', required=False)
+
+   dem_interpolation_method: enum('sinc', 'bilinear', 'bicubic', 'nearest', 'biquintic', required=False)
+
+   # Radiometric Terrain Correction (RTC)
+   rtc: include('rtc_options', required=False)
+
+   # Geocoding options
+   geocoding: include('geocoding_options', required=False)
+
+
+rtc_options:
+    # RTC output type: empty value to turn off the RTC
+    # The output_type defaults to "gamma0" if the key is absent
+    output_type: enum('gamma0', 'sigma0', required=False)
+
+    algorithm_type: enum('area_projection', 'bilinear_distribution', required=False)
+
+    input_terrain_radiometry: enum('beta0', 'sigma0', required=False)
+
+    # Minimum RTC area factor in dB
+    rtc_min_value_db: num(required=False)
+
+    # RTC DEM upsampling
+    dem_upsampling: int(min=1, required=False)
+
+
+geocoding_options:
+    # Algorithm type, area projection or interpolation: sinc, bilinear, bicubic, nearest, and biquintic
+    algorithm_type: enum('area_projection', 'sinc', 'bilinear', 'bicubic', 'nearest', 'biquintic', required=False)
+
+    # Apply RTC
+    apply_rtc: bool(required=False)
+
+    # Memory mode
+    memory_mode: enum('auto', 'single_block', 'geogrid', 'geogrid_and_radargrid', required=False)
+
+    # Processing upsampling factor on top of the input geogrid
+    geogrid_upsampling: int(required=False)
+
+    # Save the number of looks used to compute GCOV
+    save_nlooks: bool(required=False)
+
+    # Save the RTC area factor used to compute GCOV
+    save_rtc: bool(required=False)
+
+    # Save interpolated DEM used to compute GCOV
+    save_dem: bool(required=False)
+
+    # Absolute radiometric correction factor
+    abs_rad_cal: num(required=False)
+
+    # Clip values above threshold
+    clip_max: num(required=False)
+
+    # Clip values below threshold
+    clip_min: num(required=False)
+
+    # Double SLC sampling in the range direction
+    upsample_radargrid: bool(required=False)
+
+    # Format of output file
+    output_format: enum('ENVI', 'GTiff', 'COG', required=False)
+
+    # Product EPSG code. Same as DEM if not provided
+    output_epsg: int(min=1024, max=32767, required=False)
+
+    # Product posting along X (same units as output_epsg)
+    x_posting: num(min=0, required=False)
+
+    # Product posting along Y (same units as output_epsg)
+    y_posting: num(min=0, required=False)
+
+    # Controls the product grid along X (same units as output_epsg)
+    x_snap: num(min=0, required=False)
+
+    # Controls the product grid along Y (same units as output_epsg)
+    y_snap: num(min=0, required=False)
+
+    # Top-left coordinates (same units as output_epsg)
+    top_left:
+      x: num(required=False)
+      y: num(required=False)
+
+    # Bottom-right coordinates (same units as output_epsg)
+    bottom_right:
+      x: num(required=False)
+      y: num(required=False)
+

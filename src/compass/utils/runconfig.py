@@ -29,11 +29,12 @@ def load_validate_yaml(yaml_path: str, workflow_name: str) -> dict:
         Name of the workflow for which uploading default options
     """
     error_channel = journal.error('runconfig.load_validate_yaml')
-
     try:
         # Load schema corresponding to 'workflow_name' and to validate against
-        schema_name = workflow_name if workflow_name == 'geo_cslc_s1' \
-            else 'cslc_s1'
+        if workflow_name in ['geo2rdr', 'rdr2geo', 'resample_burst']:
+            schema_name = 'cslc_s1'
+        else:
+            schema_name = workflow_name 
         schema = yamale.make_schema(
             f'{helpers.WORKFLOW_SCRIPTS_DIR}/schemas/{schema_name}.yaml',
             parser='ruamel')
@@ -205,7 +206,8 @@ def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
                 burst_id = burst.burst_id
 
                 # is burst_id wanted? skip if not given in config
-                if burst_id != cfg.input_file_group.burst_id:
+                if (not cfg.input_file_group.burst_id is None and
+                        burst_id != cfg.input_file_group.burst_id):
                     continue
 
                 # get polarization and save as tuple with burst ID

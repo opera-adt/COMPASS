@@ -25,7 +25,7 @@ def check_file_path(file_path: str) -> None:
         Path to file to be checked
     """
     error_channel = journal.error('helpers.check_file_path')
-    if not os.path.isfile(file_path):
+    if not os.path.exists(file_path):
         err_str = f'{file_path} not found'
         error_channel.log(err_str)
         raise FileNotFoundError(err_str)

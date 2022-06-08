@@ -49,11 +49,11 @@ def compare_cslc_products(file_ref, file_sec):
 
     # Extract some info from reference/secondary CSLC products
     dataset_ref = gdal.Open(file_ref, gdal.GA_ReadOnly)
-    dataset_ref = dataset_ref.GetGeoTransform()
+    geotransform_ref = dataset_ref.GetGeoTransform()
     nbands_ref = dataset_ref.RasterCount
 
     dataset_sec = gdal.Open(file_sec, gdal.GA_ReadOnly)
-    dataset_sec = dataset_sec.GetGeoTransform()
+    geotransform_sec = dataset_sec.GetGeoTransform()
     nbands_sec = dataset_sec.RasterCount
 
     # Compare number of bands
@@ -64,7 +64,7 @@ def compare_cslc_products(file_ref, file_sec):
         return
 
     print('Comparing geo transform arrays ...')
-    if not np.array_equal(dataset_ref, dataset_sec):
+    if not np.array_equal(geotransform_ref, geotransform_sec):
         print(f'ERROR Reference geo transform array {dataset_ref} differs'
               f'from secondary CSLC geo transform array {dataset_sec}')
         return
@@ -100,36 +100,34 @@ def compare_cslc_metadata(file_ref, file_sec):
     # Load metadata
     with open(file_ref, 'r') as f:
         metadata_ref = json.load(f)
+    metadata_keys_ref = set(metadata_ref)
 
     with open(file_sec, 'r') as f:
         metadata_sec = json.load(f)
+    metadata_keys_sec = set(metadata_sec)
 
     print('Compare number of metadata keys')
-    if not len(metadata_ref.keys()) == len(metadata_sec.keys()):
+    if not len(metadata_keys_ref) == len(metadata_keys_sec):
         print('ERROR different number of metadata keys')
         return
 
     # Intersect metadata keys
-    set_1_m_2 = set(metadata_ref.keys()) - set(metadata_sec.keys())
-    if len(set_1_m_2) > 0:
+    set_ref_minus_sec = set(metadata_ref.keys()) - set(metadata_sec.keys())
+    if len(set_ref_minus_sec) > 0:
         print(f'Reference CSLC metadata has extra entries with keys:'
-              f'{", ".join(set_1_m_2)}.')
+              f'{", ".join(set_ref_minus_sec)}.')
         return
-    set_2_m_1 = set(metadata_sec.keys()) - set(metadata_ref.keys())
-    if len(set_2_m_1) > 0:
+    set_sec_minus_ref = set(metadata_sec.keys()) - set(metadata_ref.keys())
+    if len(set_sec_minus_ref) > 0:
         print(f'Secondary CSLC metadata has extra entries with keys:'
-              f'{", ".join(set_2_m_1)}.')
+              f'{", ".join(set_sec_minus_ref)}.')
 
     # Check remaining metadatakeys
-    for k1, v1 in metadata_ref.items():
-        if k1 not in metadata_sec.keys():
-            print(f'ERROR the metadata key {key1} in not present'
-                  f'in the secondary CSLC metadata')
-            return
-        if metadata_sec[k1] != v1:
-            print(f'ERROR the content of metadata key {k1} from'
-                  f'reference CSLC metadata has a value {v1} whereas the same'
-                  f'key in the secondary CSLC metadata has value {metadata_sec[k1]}')
+    for k_ref, v_ref in metadata_ref.items():
+        if metadata_sec[k_ref] != v_ref:
+            print(f'ERROR the content of metadata key {k_ref} from'
+                  f'reference CSLC metadata has a value {v_ref} whereas the same'
+                  f'key in the secondary CSLC metadata has value {metadata_sec[k_ref]}')
 
 
 if __name__ == '__main__':

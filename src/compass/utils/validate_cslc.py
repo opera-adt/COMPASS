@@ -25,7 +25,7 @@ def cmd_line_parser():
     return parser.parse_args()
 
 
-def compare_cslc_products(file_1, file_2):
+def compare_cslc_products(file_ref, file_sec):
     '''
     Compare a reference and a newly generated
     (i.e., secondary) CSLC product
@@ -39,42 +39,42 @@ def compare_cslc_products(file_1, file_2):
     '''
 
     # Check if file paths exits
-    if not os.path.exists(file_1):
-        print(f'ERROR reference CSLC product not found: {file_1}')
+    if not os.path.exists(file_ref):
+        print(f'ERROR reference CSLC product not found: {file_ref}')
         return
 
-    if not os.path.exists(file_2):
-        print(f'ERROR secondary CSLC product not found: {file_2}')
+    if not os.path.exists(file_sec):
+        print(f'ERROR secondary CSLC product not found: {file_sec}')
         return
 
     # Extract some info from reference/secondary CSLC products
-    dataset_1 = gdal.Open(file_1, gdal.GA_ReadOnly)
-    geotransform_1 = dataset_1.GetGeoTransform()
-    nbands_1 = dataset_1.RasterCount
+    dataset_ref = gdal.Open(file_ref, gdal.GA_ReadOnly)
+    dataset_ref = dataset_ref.GetGeoTransform()
+    nbands_ref = dataset_ref.RasterCount
 
-    dataset_2 = gdal.Open(file_2, gdal.GA_ReadOnly)
-    geotransform_2 = dataset_2.GetGeoTransform()
-    nbands_2 = dataset_2.RasterCount
+    dataset_sec = gdal.Open(file_sec, gdal.GA_ReadOnly)
+    dataset_sec = dataset_sec.GetGeoTransform()
+    nbands_sec = dataset_sec.RasterCount
 
     # Compare number of bands
     print('Comparing CSLC number of bands ...')
-    if not nbands_1 == nbands_2:
-        print(f'ERROR Number of bands in reference CSLC {nbands_1} differs'
-              f'from number of bands {nbands_2} in secondary CSLC')
+    if not nbands_ref == nbands_sec:
+        print(f'ERROR Number of bands in reference CSLC {nbands_ref} differs'
+              f'from number of bands {nbands_sec} in secondary CSLC')
         return
 
     print('Comparing geo transform arrays ...')
-    if not np.array_equal(geotransform_1, geotransform_2):
-        print(f'ERROR Reference geo transform array {geotransform_1} differs'
-              f'from secondary CSLC geo transform array {geotransform_2}')
+    if not np.array_equal(dataset_ref, dataset_sec):
+        print(f'ERROR Reference geo transform array {dataset_ref} differs'
+              f'from secondary CSLC geo transform array {dataset_sec}')
         return
 
     # Compare amplitude of reference and generated CSLC products
-    slc_1 = dataset_1.GetRasterBand(1).ReadAsArray()
-    slc_2 = dataset_2.GetRasterBand(1).ReadAsArray()
+    slc_ref = dataset_ref.GetRasterBand(1).ReadAsArray()
+    slc_sec = dataset_sec.GetRasterBand(1).ReadAsArray()
 
-    diff_amp = np.abs(slc_1) - np.abs(slc_2)
-    diff_pha = np.angle(slc_1 * np.conj(slc_2))
+    diff_amp = np.abs(slc_ref) - np.abs(slc_sec)
+    diff_pha = np.angle(slc_ref * np.conj(slc_sec))
 
     print('Check max amplitude difference between CSLC products is < 1.0e-12')
     assert np.nanmax(diff_amp) < 1.0e-12
@@ -83,53 +83,53 @@ def compare_cslc_products(file_1, file_2):
     return
 
 
-def compare_cslc_metadata(file_1, file_2):
+def compare_cslc_metadata(file_ref, file_sec):
     '''
     Compare reference and generated CSLC metadata
     '''
 
     # Check if metadata files exists
-    if not os.path.exists(file_1):
-        print(f'ERROR reference CSLC metadata not found: {file_1}')
+    if not os.path.exists(file_ref):
+        print(f'ERROR reference CSLC metadata not found: {file_ref}')
         return
 
-    if not os.path.exists(file_2):
-        print(f'ERROR CSLC metadata not found: {file_2}')
+    if not os.path.exists(file_sec):
+        print(f'ERROR CSLC metadata not found: {file_sec}')
         return
 
     # Load metadata
-    with open(file_1, 'r') as f:
-        metadata_1 = json.load(f)
+    with open(file_ref, 'r') as f:
+        metadata_ref = json.load(f)
 
-    with open(file_2, 'r') as f:
-        metadata_2 = json.load(f)
+    with open(file_sec, 'r') as f:
+        metadata_sec = json.load(f)
 
     print('Compare number of metadata keys')
-    if not len(metadata_1.keys()) == len(metadata_2.keys()):
+    if not len(metadata_ref.keys()) == len(metadata_sec.keys()):
         print('ERROR different number of metadata keys')
         return
 
     # Intersect metadata keys
-    set_1_m_2 = set(metadata_1.keys()) - set(metadata_2.keys())
+    set_1_m_2 = set(metadata_ref.keys()) - set(metadata_sec.keys())
     if len(set_1_m_2) > 0:
         print(f'Reference CSLC metadata has extra entries with keys:'
               f'{", ".join(set_1_m_2)}.')
         return
-    set_2_m_1 = set(metadata_2.keys()) - set(metadata_1.keys())
+    set_2_m_1 = set(metadata_sec.keys()) - set(metadata_ref.keys())
     if len(set_2_m_1) > 0:
         print(f'Secondary CSLC metadata has extra entries with keys:'
               f'{", ".join(set_2_m_1)}.')
 
     # Check remaining metadatakeys
-    for k1, v1 in metadata_1.items():
-        if k1 not in metadata_2.keys():
+    for k1, v1 in metadata_ref.items():
+        if k1 not in metadata_sec.keys():
             print(f'ERROR the metadata key {key1} in not present'
                   f'in the secondary CSLC metadata')
             return
-        if metadata_2[k1] != v1:
+        if metadata_sec[k1] != v1:
             print(f'ERROR the content of metadata key {k1} from'
                   f'reference CSLC metadata has a value {v1} whereas the same'
-                  f'key in the secondary CSLC metadata has value {metadata_2[k1]}')
+                  f'key in the secondary CSLC metadata has value {metadata_sec[k1]}')
 
 
 if __name__ == '__main__':

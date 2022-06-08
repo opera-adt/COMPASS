@@ -1,4 +1,7 @@
-"""Wrapper for resample burst"""
+#!/usr/bin/env python
+
+"""Wrapper for resample"""
+
 from datetime import timedelta
 import os
 import time

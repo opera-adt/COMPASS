@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-'''wrapper for CSLC in radar/geo'''
+'''driver for CSLC workflow in radar/geo'''
 
 from compass import s1_rdr2geo, s1_geo2rdr, s1_resample, s1_geocode_slc
 from compass.utils.geo_runconfig import GeoRunConfig

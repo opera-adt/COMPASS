@@ -20,6 +20,56 @@ def _mosaic(input_files, output_file):
 def _merge_bands(input_files, output_file):
     plant.util(input_files, output_file = output_file, force=True)
 
+def snap_coord(val, snap, round_func):
+    snapped_value = round_func(float(val) / snap) * snap
+    return snapped_value
+
+def _update_mosaic_boundaries(mosaic_geogrid_dict, geogrid):
+    xf = geogrid.start_x + geogrid.spacing_x * geogrid.width
+    yf = geogrid.start_y + geogrid.spacing_y * geogrid.length
+    if ('x0' not in mosaic_geogrid_dict.keys() or
+            geogrid.start_x < mosaic_geogrid_dict['x0']):
+        mosaic_geogrid_dict['x0'] = geogrid.start_x
+    if ('xf' not in mosaic_geogrid_dict.keys() is None or
+            xf > mosaic_geogrid_dict['x0']):
+        mosaic_geogrid_dict['xf'] = xf
+    if ('y0' not in mosaic_geogrid_dict.keys() or
+            geogrid.start_y > mosaic_geogrid_dict['y0']):
+        mosaic_geogrid_dict['y0'] = geogrid.start_y
+    if ('yf' not in mosaic_geogrid_dict.keys() or
+            yf < mosaic_geogrid_dict['y0']):
+        mosaic_geogrid_dict['yf'] = yf
+    if 'dx' not in mosaic_geogrid_dict.keys():
+        mosaic_geogrid_dict['dx'] = geogrid.spacing_x
+    else:
+        assert(mosaic_geogrid_dict['dx'] == geogrid.spacing_x)
+    if 'dy' not in mosaic_geogrid_dict.keys():
+        mosaic_geogrid_dict['dy'] = geogrid.spacing_y
+    else:
+        assert(mosaic_geogrid_dict['dy'] == geogrid.spacing_y)
+    if 'epsg' not in mosaic_geogrid_dict.keys():
+        mosaic_geogrid_dict['epsg'] = geogrid.epsg
+    else:
+        assert(mosaic_geogrid_dict['epsg'] == geogrid.epsg)
+
+
+def _get_raster(output_dir, ds_name, dtype, shape,
+                output_file_list, output_obj_list, 
+                flag_save_vector_1):
+    if flag_save_vector_1 is not True:
+        return None
+
+    output_file = os.path.join(output_dir, ds_name)+'.tif'
+    raster_obj = isce3.io.Raster(
+        output_file,
+        shape[2],
+        shape[1],
+        shape[0],
+        dtype,
+        "GTiff")
+    output_file_list.append(output_file)
+    output_obj_list.append(raster_obj)
+    return raster_obj
 
 
 def run(cfg):
@@ -48,7 +98,6 @@ def run(cfg):
     output_dir = cfg.groups.product_path_group.sas_output_dir
 
 
-
     # unpack geocode run parameters
     geocode_namespace = cfg.groups.processing.geocoding
     geocode_algorithm = geocode_namespace.algorithm_type
@@ -61,6 +110,12 @@ def run(cfg):
     clip_min = geocode_namespace.clip_min
     # geogrids = geocode_namespace.geogrids
     flag_upsample_radar_grid = geocode_namespace.upsample_radargrid
+    flag_save_incidence_angle = geocode_namespace.save_incidence_angle
+    flag_save_local_inc_angle = geocode_namespace.save_local_inc_angle
+    flag_save_projection_angle = geocode_namespace.save_projection_angle
+    flag_save_simulated_radar_brightness = \
+        geocode_namespace.save_simulated_radar_brightness
+    flag_save_interpolated_dem = geocode_namespace.save_interpolated_dem
     flag_save_nlooks = geocode_namespace.save_nlooks
     flag_save_rtc = geocode_namespace.save_rtc
     flag_save_dem = geocode_namespace.save_dem
@@ -101,6 +156,8 @@ def run(cfg):
                       f'rtc_product_interpolated_dem.bin')
         output_interpolated_dem_maps_list = []
 
+    mosaic_geogrid_dict = {}
+    
     # iterate over sub-burts
     for burst in cfg.bursts:
 
@@ -112,6 +169,15 @@ def run(cfg):
         pol = burst.polarization
         geogrid = cfg.geogrids[burst_id]
 
+        # snap coordinates
+        x_snap = geogrid.spacing_x
+        y_snap = geogrid.spacing_y
+        geogrid.start_x = snap_coord(geogrid.start_x, x_snap, np.floor)
+        geogrid.start_y = snap_coord(geogrid.start_y, y_snap, np.ceil)
+
+        # update mosaic boundaries
+        _update_mosaic_boundaries(mosaic_geogrid_dict, geogrid)
+
         os.makedirs(scratch_path, exist_ok=True)
 
         scratch_path = f'{cfg.scratch_path}/{burst_id}/{date_str}'
@@ -120,6 +186,12 @@ def run(cfg):
         radar_grid = burst.as_isce3_radargrid()
         # native_doppler = burst.doppler.lut2d
         orbit = burst.orbit
+        if 'orbit' not in mosaic_geogrid_dict.keys():
+            mosaic_geogrid_dict['orbit'] = orbit
+        if 'wavelength' not in mosaic_geogrid_dict.keys():
+            mosaic_geogrid_dict['wavelength'] = burst.wavelength
+        if 'lookside' not in mosaic_geogrid_dict.keys():
+            mosaic_geogrid_dict['lookside'] = radar_grid.lookside
 
         temp_slc_path = f'{scratch_path}/{burst_id}_{pol}_temp.vrt'
         burst.slc_to_vrt_file(temp_slc_path)
@@ -256,7 +328,95 @@ def run(cfg):
         t_burst_end = time.time()
         info_channel.log(f'elapsed time (burst): {t_burst_end - t_burst_start}')
 
+    # create mosaic geogrid
+    if (flag_save_incidence_angle or flag_save_local_inc_angle or
+            flag_save_projection_angle or
+            flag_save_simulated_radar_brightness or
+            flag_save_interpolated_dem):
+        mosaic_width = int(np.round((mosaic_geogrid_dict['xf'] - mosaic_geogrid_dict['x0']) / 
+                           mosaic_geogrid_dict['dx']))
+        mosaic_length = int(np.round((mosaic_geogrid_dict['yf'] - mosaic_geogrid_dict['y0']) / 
+                            mosaic_geogrid_dict['dy']))
+        mosaic_geogrid = isce3.product.GeoGridParameters(
+            mosaic_geogrid_dict['x0'], mosaic_geogrid_dict['y0'],
+            mosaic_geogrid_dict['dx'], mosaic_geogrid_dict['dy'],
+            mosaic_width, mosaic_length,
+            mosaic_geogrid_dict['epsg'])
 
+        output_file_list = []
+        output_obj_list = []
+        layers_nbands = 1
+        shape = [layers_nbands, mosaic_length, mosaic_width]
+
+        incidence_angle_raster = _get_raster(
+            output_dir, 'incidenceAngle', gdal.GDT_Float32, shape, 
+            output_file_list, output_obj_list, flag_save_incidence_angle)
+        local_incidence_angle_raster = _get_raster(
+            output_dir, 'localIncidenceAngle', gdal.GDT_Float32, shape, 
+            output_file_list, output_obj_list, flag_save_local_inc_angle)
+        projection_angle_raster = _get_raster(
+            output_dir, 'projectionAngle', gdal.GDT_Float32, shape, 
+            output_file_list, output_obj_list, flag_save_projection_angle)
+        simulated_radar_brightness_raster = _get_raster(
+            output_dir, 'simulatedRadarBrightness', gdal.GDT_Float32, shape,
+            output_file_list, output_obj_list,
+            flag_save_simulated_radar_brightness)
+        interpolated_dem_raster = _get_raster(
+            output_dir, 'interpolatedDem', gdal.GDT_Float32, shape,
+            output_file_list, output_obj_list,
+            flag_save_simulated_radar_brightness)
+
+        # TODO review this!!!
+        native_doppler = isce3.core.LUT2d()
+        native_doppler.bounds_error = False
+        grid_doppler = isce3.core.LUT2d()
+        grid_doppler.bounds_error = False
+        isce3.geogrid.get_radar_grid(mosaic_geogrid_dict['lookside'],
+                                     mosaic_geogrid_dict['wavelength'],
+                                     dem_raster,
+                                     mosaic_geogrid,
+                                     orbit,
+                                     native_doppler,
+                                     grid_doppler,
+                                     incidence_angle_raster =
+                                        incidence_angle_raster,
+                                     local_incidence_angle_raster =
+                                        local_incidence_angle_raster,
+                                    projection_angle_raster =
+                                        projection_angle_raster,
+                                    simulated_radar_brightness_raster =
+                                        simulated_radar_brightness_raster,
+                                    interpolated_dem_raster =
+                                        interpolated_dem_raster)
+        '''
+                                     # epsg_los_and_along_track_vectors,
+                                     # interpolated_dem_raster,
+                                     # slant_range_raster,
+                                     # azimuth_time_raster,
+                                     # incidence_angle_raster,
+                                     # los_unit_vector_x_raster,
+                                     # los_unit_vector_y_raster,
+                                     # along_track_unit_vector_x_raster,
+                                     # along_track_unit_vector_y_raster,
+                                     # elevation_angle_raster,
+                                     # ground_track_velocity_raster,
+        '''
+        '''
+                                     # projection_angle_raster,
+                                     # simulated_radar_brightness_raster,
+                                     # dem_interp_method,
+                                     # args.threshold_geo2rdr,
+                                     # args.num_iter_geo2rdr,
+                                     # args.delta_range_geo2rdr)
+        '''
+        # Flush data
+        for obj in output_obj_list:
+            del obj
+
+        for f in output_file_list:
+            print(f'file saved: {f}')
+
+    # mosaic sub-bursts
     mosaic_pol_list = []
     for pol in output_imagery_dict.keys():
         geo_pol_filename = (f'{output_dir}/'

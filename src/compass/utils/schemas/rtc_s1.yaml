@@ -92,13 +92,28 @@ geocoding_options:
     # Processing upsampling factor on top of the input geogrid
     geogrid_upsampling: int(required=False)
 
-    # Save the number of looks used to compute GCOV
+    # Save the incidence angle
+    save_incidence_angle: bool(required=False)
+
+    # Save the local-incidence angle
+    save_local_inc_angle: bool(required=False)
+
+    # Save the local-incidence angle
+    save_projection_angle: bool(required=False)
+
+    # Save the local-incidence angle
+    save_simulated_radar_brightness: bool(required=False)
+
+    # Save the interpolated DEM
+    save_interpolated_dem: bool(required=False)
+
+    # Save the number of looks used to generate the RTC product
     save_nlooks: bool(required=False)
 
-    # Save the RTC area factor used to compute GCOV
+    # Save the RTC area factor used to generate the RTC product
     save_rtc: bool(required=False)
 
-    # Save interpolated DEM used to compute GCOV
+    # Save the interpolated DEM used to generate the RTC product
     save_dem: bool(required=False)
 
     # Absolute radiometric correction factor

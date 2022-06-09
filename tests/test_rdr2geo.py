@@ -14,7 +14,7 @@ def get_rdr2geo_output(cfg):
     topo_path = f'{cfg.product_path}/{burst_id}/{date_str}/topo.vrt'
     print(topo_path)
     ds = gdal.Open(topo_path)
-    llh = np.vstack([ds.GetRasterBand(1).ReadAsArray() for i in range(3)])
+    llh = np.vstack([ds.GetRasterBand(i+1).ReadAsArray() for i in range(3)])
     return llh
 
 def test_45_lat_rdr2geo():
@@ -24,6 +24,8 @@ def test_45_lat_rdr2geo():
 
     s1_rdr2geo.run(cfg)
     computed_llh = get_rdr2geo_output(cfg)
+    print(computed_llh)
+    print(expected_llh)
 
 
 if __name__ == '__main__':

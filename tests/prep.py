@@ -55,13 +55,13 @@ def compute_orbit(params):
     sat_h = params.ellipsoid.a + params.h_sat
     for ii in range(params.n_sv):
         total_delta_t = ii * params.orbit_dt
-        t = params.sensing_start + datetime.timedelta(seconds=total_delta_t)
+        t = params.orbit_start + datetime.timedelta(seconds=total_delta_t)
 
         lon = params.lon0 + params.omega * total_delta_t
 
         pos = [sat_h * clat * np.cos(lon),
-                sat_h * clat * np.sin(lon),
-                sat_h * slat]
+               sat_h * clat * np.sin(lon),
+               sat_h * slat]
 
         vel = [-params.omega * pos[1],
                 params.omega * pos[0],
@@ -79,16 +79,18 @@ def compute_orbit(params):
 
 def common_params(lat):
     params = SimpleNamespace()
-    sensing_start = "2017-02-12T01:12:30.0"
+    sensing_start = "2017-02-12T01:12:35.0"
+    orbit_start = "2017-02-12T01:12:30.0"
     fmt = "%Y-%m-%dT%H:%M:%S.%f"
     params.sensing_start = datetime.datetime.strptime(sensing_start, fmt)
+    params.orbit_start = datetime.datetime.strptime(orbit_start, fmt)
     params.lon0 = 0.0
     params.lat0 = np.radians(lat)
     params.omega = np.radians(0.1)
     params.n_sv = 10
     params.n_samples = 20
     params.h_sat = 700000.0
-    params.slant_range0 = 80000.0
+    params.slant_range0 = 800000.0
     params.d_slant_range = 10.0
     params.az_time0 = 5.0
     params.d_az_time = 2.0
@@ -139,6 +141,7 @@ def create_burst(params):
     range_window_coeff = dont_matter_for_now
     rank = int(dont_matter_for_now)
     prf_raw_data = dont_matter_for_now
+    range_chirp_ramp_rate = dont_matter_for_now
 
     burst = Sentinel1BurstSlc(params.sensing_start, radar_freq, wavelength,
                               azimuth_steer_rate, params.d_az_time,
@@ -151,7 +154,7 @@ def create_burst(params):
                               tiff_path, i_burst, first_valid_sample,
                               last_sample, first_valid_line, last_line,
                               range_window_type, range_window_coeff,
-                              rank, prf_raw_data)
+                              rank, prf_raw_data, range_chirp_ramp_rate)
 
     return burst
 
@@ -164,13 +167,14 @@ def compute_expected_llh(test_params):
     lon = test_params.lon0 + test_params.omega * az_time
     c_lon = np.cos(lon)
     s_lon = np.sin(lon)
-    lat = np.arccos(solve_geocentric_lat(slant_range, test_params))
+    lat = solve_geocentric_lat(slant_range, test_params)
     c_lat = np.cos(lat)
     s_lat = np.sin(lat)
     xyz_vec = np.vstack([ellipsoid.a * c_lat * c_lon,
                          ellipsoid.a * c_lat * s_lon,
-                         ellipsoid.b * s_lat])
-    llh = [ellipsoid.xyz_to_lon_lat(xyz_pt) for xyz_pt in xyz_vec]
+                         ellipsoid.a * s_lat])
+    llh = [ellipsoid.xyz_to_lon_lat(xyz_vec[:,i])
+           for i in range(test_params.n_samples)]
     return llh
 
 
@@ -193,6 +197,7 @@ def cfg_45_lat():
 
     # make list with single burst
     cfg.bursts = [create_burst(cfg.test_params)]
+    import ipdb; ipdb.set_trace()
     cfg.dem = cfg.test_params.dem
     cfg.gpu_enabled = False
     cfg.gpu_id = 0

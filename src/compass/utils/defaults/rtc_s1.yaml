@@ -83,7 +83,7 @@ runconfig:
               save_incidence_angle: False
 
               # Save the local-incidence angle
-              save_local_inc_angle: True
+              save_local_inc_angle: False
 
               # Save the projection angle
               save_projection_angle: False
@@ -115,7 +115,7 @@ runconfig:
               # Double SLC sampling in the range direction
               upsample_radargrid: False
 
-              output_format: ENVI
+              output_format: GTiff
               output_epsg:
               x_posting: 30
               y_posting: 30

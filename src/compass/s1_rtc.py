@@ -141,19 +141,19 @@ def run(cfg):
 
     # output mosaics
     geo_filename = (f'{output_dir}/'
-                    f'rtc_product.bin')
+                    f'rtc_product.tif')
     output_imagery_dict = {}
     if flag_save_nlooks:
         out_nlooks = (f'{output_dir}/'
-                      f'rtc_product_nlooks.bin')
+                      f'rtc_product_nlooks.tif')
         output_nlooks_maps_list = []
     if flag_save_rtc:
         out_rtc = (f'{output_dir}/'
-                      f'rtc_product_rtc.bin')
+                      f'rtc_product_rtc.tif')
         output_rtc_maps_list = []
     if flag_save_dem:
         out_interpolated_dem = (f'{output_dir}/'
-                      f'rtc_product_interpolated_dem.bin')
+                      f'rtc_product_interpolated_dem.tif')
         output_interpolated_dem_maps_list = []
 
     mosaic_geogrid_dict = {}
@@ -199,7 +199,7 @@ def run(cfg):
 
         # Generate output geocoded burst raster
         geo_burst_filename = (f'{scratch_path}/'
-                              f'{burst_id}_{date_str}_{pol}.bin')
+                              f'{burst_id}_{date_str}_{pol}.tif')
 
         geo_burst_raster = isce3.io.Raster(
             geo_burst_filename,
@@ -237,7 +237,7 @@ def run(cfg):
 
         if flag_save_nlooks:
             temp_nlooks = (f'{scratch_path}/'
-                           f'{burst_id}_{date_str}_{pol}_nlooks.bin')
+                           f'{burst_id}_{date_str}_{pol}_nlooks.tif')
             out_geo_nlooks_obj = isce3.io.Raster(
                 temp_nlooks,
                 geogrid.width, geogrid.length, 1,
@@ -248,7 +248,7 @@ def run(cfg):
 
         if flag_save_rtc:
             temp_rtc = (f'{scratch_path}/'
-                           f'{burst_id}_{date_str}_{pol}_rtc_anf.bin')
+                           f'{burst_id}_{date_str}_{pol}_rtc_anf.tif')
             out_geo_rtc_obj = isce3.io.Raster(
                 temp_rtc,
                 geogrid.width, geogrid.length, 1,
@@ -259,7 +259,7 @@ def run(cfg):
 
         if flag_save_dem:
             temp_interpolated_dem = (f'{scratch_path}/'
-                           f'{burst_id}_{date_str}_{pol}_interpolated_dem.bin')
+                           f'{burst_id}_{date_str}_{pol}_interpolated_dem.tif')
             if (output_mode == 
                     isce3.geocode.GeocodeOutputMode.AREA_PROJECTION):
                 interpolated_dem_width = geogrid.width + 1
@@ -366,11 +366,14 @@ def run(cfg):
             output_file_list, output_obj_list,
             flag_save_simulated_radar_brightness)
 
-        # TODO review this!!!
+        # TODO review this (Doppler)!!!
+        # native_doppler = burst.doppler.lut2d
         native_doppler = isce3.core.LUT2d()
         native_doppler.bounds_error = False
         grid_doppler = isce3.core.LUT2d()
         grid_doppler.bounds_error = False
+
+        # call get_radar_grid()
         isce3.geogrid.get_radar_grid(mosaic_geogrid_dict['lookside'],
                                      mosaic_geogrid_dict['wavelength'],
                                      dem_raster,
@@ -420,7 +423,7 @@ def run(cfg):
     mosaic_pol_list = []
     for pol in output_imagery_dict.keys():
         geo_pol_filename = (f'{output_dir}/'
-                            f'rtc_product_{pol}.bin')
+                            f'rtc_product_{pol}.tif')
         imagery_list = output_imagery_dict[pol]
         _mosaic(imagery_list, geo_pol_filename)
         mosaic_pol_list.append(geo_pol_filename)

@@ -14,5 +14,3 @@ release_history = (
 release_version = release_history[0].version
 release_date = release_history[0].date
 
-# variable
-__version__ = release_version

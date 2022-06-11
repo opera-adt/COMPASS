@@ -73,13 +73,14 @@ def compare_cslc_products(file_ref, file_sec):
     slc_ref = dataset_ref.GetRasterBand(1).ReadAsArray()
     slc_sec = dataset_sec.GetRasterBand(1).ReadAsArray()
 
-    diff_amp = np.abs(slc_ref) - np.abs(slc_sec)
-    diff_pha = np.angle(slc_ref * np.conj(slc_sec))
+    diff_real = slc_ref.real - slc_sec.real
+    diff_imag = slc_ref.imag - slc_sec.image
 
-    print('Check max amplitude difference between CSLC products is < 1.0e-12')
-    assert np.nanmax(diff_amp) < 1.0e-12
-    print('Check max phase difference between CSLC products is < 1.0e-12')
-    assert np.nanmax(diff_pha) < 1.0e-12
+    print('Check max real part difference between CSLC products is < 1.0e-5')
+    assert np.nanmax(diff_real) < 1.0e-5
+    print('Check max imaginary part difference between CSLC products is < 1.0e-5')
+    assert np.nanmax(diff_imag) < 1.0e-5
+    
     return
 
 

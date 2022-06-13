@@ -91,9 +91,6 @@ runconfig:
               # Save the simulated radar brightness
               save_simulated_radar_brightness: False
 
-              # Save interpolated DEM
-              save_interpolated_dem: False
-
               # Save the number of looks used to generate the RTC product
               save_nlooks: True
               

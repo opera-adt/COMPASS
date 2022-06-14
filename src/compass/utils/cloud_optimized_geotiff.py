@@ -35,10 +35,8 @@ import shutil
 import tempfile
 import journal
 import struct
-import sys
 
-from osgeo import gdal, osr
-from compass.utils.validate_cloud_optimized_geotiff import main as validate_cog
+from osgeo import gdal
 
 
 def Usage():

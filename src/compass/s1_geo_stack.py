@@ -1,24 +1,24 @@
 import argparse
-import os, sys, glob
-import journal
 import cgi
-import requests
 import datetime
-import pandas as pd
-import yaml
-import isce3
+import glob
+import os
+import sys
 import time
-import numpy as np
-
 from xml.etree import ElementTree
-from osgeo import osr
-from s1reader.s1_reader import load_bursts
-from s1reader.s1_orbit import get_orbit_file_from_list
-from compass.utils import helpers
-from compass.utils.runconfig import load_validate_yaml
 
+import isce3
+import journal
+import numpy as np
+import pandas as pd
+import requests
+import yaml
+from s1reader.s1_orbit import get_orbit_file_from_list
+from s1reader.s1_reader import load_bursts
+
+from compass.utils import helpers
 from compass.utils.geo_grid import get_point_epsg
-from compass.utils.geo_runconfig import GeoRunConfig
+
 
 # Required for orbit download
 scihub_url = 'https://scihub.copernicus.eu/gnss/odata/v1/Products'
@@ -55,7 +55,8 @@ def create_parser():
                         default=None,
                         help='List of burst IDs to process. If None, all the burst IDs in the'
                              'reference date are processed. (default: None)')
-    parser.add_argument('-exd', '--exclude-dates', dest='exclude_dates', nargs='+', type=int,
+    parser.add_argument('-exd', '--exclude-dates', dest='exclude_dates',
+                        nargs='+', type=int,
                         help='Date to be excluded from stack processing (format: YYYYMMDD)')
     parser.add_argument('-p', '--pol', dest='pol', nargs='+', default='co-pol',
                         help='Polarization to process: dual-pol, co-pol, cross-pol (default: co-pol).')
@@ -193,7 +194,7 @@ def download_orbit(output_folder, orbit_url):
     response = requests.get(url=orbit_url, auth=(scihub_user, scihub_password))
     # Get header and find filename
     header = response.headers['content-disposition']
-    header_value, header_params = cgi.parse_header(header)
+    _, header_params = cgi.parse_header(header)
     # construct orbit filename
     orbit_filename = os.path.join(output_folder, header_params['filename'])
     # Save orbits
@@ -246,29 +247,31 @@ def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=4326):
                                           burst.center.x)
 
                     # Initialize geogrid with the info checked at this stage
-                geogrid = isce3.product.bbox_to_geogrid(burst.as_isce3_radargrid(),
-                                                        burst.orbit,
-                                                        isce3.core.LUT2d(),
-                                                        x_spac, -y_spac,
-                                                        epsg)
+                geogrid = isce3.product.bbox_to_geogrid(
+                    burst.as_isce3_radargrid(),
+                    burst.orbit,
+                    isce3.core.LUT2d(),
+                    x_spac, -y_spac,
+                    epsg)
 
                 # Snap coordinates so that adjacent burst coordinates are integer
                 # multiples of the spacing in X-/Y-directions
                 burst_map['x_top_left'].append(
                     x_spac * np.floor(geogrid.start_x / x_spac))
                 burst_map['y_top_left'].append(
-                     y_spac * np.ceil(geogrid.start_y / y_spac))
+                    y_spac * np.ceil(geogrid.start_y / y_spac))
                 burst_map['x_bottom_right'].append(
                     x_spac * np.ceil(
-                    (geogrid.start_x + x_spac * geogrid.width) / x_spac))
+                        (geogrid.start_x + x_spac * geogrid.width) / x_spac))
                 burst_map['y_bottom_right'].append(
                     y_spac * np.floor(
-                    (geogrid.start_y + y_spac * geogrid.length) / y_spac))
+                        (geogrid.start_y + y_spac * geogrid.length) / y_spac))
                 burst_map['epsg'].append(epsg)
-                burst_map['date'].append(int(burst.sensing_start.strftime("%Y%m%d")))
+                burst_map['date'].append(
+                    int(burst.sensing_start.strftime("%Y%m%d")))
 
-    map = pd.DataFrame(data=burst_map)
-    return map
+    burst_map = pd.DataFrame(data=burst_map)
+    return burst_map
 
 
 def prune_dataframe(data, id_col, id_list):
@@ -316,7 +319,6 @@ def get_common_burst_ids(data):
         ids = data.burst_id[data.date == date]
         common_id = sorted(list(set(ids.tolist()) & set(common_id)))
     return common_id
-
 
 
 def create_runconfig(burst, safe, orbit_path, dem_file, work_dir,
@@ -383,17 +385,19 @@ def create_runconfig(burst, safe, orbit_path, dem_file, work_dir,
     geocode['x_posting'] = x_spac
     geocode['y_posting'] = y_spac
     geocode['top_left']['x'] = \
-    burst_map.x_top_left[burst_map.burst_id == burst.burst_id].tolist()[0]
+        burst_map.x_top_left[burst_map.burst_id == burst.burst_id].tolist()[0]
     geocode['top_left']['y'] = \
-    burst_map.y_top_left[burst_map.burst_id == burst.burst_id].tolist()[0]
+        burst_map.y_top_left[burst_map.burst_id == burst.burst_id].tolist()[0]
     geocode['bottom_right']['x'] = \
-    burst_map.x_bottom_right[burst_map.burst_id == burst.burst_id].tolist()[0]
+        burst_map.x_bottom_right[burst_map.burst_id == burst.burst_id].tolist()[
+            0]
     geocode['bottom_right']['y'] = \
-    burst_map.y_bottom_right[burst_map.burst_id == burst.burst_id].tolist()[0]
+        burst_map.y_bottom_right[burst_map.burst_id == burst.burst_id].tolist()[
+            0]
     # geocode['x_snap'] = None
     # geocode['y_snap'] = None
     geocode['output_epsg'] = \
-    burst_map.epsg[burst_map.burst_id == burst.burst_id].tolist()[0]
+        burst_map.epsg[burst_map.burst_id == burst.burst_id].tolist()[0]
 
     # Range split spectrum
     rss['enabled'] = enable_rss
@@ -409,10 +413,10 @@ def create_runconfig(burst, safe, orbit_path, dem_file, work_dir,
 
 
 def main(slc_dir, dem_file, burst_id, start_date=None, end_date=None,
-         exclude_dates= None, orbit_dir=None,
+         exclude_dates=None, orbit_dir=None,
          work_dir='stack',
          pol='dual-pol', x_spac=5, y_spac=10, epsg=None,
-         flatten= True,
+         flatten=True,
          is_split_spectrum=False,
          low_band=0.0,
          high_band=0.0):
@@ -529,22 +533,24 @@ def main(slc_dir, dem_file, burst_id, start_date=None, end_date=None,
             for burst in bursts:
                 date = int(burst.sensing_start.strftime("%Y%m%d"))
                 if (burst.burst_id in list(set(burst_map['burst_id']))) and \
-                    (date in list(set(burst_map['date']))):
+                        (date in list(set(burst_map['date']))):
                     runconfig_path = create_runconfig(burst, safe, orbit_path,
                                                       dem_file,
-                                                      work_dir, burst_map, flatten,
+                                                      work_dir, burst_map,
+                                                      flatten,
                                                       is_split_spectrum,
                                                       low_band, high_band, pol,
                                                       x_spac, y_spac)
                     date_str = str(date)
                     runfile_name = f'{run_dir}/run_{date_str}_{burst.burst_id}.sh'
                     with open(runfile_name, 'w') as rsh:
-                         path = os.path.dirname(os.path.realpath(__file__))
-                         rsh.write(
-                             f'python {path}/s1_cslc.py {runconfig_path}\n')
+                        path = os.path.dirname(os.path.realpath(__file__))
+                        rsh.write(
+                            f'python {path}/s1_cslc.py {runconfig_path}\n')
                 else:
-                     info.log(f'Burst ID {burst.burst_id} or SAFE file date {date_str} '
-                              f'not part of the stack to process')
+                    info.log(
+                        f'Burst ID {burst.burst_id} or SAFE file date {date_str} '
+                        f'not part of the stack to process')
     end_time = time.time()
     print('Elapsed time (min):', (end_time - start_time) / 60.0)
 

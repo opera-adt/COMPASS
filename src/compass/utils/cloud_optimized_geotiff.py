@@ -427,7 +427,7 @@ def validate(argv):
 
 
 def save_as(filename, scratch_dir='.', flag_compress=True,
-            resamp_algorithm='average_magphase'):
+            resamp_algorithm='NONE'):
     """Save (overwrite) a GeoTIFF file as a cloud-optimized GeoTIFF.
        Parameters
        ----------
@@ -444,6 +444,7 @@ def save_as(filename, scratch_dir='.', flag_compress=True,
               "CUBIC", "CUBICSPLINE", "GAUSS", "LANCZOS",
               "MODE", "NEAREST", or "NONE"
     """
+
     warning_channel = journal.warning('cloud_optimized_geotiff.save_as_cog')
     info_channel = journal.info('cloud_optimized_geotiff.save_as_cog')
 

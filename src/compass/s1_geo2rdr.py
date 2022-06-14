@@ -1,4 +1,7 @@
-"""Wrapper for geo2rdr"""
+#!/usr/bin/env python
+
+'''wrapper for geo2rdr'''
+
 from datetime import timedelta
 import os
 import time

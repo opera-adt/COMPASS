@@ -30,14 +30,14 @@ def _update_mosaic_boundaries(mosaic_geogrid_dict, geogrid):
     if ('x0' not in mosaic_geogrid_dict.keys() or
             geogrid.start_x < mosaic_geogrid_dict['x0']):
         mosaic_geogrid_dict['x0'] = geogrid.start_x
-    if ('xf' not in mosaic_geogrid_dict.keys() is None or
-            xf > mosaic_geogrid_dict['x0']):
+    if ('xf' not in mosaic_geogrid_dict.keys() or
+            xf > mosaic_geogrid_dict['xf']):
         mosaic_geogrid_dict['xf'] = xf
     if ('y0' not in mosaic_geogrid_dict.keys() or
             geogrid.start_y > mosaic_geogrid_dict['y0']):
         mosaic_geogrid_dict['y0'] = geogrid.start_y
     if ('yf' not in mosaic_geogrid_dict.keys() or
-            yf < mosaic_geogrid_dict['y0']):
+            yf < mosaic_geogrid_dict['yf']):
         mosaic_geogrid_dict['yf'] = yf
     if 'dx' not in mosaic_geogrid_dict.keys():
         mosaic_geogrid_dict['dx'] = geogrid.spacing_x
@@ -71,11 +71,15 @@ def _get_raster(output_dir, ds_name, dtype, shape,
     output_obj_list.append(raster_obj)
     return raster_obj
 
-def _add_output_to_output_metadata_dict(flag, key, output_metadata_dict):
+
+def _add_output_to_output_metadata_dict(flag, key, output_dir,
+        output_metadata_dict):
     if not flag:
         return
     output_image_list = []
-    output_metadata_dict[key] = [f'rtc_product_{key}.tif', output_image_list]
+    output_metadata_dict[key] = \
+        [os.path.join(output_dir, f'rtc_product_{key}.tif'), output_image_list]
+
 
 def run(cfg):
     '''
@@ -149,12 +153,12 @@ def run(cfg):
     output_imagery_dict = {}
     output_metadata_dict = {}
 
-    _add_output_to_output_metadata_dict(flag_save_nlooks, 'nlooks',
+    _add_output_to_output_metadata_dict(flag_save_nlooks, 'nlooks', output_dir,
                                        output_metadata_dict)
-    _add_output_to_output_metadata_dict(flag_save_rtc, 'rtc',
+    _add_output_to_output_metadata_dict(flag_save_rtc, 'rtc', output_dir,
                                        output_metadata_dict)
     _add_output_to_output_metadata_dict(flag_save_dem, 'interpolated_dem',
-                                       output_metadata_dict)
+                                        output_dir, output_metadata_dict)
 
     mosaic_geogrid_dict = {}
     

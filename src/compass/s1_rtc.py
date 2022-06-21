@@ -161,7 +161,10 @@ def run(cfg):
                                         output_dir, output_metadata_dict)
 
     mosaic_geogrid_dict = {}
-    
+
+    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(scratch_path, exist_ok=True)
+
     # iterate over sub-burts
     for burst in cfg.bursts:
 
@@ -182,10 +185,8 @@ def run(cfg):
         # update mosaic boundaries
         _update_mosaic_boundaries(mosaic_geogrid_dict, geogrid)
 
-        os.makedirs(scratch_path, exist_ok=True)
-
-        scratch_path = f'{cfg.scratch_path}/{burst_id}/{date_str}'
-        os.makedirs(scratch_path, exist_ok=True)
+        burst_scratch_path = f'{scratch_path}/{burst_id}/{date_str}'
+        os.makedirs(burst_scratch_path, exist_ok=True)
 
         radar_grid = burst.as_isce3_radargrid()
         # native_doppler = burst.doppler.lut2d

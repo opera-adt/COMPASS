@@ -157,8 +157,10 @@ def run(cfg):
                                        output_metadata_dict)
     _add_output_to_output_metadata_dict(flag_save_rtc, 'rtc', output_dir,
                                        output_metadata_dict)
+    '''
     _add_output_to_output_metadata_dict(flag_save_dem, 'interpolated_dem',
                                         output_dir, output_metadata_dict)
+    '''
 
     mosaic_geogrid_dict = {}
 
@@ -262,6 +264,7 @@ def run(cfg):
             temp_rtc = None
             out_geo_rtc_obj = None
 
+        '''
         if flag_save_dem:
             temp_interpolated_dem = (f'{scratch_path}/'
                            f'{burst_id}_{date_str}_{pol}_interpolated_dem.tif')
@@ -279,7 +282,8 @@ def run(cfg):
                 gdal.GDT_Float32, cfg.geocoding_params.output_format)
         else:
             temp_interpolated_dem = None
-            out_geo_dem_obj = None 
+            out_geo_dem_obj = None
+        '''
 
         # Extract burst boundaries and create sub_swaths object to mask
         # invalid radar samples
@@ -311,7 +315,7 @@ def run(cfg):
                         # out_off_diag_terms=out_off_diag_terms_obj,
                         out_geo_nlooks=out_geo_nlooks_obj,
                         out_geo_rtc=out_geo_rtc_obj,
-                        out_geo_dem=out_geo_dem_obj,
+                        # out_geo_dem=out_geo_dem_obj,
                         input_rtc=None,
                         output_rtc=None,
                         dem_interp_method=dem_interp_method_enum,
@@ -334,11 +338,13 @@ def run(cfg):
             info_channel.log(f'file saved: {temp_rtc}')
             output_metadata_dict['rtc'][1].append(temp_rtc)
 
+        '''
         if flag_save_dem:
             del out_geo_dem_obj
             info_channel.log(f'file saved: {temp_interpolated_dem}')
             output_metadata_dict['interpolated_dem'][1].append(
                 temp_interpolated_dem)
+        '''
 
         t_burst_end = time.time()
         info_channel.log(f'elapsed time (burst): {t_burst_end - t_burst_start}')
@@ -346,7 +352,7 @@ def run(cfg):
     # create mosaic geogrid
     if (flag_save_incidence_angle or flag_save_local_inc_angle or
             flag_save_projection_angle or
-            flag_save_simulated_radar_brightness):
+            flag_save_simulated_radar_brightness or flag_save_dem):
         mosaic_width = int(np.round((mosaic_geogrid_dict['xf'] -
                                      mosaic_geogrid_dict['x0']) /
                            mosaic_geogrid_dict['dx']))
@@ -377,6 +383,9 @@ def run(cfg):
             output_dir, 'simulated_radar_brightness', gdal.GDT_Float32, shape,
             output_file_list, output_obj_list,
             flag_save_simulated_radar_brightness)
+        interpolated_dem_raster = _get_raster(
+            output_dir, 'interpolated_dem', gdal.GDT_Float32, shape,
+            output_file_list, output_obj_list, flag_save_dem)
 
         # TODO review this (Doppler)!!!
         # native_doppler = burst.doppler.lut2d
@@ -400,7 +409,9 @@ def run(cfg):
                                     projection_angle_raster =
                                         projection_angle_raster,
                                     simulated_radar_brightness_raster =
-                                        simulated_radar_brightness_raster)
+                                        simulated_radar_brightness_raster,
+                                    interpolated_dem_raster =
+                                        interpolated_dem_raster)
         '''
                                      # epsg_los_and_along_track_vectors,
                                      # interpolated_dem_raster,

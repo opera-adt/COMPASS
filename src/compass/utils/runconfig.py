@@ -1,6 +1,5 @@
 from __future__ import annotations
 from dataclasses import dataclass
-import glob
 import os
 from types import SimpleNamespace
 import sys
@@ -11,7 +10,7 @@ import yamale
 from ruamel.yaml import YAML
 
 from compass.utils import helpers
-from compass.utils.reference_radar_grid import file_to_rdr_grid
+from compass.utils.radar_grid import file_to_rdr_grid
 from compass.utils.wrap_namespace import wrap_namespace, unwrap_to_dict
 from s1reader.s1_burst_slc import Sentinel1BurstSlc
 from s1reader.s1_orbit import get_orbit_file_from_list
@@ -32,8 +31,8 @@ def load_validate_yaml(yaml_path: str, workflow_name: str) -> dict:
 
     try:
         # Load schema corresponding to 'workflow_name' and to validate against
-        schema_name = workflow_name if workflow_name == 'geo_cslc_s1' \
-            else 'cslc_s1'
+        schema_name = workflow_name if workflow_name == 's1_cslc_geo' \
+            else 's1_cslc_radar'
         schema = yamale.make_schema(
             f'{helpers.WORKFLOW_SCRIPTS_DIR}/schemas/{schema_name}.yaml',
             parser='ruamel')
@@ -93,7 +92,7 @@ def validate_group_dict(group_cfg: dict, workflow_name) -> None:
     input_group = group_cfg['input_file_group']
     # If is_reference flag is False, check that file path to reference
     # burst is assigned and valid (required by geo2rdr and resample)
-    if workflow_name == 'cslc_s1':
+    if workflow_name == 's1_cslc_radar':
         is_reference = input_group['reference_burst']['is_reference']
         if not is_reference:
             helpers.check_directory(input_group['reference_burst']['file_path'])
@@ -257,22 +256,13 @@ def get_ref_radar_grid_info(ref_path, burst_id):
         reference radar path and grid values found associated with
         burst ID keys
     '''
-    rdr_grid_files = glob.glob(f'{ref_path}/**/radar_grid.txt',
-                               recursive=True)
+    rdr_grid_files = f'{ref_path}/radar_grid.txt'
 
-    if not rdr_grid_files:
+    if not os.path.isfile(rdr_grid_files):
         raise FileNotFoundError(f'No reference radar grids not found in {ref_path}')
 
-    b_id_rdr_grid_files = [f for f in rdr_grid_files if burst_id in f]
-
-    if not b_id_rdr_grid_files:
-        raise FileNotFoundError(f'Reference radar grid not found for {burst_id}')
-
-    if len(b_id_rdr_grid_files) > 1:
-        raise FileExistsError(f'More than one reference radar grid found for {burst_id}')
-
-    ref_rdr_path = os.path.dirname(b_id_rdr_grid_files[0])
-    ref_rdr_grid = file_to_rdr_grid(b_id_rdr_grid_files[0])
+    ref_rdr_path = os.path.dirname(rdr_grid_files)
+    ref_rdr_grid = file_to_rdr_grid(rdr_grid_files)
 
     return ReferenceRadarInfo(ref_rdr_path, ref_rdr_grid)
 

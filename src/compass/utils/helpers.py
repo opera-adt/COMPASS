@@ -6,7 +6,14 @@ import isce3
 import journal
 from osgeo import gdal
 
-WORKFLOW_SCRIPTS_DIR = os.path.dirname(os.path.realpath(__file__))
+import compass
+
+
+WORKFLOW_SCRIPTS_DIR = os.path.dirname(compass.__file__)
+
+# get the basename given an input file path
+# example: get_module_name(__file__)
+get_module_name = lambda x : os.path.basename(x).split('.')[0]
 
 
 def check_file_path(file_path: str) -> None:
@@ -18,7 +25,7 @@ def check_file_path(file_path: str) -> None:
         Path to file to be checked
     """
     error_channel = journal.error('helpers.check_file_path')
-    if not os.path.isfile(file_path):
+    if not os.path.exists(file_path):
         err_str = f'{file_path} not found'
         error_channel.log(err_str)
         raise FileNotFoundError(err_str)

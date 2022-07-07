@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+
+'''wrapper for geocoded SLC'''
+
 from datetime import timedelta
 import os
 import time
@@ -40,7 +44,6 @@ def run(cfg):
     threshold = cfg.geo2rdr_params.threshold
     iters = cfg.geo2rdr_params.numiter
     blocksize = cfg.geo2rdr_params.lines_per_block
-    dem_margin = cfg.geocoding_params.dem_margin
     flatten = cfg.geocoding_params.flatten
 
     # process one burst only
@@ -93,8 +96,7 @@ def run(cfg):
                               geo_grid, orbit,
                               native_doppler,
                               image_grid_doppler, ellipsoid, threshold,
-                              iters,
-                              blocksize, dem_margin, flatten,
+                              iters, blocksize, flatten,
                               azimuth_carrier=az_carrier_poly2d)
 
     # Set geo transformation
@@ -118,10 +120,10 @@ if __name__ == "__main__":
     '''Run geocode cslc workflow from command line'''
     # load arguments from command line
     parser = YamlArgparse()
-    parser.parse()
 
     # Get a runconfig dict from command line argumens
-    cfg = GeoRunConfig.load_from_yaml(parser.run_config_path, 's1_cslc_geo')
+    cfg = GeoRunConfig.load_from_yaml(parser.run_config_path,
+                                      workflow_name='s1_cslc_geo')
 
     # Run geocode burst workflow
     run(cfg)

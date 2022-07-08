@@ -7,23 +7,27 @@ import numpy as np
 from osgeo import gdal
 from s1reader.s1_burst_slc import Doppler, Sentinel1BurstSlc
 
-def zero_dem(params):
-    lon0 = params.lon0 - params.omega / 2
-    lat0 = params.lat0 - params.omega / 2
-    geo_trans = [lon0, params.omega, 0.0, lat0, 0.0, params.omega]
+def expected_height_dem(cfg):
+    params = cfg.test_params
+
+    # define geogrid in degrees
+    lon0 = np.degrees(params.lon0) #- params.omega / 2
+    lat0 = np.degrees(params.lat0) #- params.omega / 2
+    omega = np.degrees(params.omega)
+    geo_trans = [lon0, omega, 0.0, lat0, 0.0, omega]
 
     length = 1
-    width = params.n_sv + 1
+    width = params.n_samples#+ 1
 
-    # create DEM file
+    # create DEM empty file
     dem_raster = isce3.io.Raster(params.dem, width, length, 1,
                                  gdal.GDT_Float32, 'GTiff')
     dem_raster.set_geotransform(geo_trans)
     dem_raster.set_epsg(params.epsg)
     del dem_raster
 
-    # write zero to DEM file
-    data = np.zeros((length, width))
+    # populate empty DEM with expected LLH values
+    data = np.array(cfg.expected_llh[:,2])[np.newaxis, ...]
     ds = gdal.Open(params.dem, gdal.GA_Update)
     ds.GetRasterBand(1).WriteArray(data)
     ds = None
@@ -86,7 +90,7 @@ def common_params(lat):
     params.orbit_start = datetime.datetime.strptime(orbit_start, fmt)
     params.lon0 = 0.0
     params.lat0 = np.radians(lat)
-    params.omega = np.radians(0.1)
+    params.omega = np.radians(0.001)
     params.n_sv = 10
     params.n_samples = 20
     params.h_sat = 700000.0
@@ -99,14 +103,10 @@ def common_params(lat):
     params.look_side = isce3.core.LookSide.Right
     params.ellipsoid = isce3.core.make_projection(params.epsg).ellipsoid
     params.orbit = compute_orbit(params)
-    params.dem = "zero_dem.tif"
+    params.dem = "expected_height_dem.tif"
     return params
 
 
-'''
-def create_burst(ref_epoch_str="2017-02-12T01:12:30.0", az_time_interval):
-    fmt = "%Y-%m-%dT%H:%M:%S.%f"
-'''
 def create_burst(params):
 
     # place holder value
@@ -173,18 +173,23 @@ def compute_expected_llh(test_params):
     xyz_vec = np.vstack([ellipsoid.a * c_lat * c_lon,
                          ellipsoid.a * c_lat * s_lon,
                          ellipsoid.a * s_lat])
-    llh = [ellipsoid.xyz_to_lon_lat(xyz_vec[:,i])
-           for i in range(test_params.n_samples)]
+    llh = np.array([ellipsoid.xyz_to_lon_lat(xyz_vec[:,i])
+                    for i in range(test_params.n_samples)])
     return llh
 
 
 def cfg_45_lat():
+    # manually populate namespace identical with attribs expected by s1_*
     cfg = SimpleNamespace()
 
+    # retrieve test-defining parameters
     cfg.test_params = common_params(45)
 
+    # compute expected LLH for (1) test comparison (2) DEM population
+    cfg.expected_llh = compute_expected_llh(cfg.test_params)
+
     # create and set DEM raster
-    zero_dem(cfg.test_params)
+    expected_height_dem(cfg)
 
     # set rdr2geo params
     rdr2geo_params = SimpleNamespace()
@@ -197,7 +202,6 @@ def cfg_45_lat():
 
     # make list with single burst
     cfg.bursts = [create_burst(cfg.test_params)]
-    import ipdb; ipdb.set_trace()
     cfg.dem = cfg.test_params.dem
     cfg.gpu_enabled = False
     cfg.gpu_id = 0

@@ -286,63 +286,24 @@ def get_stitching_dict(indir):
     dir_list = os.listdir(indir)
     for dir in dir_list:
         # List metadata files in the directory
-        meta_list = sorted(glob.glob(f'{indir}/{dir}/*json'))
-        for path in meta_list:
-            # Read metadata file
-            metadata = read_metadata(path)
+        json_meta_list = sorted(glob.glob(f'{indir}/{dir}/*json'))
+        for json_path in json_meta_list:
+            with open(json_path) as json_file:
+                metadata_dict = json.load(json_file)
+
             # Read info and store in dictionary
-            cfg['burst_id'].append(get_metadata(metadata, 'burst_id'))
-            datestr = get_metadata(metadata, 'sensing_start')
+            cfg['burst_id'].append(metadata_dict['burst_id'])
+            datestr = metadata_dict['sensing_start']
             date = datetime.fromisoformat(datestr).strftime("%Y%m%d")
-            filename = f"{get_metadata(metadata, 'burst_id')}_{date}_VV.slc"
+            filename = f"{metadata_dict['burst_id']}_{date}_VV.slc"
             cfg['granule_id'].append(f'{indir}/{dir}/{filename}')
-            poly = get_metadata(metadata, 'border')
+            poly = metadata_dict['border']
             cfg['polygon'].append(shapely.wkt.loads(poly))
             cfg['date'].append(date)
-            geogrid = get_metadata(metadata, 'geogrid')
+            geogrid = metadata_dict['geogrid']
             cfg['epsg'].append(geogrid['epsg'])
 
-
     return pd.DataFrame(data=cfg)
-
-
-def read_metadata(meta_file):
-    '''Read metadata file in a dictionary
-
-    Parameters:
-    -----------
-    meta_file: str
-       Filepath where metadata is located
-
-    Returns:
-    -------
-    cfg: dict
-       Dictionary containing metadata
-    '''
-    with open(meta_file) as json_file:
-        metadata = json.load(json_file)
-    return metadata
-
-
-def get_metadata(metadata, field):
-    '''
-    Get 'field" value from metadata dictionary
-
-    Parameters:
-    -----------
-    metadata: dict
-       Dictionary containing metadata for a burst
-    field: str
-       Field in the metadata to extract value for
-
-    Returns:
-    -------
-    value: float, int, shapely.Polygon
-       Value stored in the metadata field (type
-       depends on type of metadata extracted)
-    '''
-    value = metadata[field]
-    return value
 
 
 def prune_dataframe(data, id_col, id_list):

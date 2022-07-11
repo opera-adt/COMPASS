@@ -22,10 +22,10 @@ def command_line_parser():
     parser = argparse.ArgumentParser(description="""
                                      Stitch S1-A/B bursts for stack processing""",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-d', '--indir', type=str, action='store', dest='indir',
+    parser.add_argument('-d', '--burst-dir', type=str, action='store', dest='burst_dir',
                         help='Directory with S1-A/B bursts organized by dates')
-    parser.add_argument('-b', '--burst-list', type=str, nargs='+',
-                        default=None, dest='burst_list',
+    parser.add_argument('-b', '--burst-id-list', type=str, nargs='+',
+                        default=None, dest='burst_id_list',
                         help='List of burst IDs to stitch. If None, common bursts'
                              'among all dates will be stitched (default: None')
     parser.add_argument('-m', '--margin', type=float,
@@ -41,13 +41,13 @@ def command_line_parser():
     return parser.parse_args()
 
 
-def main(indir, outdir, scratchdir, margin, burst_list):
+def main(burst_dir, outdir, scratchdir, margin, burst_id_list):
     '''
     Stitch S1-A/B bursts for stack processing
 
     Parameters:
     ----------
-    indir: str
+    burst_dir: str
        File path to directory containing S1-A/B bursts
        organized by date
     outdir: str
@@ -58,7 +58,7 @@ def main(indir, outdir, scratchdir, margin, burst_list):
     margin: float
        Margin to apply to burst boundary while stitching.
        Same units as bursts coordinate system
-    burst_list: list [str]
+    burst_id_list: list [str]
        List of burst IDs to stitch. If not provided, common
        bursts among all dates are identified and considered
        for stitching
@@ -71,8 +71,8 @@ def main(indir, outdir, scratchdir, margin, burst_list):
     t_start = time.time()
 
     # Check that input directory is valid
-    if not os.path.isdir(indir):
-        err_str = f'{indir} is not a valid input directory'
+    if not os.path.isdir(burst_dir):
+        err_str = f'{burst_dir} is not a valid input directory'
         error_channel.log(err_str)
         raise ValueError(err_str)
 
@@ -84,15 +84,15 @@ def main(indir, outdir, scratchdir, margin, burst_list):
         os.makedirs(scratchdir, exist_ok=True)
         helpers.check_write_dir(scratchdir)
 
-    # Collect info for stitching in all dirs in 'indir'
+    # Collect info for stitching in all dirs in 'burst_dir'
     # and return a panda dataframe with info
-    data_dict = get_stitching_dict(indir)
+    data_dict = get_stitching_dict(burst_dir)
 
     # If stitching some bursts, prune dataframe to
     # contains only the burst IDs to stitch
-    if burst_list is not None:
+    if burst_id_list is not None:
         data_dict = prune_dataframe(data_dict,
-                                    'burst_id', burst_list)
+                                    'burst_id', burst_id_list)
 
     # Identify common burst IDs among different dates
     ids2stitch = get_common_burst_ids(data_dict)
@@ -264,14 +264,14 @@ def intersect_polygons(polygons, epsgs, margin):
     return poly_int, epsg_int
 
 
-def get_stitching_dict(indir):
+def get_stitching_dict(burst_dir):
     '''
     Collect info on bursts to stitch and store them
     in a panda dataframe
 
     Parameters:
     ----------
-    indir: str
+    burst_dir: str
        Directory where bursts are stored (organized by date)
 
     Returns:
@@ -283,10 +283,10 @@ def get_stitching_dict(indir):
     cfg = {'burst_id': [], 'granule_id': [], 'polygon': [],
            'date': [], 'epsg': []}
     # Get list of directory under dir_list
-    dir_list = os.listdir(indir)
+    dir_list = os.listdir(burst_dir)
     for dir in dir_list:
         # List metadata files in the directory
-        json_meta_list = sorted(glob.glob(f'{indir}/{dir}/*json'))
+        json_meta_list = sorted(glob.glob(f'{burst_dir}/{dir}/*json'))
         for json_path in json_meta_list:
             with open(json_path) as json_file:
                 metadata_dict = json.load(json_file)
@@ -296,7 +296,7 @@ def get_stitching_dict(indir):
             datestr = metadata_dict['sensing_start']
             date = datetime.fromisoformat(datestr).strftime("%Y%m%d")
             filename = f"{metadata_dict['burst_id']}_{date}_VV.slc"
-            cfg['granule_id'].append(f'{indir}/{dir}/{filename}')
+            cfg['granule_id'].append(f'{burst_dir}/{dir}/{filename}')
             poly = metadata_dict['border']
             cfg['polygon'].append(shapely.wkt.loads(poly))
             cfg['date'].append(date)
@@ -361,5 +361,5 @@ if __name__ == '__main__':
     # Get command line arguments
     opts = command_line_parser()
     # Give these arguments to the main code
-    main(opts.indir, opts.outdir,
-         opts.scratch, opts.margin, opts.burst_list)
+    main(opts.burst_dir, opts.outdir,
+         opts.scratch, opts.margin, opts.burst_id_list)

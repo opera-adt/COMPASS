@@ -28,6 +28,9 @@ def command_line_parser():
                         default=None, dest='burst_id_list',
                         help='List of burst IDs to stitch. If None, common bursts'
                              'among all dates will be stitched (default: None')
+    parser.add_argument('-p', '--pol', type=str, nargs='+', default='VV', dest='pol',
+                        help='Polarization to process one or many between HH, HV, VH, VV'
+                             '(default: VV)')
     parser.add_argument('-m', '--margin', type=float,
                         default=100, dest='margin',
                         help='Margin to apply during stitching. Same units as bursts coordinate system.'
@@ -41,27 +44,29 @@ def command_line_parser():
     return parser.parse_args()
 
 
-def main(burst_dir, outdir, scratchdir, margin, burst_id_list):
+def main(burst_dir, outdir, scratchdir, margin, burst_id_list, pol):
     '''
     Stitch S1-A/B bursts for stack processing
 
     Parameters:
     ----------
     burst_dir: str
-       File path to directory containing S1-A/B bursts
-       organized by date
+        File path to directory containing S1-A/B bursts
+        organized by date
     outdir: str
-       File path to directory where to store stitched bursts
+        File path to directory where to store stitched bursts
     scratchdir: str
-       File path to directory where to store intermediate
-       results (e.g., shapefiles of burst boundary)
+        File path to directory where to store intermediate
+        results (e.g., shapefiles of burst boundary)
     margin: float
-       Margin to apply to burst boundary while stitching.
-       Same units as bursts coordinate system
+        Margin to apply to burst boundary while stitching.
+        Same units as bursts coordinate system
     burst_id_list: list [str]
-       List of burst IDs to stitch. If not provided, common
-       bursts among all dates are identified and considered
-       for stitching
+        List of burst IDs to stitch. If not provided, common
+        bursts among all dates are identified and considered
+        for stitching
+    pol: list [str]
+        Polarization to process. One or many among HH, HV, VH, VV.
     '''
     info_channel = journal.info('stitch_burst.main')
     error_channel = journal.error('stitch_burst.main')
@@ -92,7 +97,12 @@ def main(burst_dir, outdir, scratchdir, margin, burst_id_list):
     # contains only the burst IDs to stitch
     if burst_id_list is not None:
         metadata_dataframe = prune_dataframe(metadata_dataframe,
-                                    'burst_id', burst_id_list)
+                                             'burst_id', burst_id_list)
+
+    # Prune dataframe for user-selected polarizations
+    if pol is not None:
+        metadata_dataframe = prune_dataframe(metadata_dataframe,
+                                             'polarization', pol)
 
     # Identify common burst IDs among different dates
     ids2stitch = get_common_burst_ids(metadata_dataframe)
@@ -106,7 +116,7 @@ def main(burst_dir, outdir, scratchdir, margin, burst_id_list):
 
     # For each burst ID, get common bursts boundary and store it
     # as a shapefile to be used by gdalwarp (later for cutting)
-    for burst_id in list(set(metadata_dataframe['burst_id'])):
+    for burst_id in set(metadata_dataframe['burst_id']):
         # Get info on polygons, epsg, granule
         polys = metadata_dataframe.polygon[metadata_dataframe.burst_id == burst_id].tolist()
         epsgs = metadata_dataframe.epsg[metadata_dataframe.burst_id == burst_id].tolist()
@@ -281,7 +291,7 @@ def get_stitching_dict(burst_dir):
     '''
     # Create dictionary where to store results
     cfg = {'burst_id': [], 'granule_id': [], 'polygon': [],
-           'date': [], 'epsg': []}
+           'date': [], 'epsg': [], 'polarization': []}
     # Get list of directory under dir_list
     dir_list = os.listdir(burst_dir)
     for dir in dir_list:
@@ -293,9 +303,10 @@ def get_stitching_dict(burst_dir):
 
             # Read info and store in dictionary
             cfg['burst_id'].append(metadata_dict['burst_id'])
+            cfg['polarization'].append(metadata_dict['polarization'])
             datestr = metadata_dict['sensing_start']
             date = datetime.fromisoformat(datestr).strftime("%Y%m%d")
-            filename = f"{metadata_dict['burst_id']}_{date}_VV.slc"
+            filename = f"{metadata_dict['burst_id']}_{date}_{metadata_dict['polarization']}.slc"
             cfg['granule_id'].append(f'{burst_dir}/{dir}/{filename}')
             poly = metadata_dict['border']
             cfg['polygon'].append(shapely.wkt.loads(poly))
@@ -362,4 +373,5 @@ if __name__ == '__main__':
     opts = command_line_parser()
     # Give these arguments to the main code
     main(opts.burst_dir, opts.outdir,
-         opts.scratch, opts.margin, opts.burst_id_list)
+         opts.scratch, opts.margin, opts.burst_id_list,
+         opts.pol)

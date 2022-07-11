@@ -3,12 +3,12 @@ import glob
 import json
 import os
 import time
+from datetime import datetime
 
 import isce3
 import journal
 import pandas as pd
 import shapely.wkt
-from datetime import datetime
 from compass.utils import helpers
 from osgeo import gdal, ogr
 from shapely.geometry import Polygon

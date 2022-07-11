@@ -1,8 +1,8 @@
 #Command to build:
-#docker run --rm -it -v [workdir in localhost]:[workdir in the container] opera-adt/compass:latest /home/compass_user/scratch/runconfig_cslc_t64_iw2_b204_20220501.yaml
+#docker build -f ./Dockerfile -t [docker image name and tag] . 
 #
 #Command to execute:
-# docker run --rm -it -v $HOME/opera-adt/scratch/CSLC_IF_delivery:/home/compass_user/scratch opera-adt/compass:latest --help
+#docker run --rm -it -v [workdir in localhost]:[workdir in the container] [docker image name and tag] /home/compass_user/scratch/runconfig_cslc_t64_iw2_b204_20220501.yaml
 
 FROM ubuntu:22.04
 
@@ -53,4 +53,5 @@ RUN echo "Installing OPERA COMPASS" &&\
 
 WORKDIR /home/compass_user/scratch
 
+#for COMPASS 0.1.1
 ENTRYPOINT ["conda", "run", "-n", "COMPASS","s1_cslc.py"]

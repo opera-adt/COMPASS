@@ -86,31 +86,31 @@ def main(burst_dir, outdir, scratchdir, margin, burst_id_list):
 
     # Collect info for stitching in all dirs in 'burst_dir'
     # and return a panda dataframe with info
-    data_dict = get_stitching_dict(burst_dir)
+    metadata_dataframe = get_stitching_dict(burst_dir)
 
     # If stitching some bursts, prune dataframe to
     # contains only the burst IDs to stitch
     if burst_id_list is not None:
-        data_dict = prune_dataframe(data_dict,
+        metadata_dataframe = prune_dataframe(metadata_dataframe,
                                     'burst_id', burst_id_list)
 
     # Identify common burst IDs among different dates
-    ids2stitch = get_common_burst_ids(data_dict)
+    ids2stitch = get_common_burst_ids(metadata_dataframe)
 
     # Prune dataframe to contain only the IDs to stitch
-    data_dict = prune_dataframe(data_dict,
+    metadata_dataframe = prune_dataframe(metadata_dataframe,
                                 'burst_id', ids2stitch)
 
     # Track cut bursts by adding new column to dataframe
-    data_dict["cut_granule_id"] = ""
+    metadata_dataframe["cut_granule_id"] = ""
 
     # For each burst ID, get common bursts boundary and store it
     # as a shapefile to be used by gdalwarp (later for cutting)
-    for burst_id in list(set(data_dict['burst_id'])):
+    for burst_id in list(set(metadata_dataframe['burst_id'])):
         # Get info on polygons, epsg, granule
-        polys = data_dict.polygon[data_dict.burst_id == burst_id].tolist()
-        epsgs = data_dict.epsg[data_dict.burst_id == burst_id].tolist()
-        granules = data_dict.granule_id[data_dict.burst_id == burst_id].tolist()
+        polys = metadata_dataframe.polygon[metadata_dataframe.burst_id == burst_id].tolist()
+        epsgs = metadata_dataframe.epsg[metadata_dataframe.burst_id == burst_id].tolist()
+        granules = metadata_dataframe.granule_id[metadata_dataframe.burst_id == burst_id].tolist()
 
         # Get common burst boundary and save it as shapefile
         common_poly, epsg = intersect_polygons(polys, epsgs, margin)
@@ -133,13 +133,13 @@ def main(burst_dir, outdir, scratchdir, margin, burst_id_list):
                                     targetAlignedPixels=True)
             gdal.Warp(cut_filename, granule, options=opts)
             # Save location of cut burst IDs (later for stitching)
-            data_dict.loc[data_dict['granule_id'] == granule,
+            metadata_dataframe.loc[metadata_dataframe['granule_id'] == granule,
                           'cut_granule_id'] = cut_filename
 
     # Start stitching by date
-    unique_dates = list(set(data_dict['date']))
+    unique_dates = list(set(metadata_dataframe['date']))
     for date in unique_dates:
-        cut_rasters = data_dict.cut_granule_id[data_dict.date == date].tolist()
+        cut_rasters = metadata_dataframe.cut_granule_id[metadata_dataframe.date == date].tolist()
         xres, yres, epsg = get_raster_info(cut_rasters[0])
         outfilename = f'{outdir}/stitched_{date}'
         opts = gdal.WarpOptions(format='ENVI', xRes=xres,
@@ -151,7 +151,7 @@ def main(burst_dir, outdir, scratchdir, margin, burst_id_list):
         gdal.Warp(outfilename, cut_rasters, options=opts)
 
     # Save data dictionary to keep trace of what has been merged
-    data_dict.to_csv(f'{outdir}/merged_report.csv')
+    metadata_dataframe.to_csv(f'{outdir}/merged_report.csv')
 
     # Log elapsed time for stitching
     dt = time.time() - t_start

@@ -109,15 +109,16 @@ def compare_cslc_metadata(file_ref, file_sec):
         metadata_sec = json.load(f)
 
     # Intersect metadata keys
-    set_ref_minus_sec = set(metadata_ref.keys()) - set(metadata_sec.keys())
-    if len(set_ref_minus_sec) > 0:
-        print(f'Reference CSLC metadata has extra entries with keys:'
-              f'{", ".join(set_ref_minus_sec)}.')
-        return
-    set_sec_minus_ref = set(metadata_sec.keys()) - set(metadata_ref.keys())
-    if len(set_sec_minus_ref) > 0:
-        print(f'Secondary CSLC metadata has extra entries with keys:'
-              f'{", ".join(set_sec_minus_ref)}.')
+    set_ref_minus_sec = metadata_ref.keys() - metadata_sec.keys()
+    set_sec_minus_ref = metadata_sec.keys() - metadata_ref.keys()
+
+    err_str = "Metadata keys do not match.\n"
+    if set_ref_minus_sec:
+        err_str += f'Reference CSLC metadata extra entries: {set_ref_minus_sec}'
+    if set_sec_minus_ref:
+        err_str += f'Secondary CSLC metadata extra entries: {set_sec_minus_ref}'
+    # Check if metadata key differ
+    assert (not set_ref_minus_sec or not set_sec_minus_ref, err_str)
 
     # Check remaining metadatakeys
     for k_ref, v_ref in metadata_ref.items():

@@ -104,16 +104,9 @@ def compare_cslc_metadata(file_ref, file_sec):
     # Load metadata
     with open(file_ref, 'r') as f:
         metadata_ref = json.load(f)
-    metadata_keys_ref = set(metadata_ref)
 
     with open(file_sec, 'r') as f:
         metadata_sec = json.load(f)
-    metadata_keys_sec = set(metadata_sec)
-
-    print('Compare number of metadata keys')
-    if not len(metadata_keys_ref) == len(metadata_keys_sec):
-        print('ERROR different number of metadata keys')
-        return
 
     # Intersect metadata keys
     set_ref_minus_sec = set(metadata_ref.keys()) - set(metadata_sec.keys())

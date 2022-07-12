@@ -75,11 +75,14 @@ def compare_cslc_products(file_ref, file_sec):
 
     diff_real = slc_ref.real - slc_sec.real
     diff_imag = slc_ref.imag - slc_sec.image
+    length, width = diff_real.shape
 
     print('Check mean real part difference between CSLC products is < 1.0e-5')
-    assert np.nanmean(diff_real) < 1.0e-5
+    assert np.allclose(diff_real, np.zeros([length, width]),
+                       atol=0.0, rtol=1.0e-5, equal_nan=True)
     print('Check mean imaginary part difference between CSLC products is < 1.0e-5')
-    assert np.nanmean(diff_imag) < 1.0e-5
+    assert np.allclose(diff_imag, np.zeros([length, width]),
+                       atol=0.0, rtol=1.0e-5, equal_nan=True)
 
     return
 

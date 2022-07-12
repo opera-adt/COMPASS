@@ -1,8 +1,6 @@
-#Command to build:
-#docker build -f ./Dockerfile -t [docker image name and tag] . 
-#
-#Command to execute:
-#docker run --rm -it -v [workdir in localhost]:[workdir in the container] [docker image name and tag] /home/compass_user/scratch/runconfig_cslc_t64_iw2_b204_20220501.yaml
+##### General instruction: ######
+#docker build -f ./Dockerfile -t opera-adt/compass:latest . #To build the docker image
+#to run docker container in interactive mode: docker run -it --name COMPASS opera-adt/compass:latest /bin/bash
 
 FROM ubuntu:22.04
 

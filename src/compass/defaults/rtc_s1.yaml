@@ -36,7 +36,6 @@ runconfig:
               threshold: 1.0e-8
               numiter: 25
 
-
           dem_interpolation_method: biquintic
 
           # OPTIONAL - to control behavior of RTC module
@@ -72,6 +71,9 @@ runconfig:
 
               # OPTIONAL - Apply RTC
               apply_rtc: True
+
+              # Aplly thermal noise correction
+              apply_thermal_noise_correction: True
       
               # OPTIONAL - Choices: "single_block", "geogrid", "geogrid_and_radargrid", and "auto" (default)
               memory_mode:

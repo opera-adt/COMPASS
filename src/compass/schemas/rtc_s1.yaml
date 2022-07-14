@@ -86,6 +86,9 @@ geocoding_options:
     # Apply RTC
     apply_rtc: bool(required=False)
 
+    # Aplly thermal noise correction
+    apply_thermal_noise_correction: bool(required=False)
+
     # Memory mode
     memory_mode: enum('auto', 'single_block', 'geogrid', 'geogrid_and_radargrid', required=False)
 

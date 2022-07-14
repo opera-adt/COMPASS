@@ -11,6 +11,8 @@ from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.range_split_spectrum import range_split_spectrum
 from compass.utils.yaml_argparse import YamlArgparse
 
+from osgeo import osr,gdal
+from s1reader.s1_burst_slc import Sentinel1BurstSlc
 
 # TODO: remove PLAnT mosaicking and bands merging
 import plant
@@ -81,6 +83,45 @@ def _add_output_to_output_metadata_dict(flag, key, output_dir,
         [os.path.join(output_dir, f'rtc_product_{key}.tif'), output_image_list]
 
 
+
+def thermal_correction(burst_in: Sentinel1BurstSlc,
+                       path_slc_vrt: str,
+                       path_slc_out: str,
+                       flag_output_complex: bool = False):
+    '''Apply thermal correction stored in burst_in. Save the corrected signal back to ENVI format. Preserves the phase.'''
+
+    # Load the SLC of the burst
+    burst_in.slc_to_vrt_file(path_slc_vrt)
+    raster_slc_from = gdal.Open(path_slc_vrt)
+    arr_slc_from = raster_slc_from.ReadAsArray()
+
+    # Generate the correction layer
+    arr_noise = burst_in.burst_noise.export_lut()
+
+    # Apply the correction
+    corrected_image = np.abs(arr_slc_from) ** 2 - arr_noise
+    min_backscatter = 0
+    max_backscatter = None
+    corrected_image = np.clip(corrected_image, min_backscatter,
+                              max_backscatter)
+    if flag_output_complex:
+        factor_mag = np.sqrt(corrected_image) / np.abs(arr_slc_from)
+        factor_mag[np.isnan(factor_mag)] = 0.0
+        corrected_image = arr_slc_from * factor_mag
+        dtype = gdal.GDT_CFloat32
+    else:
+        dtype = gdal.GDT_Float32
+
+    # Save the corrected image
+    drvout = gdal.GetDriverByName('ENVI')
+    raster_out = drvout.Create(path_slc_out, burst_in.shape[1],
+                               burst_in.shape[0], 1, dtype)
+    band_out = raster_out.GetRasterBand(1)
+    band_out.WriteArray(corrected_image)
+    band_out.FlushCache()
+    del band_out
+
+
 def run(cfg):
     '''
     Run geocode burst workflow with user-defined
@@ -112,6 +153,8 @@ def run(cfg):
     geocode_algorithm = geocode_namespace.algorithm_type
     output_mode = geocode_namespace.output_mode
     flag_apply_rtc = geocode_namespace.apply_rtc
+    flag_apply_thermal_noise_correction = \
+        geocode_namespace.apply_thermal_noise_correction
     memory_mode = geocode_namespace.memory_mode
     geogrid_upsampling = geocode_namespace.geogrid_upsampling
     abs_cal_factor = geocode_namespace.abs_rad_cal
@@ -147,7 +190,7 @@ def run(cfg):
     zero_doppler = isce3.core.LUT2d()
     threshold = cfg.geo2rdr_params.threshold
     maxiter = cfg.geo2rdr_params.numiter
-    exponent = 2
+    exponent = 1 if flag_apply_thermal_noise_correction else 2
 
     # output mosaics
     geo_filename = f'{output_dir}/'f'rtc_product.tif'
@@ -203,9 +246,14 @@ def run(cfg):
             mosaic_geogrid_dict['lookside'] = radar_grid.lookside
 
         temp_slc_path = f'{scratch_path}/{burst_id}_{pol}_temp.vrt'
+        temp_slc_corrected_path=f'{scratch_path}/{burst_id}_{pol}_corrected_temp'
         burst.slc_to_vrt_file(temp_slc_path)
-        rdr_burst_raster = isce3.io.Raster(temp_slc_path)
-        temp_files_list.append(temp_slc_path)
+        if not flag_apply_thermal_noise_correction:
+            rdr_burst_raster = isce3.io.Raster(temp_slc_path)
+            temp_files_list.append(temp_slc_path)
+        else:
+            thermal_correction(burst,temp_slc_path,temp_slc_corrected_path)
+            rdr_burst_raster = isce3.io.Raster(temp_slc_corrected_path)
 
         # Generate output geocoded burst raster
         geo_burst_filename = (f'{scratch_path}/'

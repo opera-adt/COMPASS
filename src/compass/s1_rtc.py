@@ -468,18 +468,18 @@ def run(cfg):
     # mosaic other bands
     for key in output_metadata_dict.keys():
         output_file, input_files = output_metadata_dict[key]
-        info_channel.log(f'mosaicking file: {output_file} from {input_files}')
+        info_channel.log(f'mosaicking file: {output_file}')
         _mosaic(input_files, output_file)
         output_file_list.append(output_file)
 
-    info_channel.info('removing temporary files:')
+    info_channel.log('removing temporary files:')
     for filename in temp_files_list:
         if not os.path.isfile(filename):
             continue
         os.remove(filename)
-        info_channel.info(f'    {filename}')
+        info_channel.log(f'    {filename}')
 
-    info_channel.info('output files:')
+    info_channel.log('output files:')
     for filename in output_file_list:
         info_channel.log(f'    {filename}')
 

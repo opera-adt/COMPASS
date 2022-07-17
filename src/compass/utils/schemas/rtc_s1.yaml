@@ -101,8 +101,11 @@ geocoding_options:
     # Save the local-incidence angle
     save_projection_angle: bool(required=False)
 
-    # Save the local-incidence angle
+    # Save the simulated radar brightness
     save_simulated_radar_brightness: bool(required=False)
+
+    # Save the directional slope angle
+    save_directional_slope_angle: bool(required=False)
 
     # Save the number of looks used to generate the RTC product
     save_nlooks: bool(required=False)

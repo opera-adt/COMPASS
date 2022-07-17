@@ -91,6 +91,9 @@ runconfig:
               # Save the simulated radar brightness
               save_simulated_radar_brightness: False
 
+              # Save the directional slope angle
+              save_directional_slope_angle: False
+
               # Save the number of looks used to generate the RTC product
               save_nlooks: True
               

@@ -124,6 +124,8 @@ def run(cfg):
     flag_save_projection_angle = geocode_namespace.save_projection_angle
     flag_save_simulated_radar_brightness = \
         geocode_namespace.save_simulated_radar_brightness
+    flag_save_directional_slope_angle = \
+        geocode_namespace.save_directional_slope_angle
     flag_save_nlooks = geocode_namespace.save_nlooks
     flag_save_rtc = geocode_namespace.save_rtc
     flag_save_dem = geocode_namespace.save_dem
@@ -148,8 +150,7 @@ def run(cfg):
     exponent = 2
 
     # output mosaics
-    geo_filename = (f'{output_dir}/'
-                    f'rtc_product.tif')
+    geo_filename = f'{output_dir}/'f'rtc_product.tif'
     output_imagery_dict = {}
     output_metadata_dict = {}
 
@@ -163,6 +164,7 @@ def run(cfg):
     '''
 
     mosaic_geogrid_dict = {}
+    temp_files_list = []
 
     os.makedirs(output_dir, exist_ok=True)
     os.makedirs(scratch_path, exist_ok=True)
@@ -203,6 +205,7 @@ def run(cfg):
         temp_slc_path = f'{scratch_path}/{burst_id}_{pol}_temp.vrt'
         burst.slc_to_vrt_file(temp_slc_path)
         rdr_burst_raster = isce3.io.Raster(temp_slc_path)
+        temp_files_list.append(temp_slc_path)
 
         # Generate output geocoded burst raster
         geo_burst_filename = (f'{scratch_path}/'
@@ -213,6 +216,7 @@ def run(cfg):
             geogrid.width, geogrid.length,
             rdr_burst_raster.num_bands, gdal.GDT_Float32,
             cfg.geocoding_params.output_format)
+        temp_files_list.append(geo_burst_filename)
 
         # init Geocode object depending on raster type
         if rdr_burst_raster.datatype() == gdal.GDT_Float32:
@@ -249,6 +253,7 @@ def run(cfg):
                 temp_nlooks,
                 geogrid.width, geogrid.length, 1,
                 gdal.GDT_Float32, cfg.geocoding_params.output_format)
+            temp_files_list.append(temp_nlooks)
         else:
             temp_nlooks = None
             out_geo_nlooks_obj = None
@@ -260,6 +265,7 @@ def run(cfg):
                 temp_rtc,
                 geogrid.width, geogrid.length, 1,
                 gdal.GDT_Float32, cfg.geocoding_params.output_format)
+            temp_files_list.append(temp_rtc)
         else:
             temp_rtc = None
             out_geo_rtc_obj = None
@@ -352,7 +358,8 @@ def run(cfg):
     # create mosaic geogrid
     if (flag_save_incidence_angle or flag_save_local_inc_angle or
             flag_save_projection_angle or
-            flag_save_simulated_radar_brightness or flag_save_dem):
+            flag_save_simulated_radar_brightness or flag_save_dem or
+            flag_save_directional_slope_angle):
         mosaic_width = int(np.round((mosaic_geogrid_dict['xf'] -
                                      mosaic_geogrid_dict['x0']) /
                            mosaic_geogrid_dict['dx']))
@@ -383,6 +390,10 @@ def run(cfg):
             output_dir, 'simulated_radar_brightness', gdal.GDT_Float32, shape,
             output_file_list, output_obj_list,
             flag_save_simulated_radar_brightness)
+        directional_slope_angle_raster = _get_raster(
+            output_dir, 'directional_slope_angle', gdal.GDT_Float32, shape,
+            output_file_list, output_obj_list,
+            flag_save_directional_slope_angle)
         interpolated_dem_raster = _get_raster(
             output_dir, 'interpolated_dem', gdal.GDT_Float32, shape,
             output_file_list, output_obj_list, flag_save_dem)
@@ -410,8 +421,11 @@ def run(cfg):
                                         projection_angle_raster,
                                     simulated_radar_brightness_raster =
                                         simulated_radar_brightness_raster,
+                                    directional_slope_angle_raster =
+                                        directional_slope_angle_raster,
                                     interpolated_dem_raster =
-                                        interpolated_dem_raster)
+                                        interpolated_dem_raster,
+                                    dem_interp_method=dem_interp_method_enum)
         '''
                                      # epsg_los_and_along_track_vectors,
                                      # interpolated_dem_raster,
@@ -436,9 +450,8 @@ def run(cfg):
         # Flush data
         for obj in output_obj_list:
             del obj
-
-        for f in output_file_list:
-             info_channel.log(f'file saved: {f}')
+        for filename in output_file_list:
+            info_channel.log(f'file saved: {filename}')
 
     # mosaic sub-bursts
     mosaic_pol_list = []
@@ -450,13 +463,25 @@ def run(cfg):
         _mosaic(imagery_list, geo_pol_filename)
         mosaic_pol_list.append(geo_pol_filename)
     _merge_bands(mosaic_pol_list, geo_filename)
+    output_file_list.append(geo_filename)
 
     # mosaic other bands
     for key in output_metadata_dict.keys():
         output_file, input_files = output_metadata_dict[key]
         info_channel.log(f'mosaicking file: {output_file} from {input_files}')
-        
         _mosaic(input_files, output_file)
+        output_file_list.append(output_file)
+
+    info_channel.info('removing temporary files:')
+    for filename in temp_files_list:
+        if not os.path.isfile(filename):
+            continue
+        os.remove(filename)
+        info_channel.info(f'    {filename}')
+
+    info_channel.info('output files:')
+    for filename in output_file_list:
+        info_channel.log(f'    {filename}')
 
     t_end = time.time()
     info_channel.log(f'elapsed time: {t_end - t_start}')

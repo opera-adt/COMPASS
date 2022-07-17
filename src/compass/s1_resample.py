@@ -1,4 +1,7 @@
-"""Wrapper for resample burst"""
+#!/usr/bin/env python
+
+"""Wrapper for resample"""
+
 from datetime import timedelta
 import os
 import time
@@ -7,6 +10,7 @@ import isce3
 import journal
 from osgeo import gdal
 
+from compass.utils.helpers import get_module_name
 from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -18,10 +22,11 @@ def run(cfg: dict):
     Parameters
     ----------
     cfg: dict
-      Runconfig dictionary with user-defined options
+        Runconfig dictionary with user-defined options
     """
-    info_channel = journal.info("resample_burst.run")
-    info_channel.log("Starting resample burst")
+    module_name = get_module_name(__file__)
+    info_channel = journal.info(f"{module_name}.run")
+    info_channel.log(f"Starting {module_name} burst")
 
     # Tracking time elapsed for processing
     t_start = time.time()
@@ -52,7 +57,7 @@ def run(cfg: dict):
         ref_rdr_grid = cfg.reference_radar_info.grid
 
         # Extract date string and create directory
-        date_str = str(burst.sensing_start.date())
+        date_str = burst.sensing_start.strftime("%Y%m%d")
         burst_output_path = f'{top_output_path}/{date_str}'
         os.makedirs(burst_output_path, exist_ok=True)
 
@@ -63,7 +68,7 @@ def run(cfg: dict):
         rdr_grid = burst.as_isce3_radargrid()
 
         # Extract azimuth carrier polynomials
-        az_poly = burst.get_az_carrier_poly(index_as_coord=True)
+        az_poly = burst.get_az_carrier_poly()
 
         # Init resample SLC object
         resamp_obj = resamp(rdr_grid, burst.doppler.lut2d,
@@ -82,7 +87,7 @@ def run(cfg: dict):
         original_raster = isce3.io.Raster(sec_burst_path)
 
         # Prepare resamled SLC as raster object
-        coreg_burst_path = f'{burst_output_path}/{pol}.slc'
+        coreg_burst_path = f'{burst_output_path}/{burst_id}_{date_str}_{pol}.slc'
         resampled_raster = isce3.io.Raster(coreg_burst_path,
                                            rg_off_raster.width,
                                            rg_off_raster.length,
@@ -93,17 +98,17 @@ def run(cfg: dict):
                           rg_off_raster, az_off_raster,
                           flatten=cfg.resample_params.flatten)
 
-    dt = str(timedelta(seconds=time.time() - t_start))
-    info_channel.log(f"resample burst successfully ran in {dt} (hr:min:sec)")
+    dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
+    info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
 
 
 if __name__ == "__main__":
     """Run resample burst from command line"""
-    resample_parser = YamlArgparse()
+    parser = YamlArgparse()
 
     # Get a runconfig dict from command line arguments
-    resample_runconfig = RunConfig.load_from_yaml(
-        resample_parser.args.run_config_path, 'resample_burst')
+    cfg = RunConfig.load_from_yaml(parser.args.run_config_path,
+                                   workflow_name='s1_cslc_radar')
 
     # Run resample burst
-    run(resample_runconfig)
+    run(cfg)

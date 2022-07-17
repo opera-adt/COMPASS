@@ -1,4 +1,7 @@
-"""Wrapper for geo2rdr"""
+#!/usr/bin/env python
+
+'''wrapper for geo2rdr'''
+
 from datetime import timedelta
 import os
 import time
@@ -6,6 +9,7 @@ import time
 import isce3
 import journal
 
+from compass.utils.helpers import get_module_name
 from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -18,10 +22,11 @@ def run(cfg: dict):
     Parameters
     ----------
     cfg: dict
-      Dictionary with user-defined options
+        Dictionary with user-defined options
     """
-    info_channel = journal.info("geo2rdr.run")
-    info_channel.log('Starting geo2rdr')
+    module_name = get_module_name(__file__)
+    info_channel = journal.info(f"{module_name}.run")
+    info_channel.log(f'Starting {module_name} burst')
 
     # Tracking time elapsed for processing
     t_start = time.time()
@@ -54,7 +59,7 @@ def run(cfg: dict):
     for burst in cfg.bursts:
         # Extract date string and create directory
         burst_id = burst.burst_id
-        date_str = str(burst.sensing_start.date())
+        date_str = burst.sensing_start.strftime("%Y%m%d")
         id_date = (burst_id, date_str)
 
         # Create top output path
@@ -87,17 +92,17 @@ def run(cfg: dict):
         # Execute geo2rdr
         geo2rdr_obj.geo2rdr(topo_raster, burst_output_path)
 
-    dt = str(timedelta(seconds=time.time() - t_start))
-    info_channel.log(f"geo2rdr successfully ran in {dt} (hr:min:sec)")
+    dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
+    info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
 
 
 if __name__ == "__main__":
     """Run geo2rdr from command line"""
-    geo2rdr_parser = YamlArgparse()
+    parser = YamlArgparse()
 
     # Get a runconfig dict from command line arguments
-    geo2rdr_runconfig = RunConfig.load_from_yaml(
-        geo2rdr_parser.args.run_config_path, 'geo2rdr')
+    cfg = RunConfig.load_from_yaml(parser.args.run_config_path,
+                                   workflow_name='s1_cslc_radar')
 
     # Run geo2rdr
-    run(geo2rdr_runconfig)
+    run(cfg)

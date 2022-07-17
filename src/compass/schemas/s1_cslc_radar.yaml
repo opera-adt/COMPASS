@@ -43,7 +43,7 @@ reference_burst_options:
     # Required. Flag indicating reference burst.
     # If True, the input zip file is a reference date
     is_reference: bool()
-    # Path to directory of reference bursts(s) for coregistering secondary burst(s).
+    # Path to directory of reference burst(s) data for coregistering secondary burst(s).
     # Only used if the flag is_reference is set to False.
     file_path: str(required=False)
 

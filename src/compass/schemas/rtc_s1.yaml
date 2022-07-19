@@ -86,8 +86,11 @@ geocoding_options:
     # Apply RTC
     apply_rtc: bool(required=False)
 
-    # Aplly thermal noise correction
+    # Apply thermal noise correction
     apply_thermal_noise_correction: bool(required=False)
+
+    # Apply absolute radioemtric correction
+    apply_abs_rad_cal: bool(required=False)
 
     # Memory mode
     memory_mode: enum('auto', 'single_block', 'geogrid', 'geogrid_and_radargrid', required=False)
@@ -118,9 +121,6 @@ geocoding_options:
 
     # Save the interpolated DEM used to generate the RTC product
     save_dem: bool(required=False)
-
-    # Absolute radiometric correction factor
-    abs_rad_cal: num(required=False)
 
     # Clip values above threshold
     clip_max: num(required=False)

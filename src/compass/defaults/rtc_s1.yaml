@@ -72,8 +72,11 @@ runconfig:
               # OPTIONAL - Apply RTC
               apply_rtc: True
 
-              # Aplly thermal noise correction
+              # Apply thermal noise correction
               apply_thermal_noise_correction: True
+
+              # Apply absolute radioemtric correction
+              apply_abs_rad_cal: True
       
               # OPTIONAL - Choices: "single_block", "geogrid", "geogrid_and_radargrid", and "auto" (default)
               memory_mode:
@@ -104,9 +107,6 @@ runconfig:
 
               # Save the interpolated DEM used to generate the RTC product
               save_dem: False
-
-              # OPTIONAL - Absolute radiometric correction
-              abs_rad_cal: 1
 
               # OPTIONAL - Clip values above threshold
               clip_max:

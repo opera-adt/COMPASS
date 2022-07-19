@@ -87,7 +87,8 @@ def _add_output_to_output_metadata_dict(flag, key, output_dir,
 def thermal_correction(burst_in: Sentinel1BurstSlc,
                        path_slc_vrt: str,
                        path_slc_out: str,
-                       flag_output_complex: bool = False):
+                       flag_output_complex: bool = False,
+                       to_beta_naught=True):
     '''Apply thermal correction stored in burst_in. Save the corrected signal back to ENVI format. Preserves the phase.'''
 
     # Load the SLC of the burst
@@ -111,6 +112,8 @@ def thermal_correction(burst_in: Sentinel1BurstSlc,
         dtype = gdal.GDT_CFloat32
     else:
         dtype = gdal.GDT_Float32
+        if to_beta_naught:
+            corrected_image=corrected_image/burst_in.burst_calibration.beta_naught**2
 
     # Save the corrected image
     drvout = gdal.GetDriverByName('ENVI')
@@ -120,6 +123,56 @@ def thermal_correction(burst_in: Sentinel1BurstSlc,
     band_out.WriteArray(corrected_image)
     band_out.FlushCache()
     del band_out
+
+
+
+def correction_and_calibration(burst_in: Sentinel1BurstSlc,
+                               path_slc_vrt: str,
+                               path_slc_out: str,
+                               flag_output_complex: bool = False,
+                               flag_thermal_correction=True,
+                               to_beta_naught=True):
+    '''Apply thermal correction stored in burst_in. Save the corrected signal back to ENVI format. Preserves the phase.'''
+
+    # Load the SLC of the burst
+    burst_in.slc_to_vrt_file(path_slc_vrt)
+    raster_slc_from = gdal.Open(path_slc_vrt)
+    arr_slc_from = raster_slc_from.ReadAsArray()
+
+    # Generate the correction layer
+    arr_noise = burst_in.burst_noise.export_lut()
+
+    # Apply the correction
+    if flag_thermal_correction:
+        corrected_image = np.abs(arr_slc_from) ** 2 - arr_noise
+        min_backscatter = 0
+        max_backscatter = None
+        corrected_image = np.clip(corrected_image, min_backscatter,
+                                max_backscatter)
+    else:
+        corrected_image=np.abs(arr_slc_from) ** 2
+
+    if flag_output_complex:
+        factor_mag = np.sqrt(corrected_image) / np.abs(arr_slc_from)
+        factor_mag[np.isnan(factor_mag)] = 0.0
+        corrected_image = arr_slc_from * factor_mag
+        dtype = gdal.GDT_CFloat32
+    else:
+        dtype = gdal.GDT_Float32
+        if to_beta_naught:
+            corrected_image=corrected_image/burst_in.burst_calibration.beta_naught**2
+
+    # Save the corrected image
+    drvout = gdal.GetDriverByName('ENVI')
+    raster_out = drvout.Create(path_slc_out, burst_in.shape[1],
+                               burst_in.shape[0], 1, dtype)
+    band_out = raster_out.GetRasterBand(1)
+    band_out.WriteArray(corrected_image)
+    band_out.FlushCache()
+    del band_out
+
+
+
 
 
 def run(cfg):
@@ -133,6 +186,9 @@ def run(cfg):
         Dictionary with user runconfig options
     '''
     info_channel = journal.info("rtc.run")
+
+    #temp code
+    flag_to_beta_naught=True
 
     # Start tracking processing time
     t_start = time.time()
@@ -190,7 +246,7 @@ def run(cfg):
     zero_doppler = isce3.core.LUT2d()
     threshold = cfg.geo2rdr_params.threshold
     maxiter = cfg.geo2rdr_params.numiter
-    exponent = 1 if flag_apply_thermal_noise_correction else 2
+    exponent = 1 if (flag_apply_thermal_noise_correction or flag_to_beta_naught) else 2
 
     # output mosaics
     geo_filename = f'{output_dir}/'f'rtc_product.tif'
@@ -248,12 +304,24 @@ def run(cfg):
         temp_slc_path = f'{scratch_path}/{burst_id}_{pol}_temp.vrt'
         temp_slc_corrected_path=f'{scratch_path}/{burst_id}_{pol}_corrected_temp'
         burst.slc_to_vrt_file(temp_slc_path)
-        if not flag_apply_thermal_noise_correction:
+        
+        if flag_apply_thermal_noise_correction or flag_to_beta_naught:
+            correction_and_calibration(burst,temp_slc_path,temp_slc_corrected_path,
+                                   flag_output_complex=False,
+                                   flag_thermal_correction=flag_apply_thermal_noise_correction,
+                                   to_beta_naught=True)
+            rdr_burst_raster = isce3.io.Raster(temp_slc_corrected_path)
+        else:
             rdr_burst_raster = isce3.io.Raster(temp_slc_path)
             temp_files_list.append(temp_slc_path)
-        else:
-            thermal_correction(burst,temp_slc_path,temp_slc_corrected_path)
-            rdr_burst_raster = isce3.io.Raster(temp_slc_corrected_path)
+        
+        #if not flag_apply_thermal_noise_correction:
+        #    rdr_burst_raster = isce3.io.Raster(temp_slc_path)
+        #    temp_files_list.append(temp_slc_path)
+        #else:
+        #    thermal_correction(burst,temp_slc_path,temp_slc_corrected_path)
+        #    rdr_burst_raster = isce3.io.Raster(temp_slc_corrected_path)
+        
 
         # Generate output geocoded burst raster
         geo_burst_filename = (f'{scratch_path}/'

@@ -51,9 +51,12 @@ def run(cfg):
         date_str = burst.sensing_start.strftime("%Y%m%d")
         burst_id = burst.burst_id
         pol = burst.polarization
+        burst_id_pol = f"{burst_id}_{pol}"
         geo_grid = cfg.geogrids[burst_id]
 
-        os.makedirs(cfg.output_dir, exist_ok=True)
+        # Create top output path
+        burst_output_path = f'{cfg.output_dir}/{burst_id}/{date_str}'
+        os.makedirs(burst_output_path, exist_ok=True)
 
         scratch_path = f'{cfg.scratch_path}/{burst_id}/{date_str}'
         os.makedirs(scratch_path, exist_ok=True)
@@ -71,13 +74,13 @@ def run(cfg):
                                                     cfg.split_spectrum_params,
                                                     scratch_path)
         else:
-            temp_slc_path = f'{scratch_path}/{burst_id}_{pol}_temp.vrt'
+            temp_slc_path = f'{scratch_path}/{id_pol}_temp.vrt'
             burst.slc_to_vrt_file(temp_slc_path)
             rdr_burst_raster = isce3.io.Raster(temp_slc_path)
 
         # Generate output geocoded burst raster
         geo_burst_raster = isce3.io.Raster(
-            f'{cfg.output_dir}/{burst_id}_{date_str}_{pol}.slc',
+            f'{burst_output_path}/{id_pol}.slc',
             geo_grid.width, geo_grid.length,
             rdr_burst_raster.num_bands, gdal.GDT_CFloat32,
             cfg.geocoding_params.output_format)
@@ -108,7 +111,7 @@ def run(cfg):
 
     # Save burst metadata
     metadata = GeoCslcMetadata.from_georunconfig(cfg)
-    json_path = f'{cfg.output_dir}/{burst_id}_{date_str}_{pol}.json'
+    json_path = f'{burst_output_path}/{id_pol}.json'
     with open(json_path, 'w') as f_json:
         metadata.to_file(f_json, 'json')
 

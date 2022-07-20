@@ -206,7 +206,7 @@ def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
                 # include ALL bursts if no burst IDs given
                 # is burst_id wanted? skip if not given in config
                 if (cfg.input_file_group.burst_id is not None and
-                        burst_id != cfg.input_file_group.burst_id):
+                        burst_id not in cfg.input_file_group.burst_id):
                     continue
 
                 # get polarization and save as tuple with burst ID

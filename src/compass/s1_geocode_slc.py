@@ -51,7 +51,7 @@ def run(cfg):
         date_str = burst.sensing_start.strftime("%Y%m%d")
         burst_id = burst.burst_id
         pol = burst.polarization
-        burst_id_pol = f"{burst_id}_{pol}"
+        id_pol = f"{burst_id}_{pol}"
         geo_grid = cfg.geogrids[burst_id]
 
         # Create top output path

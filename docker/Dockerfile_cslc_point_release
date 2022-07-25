@@ -1,0 +1,55 @@
+##### General instruction: ######
+# docker build -f ./Dockerfile -t opera-adt/compass:latest . #To build the docker image
+# docker build -f ./Dockerfile_cslc_point_release -t opera/cslc_s1:interface_0.1 . #To build the docker image - USE THIS COMMAND FOR POINT RELEASE
+# to run docker container in interactive mode: docker run --entrypoint /bin/bash -it opera/cslc_s1:interface_0.1
+
+FROM ubuntu:22.04
+
+LABEL author="OPERA ADT" \
+      description="s1 cslc 0.1.2 point release" \
+      version="interface_0.1"
+
+RUN apt-get -y update &&\
+    apt-get -y install curl git zip &&\
+    adduser --disabled-password compass_user
+
+USER compass_user 
+
+COPY ./specifile.txt /home/compass_user/
+
+ENV CONDA_PREFIX=/home/compass_user/miniconda3
+
+WORKDIR /home/compass_user
+RUN curl -sSL https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -o miniconda.sh &&\
+    bash miniconda.sh -b -p ${CONDA_PREFIX} &&\
+    rm $HOME/miniconda.sh
+
+ENV PATH="${CONDA_PREFIX}/bin:${PATH}"
+RUN $CONDA_PREFIX/bin/conda init bash
+
+RUN conda create --name "COMPASS" --file specifile.txt && rm specifile.txt
+
+SHELL ["conda", "run", "-n", "COMPASS", "/bin/bash", "-c"]
+
+RUN echo "Installing COMPASS and OPERA s1-reader" &&\
+    mkdir -p $HOME/OPERA &&\
+    cd $HOME/OPERA &&\
+    curl -sSL https://github.com/opera-adt/s1-reader/archive/refs/tags/v0.1.2.tar.gz -o s1_reader_src.tar.gz &&\
+    tar -xvf s1_reader_src.tar.gz &&\
+    ln -s s1-reader-0.1.2 s1-reader &&\
+    python -m pip install ./s1-reader &&\
+    rm s1_reader_src.tar.gz &&\
+    curl -sSL https://github.com/opera-adt/COMPASS/archive/refs/tags/v0.1.2.tar.gz -o compass_src.tar.gz &&\
+    tar -xvf compass_src.tar.gz &&\
+    ln -s COMPASS-0.1.2 COMPASS &&\
+    python -m pip install ./COMPASS &&\
+    rm compass_src.tar.gz
+    
+WORKDIR /home/compass_user/scratch
+
+RUN echo "conda activate COMPASS" >> /home/compass_user/.bashrc &&\
+ chmod -R o+rx /home/compass_user &&\
+ chmod -R o+rwx /home/compass_user/scratch
+
+#for COMPASS IF delivery
+ENTRYPOINT ["conda", "run", "-n", "COMPASS","s1_cslc.py"]

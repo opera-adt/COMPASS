@@ -45,11 +45,11 @@ RUN echo "Installing COMPASS and OPERA s1-reader" &&\
     python -m pip install ./COMPASS &&\
     rm compass_src.tar.gz
     
-WORKDIR /home/compass_user/scratch
-
 RUN echo "conda activate COMPASS" >> /home/compass_user/.bashrc &&\
- chmod -R o+rx /home/compass_user &&\
+ chmod -R o+rx /home/compass_user && mkdir /home/compass_user/scratch &&\
  chmod -R o+rwx /home/compass_user/scratch
+
+WORKDIR /home/compass_user/scratch
 
 #for COMPASS IF delivery
 ENTRYPOINT ["conda", "run", "-n", "COMPASS","s1_cslc.py"]

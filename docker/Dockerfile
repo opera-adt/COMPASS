@@ -10,46 +10,42 @@ LABEL author="OPERA ADT" \
 
 RUN apt-get -y update &&\
     apt-get -y install curl git &&\
-    adduser --disabled-password compass_user
+    adduser --disabled-password compass_user &&\
+    mkdir -p /home/compass_user/OPERA/s1-reader &&\
+    mkdir -p /home/compass_user/OPERA/OPERA
+
+#COPY docker/specifile.txt /home/compass_user/
+COPY specifile.txt /home/compass_user/
+COPY s1-reader /home/compass_user/OPERA/s1-reader
+COPY COMPASS /home/compass_user/OPERA/COMPASS
+
+RUN chown -R compass_user:compass_user /home/compass_user/*
 
 USER compass_user 
 
-COPY docker/specifile.txt /home/compass_user/
-
-ENV CONDA_PREFIX=/home/compass_user/miniconda3
-
 WORKDIR /home/compass_user
+
+#Install miniconda
 RUN curl -sSL https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -o miniconda.sh &&\
     bash miniconda.sh -b -p ${CONDA_PREFIX} &&\
     rm $HOME/miniconda.sh
 
+ENV CONDA_PREFIX=/home/compass_user/miniconda3
 ENV PATH="${CONDA_PREFIX}/bin:${PATH}"
-RUN $CONDA_PREFIX/bin/conda init bash
 
-RUN conda create --name "COMPASS" --file specifile.txt
+RUN conda create --name "COMPASS" --file specifile.txt &&\
+    $CONDA_PREFIX/bin/conda init bash &&\
+    echo "conda activate COMPASS" >> /home/compass_user/.bashrc &&\
+    mkdir /home/compass_user/scratch &&\
+    chmod -R o+rwx /home/compass_user/scratch
 
-RUN echo "Installing OPERA s1-reader" &&\
-    mkdir -p $HOME/OPERA &&\
-    cd $HOME/OPERA &&\
-    curl -sSL https://github.com/opera-adt/s1-reader/archive/refs/tags/v0.1.0.tar.gz -o s1_reader_src.tar.gz &&\
-    tar -xvf s1_reader_src.tar.gz &&\
-    ln -s s1-reader-0.1.0 s1-reader &&\
-    rm s1_reader_src.tar.gz &&\
-    python -m pip install ./s1-reader
-
+WORKDIR /home/compass_user/OPERA
 SHELL ["conda", "run", "-n", "COMPASS", "/bin/bash", "-c"]
 
-COPY . /home/compass_user/OPERA/COMPASS
-
-USER root
-RUN chown -R compass_user:compass_user /home/compass_user/OPERA/COMPASS
-USER compass_user
-
-RUN echo "Installing OPERA COMPASS" &&\
+RUN python -m pip install ./s1-reader &&\
     cd $HOME/OPERA &&\
     python -m pip install ./COMPASS
 
 WORKDIR /home/compass_user/scratch
 
-#for COMPASS 0.1.1
 ENTRYPOINT ["conda", "run", "-n", "COMPASS","s1_cslc.py"]

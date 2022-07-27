@@ -10,7 +10,7 @@ jobs:
       - run:
           name: "Build COMPASS docker image"
           command: |
-            docker build . -f docker/Dockerfile
+            bash docker/build_docker_cslc.sh
 
 workflows:
   build-workflow:

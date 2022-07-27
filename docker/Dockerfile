@@ -16,8 +16,8 @@ RUN apt-get -y update &&\
 
 COPY docker/specifile.txt /home/compass_user/
 #COPY specifile.txt /home/compass_user/
-COPY s1-reader /home/compass_user/OPERA/s1-reader
-COPY COMPASS /home/compass_user/OPERA/COMPASS
+COPY docker/s1-reader /home/compass_user/OPERA/s1-reader
+COPY docker/COMPASS /home/compass_user/OPERA/COMPASS
 
 RUN chown -R compass_user:compass_user /home/compass_user/*
 

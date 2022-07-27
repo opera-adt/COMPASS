@@ -14,8 +14,8 @@ RUN apt-get -y update &&\
     mkdir -p /home/compass_user/OPERA/s1-reader &&\
     mkdir -p /home/compass_user/OPERA/OPERA
 
-#COPY docker/specifile.txt /home/compass_user/
-COPY specifile.txt /home/compass_user/
+COPY docker/specifile.txt /home/compass_user/
+#COPY specifile.txt /home/compass_user/
 COPY s1-reader /home/compass_user/OPERA/s1-reader
 COPY COMPASS /home/compass_user/OPERA/COMPASS
 

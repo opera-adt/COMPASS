@@ -10,10 +10,6 @@ runconfig:
            safe_file_path: list(str(), min=1)
            # Required. List of orbit (EOF) files
            orbit_file_path: list(str(), min=1)
-           # Required. Path to the burst data
-           burst_file_path: str(required=True)
-           # Required. Path to light metadata file
-           light_metadata_path: str(required=True)
            # Required. The unique burst ID to process
            burst_id: str(required=True)
 

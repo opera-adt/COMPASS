@@ -48,6 +48,9 @@ runconfig:
            resample:
                lines_per_block: 1000
                flatten: False
+           lut:
+               x_spacing: 500
+               y_spacing: 50
 
        worker:
            # OPTIONAL - To prevent downloading DEM / other data automatically. Default True

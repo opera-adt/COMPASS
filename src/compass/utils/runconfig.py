@@ -358,6 +358,10 @@ class RunConfig:
         return self.groups.processing.resample
 
     @property
+    def lut_params(self) -> dict:
+        return self.groups.processing.lut
+
+    @property
     def safe_files(self) -> list[str]:
         return self.groups.input_file_group.safe_file_path
 

@@ -14,6 +14,7 @@ from osgeo import gdal
 from compass.utils.geo_metadata import GeoCslcMetadata
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.helpers import get_module_name
+from compass.utils.lut import compute_lut
 from compass.utils.range_split_spectrum import range_split_spectrum
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -61,6 +62,11 @@ def run(cfg):
     radar_grid = burst.as_isce3_radargrid()
     native_doppler = burst.doppler.lut2d
     orbit = burst.orbit
+
+    # Get range and azimuth LUTs
+    rg_lut, az_lut = compute_lut(burst,
+                                 xstep=cfg.lut_params.x_spacing,
+                                 ystep=cfg.lut_params.y_spacing)
 
     # Get azimuth polynomial coefficients for this burst
     az_carrier_poly2d = burst.get_az_carrier_poly()

@@ -58,6 +58,11 @@ runconfig:
               low_band_bandwidth: 10000000
               # High-band bandwidth in Hz
               high_band_bandwidth: 10000000
+          lut:
+              # LUT spacing in x/slant range direction
+              x_spacing: 500
+              # LUT spacing in y/azimuth direction
+              y_spacing: 50
 
       worker:
           # Optional. To prevent downloading DEM or other data (default: False)

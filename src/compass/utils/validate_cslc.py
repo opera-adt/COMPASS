@@ -32,9 +32,9 @@ def compare_cslc_products(file_ref, file_sec):
 
     Parameters
     ----------
-    file1: str
+    file_ref: str
         File path to reference CSLC product (golden dataset)
-    file2: str
+    file_sec: str
         File path to generated CSLC product to use for comparison
     '''
 
@@ -86,6 +86,13 @@ def compare_cslc_products(file_ref, file_sec):
 def compare_cslc_metadata(file_ref, file_sec):
     '''
     Compare reference and generated CSLC metadata
+
+    Parameters
+    ----------
+    file_ref: str
+        File path to reference metadata file (golden dataset)
+    file_sec: str
+        File path to secondary metadata file to use for comparison
     '''
 
     # Check if metadata files exists
@@ -110,9 +117,9 @@ def compare_cslc_metadata(file_ref, file_sec):
 
     err_str = "Metadata keys do not match.\n"
     if set_ref_minus_sec:
-        err_str += f'Reference CSLC metadata extra entries: {set_ref_minus_sec}'
+        err_str += f'\nReference CSLC metadata extra entries: {set_ref_minus_sec}'
     if set_sec_minus_ref:
-        err_str += f'Secondary CSLC metadata extra entries: {set_sec_minus_ref}'
+        err_str += f'\nSecondary CSLC metadata extra entries: {set_sec_minus_ref}'
     # Check if metadata key differ
     assert (not set_ref_minus_sec or not set_sec_minus_ref, err_str)
 

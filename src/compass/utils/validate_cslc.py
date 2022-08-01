@@ -121,7 +121,7 @@ def compare_cslc_metadata(file_ref, file_sec):
     if set_sec_minus_ref:
         err_str += f'\nSecondary CSLC metadata extra entries: {set_sec_minus_ref}'
     # Check if metadata key differ
-    assert (not set_ref_minus_sec or not set_sec_minus_ref, err_str)
+    assert not set_ref_minus_sec or not set_sec_minus_ref, err_str
 
     # Check remaining metadatakeys
     for k_ref, v_ref in metadata_ref.items():

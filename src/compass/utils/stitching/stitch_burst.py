@@ -2,6 +2,7 @@ import argparse
 import glob
 import json
 import os
+import shutil
 import time
 from datetime import datetime
 
@@ -9,9 +10,10 @@ import isce3
 import journal
 import pandas as pd
 import shapely.wkt
-from compass.utils import helpers
 from osgeo import gdal, ogr
 from shapely.geometry import Polygon
+
+from compass.utils import helpers
 
 
 def command_line_parser():
@@ -21,15 +23,14 @@ def command_line_parser():
 
     parser = argparse.ArgumentParser(description="Stitch S1-A/B bursts for stack processing",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-d', '--burst-dir', type=str, action='store',
+    parser.add_argument('-d', '--burst-dir', type=str,
                         help='Directory with S1-A/B bursts organized by dates')
-    parser.add_argument('-b', '--burst-id-list', type=str, nargs='+',
-                        default=None, dest='burst_id_list',
+    parser.add_argument('-b', '--burst-id-list', type=str, nargs='+', default=None,
                         help='List of burst IDs to stitch. If None, common bursts '
                              'among all dates will be stitched.')
-    parser.add_argument('-p', '--pol', type=str, nargs='+', default='VV', dest='pol',
+    parser.add_argument('-p', '--pol', type=str, nargs='+', default='VV',
                         help='Polarization to process one or many between HH, HV, VH, VV')
-    parser.add_argument('-m', '--margin', type=float, default=100, dest='margin',
+    parser.add_argument('-m', '--margin', type=float, default=100,
                         help='Margin to apply during stitching. Same units as bursts coordinate system.')
     parser.add_argument('-s', '--scratchdir', type=str, default='scratch', dest='scratch',
                         help='Directory where to store temporary results.')
@@ -157,6 +158,8 @@ def main(burst_dir, outdir, scratchdir, margin, burst_id_list, pol):
     # Save data dictionary to keep trace of what has been merged
     metadata_dataframe.to_csv(f'{outdir}/merged_report.csv')
 
+    # Get rid of scratch directory
+    shutil.rmtree(scratchdir)
     # Log elapsed time for stitching
     dt = time.time() - t_start
     info_channel.log(f'Successfully run stitching in {dt:.3f} seconds')

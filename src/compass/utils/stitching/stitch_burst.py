@@ -146,7 +146,7 @@ def main(burst_dir, outdir, scratchdir, margin, burst_id_list, pol):
     for date in unique_dates:
         cut_rasters = metadata_dataframe.cut_granule_id[metadata_dataframe.date == date].tolist()
         xres, yres, epsg = get_raster_info(cut_rasters[0])
-        outfilename = f'{outdir}/stitched_{date}'
+        outfilename = f'{outdir}/stitched_{date}.slc'
         opts = gdal.WarpOptions(format='ENVI', xRes=xres,
                                 yRes=yres, dstNodata='nan',
                                 multithread=True, warpMemoryLimit=3000,

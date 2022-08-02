@@ -19,28 +19,22 @@ def command_line_parser():
     Command line parser
     """
 
-    parser = argparse.ArgumentParser(description="""
-                                     Stitch S1-A/B bursts for stack processing""",
+    parser = argparse.ArgumentParser(description="Stitch S1-A/B bursts for stack processing",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-d', '--burst-dir', type=str, action='store', dest='burst_dir',
+    parser.add_argument('-d', '--burst-dir', type=str, action='store',
                         help='Directory with S1-A/B bursts organized by dates')
     parser.add_argument('-b', '--burst-id-list', type=str, nargs='+',
                         default=None, dest='burst_id_list',
-                        help='List of burst IDs to stitch. If None, common bursts'
-                             'among all dates will be stitched (default: None')
+                        help='List of burst IDs to stitch. If None, common bursts '
+                             'among all dates will be stitched.')
     parser.add_argument('-p', '--pol', type=str, nargs='+', default='VV', dest='pol',
-                        help='Polarization to process one or many between HH, HV, VH, VV'
-                             '(default: VV)')
-    parser.add_argument('-m', '--margin', type=float,
-                        default=100, dest='margin',
-                        help='Margin to apply during stitching. Same units as bursts coordinate system.'
-                             '(default: 100 m, UTM)')
-    parser.add_argument('-s', '--scratchdir', type=str, default='scratch',
-                        dest='scratch',
-                        help='Directory where to store temporary results (default: scratch)')
+                        help='Polarization to process one or many between HH, HV, VH, VV')
+    parser.add_argument('-m', '--margin', type=float, default=100, dest='margin',
+                        help='Margin to apply during stitching. Same units as bursts coordinate system.')
+    parser.add_argument('-s', '--scratchdir', type=str, default='scratch', dest='scratch',
+                        help='Directory where to store temporary results.')
     parser.add_argument('-o', '--outdir', type=str, default='outdir',
-                        dest='outdir',
-                        help='Directory path where to store stitched bursts (default: outdir)')
+                        help='Directory path where to store stitched bursts.')
     return parser.parse_args()
 
 

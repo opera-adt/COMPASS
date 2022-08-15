@@ -1,6 +1,21 @@
+import os
 import pathlib
 import pytest
+import requests
 import types
+
+def download_if_needed(local_path):
+    # check if test inputs and reference files exists; download if not found.
+    if os.path.isfile(local_path):
+        return
+
+    dataset_url = 'https://zenodo.org/record/6954753/files/'
+    dst_dir, file_name = os.path.split(local_path)
+    print(dst_dir, file_name)
+    os.makedirs(dst_dir, exist_ok=True)
+    target_url = f'{dataset_url}/{file_name}'
+    with open(local_path, 'wb') as f:
+        f.write(requests.get(target_url).content)
 
 @pytest.fixture(scope="session")
 def test_paths():
@@ -28,8 +43,18 @@ def test_paths():
             replace('@BURST_ID@', b_id)
         f_cfg.write(cfg)
 
-    # output and reference geocoded SLC paths
+    # output geocoded SLC paths
     test_paths.test_gslc = f'{out_path}/{b_id}/{b_date}/{b_id}_{b_date}_VV.slc'
-    test_paths.ref_gslc = f'{test_path}/data/reference/ref_compass_gslc.slc'
+
+    # reference geocoded SLC paths
+    test_paths.ref_gslc = f'{test_data_path}/reference/ref_compass_gslc.slc'
+
+    # check for files and download as needed
+    test_files = ['S1A_IW_SLC__1SSV_20200511T135117_20200511T135144_032518_03C421_7768.zip',
+                  'orbits/S1A_OPER_AUX_POEORB_OPOD_20210318T120818_V20200510T225942_20200512T005942.EOF',
+                  'test_dem.tiff', 'reference/ref_compass_gslc.hdr',
+                  'reference/ref_compass_gslc.slc']
+    for test_file in test_files:
+        download_if_needed(f'{test_data_path}/{test_file}')
 
     return test_paths

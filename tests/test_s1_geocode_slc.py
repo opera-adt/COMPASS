@@ -30,9 +30,3 @@ def test_geocode_slc_validate(test_paths):
     ref_arr = gdal_get_arr(test_paths.ref_gslc)
 
     npt.assert_array_equal(test_arr, ref_arr)
-
-'''
-if __name__ == "__main__":
-    #test_geocode_slc_run()
-    #test_geocode_slc_validate()
-'''

@@ -50,11 +50,15 @@ def compare_cslc_products(file_ref, file_sec):
     # Extract some info from reference/secondary CSLC products
     dataset_ref = gdal.Open(file_ref, gdal.GA_ReadOnly)
     geotransform_ref = dataset_ref.GetGeoTransform()
+    ref_proj = dataset_ref.GetProjection()
     nbands_ref = dataset_ref.RasterCount
+
 
     dataset_sec = gdal.Open(file_sec, gdal.GA_ReadOnly)
     geotransform_sec = dataset_sec.GetGeoTransform()
+    sec_proj = dataset_sec.GetProjection()
     nbands_sec = dataset_sec.RasterCount
+    
 
     # Compare number of bands
     print('Comparing CSLC number of bands ...')
@@ -62,6 +66,11 @@ def compare_cslc_products(file_ref, file_sec):
         print(f'ERROR Number of bands in reference CSLC {nbands_ref} differs'
               f'from number of bands {nbands_sec} in secondary CSLC')
         return
+
+    print('Comparing CSLC projection ...')
+    if not ref_proj == sec_proj:
+        print(f'ERROR projection in reference CSLC {ref_proj} differs'
+              f'from projection in secondary CSLC {sec_proj}')
 
     print('Comparing geo transform arrays ...')
     if not np.array_equal(geotransform_ref, geotransform_sec):

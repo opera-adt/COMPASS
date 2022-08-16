@@ -94,24 +94,27 @@ def run(cfg):
                               lines_per_block=rdr2geo_cfg.lines_per_block)
 
         # prepare output rasters
-        topo_output = {'x':(rdr2geo_cfg.compute_longitude, gdal.GDT_Float64),
-                       'y':(rdr2geo_cfg.compute_latitude, gdal.GDT_Float64),
-                       'z':(rdr2geo_cfg.compute_height, gdal.GDT_Float64),
-                       'layoverShadowMask':(cfg.rdr2geo_params.compute_layover_shadow_mask,
-                                            gdal.GDT_Byte),
+        topo_output = {'x': (rdr2geo_cfg.compute_longitude, gdal.GDT_Float64),
+                       'y': (rdr2geo_cfg.compute_latitude, gdal.GDT_Float64),
+                       'z': (rdr2geo_cfg.compute_height, gdal.GDT_Float64),
+                       'layoverShadowMask': (
+                       cfg.rdr2geo_params.compute_layover_shadow_mask,
+                       gdal.GDT_Byte),
                        'incidence': (rdr2geo_cfg.compute_incidence_angle,
                                      gdal.GDT_Float32),
-                       'localIncidence': (rdr2geo_cfg.compute_local_incidence_angle,
-                                          gdal.GDT_Float32),
-                       'localPsi': (rdr2geo_cfg.compute_azimuth_angle, gdal.GDT_Float32)}
+                       'localIncidence': (
+                       rdr2geo_cfg.compute_local_incidence_angle,
+                       gdal.GDT_Float32),
+                       'localPsi': (
+                       rdr2geo_cfg.compute_azimuth_angle, gdal.GDT_Float32)}
         raster_list = [
             isce3.io.Raster(f'{output_path}/{fname}.rdr', rdr_grid.width,
                             rdr_grid.length, 1, dtype, 'ENVI')
             if enabled else None
             for fname, (enabled, dtype) in topo_output.items()]
 
-        x_raster, y_raster, z_raster, layover_shadow_raster,\
-        incident_angle_raster, local_incident_angle_raster,\
+        x_raster, y_raster, z_raster, layover_shadow_raster, \
+        incident_angle_raster, local_incident_angle_raster, \
         azimuth_angle_raster = raster_list
 
         # run rdr2geo
@@ -130,7 +133,8 @@ def run(cfg):
         output_vrt.set_epsg(rdr2geo_obj.epsg_out)
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
-    info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
+    info_channel.log(
+        f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
 
 
 if __name__ == "__main__":

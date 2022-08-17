@@ -11,6 +11,7 @@ import journal
 import numpy as np
 from osgeo import gdal
 
+from compass import s1_rdr2geo
 from compass.utils.geo_metadata import GeoCslcMetadata
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.helpers import get_module_name
@@ -65,6 +66,9 @@ def run(cfg):
 
     # Get azimuth polynomial coefficients for this burst
     az_carrier_poly2d = burst.get_az_carrier_poly()
+
+    # Generate required topo layers
+    s1_rdr2geo.run(cfg)
 
     # Split the range bandwidth of the burst, if required
     if cfg.split_spectrum_params.enabled:

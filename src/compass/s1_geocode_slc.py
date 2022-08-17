@@ -68,7 +68,7 @@ def run(cfg):
     az_carrier_poly2d = burst.get_az_carrier_poly()
 
     # Generate required topo layers
-    s1_rdr2geo.run(cfg)
+    s1_rdr2geo.run(cfg, save_in_scratch=True)
 
     # Split the range bandwidth of the burst, if required
     if cfg.split_spectrum_params.enabled:

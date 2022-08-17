@@ -16,13 +16,15 @@ from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
 
 
-def run(cfg):
+def run(cfg, save_in_scratch=False):
     '''run rdr2geo with provided runconfig
 
     Parameters
     ----------
     cfg: dict
         Runconfig dictionary with user-defined options
+    save_in_scratch: bool
+        Flag to save output in scratch dir instead of product dir
     '''
     module_name = get_module_name(__file__)
     info_channel = journal.info(f"{module_name}.run")
@@ -63,6 +65,8 @@ def run(cfg):
 
         # init output directory in product_path
         output_path = f'{cfg.product_path}/{burst_id}/{date_str}'
+        if save_in_scratch:
+            output_path = f'{cfg.scratch_path}/{burst_id}/{date_str}'
         os.makedirs(output_path, exist_ok=True)
 
         # save SLC to ENVI for all bursts

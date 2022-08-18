@@ -11,8 +11,8 @@ def cmd_line_parser():
     Command line parser
     """
 
-    parser = argparse.ArgumentParser(description="""
-                                     Validate reference and generated (secondary) S1 CSLC products""",
+    parser = argparse.ArgumentParser(description="""Validate
+                                     reference and generated (secondary) S1 CSLC products""",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-r', '--ref-product', type=str, dest='ref_product',
                         help='Reference CSLC product (i.e., golden dataset)')
@@ -52,7 +52,6 @@ def compare_cslc_products(file_ref, file_sec):
     geotransform_ref = dataset_ref.GetGeoTransform()
     ref_proj = dataset_ref.GetProjection()
     nbands_ref = dataset_ref.RasterCount
-
 
     dataset_sec = gdal.Open(file_sec, gdal.GA_ReadOnly)
     geotransform_sec = dataset_sec.GetGeoTransform()

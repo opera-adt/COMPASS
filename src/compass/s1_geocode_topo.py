@@ -13,6 +13,7 @@ import numpy as np
 from osgeo import gdal
 from compass.utils.runconfig import RunConfig
 from compass.utils.helpers import get_module_name
+from compass.utils.yaml_argparse import YamlArgparse
 
 
 def run(cfg, fetch_from_scratch=False):

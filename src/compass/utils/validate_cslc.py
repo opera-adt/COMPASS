@@ -58,7 +58,6 @@ def compare_cslc_products(file_ref, file_sec):
     geotransform_sec = dataset_sec.GetGeoTransform()
     sec_proj = dataset_sec.GetProjection()
     nbands_sec = dataset_sec.RasterCount
-    
 
     # Compare number of bands
     print('Comparing CSLC number of bands ...')

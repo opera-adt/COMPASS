@@ -8,7 +8,6 @@ import time
 
 import isce3
 import journal
-import numpy as np
 
 from osgeo import gdal
 from compass.utils.runconfig import RunConfig
@@ -87,21 +86,14 @@ def run(cfg, fetch_from_scratch=False):
                    'incidence': cfg.rdr2geo_params.compute_incidence_angle,
                    'localIncidence': cfg.rdr2geo_params.compute_local_incidence_angle,
                    'localPsi': cfg.rdr2geo_params.compute_azimuth_angle}
-
     input_rasters = [
         isce3.io.Raster(f'{input_path}/{fname}.rdr')
-        if enabled else None
-        for fname, enabled in topo_layers.items()]
+        for fname, enabled in topo_layers.items() if enabled]
     output_rasters = [
         isce3.io.Raster(f'{output_path}/{fname}.geo',
                         geo_grid.width, geo_grid.length, 1, gdal.GDT_Float32,
                         output_format)
-        if enabled else None
-        for fname, enabled in topo_layers.items()
-    ]
-    # Filter None from list
-    input_rasters = [raster for raster in input_rasters if raster is not None]
-    output_rasters = [raster for raster in output_rasters if raster is not None]
+        for fname, enabled in topo_layers.items() if enabled]
 
     # Geocode list of products
     geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,

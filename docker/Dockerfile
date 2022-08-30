@@ -1,7 +1,3 @@
-##### General instruction: ######
-#docker build -f ./Dockerfile -t opera-adt/compass:latest . #To build the docker image
-#to run docker container in interactive mode: docker run -it --name COMPASS opera-adt/compass:latest /bin/bash
-
 FROM ubuntu:22.04
 
 LABEL author="OPERA ADT" \

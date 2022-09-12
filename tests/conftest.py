@@ -4,10 +4,14 @@ import pytest
 import requests
 import types
 
+from s1reader.s1_orbit import check_internet_connection
+
 def download_if_needed(local_path):
     # check if test inputs and reference files exists; download if not found.
     if os.path.isfile(local_path):
         return
+
+    check_internet_connection()
 
     dataset_url = 'https://zenodo.org/record/6954753/files/'
     dst_dir, file_name = os.path.split(local_path)
@@ -21,7 +25,7 @@ def download_if_needed(local_path):
 def test_paths():
     test_paths = types.SimpleNamespace()
 
-    b_id = 't71_151200_iw1'
+    burst_id = 't71_151200_iw1'
     b_date = '20200511'
 
     # get test working directory
@@ -40,11 +44,11 @@ def test_paths():
             open(test_paths.gslc_cfg_path, 'w') as f_cfg:
         cfg = f_template.read().replace('@TEST_PATH@', str(test_path)).\
             replace('@DATA_PATH@', test_data_path).\
-            replace('@BURST_ID@', b_id)
+            replace('@BURST_ID@', burst_id)
         f_cfg.write(cfg)
 
     # output geocoded SLC paths
-    test_paths.test_gslc = f'{out_path}/{b_id}/{b_date}/{b_id}_{b_date}_VV.slc'
+    test_paths.test_gslc = f'{out_path}/{burst_id}/{b_date}/{burst_id}_{b_date}_VV.slc'
 
     # reference geocoded SLC paths
     test_paths.ref_gslc = f'{test_data_path}/reference/ref_compass_gslc.slc'

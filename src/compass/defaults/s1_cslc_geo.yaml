@@ -55,9 +55,9 @@ runconfig:
               enabled: False
               lines_per_block: 1000
               # Low-band bandwidth in Hz
-              low_band_bandwidth: 10000000
+              low_band_bandwidth: 1e6
               # High-band bandwidth in Hz
-              high_band_bandwidth: 10000000
+              high_band_bandwidth: 1e6
           rdr2geo:
               # Convergence threshold for rdr2geo algorithm
               threshold: 1.0e-8

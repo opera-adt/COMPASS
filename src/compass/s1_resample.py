@@ -11,7 +11,6 @@ import journal
 from osgeo import gdal
 
 from compass.utils.helpers import get_module_name
-from compass.utils.lut import compute_lut
 from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -67,11 +66,6 @@ def run(cfg: dict):
 
         # Get radar grid
         rdr_grid = burst.as_isce3_radargrid()
-
-        # Compute model-based LUTs in slant range and azimuth
-        rg_lut, az_lut = compute_lut(burst,
-                                     xstep=cfg.lut_params.x_spacing,
-                                     ystep=cfg.lut_params.y_spacing)
 
         # Extract azimuth carrier polynomials
         az_poly = burst.get_az_carrier_poly()

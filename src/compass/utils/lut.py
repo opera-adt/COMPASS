@@ -11,6 +11,13 @@ def compute_lut(burst, xstep=500, ystep=50):
         LUT spacing (in pixels) along x/slant range
     ystep: int
         LUT spacing (in pixels) along x/azimuth
+
+    Returns
+    -------
+    rg_lut: ndarray
+        2D array containing sum of range corrections
+    az_lut: ndarray
+        2D array containg sum of azimuth corrections
     '''
 
     az_bistatic = burst.bistatic_delay(xstep=xstep, ystep=ystep)

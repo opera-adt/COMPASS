@@ -65,9 +65,9 @@ def run(cfg):
     orbit = burst.orbit
 
     # Get range and azimuth LUTs
-    rg_lut, az_lut = compute_lut(burst,
-                                 xstep=cfg.lut_params.x_spacing,
-                                 ystep=cfg.lut_params.y_spacing)
+    rg_lut, az_lut = compute_geocoding_correction_luts(burst,
+                                                       xstep=cfg.lut_params.x_spacing,
+                                                       ystep=cfg.lut_params.y_spacing)
 
     # Get azimuth polynomial coefficients for this burst
     az_carrier_poly2d = burst.get_az_carrier_poly()

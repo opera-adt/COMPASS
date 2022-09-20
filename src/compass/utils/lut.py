@@ -1,4 +1,4 @@
-def compute_lut(burst, xstep=500, ystep=50):
+def compute_geocoding_correction_luts(burst, xstep=500, ystep=50):
     '''
     Compute slant range and azimuth LUTs corrections
     to be applied during burst geocoding
@@ -8,9 +8,9 @@ def compute_lut(burst, xstep=500, ystep=50):
     burst: Sentinel1BurstSlc
         S1-A/B burst object
     xstep: int
-        LUT spacing (in pixels) along x/slant range
+        LUT spacing (in pixels) along x/slant range in meters
     ystep: int
-        LUT spacing (in pixels) along x/azimuth
+        LUT spacing (in pixels) along x/azimuth in seconds
 
     Returns
     -------

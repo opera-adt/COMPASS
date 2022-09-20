@@ -46,6 +46,7 @@ def run(cfg):
     iters = cfg.geo2rdr_params.numiter
     blocksize = cfg.geo2rdr_params.lines_per_block
     flatten = cfg.geocoding_params.flatten
+    output_epsg = cfg.geocoding_params.output_epsg
 
     # process one burst only
     burst = cfg.bursts[0]
@@ -109,7 +110,7 @@ def run(cfg):
     geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,
                     geo_grid.start_y, 0, geo_grid.spacing_y]
     geo_burst_raster.set_geotransform(geotransform)
-    geo_burst_raster.set_epsg(epsg)
+    geo_burst_raster.set_epsg(output_epsg)
     del geo_burst_raster
 
     # Save burst metadata

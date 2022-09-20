@@ -108,7 +108,7 @@ class GeoRunConfig(RunConfig):
 
     @property
     def lut_params(self) -> dict:
-        return self.groups.processing.lut
+        return self.groups.processing.correction_luts
 
     @property
     def output_dir(self) -> str:

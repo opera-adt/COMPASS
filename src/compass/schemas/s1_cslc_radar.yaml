@@ -100,4 +100,4 @@ processing_options:
    # Options to run resample
    resample: include('resample_options', required=False)
    # Options to compute model-based LUTs
-   lut: include('lut_options', required=False)
+   correction_luts: include('lut_options', required=False)

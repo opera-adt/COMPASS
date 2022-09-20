@@ -58,10 +58,10 @@ runconfig:
               low_band_bandwidth: 10000000
               # High-band bandwidth in Hz
               high_band_bandwidth: 10000000
-          lut:
-              # LUT spacing in x/slant range direction
+          correction_luts:
+              # LUT spacing in x/slant range direction in meters
               x_spacing: 500
-              # LUT spacing in y/azimuth direction
+              # LUT spacing in y/azimuth direction in seconds
               y_spacing: 50
 
       worker:

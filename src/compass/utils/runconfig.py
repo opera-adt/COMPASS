@@ -359,7 +359,7 @@ class RunConfig:
 
     @property
     def lut_params(self) -> dict:
-        return self.groups.processing.lut
+        return self.groups.processing.correction_luts
 
     @property
     def safe_files(self) -> list[str]:

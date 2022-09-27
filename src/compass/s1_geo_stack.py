@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import argparse
 import cgi
 import datetime
@@ -13,7 +14,7 @@ import numpy as np
 import pandas as pd
 import requests
 import yaml
-from s1reader.s1_orbit import get_orbit_file_from_list
+from s1reader.s1_orbit import get_orbit_file_from_dir
 from s1reader.s1_reader import load_bursts
 
 from compass.utils import helpers
@@ -234,8 +235,7 @@ def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=4326):
     i_subswath = [1, 2, 3]
 
     for zip_file in zip_files:
-        orbit_path = get_orbit_file_from_list(zip_file,
-                                              glob.glob(f'{orbit_dir}/S1*'))
+        orbit_path = get_orbit_file_from_dir(zip_file, orbit_dir, auto_download=True)
 
         for subswath in i_subswath:
             ref_bursts = load_bursts(zip_file, orbit_path, subswath)
@@ -501,8 +501,8 @@ def main(slc_dir, dem_file, burst_id, start_date=None, end_date=None,
             download_orbit(orbit_dir, orbit_dict['orbit_url'])
 
     # Generate burst map and prune it if a list of burst ID is provided
-    zip_file = sorted(glob.glob(f'{slc_dir}/S1*zip'))
-    burst_map = generate_burst_map(zip_file, orbit_dir, x_spac, y_spac, epsg)
+    zip_file_list = sorted(glob.glob(f'{slc_dir}/S1*zip'))
+    burst_map = generate_burst_map(zip_file_list, orbit_dir, x_spac, y_spac, epsg)
 
     # Identify burst IDs common across the stack and remove from the dataframe
     # burst IDs that are not in common
@@ -524,10 +524,10 @@ def main(slc_dir, dem_file, burst_id, start_date=None, end_date=None,
         burst_map = prune_dataframe(burst_map, 'date', exclude_dates)
 
     # Ready to geocode bursts
-    for safe in zip_file:
+    for safe in zip_file_list:
+        orbit_path = get_orbit_file_from_dir(safe, orbit_dir, auto_download=True)
+
         i_subswath = [1, 2, 3]
-        orbit_path = get_orbit_file_from_list(safe,
-                                              glob.glob(f'{orbit_dir}/S1*'))
         for subswath in i_subswath:
             bursts = load_bursts(safe, orbit_path, subswath)
             for burst in bursts:

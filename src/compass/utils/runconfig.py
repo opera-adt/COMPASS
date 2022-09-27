@@ -13,7 +13,7 @@ from compass.utils import helpers
 from compass.utils.radar_grid import file_to_rdr_grid
 from compass.utils.wrap_namespace import wrap_namespace, unwrap_to_dict
 from s1reader.s1_burst_slc import Sentinel1BurstSlc
-from s1reader.s1_orbit import get_orbit_file_from_list
+from s1reader.s1_orbit import get_orbit_file_from_dir
 from s1reader.s1_reader import load_bursts
 
 
@@ -140,7 +140,7 @@ def validate_group_dict(group_cfg: dict, workflow_name) -> None:
     helpers.check_write_dir(product_path_group['sas_output_file'])
 
 
-def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
+def runconfig_to_bursts(cfg: SimpleNamespace, auto_download: bool = False) -> list[Sentinel1BurstSlc]:
     '''Return bursts based on parameters in given runconfig
 
     Parameters
@@ -161,9 +161,13 @@ def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
     # extract given SAFE zips to find bursts identified in cfg.burst_id
     for safe_file in cfg.input_file_group.safe_file_path:
         # get orbit file
-        orbit_path = get_orbit_file_from_list(
-            safe_file,
-            cfg.input_file_group.orbit_file_path)
+        # orbit_path = get_orbit_file_from_dir(
+        #     safe_file,
+        #     cfg.input_file_group.orbit_file_path,
+        #     auto_download=auto_download
+        # )
+        # TODO: why do we need a list for "orbit_file_path"?
+        orbit_path = cfg.input_file_group.orbit_file_path[0]
 
         if not orbit_path:
             err_str = f"No orbit file correlates to safe file: {os.path.basename(safe_file)}"

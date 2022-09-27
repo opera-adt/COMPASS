@@ -23,17 +23,22 @@ def command_line_parser():
 
     parser = argparse.ArgumentParser(description="Stitch S1-A/B bursts for stack processing",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-d', '--burst-dir', type=str,
-                        help='Directory with S1-A/B bursts organized by dates')
-    parser.add_argument('-b', '--burst-id-list', type=str, nargs='+', default=None,
-                        help='List of burst IDs to stitch. If None, common bursts '
-                             'among all dates will be stitched.')
-    parser.add_argument('-p', '--pol', type=str, nargs='+', default='VV',
-                        help='Polarization to process one or many between HH, HV, VH, VV')
-    parser.add_argument('-m', '--margin', type=float, default=100,
-                        help='Margin to apply during stitching. Same units as bursts coordinate system.')
-    parser.add_argument('-s', '--scratchdir', type=str, default='scratch', dest='scratch',
-                        help='Directory where to store temporary results.')
+    parser.add_argument('-d', '--burst-dir', type=str, action='store', dest='burst_dir',
+                        help='Directory with S1-A/B bursts organized by burst ID')
+    parser.add_argument('-b', '--burst-id-list', type=str, nargs='+',
+                        default=None, dest='burst_id_list',
+                        help='List of burst IDs to stitch. If None, common bursts'
+                             'among all dates will be stitched (default: None')
+    parser.add_argument('-p', '--pol', type=str, nargs='+', default='VV', dest='pol',
+                        help='Polarization to process one or many between HH, HV, VH, VV'
+                             '(default: VV)')
+    parser.add_argument('-m', '--margin', type=float,
+                        default=100, dest='margin',
+                        help='Margin to apply during stitching. Same units as bursts coordinate system.'
+                             '(default: 100 m, UTM)')
+    parser.add_argument('-s', '--scratchdir', type=str, default='scratch',
+                        dest='scratch',
+                        help='Directory where to store temporary results (default: scratch)')
     parser.add_argument('-o', '--outdir', type=str, default='outdir',
                         help='Directory path where to store stitched bursts.')
     return parser.parse_args()
@@ -293,23 +298,23 @@ def get_stitching_dict(burst_dir):
     dir_list = os.listdir(burst_dir)
     for dir in dir_list:
         # List metadata files in the directory
-        json_meta_list = sorted(glob.glob(f'{burst_dir}/{dir}/*json'))
+        json_meta_list = sorted(glob.glob(f'{burst_dir}/{dir}/*/*json'))
         for json_path in json_meta_list:
-            with open(json_path) as json_file:
+             with open(json_path) as json_file:
                 metadata_dict = json.load(json_file)
 
-            # Read info and store in dictionary
-            cfg['burst_id'].append(metadata_dict['burst_id'])
-            cfg['polarization'].append(metadata_dict['polarization'])
-            datestr = metadata_dict['sensing_start']
-            date = datetime.fromisoformat(datestr).strftime("%Y%m%d")
-            filename = f"{metadata_dict['burst_id']}_{date}_{metadata_dict['polarization']}.slc"
-            cfg['granule_id'].append(f'{burst_dir}/{dir}/{filename}')
-            poly = metadata_dict['border']
-            cfg['polygon'].append(shapely.wkt.loads(poly))
-            cfg['date'].append(date)
-            geogrid = metadata_dict['geogrid']
-            cfg['epsg'].append(geogrid['epsg'])
+              # Read info and store in dictionary
+             cfg['burst_id'].append(metadata_dict['burst_id'])
+             cfg['polarization'].append(metadata_dict['polarization'])
+             datestr = metadata_dict['sensing_start']
+             date = datetime.fromisoformat(datestr).strftime("%Y%m%d")
+             filename = f"{metadata_dict['burst_id']}_{date}_{metadata_dict['polarization']}.slc"
+             cfg['granule_id'].append(f'{burst_dir}/{dir}/{date}/{filename}')
+             poly = metadata_dict['border']
+             cfg['polygon'].append(shapely.wkt.loads(poly))
+             cfg['date'].append(date)
+             geogrid = metadata_dict['geogrid']
+             cfg['epsg'].append(geogrid['epsg'])
 
     return pd.DataFrame(data=cfg)
 

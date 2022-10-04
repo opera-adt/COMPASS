@@ -94,6 +94,8 @@ range_split_spectrum_options:
   high_band_bandwidth: num(min=0, required=False)
 
 rdr2geo_options:
+   # Enable/disable computation of topo layers
+   enabled: bool(required=False)
    # Convergence threshold for rdr2geo algorithm
    threshold: num(min=0, required=False)
    # Maximum number of iterations

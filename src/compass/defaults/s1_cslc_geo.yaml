@@ -59,6 +59,8 @@ runconfig:
               # High-band bandwidth in Hz
               high_band_bandwidth: 1e7
           rdr2geo:
+              # Enable/disable computation of topo layers
+              enable: False
               # Convergence threshold for rdr2geo algorithm
               threshold: 1.0e-8
               # Maximum number of iterations
@@ -67,7 +69,7 @@ runconfig:
               lines_per_block: 1000
               # Secondary number of iterations
               extraiter: 10
-              # Enable/disable computation of latitute raster
+              # Enable/disable computation of latitude raster
               compute_latitude: False
               # Enable/disable computation of longitude raster
               compute_longitude: False
@@ -78,11 +80,11 @@ runconfig:
               # Enable/disable incidence angle output
               compute_incidence_angle: True
               # Enable/disable local incidence output
-              compute_local_incidence_angle: False
+              compute_local_incidence_angle: True
               # Enable/disable azimuth angle output
               compute_azimuth_angle: True
               # Enable/disable generation of the topo layers
-              geocode_topo_layers: False
+              geocode_topo_layers: True
 
       worker:
           # Optional. To prevent downloading DEM or other data (default: False)

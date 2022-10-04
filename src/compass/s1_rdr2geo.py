@@ -109,7 +109,7 @@ def run(cfg, save_in_scratch=False):
                        'localIncidence': (
                        rdr2geo_cfg.compute_local_incidence_angle,
                        gdal.GDT_Float32),
-                       'localPsi': (
+                       'heading': (
                        rdr2geo_cfg.compute_azimuth_angle, gdal.GDT_Float32)}
         raster_list = [
             isce3.io.Raster(f'{output_path}/{fname}.rdr', rdr_grid.width,
@@ -126,7 +126,7 @@ def run(cfg, save_in_scratch=False):
                          height_raster=z_raster,
                          incidence_angle_raster=incident_angle_raster,
                          local_incidence_angle_raster=local_incident_angle_raster,
-                         local_psi_raster=azimuth_angle_raster,
+                         heading_angle_raster=azimuth_angle_raster,
                          layover_shadow_raster=layover_shadow_raster)
 
         # remove undesired/None rasters from raster list

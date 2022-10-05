@@ -85,7 +85,7 @@ def run(cfg, fetch_from_scratch=False):
                    'z': cfg.rdr2geo_params.compute_height,
                    'incidence': cfg.rdr2geo_params.compute_incidence_angle,
                    'localIncidence': cfg.rdr2geo_params.compute_local_incidence_angle,
-                   'localPsi': cfg.rdr2geo_params.compute_azimuth_angle}
+                   'heading': cfg.rdr2geo_params.compute_azimuth_angle}
     input_rasters = [
         isce3.io.Raster(f'{input_path}/{fname}.rdr')
         for fname, enabled in topo_layers.items() if enabled]

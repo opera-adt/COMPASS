@@ -60,7 +60,7 @@ runconfig:
               high_band_bandwidth: 1e7
           rdr2geo:
               # Enable/disable computation of topo layers
-              enable: False
+              enabled: False
               # Convergence threshold for rdr2geo algorithm
               threshold: 1.0e-8
               # Maximum number of iterations
@@ -76,7 +76,7 @@ runconfig:
               # Enable/disable computation of height raster
               compute_height: False
               # Enable/disable layover shadow mask output
-              compute_layover_shadow_mask: False
+              compute_layover_shadow_mask: True
               # Enable/disable incidence angle output
               compute_incidence_angle: True
               # Enable/disable local incidence output

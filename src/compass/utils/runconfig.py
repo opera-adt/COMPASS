@@ -160,7 +160,7 @@ def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
 
     # extract given SAFE zips to find bursts identified in cfg.burst_id
     for safe_file in cfg.input_file_group.safe_file_path:
-        # get orbit file
+        # get orbit file from directory of first orbit file
         orbit_path = get_orbit_file_from_dir(
             safe_file,
             os.path.dirname(cfg.input_file_group.orbit_file_path[0]))

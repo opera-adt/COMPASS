@@ -160,14 +160,10 @@ def runconfig_to_bursts(cfg: SimpleNamespace, auto_download: bool = False) -> li
 
     # extract given SAFE zips to find bursts identified in cfg.burst_id
     for safe_file in cfg.input_file_group.safe_file_path:
-        # get orbit file
-        # orbit_path = get_orbit_file_from_dir(
-        #     safe_file,
-        #     cfg.input_file_group.orbit_file_path,
-        #     auto_download=auto_download
-        # )
-        # TODO: why do we need a list for "orbit_file_path"?
-        orbit_path = cfg.input_file_group.orbit_file_path[0]
+        # get orbit file from directory of first orbit file
+        orbit_path = get_orbit_file_from_dir(
+            safe_file,
+            os.path.dirname(cfg.input_file_group.orbit_file_path[0]))
 
         if not orbit_path:
             err_str = f"No orbit file correlates to safe file: {os.path.basename(safe_file)}"

@@ -36,48 +36,40 @@ def create_parser():
     parser = argparse.ArgumentParser(
         description='S1-A/B geocoded CSLC stack processor.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-s', '--slc-dir', dest='slc_dir', type=str,
-                        required=True,
+    parser.add_argument('-s', '--slc-dir', type=str, required=True,
                         help='Directory containing the S1-A/B SLCs (zip files)')
-    parser.add_argument('-d', '--dem-file', dest='dem_file', type=str,
-                        required=True,
+    parser.add_argument('-d', '--dem-file', type=str, required=True,
                         help='File path to DEM to use for processing.')
-    parser.add_argument('-o', '--orbit-dir', dest='orbit_dir', type=str,
-                        default=None,
+    parser.add_argument('-o', '--orbit-dir', type=str, default=None,
                         help='Directory with orbit files. If None, downloads orbit files')
     parser.add_argument('-w', '--working-dir', dest='work_dir', type=str,
                         default='stack',
                         help='Directory to store intermediate and final results')
-    parser.add_argument('-sd', '--start-date', dest='start_date', type=int,
-                        default=None,
+    parser.add_argument('-sd', '--start-date', type=int, default=None,
                         help='Start date of the stack to process')
-    parser.add_argument('-ed', '--end-date', dest='end_date', type=int,
+    parser.add_argument('-ed', '--end-date', type=int,
                         help='End date of the stack to process')
-    parser.add_argument('-b', '--burst-id', dest='burst_id', nargs='+',
-                        default=None,
+    parser.add_argument('-b', '--burst-id', nargs='+', default=None,
                         help='List of burst IDs to process. If None, all the burst IDs in the'
                              'reference date are processed. (default: None)')
-    parser.add_argument('-exd', '--exclude-dates', dest='exclude_dates', nargs='+', 
+    parser.add_argument('-exd', '--exclude-dates', nargs='+', 
                         help='Date to be excluded from stack processing (format: YYYYMMDD)')
     parser.add_argument('-p', '--pol', dest='pol', nargs='+', default='co-pol',
                         help='Polarization to process: dual-pol, co-pol, cross-pol (default: co-pol).')
-    parser.add_argument('-x', '--x-spac', dest='x_spac', type=float, default=5,
+    parser.add_argument('-x', '--x-spac', type=float, default=5,
                         help='Spacing in meters of geocoded CSLC along X-direction.')
-    parser.add_argument('-y', '--y-spac', dest='y_spac', type=float, default=10,
+    parser.add_argument('-y', '--y-spac', type=float, default=10,
                         help='Spacing in meters of geocoded CSLC along Y-direction.')
-    parser.add_argument('-e', '--epsg', dest='epsg', type=int, default=None,
+    parser.add_argument('-e', '--epsg', type=int, default=None,
                         help='EPSG projection code for output geocoded bursts')
-    parser.add_argument('-f', '--flatten', dest='flatten', type=bool,
-                        default=True,
+    parser.add_argument('-f', '--flatten', type=bool, default=True,
                         help='If True, enables flattening (default: True)')
     parser.add_argument('-ss', '--range-split-spectrum',
                         dest='is_split_spectrum', type=bool, default=False,
                         help='If True, enables split-spectrum (default: False)')
-    parser.add_argument('-lb', '--low-band', dest='low_band', type=float,
-                        default=0.0,
+    parser.add_argument('-lb', '--low-band', type=float, default=0.0,
                         help='Low sub-band bandwidth in Hz (default: 0.0)')
-    parser.add_argument('-hb', '--high-band', dest='high_band', type=float,
-                        default=0.0,
+    parser.add_argument('-hb', '--high-band', type=float, default=0.0,
                         help='High sub-band bandwidth in Hz (default: 0.0')
     return parser.parse_args()
 

@@ -49,6 +49,7 @@ def run(cfg):
 
     # process one burst only
     burst = cfg.bursts[0]
+    info_channel.log(f"Running on {burst}")
     date_str = burst.sensing_start.strftime("%Y%m%d")
     burst_id = burst.burst_id
     pol = burst.polarization
@@ -77,8 +78,9 @@ def run(cfg):
         rdr_burst_raster = isce3.io.Raster(temp_slc_path)
 
     # Generate output geocoded burst raster
+    output_name = f'{cfg.output_dir}/{burst_id}_{date_str}_{pol}.slc'
     geo_burst_raster = isce3.io.Raster(
-        f'{cfg.output_dir}/{burst_id}_{date_str}_{pol}.slc',
+        output_name,
         geo_grid.width, geo_grid.length,
         rdr_burst_raster.num_bands, gdal.GDT_CFloat32,
         cfg.geocoding_params.output_format)
@@ -89,7 +91,6 @@ def run(cfg):
 
     # Create sliced radar grid representing valid region of the burst
     sliced_radar_grid = burst.as_isce3_radargrid()[b_bounds]
-
     # Geocode
     isce3.geocode.geocode_slc(geo_burst_raster, rdr_burst_raster,
                               dem_raster,

@@ -34,7 +34,8 @@ scihub_password = 'gnssguest'
 
 def create_parser():
     parser = argparse.ArgumentParser(
-        description='S1-A/B geocoded CSLC stack processor.')
+        description='S1-A/B geocoded CSLC stack processor.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-s', '--slc-dir', dest='slc_dir', type=str,
                         required=True,
                         help='Directory containing the S1-A/B SLCs (zip files)')
@@ -56,8 +57,7 @@ def create_parser():
                         default=None,
                         help='List of burst IDs to process. If None, all the burst IDs in the'
                              'reference date are processed. (default: None)')
-    parser.add_argument('-exd', '--exclude-dates', dest='exclude_dates',
-                        nargs='+', type=int,
+    parser.add_argument('-exd', '--exclude-dates', dest='exclude_dates', nargs='+', 
                         help='Date to be excluded from stack processing (format: YYYYMMDD)')
     parser.add_argument('-p', '--pol', dest='pol', nargs='+', default='co-pol',
                         help='Polarization to process: dual-pol, co-pol, cross-pol (default: co-pol).')
@@ -246,7 +246,7 @@ def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=4326):
                     epsg = get_point_epsg(burst.center.y,
                                           burst.center.x)
 
-                    # Initialize geogrid with the info checked at this stage
+                # Initialize geogrid with the info checked at this stage
                 geogrid = isce3.product.bbox_to_geogrid(
                     burst.as_isce3_radargrid(),
                     burst.orbit,
@@ -267,34 +267,40 @@ def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=4326):
                     y_spac * np.floor(
                         (geogrid.start_y + y_spac * geogrid.length) / y_spac))
                 burst_map['epsg'].append(epsg)
-                burst_map['date'].append(
-                    int(burst.sensing_start.strftime("%Y%m%d")))
+                burst_map['date'].append(burst.sensing_start.strftime("%Y%m%d"))
 
     burst_map = pd.DataFrame(data=burst_map)
     return burst_map
 
 
-def prune_dataframe(data, id_col, id_list):
+def prune_dataframe(data, id_col, id_list, exclude_items=False):
     '''
     Prune dataframe based on column ID and list of value
     Parameters:
     ----------
     data: pandas.DataFrame
-       dataframe that needs to be pruned
+        dataframe that needs to be pruned
     id_col: str
-       column identification for 'data' (e.g. 'burst_id')
+        column identification for 'data' (e.g. 'burst_id')
     id_list: list
-       List of elements to keep after pruning. Elements not
-       in id_list but contained in 'data' will be pruned
+        List of elements to consider when pruning.
+        If exclude_items is False (default), then all elements in `data`
+            will be kept *except for* those in `id_list`.
+        If exclude_items is True, the items in `id_list` will be removed from `data`.
+    exclude_items: bool
+        If True, the items in `id_list` will be removed from `data`.
+        If False, all elements in `data` will be kept *except for* those in `id_list`.
     Returns:
     -------
     data: pandas.DataFrame
        Pruned dataframe with rows in 'id_list'
     '''
     pattern = '|'.join(id_list)
-    dataf = data.loc[data[id_col].str.contains(pattern,
-                                               case=False)]
-    return dataf
+    if not exclude_items:
+        df = data.loc[data[id_col].str.contains(pattern, case=False)]
+    else:
+        df = data.loc[~data[id_col].str.contains(pattern, case=False)]
+    return df
 
 
 def get_common_burst_ids(data):
@@ -436,6 +442,8 @@ def main(slc_dir, dem_file, burst_id, start_date=None, end_date=None,
         Date of the start acquisition of the stack (format: YYYYMMDD)
     end_date: int
         Date of the end acquistion of the stack (format: YYYYMMDD)
+    exclude_dates: list
+        List of dates to exclude from the stack (format: YYYYMMDD)
     orbit_dir: str
         Directory containing orbit files
     work_dir: str
@@ -521,7 +529,7 @@ def main(slc_dir, dem_file, burst_id, start_date=None, end_date=None,
 
     # Exclude some dates if the user requires it
     if exclude_dates is not None:
-        burst_map = prune_dataframe(burst_map, 'date', exclude_dates)
+        burst_map = prune_dataframe(burst_map, 'date', exclude_dates, exclude_items=True)
 
     # Ready to geocode bursts
     for safe in zip_file_list:
@@ -531,7 +539,8 @@ def main(slc_dir, dem_file, burst_id, start_date=None, end_date=None,
         for subswath in i_subswath:
             bursts = load_bursts(safe, orbit_path, subswath)
             for burst in bursts:
-                date = int(burst.sensing_start.strftime("%Y%m%d"))
+                date = burst.sensing_start.strftime("%Y%m%d")
+                date_str = str(date)
                 if (burst.burst_id in list(set(burst_map['burst_id']))) and \
                         (date in list(set(burst_map['date']))):
                     runconfig_path = create_runconfig(burst, safe, orbit_path,
@@ -541,7 +550,6 @@ def main(slc_dir, dem_file, burst_id, start_date=None, end_date=None,
                                                       is_split_spectrum,
                                                       low_band, high_band, pol,
                                                       x_spac, y_spac)
-                    date_str = str(date)
                     runfile_name = f'{run_dir}/run_{date_str}_{burst.burst_id}.sh'
                     with open(runfile_name, 'w') as rsh:
                         path = os.path.dirname(os.path.realpath(__file__))

@@ -18,15 +18,15 @@ from compass.utils.range_split_spectrum import range_split_spectrum
 from compass.utils.yaml_argparse import YamlArgparse
 
 
-def run(cfg):
+def run(cfg: GeoRunConfig):
     '''
     Run geocode burst workflow with user-defined
     args stored in dictionary runconfig *cfg*
 
     Parameters
     ---------
-    cfg: dict
-        Dictionary with user runconfig options
+    cfg: GeoRunConfig
+        GeoRunConfig object with user runconfig options
     '''
     module_name = get_module_name(__file__)
     info_channel = journal.info(f"{module_name}.run")

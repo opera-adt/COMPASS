@@ -84,7 +84,7 @@ runconfig:
               # Enable/disable azimuth angle output
               compute_azimuth_angle: True
               # Enable/disable generation of the topo layers
-              geocode_topo_layers: True
+              geocode_metadata_layers: True
 
       worker:
           # Optional. To prevent downloading DEM or other data (default: False)

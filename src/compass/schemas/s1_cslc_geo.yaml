@@ -119,7 +119,7 @@ rdr2geo_options:
    # Enable/disable azimuth angle output
    compute_azimuth_angle: bool(required=False)
    # Enable/disable geocoding of the topo layers
-   geocode_topo_layers: bool(required=False)
+   geocode_metadata_layers: bool(required=False)
 
 worker_options:
   # To prevent downloading DEM / other data automatically. Default True
@@ -129,4 +129,3 @@ worker_options:
   # Index of the GPU to use for processing, optional. Defaults to the
   # first available CUDA device. Ignored if *gpu_enabled* is False.
   gpu_id: int(min=0, required=False)
-

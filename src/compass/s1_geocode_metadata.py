@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-'''wrapper to geocode topo layers'''
+'''wrapper to geocode metadata layers'''
 
 from datetime import timedelta
 import os
@@ -17,14 +17,14 @@ from compass.utils.yaml_argparse import YamlArgparse
 
 def run(cfg, fetch_from_scratch=False):
     '''
-    Geocode topo layers
+    Geocode metadata layers
 
     Parameters
     ----------
     cfg: dict
         Dictionary with user runconfig options
     fetch_from_scratch: bool
-        If True grabs topo layers from scratch dir
+        If True grabs metadata layers from scratch dir
 
     '''
     module_name = get_module_name(__file__)
@@ -79,8 +79,8 @@ def run(cfg, fetch_from_scratch=False):
                 geo_grid.spacing_x, geo_grid.spacing_y,
                 geo_grid.width, geo_grid.length, geo_grid.epsg)
 
-    # Get the topo layers to compute
-    topo_layers = {'x': cfg.rdr2geo_params.compute_longitude,
+    # Get the metadata layers to compute
+    meta_layers = {'x': cfg.rdr2geo_params.compute_longitude,
                    'y': cfg.rdr2geo_params.compute_latitude,
                    'z': cfg.rdr2geo_params.compute_height,
                    'incidence': cfg.rdr2geo_params.compute_incidence_angle,
@@ -88,12 +88,12 @@ def run(cfg, fetch_from_scratch=False):
                    'heading': cfg.rdr2geo_params.compute_azimuth_angle}
     input_rasters = [
         isce3.io.Raster(f'{input_path}/{fname}.rdr')
-        for fname, enabled in topo_layers.items() if enabled]
+        for fname, enabled in meta_layers.items() if enabled]
     output_rasters = [
         isce3.io.Raster(f'{output_path}/{fname}.geo',
                         geo_grid.width, geo_grid.length, 1, gdal.GDT_Float32,
                         output_format)
-        for fname, enabled in topo_layers.items() if enabled]
+        for fname, enabled in meta_layers.items() if enabled]
 
     # Geocode list of products
     geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,
@@ -126,11 +126,11 @@ def run(cfg, fetch_from_scratch=False):
 
 
 if __name__ == "__main__":
-    ''' run geocode topo layers from command line'''
+    ''' run geocode metadata layers from command line'''
     parser = YamlArgparse()
 
     # Get a runconfig dict from command line args
     cfg = RunConfig.load_from_yaml(parser.args.run_config_path,
                                    workflow_name='s1_cslc_radar')
-    # run geocode topo layers
+    # run geocode metadata layers
     run(cfg)

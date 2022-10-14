@@ -42,12 +42,12 @@ def read_ionex(tec_file):
         3d array with vertical TEC RMS in TECU
     '''
 
-    # functions for parsing ionex file
+    # functions for parsing strings from ionex file
     # link: https://github.com/daniestevez/jupyter_notebooks/blob/master/IONEX.ipynb
-    def parse_map(tec_map, key='TEC', exponent=-1):
-        tec_map = re.split(f'.*END OF {key} MAP', tec_map)[0]
+    def parse_map(tec_map_str, key='TEC', exponent=-1):
+        tec_map_str = re.split(f'.*END OF {key} MAP', tec_map_str)[0]
         tec_map = [np.fromstring(x, sep=' ') for x in
-                   re.split('.*LAT/LON1/LON2/DLON/H\\n', tec_map)[1:]]
+                   re.split('.*LAT/LON1/LON2/DLON/H\\n', tec_map_str)[1:]]
         return np.stack(tec_map) * 10 ** exponent
 
     # read IONEX file
@@ -67,12 +67,12 @@ def read_ionex(tec_file):
                 exponent = float(line.split()[0])
 
         # spatial coordinates
-        num_lat = int((lat1 - lat0) / lat_step + 1)
-        num_lon = int((lon1 - lon0) / lon_step + 1)
+        num_lat = (lat1 - lat0) // lat_step + 1
+        num_lon = (lon1 - lon0) // lon_step + 1
         lats = np.arange(lat0, lat0 + num_lat * lat_step, lat_step)
         lons = np.arange(lon0, lon0 + num_lon * lon_step, lon_step)
 
-        # time stamps
+        # time stamps in minutes
         min_step = 24 * 60 / (num_map - 1)
         mins = np.arange(0, num_map * min_step, min_step)
 

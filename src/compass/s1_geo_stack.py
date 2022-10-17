@@ -376,10 +376,9 @@ def main(slc_dir, dem_file, burst_id, start_date=None, end_date=None,
         for subswath in i_subswath:
             bursts = load_bursts(safe, orbit_path, subswath)
             for burst in bursts:
-                date = burst.sensing_start.strftime("%Y%m%d")
-                date_str = str(date)
+                date_str = burst.sensing_start.strftime("%Y%m%d")
                 if (burst.burst_id in list(set(burst_map['burst_id']))) and \
-                        (date in list(set(burst_map['date']))):
+                        (date_str in list(set(burst_map['date']))):
                     runconfig_path = create_runconfig(burst, safe, orbit_path,
                                                       dem_file,
                                                       work_dir, burst_map,

@@ -3,6 +3,7 @@ import argparse
 import glob
 import os
 import time
+from collections import defaultdict
 
 import isce3
 import journal
@@ -83,9 +84,7 @@ def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=4326):
         x and y coordinates) for each burst to process
     '''
     # Initialize dictionary that contains all the info for geocoding
-    burst_map = {'burst_id': [], 'x_top_left': [], 'y_top_left': [],
-                 'x_bottom_right': [], 'y_bottom_right': [], 'epsg': [],
-                 'date': []}
+    burst_map = defaultdict(list)
 
     # Get all the bursts from safe file
     i_subswath = [1, 2, 3]
@@ -97,6 +96,8 @@ def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=4326):
             ref_bursts = load_bursts(zip_file, orbit_path, subswath)
             for burst in ref_bursts:
                 burst_map['burst_id'].append(burst.burst_id)
+                # keep the burst object so we don't have to re-parse
+                burst_map['burst'].append(burst)
 
                 if epsg is None:
                     epsg = get_point_epsg(burst.center.y,
@@ -113,17 +114,26 @@ def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=4326):
                 # Snap coordinates so that adjacent burst coordinates are integer
                 # multiples of the spacing in X-/Y-directions
                 burst_map['x_top_left'].append(
-                    x_spac * np.floor(geogrid.start_x / x_spac))
+                    x_spac * np.floor(geogrid.start_x / x_spac)
+                )
                 burst_map['y_top_left'].append(
-                    y_spac * np.ceil(geogrid.start_y / y_spac))
+                    y_spac * np.ceil(geogrid.start_y / y_spac)
+                )
                 burst_map['x_bottom_right'].append(
                     x_spac * np.ceil(
-                        (geogrid.start_x + x_spac * geogrid.width) / x_spac))
+                        (geogrid.start_x + x_spac * geogrid.width) / x_spac
+                    )
+                )
                 burst_map['y_bottom_right'].append(
                     y_spac * np.floor(
-                        (geogrid.start_y + y_spac * geogrid.length) / y_spac))
+                        (geogrid.start_y + y_spac * geogrid.length) / y_spac
+                    )
+                )
                 burst_map['epsg'].append(epsg)
                 burst_map['date'].append(burst.sensing_start.strftime("%Y%m%d"))
+                # Save the file paths for creating the runconfig
+                burst_map['orbit_path'].append(orbit_path)
+                burst_map['zip_file'].append(zip_file)
 
     burst_map = pd.DataFrame(data=burst_map)
     return burst_map
@@ -183,26 +193,19 @@ def get_common_burst_ids(data):
     return common_id
 
 
-def create_runconfig(burst, safe, orbit_path, dem_file, work_dir,
-                     burst_map, flatten, enable_rss, low_band, high_band, pol,
-                     x_spac, y_spac):
+def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
+                     low_band, high_band, pol, x_spac, y_spac):
     '''
     Create runconfig to process geocoded bursts
 
     Parameters
     ---------
-    burst: Sentinel1BurstSlc
-        Object containing info on burst to process
-    safe: str
-        Path to SAFE file containing burst to process
-    orbit_path: str
-        Path to orbit file related to burst to process
+    burst_map_row: namedtuple
+        one row from the dataframe method `burst_map.itertuples()`
     dem_file: str
         Path to DEM to use for processing
     work_dir: str
         Path to working directory for temp and final results
-    burst_map: pandas.Dataframe
-        Pandas dataframe containing burst top-left, bottom-right coordinates
     flatten: bool
         Flag to enable/disable flattening
     enable_rss: bool
@@ -231,9 +234,9 @@ def create_runconfig(burst, safe, orbit_path, dem_file, work_dir,
     rss = process['range_split_spectrum']
 
     # Allocate Inputs
-    inputs['safe_file_path'] = [safe]
-    inputs['orbit_file_path'] = [orbit_path]
-    inputs['burst_id'] = burst.burst_id
+    inputs['safe_file_path'] = [burst_map_row.zip_file]
+    inputs['orbit_file_path'] = [burst_map_row.orbit_path]
+    inputs['burst_id'] = burst_map_row.burst.burst_id
     groups['dynamic_ancillary_file_group']['dem_file'] = dem_file
 
     # Product path
@@ -246,20 +249,14 @@ def create_runconfig(burst, safe, orbit_path, dem_file, work_dir,
     geocode['flatten'] = flatten
     geocode['x_posting'] = x_spac
     geocode['y_posting'] = y_spac
-    geocode['top_left']['x'] = \
-        burst_map.x_top_left[burst_map.burst_id == burst.burst_id].tolist()[0]
-    geocode['top_left']['y'] = \
-        burst_map.y_top_left[burst_map.burst_id == burst.burst_id].tolist()[0]
-    geocode['bottom_right']['x'] = \
-        burst_map.x_bottom_right[burst_map.burst_id == burst.burst_id].tolist()[
-            0]
-    geocode['bottom_right']['y'] = \
-        burst_map.y_bottom_right[burst_map.burst_id == burst.burst_id].tolist()[
-            0]
+
+    geocode['top_left']['x'] = burst_map_row.x_top_left
+    geocode['top_left']['y'] = burst_map_row.y_top_left
+    geocode['bottom_right']['x'] = burst_map_row.x_bottom_right
+    geocode['bottom_right']['y'] = burst_map_row.y_bottom_right
     # geocode['x_snap'] = None
     # geocode['y_snap'] = None
-    geocode['output_epsg'] = \
-        burst_map.epsg[burst_map.burst_id == burst.burst_id].tolist()[0]
+    geocode['output_epsg'] = burst_map_row.epsg
 
     # Range split spectrum
     rss['enabled'] = enable_rss
@@ -369,32 +366,26 @@ def main(slc_dir, dem_file, burst_id, start_date=None, end_date=None,
         burst_map = prune_dataframe(burst_map, 'date', exclude_dates, exclude_items=True)
 
     # Ready to geocode bursts
-    for safe in zip_file_list:
-        orbit_path = get_orbit_file_from_dir(safe, orbit_dir, auto_download=True)
+    for row in burst_map.itertuples():
+        runconfig_path = create_runconfig(
+            row,
+            dem_file,
+            work_dir,
+            flatten,
+            is_split_spectrum,
+            low_band,
+            high_band,
+            pol,
+            x_spac,
+            y_spac
+        )
+        date_str = row.burst.sensing_start.strftime("%Y%m%d")
+        runfile_name = f'{run_dir}/run_{date_str}_{row.burst.burst_id}.sh'
+        with open(runfile_name, 'w') as rsh:
+            path = os.path.dirname(os.path.realpath(__file__))
+            rsh.write(
+                f'python {path}/s1_cslc.py {runconfig_path}\n')
 
-        i_subswath = [1, 2, 3]
-        for subswath in i_subswath:
-            bursts = load_bursts(safe, orbit_path, subswath)
-            for burst in bursts:
-                date_str = burst.sensing_start.strftime("%Y%m%d")
-                if (burst.burst_id in list(set(burst_map['burst_id']))) and \
-                        (date_str in list(set(burst_map['date']))):
-                    runconfig_path = create_runconfig(burst, safe, orbit_path,
-                                                      dem_file,
-                                                      work_dir, burst_map,
-                                                      flatten,
-                                                      is_split_spectrum,
-                                                      low_band, high_band, pol,
-                                                      x_spac, y_spac)
-                    runfile_name = f'{run_dir}/run_{date_str}_{burst.burst_id}.sh'
-                    with open(runfile_name, 'w') as rsh:
-                        path = os.path.dirname(os.path.realpath(__file__))
-                        rsh.write(
-                            f'python {path}/s1_cslc.py {runconfig_path}\n')
-                else:
-                    info.log(
-                        f'Burst ID {burst.burst_id} or SAFE file date {date_str} '
-                        f'not part of the stack to process')
     end_time = time.time()
     print('Elapsed time (min):', (end_time - start_time) / 60.0)
 

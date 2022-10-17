@@ -46,6 +46,8 @@ processing_options:
    geo2rdr: include('geo2rdr_options', required=False)
    # Range split-spectrum options
    range_split_spectrum: include('range_split_spectrum_options', required=False)
+   # Computation of topo layers
+   rdr2geo: include('rdr2geo_options', required=False)
 
 geocoding_options:
    # Format of output file
@@ -91,6 +93,34 @@ range_split_spectrum_options:
   # Bandwidth of the high-band sub-image
   high_band_bandwidth: num(min=0, required=False)
 
+rdr2geo_options:
+   # Enable/disable computation of topo layers
+   enabled: bool(required=False)
+   # Convergence threshold for rdr2geo algorithm
+   threshold: num(min=0, required=False)
+   # Maximum number of iterations
+   numiter: int(min=1, required=False)
+   # Lines per block to process in batch
+   lines_per_block: int(min=1, required=False)
+   # Secondary number of iterations
+   extraiter: int(min=1, required=False)
+   # Enable/disable computation of latitude raster
+   compute_latitude: bool(required=False)
+   # Enable/disable computation of longitude raster
+   compute_longitude: bool(required=False)
+   # Enable/disable computation of height raster
+   compute_height: bool(required=False)
+   # Enable/disable layover shadow mask output
+   compute_layover_shadow_mask: bool(required=False)
+   # Enable/disable incidence angle output
+   compute_incidence_angle: bool(required=False)
+   # Enable/disable local incidence output
+   compute_local_incidence_angle: bool(required=False)
+   # Enable/disable azimuth angle output
+   compute_azimuth_angle: bool(required=False)
+   # Enable/disable geocoding of the topo layers
+   geocode_metadata_layers: bool(required=False)
+
 worker_options:
   # To prevent downloading DEM / other data automatically. Default True
   internet_access: bool(required=False)
@@ -99,4 +129,3 @@ worker_options:
   # Index of the GPU to use for processing, optional. Defaults to the
   # first available CUDA device. Ignored if *gpu_enabled* is False.
   gpu_id: int(min=0, required=False)
-

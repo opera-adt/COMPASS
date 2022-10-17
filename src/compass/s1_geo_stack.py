@@ -1,35 +1,19 @@
 #!/usr/bin/env python
 import argparse
-import cgi
-import datetime
 import glob
 import os
-import sys
 import time
-from xml.etree import ElementTree
 
 import isce3
 import journal
 import numpy as np
 import pandas as pd
-import requests
 import yaml
 from s1reader.s1_orbit import get_orbit_file_from_dir
 from s1reader.s1_reader import load_bursts
 
 from compass.utils import helpers
 from compass.utils.geo_grid import get_point_epsg
-
-
-# Required for orbit download
-scihub_url = 'https://scihub.copernicus.eu/gnss/odata/v1/Products'
-# Namespaces of the XML file returned by the S1 query. Will they change it?
-w3_url = '{http://www.w3.org/2005/Atom}'
-m_url = '{http://schemas.microsoft.com/ado/2007/08/dataservices/metadata}'
-d_url = '{http://schemas.microsoft.com/ado/2007/08/dataservices}'
-# Scihub guest credential
-scihub_user = 'gnssguest'
-scihub_password = 'gnssguest'
 
 
 def create_parser():
@@ -50,12 +34,13 @@ def create_parser():
     parser.add_argument('-ed', '--end-date', type=int,
                         help='End date of the stack to process')
     parser.add_argument('-b', '--burst-id', nargs='+', default=None,
-                        help='List of burst IDs to process. If None, all the burst IDs in the'
-                             'reference date are processed. (default: None)')
-    parser.add_argument('-exd', '--exclude-dates', nargs='+', 
+                        help='List of burst IDs to process. If None, all the burst IDs '
+                             'in the reference date are processed. (default: None)')
+    parser.add_argument('-exd', '--exclude-dates', nargs='+',
                         help='Date to be excluded from stack processing (format: YYYYMMDD)')
     parser.add_argument('-p', '--pol', dest='pol', nargs='+', default='co-pol',
-                        help='Polarization to process: dual-pol, co-pol, cross-pol (default: co-pol).')
+                        help='Polarization to process: dual-pol, co-pol, cross-pol '
+                             ' (default: co-pol).')
     parser.add_argument('-x', '--x-spac', type=float, default=5,
                         help='Spacing in meters of geocoded CSLC along X-direction.')
     parser.add_argument('-y', '--y-spac', type=float, default=10,
@@ -74,130 +59,9 @@ def create_parser():
     return parser.parse_args()
 
 
-def check_internet_connection():
-    '''
-    Check connection availability
-    '''
-    url = "http://google.com"
-    try:
-        requests.get(url, timeout=10)
-    except (requests.ConnectionError, requests.Timeout) as exception:
-        raise sys.exit(exception)
-
-
-def parse_safe_filename(safe_filename):
-    '''
-    Extract info from S1-A/B SAFE filename
-    SAFE filename structure: S1A_IW_SLC__1SDV_20150224T114043_20150224T114111_004764_005E86_AD02.SAFE
-
-    Parameters:
-    -----------
-    safe_filename: string
-       Path to S1-A/B SAFE file
-
-    Returns:
-    -------
-    List of [sensor_id, mode_id, start_datetime,
-                end_datetime, abs_orbit_num]
-       sensor_id: sensor identifier (S1A or S1B)
-       mode_id: mode/beam (e.g. IW)
-       start_datetime: acquisition start datetime
-       stop_datetime: acquisition stop datetime
-       abs_orbit_num: absolute orbit number
-    '''
-
-    safe_name = os.path.basename(safe_filename)
-    sensor_id = safe_name[2]
-    sensor_mode = safe_name[4:10]
-    start_datetime = datetime.datetime.strptime(safe_name[17:32],
-                                                '%Y%m%dT%H%M%S')
-    end_datetime = datetime.datetime.strptime(safe_name[33:48],
-                                              '%Y%m%dT%H%M%S')
-    abs_orb_num = int(safe_name[49:55])
-
-    return [sensor_id, sensor_mode, start_datetime, end_datetime, abs_orb_num]
-
-
-def get_orbit_dict(sensor_id, start_time, end_time, orbit_type):
-    '''
-    Query Copernicus GNSS API to find latest orbit file
-
-    Parameters:
-    ----------
-    sensor_id: str
-        Sentinel satellite identifier ('A' or 'B')
-    start_time: datetime object
-        Sentinel start acquisition time
-    end_time: datetime object
-        Sentinel end acquisition time
-    orbit_type: str
-        Type of orbit to download (AUX_POEORB: precise, AUX_RESORB: restituted)
-
-    Returns:
-    orbit_dict: dict
-        Python dictionary with [orbit_name, orbit_type, download_url]
-    '''
-    # Check if correct orbit_type
-    if orbit_type not in ['AUX_POEORB', 'AUX_RESORB']:
-        err_msg = f'{orbit_type} not a valid orbit type'
-        raise ValueError(err_msg)
-
-    # Add a 30 min margin to start_time and end_time
-    pad_start_time = start_time - datetime.timedelta(hours=0.5)
-    pad_end_time = end_time + datetime.timedelta(hours=0.5)
-    new_start_time = pad_start_time.strftime('%Y-%m-%dT%H:%M:%S')
-    new_end_time = pad_end_time.strftime('%Y-%m-%dT%H:%M:%S')
-    query_string = f"startswith(Name,'S1{sensor_id}') and substringof('{orbit_type}',Name) " \
-                   f"and ContentDate/Start lt datetime'{new_start_time}' and ContentDate/End gt datetime'{new_end_time}'"
-    query_params = {'$top': 1, '$orderby': 'ContentDate/Start asc',
-                    '$filter': query_string}
-    query_response = requests.get(url=scihub_url, params=query_params,
-                                  auth=(scihub_user, scihub_password))
-    # Parse XML tree from query response
-    xml_tree = ElementTree.fromstring(query_response.content)
-    # Extract w3.org URL
-    w3_url = xml_tree.tag.split('feed')[0]
-
-    # Extract orbit's name, id, url
-    orbit_id = xml_tree.findtext(
-        f'.//{w3_url}entry/{m_url}properties/{d_url}Id')
-    orbit_url = f"{scihub_url}('{orbit_id}')/$value"
-    orbit_name = xml_tree.findtext(f'./{w3_url}entry/{w3_url}title')
-
-    if orbit_id is not None:
-        orbit_dict = {'orbit_name': orbit_name, 'orbit_type': orbit_type,
-                      'orbit_url': orbit_url}
-    else:
-        orbit_dict = None
-    return orbit_dict
-
-
-def download_orbit(output_folder, orbit_url):
-    '''
-    Download S1-A/B orbits
-
-    Parameters:
-    ----------
-    output_folder: str
-        Path to directory where to store orbits
-    orbit_url: str
-        Remote url of orbit file to download
-    '''
-
-    response = requests.get(url=orbit_url, auth=(scihub_user, scihub_password))
-    # Get header and find filename
-    header = response.headers['content-disposition']
-    _, header_params = cgi.parse_header(header)
-    # construct orbit filename
-    orbit_filename = os.path.join(output_folder, header_params['filename'])
-    # Save orbits
-    open(orbit_filename, 'wb').write(response.content)
-
-
 def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=4326):
     '''
-    Generates dataframe containing geogrid info for each burst ID in
-    the ref_file
+    Generates a dataframe of geogrid infos for each burst ID in `zip_files`.
 
     Parameters
     ----------
@@ -433,7 +297,7 @@ def main(slc_dir, dem_file, burst_id, start_date=None, end_date=None,
     start_date: int
         Date of the start acquisition of the stack (format: YYYYMMDD)
     end_date: int
-        Date of the end acquistion of the stack (format: YYYYMMDD)
+        Date of the end acquisition of the stack (format: YYYYMMDD)
     exclude_dates: list
         List of dates to exclude from the stack (format: YYYYMMDD)
     orbit_dir: str
@@ -476,29 +340,10 @@ def main(slc_dir, dem_file, burst_id, start_date=None, end_date=None,
 
     # Check if orbit are provided, if Not download
     if orbit_dir is None:
-        info.log('Orbit directory not assigned. Download orbit ephemerides')
-
-        # Create orbit dir and check internet connection
         orbit_dir = f'{work_dir}/orbits'
+        info.log(f'Orbit directory not assigned. Using {orbit_dir} to download orbits')
         os.makedirs(orbit_dir, exist_ok=True)
-        check_internet_connection()
-
-        # List all zip file and extract info
-        zip_file_list = sorted(glob.glob(f'{slc_dir}/S1*zip'))
-
-        for zip_file in zip_file_list:
-            sensor_id, _, start_datetime, \
-            end_datetime, _ = parse_safe_filename(zip_file)
-
-            # Find precise orbits first
-            orbit_dict = get_orbit_dict(sensor_id, start_datetime,
-                                        end_datetime, 'AUX_POEORB')
-            # If orbit_dict is empty, precise orbits have not been found. Find restituted orbits instead
-            if orbit_dict == None:
-                orbit_dict = get_orbit_dict(sensor_id, start_datetime,
-                                            end_datetime, 'AUX_RESORB')
-            # Download the orbit file
-            download_orbit(orbit_dir, orbit_dict['orbit_url'])
+        # Note: Specific files will be downloaded as needed during `generate_burst_map`
 
     # Generate burst map and prune it if a list of burst ID is provided
     zip_file_list = sorted(glob.glob(f'{slc_dir}/S1*zip'))

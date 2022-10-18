@@ -72,8 +72,8 @@ def run(cfg):
     # Generate required metadata layers
     if cfg.rdr2geo_params.enabled:
         s1_rdr2geo.run(cfg, save_in_scratch=True)
-    if cfg.rdr2geo_params.geocode_metadata_layers:
-        s1_geocode_metadata.run(cfg, fetch_from_scratch=True)
+        if cfg.rdr2geo_params.geocode_metadata_layers:
+           s1_geocode_metadata.run(cfg, fetch_from_scratch=True)
 
     # Split the range bandwidth of the burst, if required
     if cfg.split_spectrum_params.enabled:

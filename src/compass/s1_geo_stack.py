@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import argparse
+import datetime
 import glob
 import os
 import time
@@ -10,7 +11,7 @@ import journal
 import numpy as np
 import pandas as pd
 import yaml
-from s1reader.s1_orbit import get_orbit_file_from_dir
+from s1reader.s1_orbit import get_orbit_file_from_dir, parse_safe_filename
 from s1reader.s1_reader import load_bursts
 
 from compass.utils import helpers
@@ -21,19 +22,16 @@ def create_parser():
     parser = argparse.ArgumentParser(
         description='S1-A/B geocoded CSLC stack processor.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-s', '--slc-dir', type=str, required=True,
+    parser.add_argument('-s', '--slc-dir', required=True,
                         help='Directory containing the S1-A/B SLCs (zip files)')
-    parser.add_argument('-d', '--dem-file', type=str, required=True,
+    parser.add_argument('-d', '--dem-file', required=True,
                         help='File path to DEM to use for processing.')
-    parser.add_argument('-o', '--orbit-dir', type=str, default=None,
+    parser.add_argument('-o', '--orbit-dir', default=None,
                         help='Directory with orbit files. If None, downloads orbit files')
-    parser.add_argument('-w', '--working-dir', dest='work_dir', type=str,
-                        default='stack',
+    parser.add_argument('-w', '--working-dir', dest='work_dir', default='stack',
                         help='Directory to store intermediate and final results')
-    parser.add_argument('-sd', '--start-date', type=int, default=None,
-                        help='Start date of the stack to process')
-    parser.add_argument('-ed', '--end-date', type=int,
-                        help='End date of the stack to process')
+    parser.add_argument('-sd', '--start-date', help='Start date of the stack to process')
+    parser.add_argument('-ed', '--end-date', help='End date of the stack to process')
     parser.add_argument('-b', '--burst-id', nargs='+', default=None,
                         help='List of burst IDs to process. If None, all the burst IDs '
                              'in the reference date are processed. (default: None)')
@@ -90,7 +88,7 @@ def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=4326):
     i_subswath = [1, 2, 3]
 
     for zip_file in zip_files:
-        orbit_path = get_orbit_file_from_dir(zip_file, orbit_dir, auto_download=True)
+        orbit_path = get_orbit_file_from_dir(zip_file, orbit_dir)
 
         for subswath in i_subswath:
             ref_bursts = load_bursts(zip_file, orbit_path, subswath)
@@ -139,7 +137,7 @@ def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=4326):
     return burst_map
 
 
-def prune_dataframe(data, id_col, id_list, exclude_items=False):
+def prune_dataframe(data, id_col, id_list):
     '''
     Prune dataframe based on column ID and list of value
     Parameters:
@@ -162,10 +160,7 @@ def prune_dataframe(data, id_col, id_list, exclude_items=False):
        Pruned dataframe with rows in 'id_list'
     '''
     pattern = '|'.join(id_list)
-    if not exclude_items:
-        df = data.loc[data[id_col].str.contains(pattern, case=False)]
-    else:
-        df = data.loc[~data[id_col].str.contains(pattern, case=False)]
+    df = data.loc[~data[id_col].str.contains(pattern, case=False)]
     return df
 
 
@@ -234,9 +229,10 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
     rss = process['range_split_spectrum']
 
     # Allocate Inputs
+    burst = burst_map_row.burst
     inputs['safe_file_path'] = [burst_map_row.zip_file]
     inputs['orbit_file_path'] = [burst_map_row.orbit_path]
-    inputs['burst_id'] = burst_map_row.burst.burst_id
+    inputs['burst_id'] = burst.burst_id
     groups['dynamic_ancillary_file_group']['dem_file'] = dem_file
 
     # Product path
@@ -269,6 +265,51 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
     with open(runconfig_path, 'w') as yaml_file:
         yaml.dump(yaml_cfg, yaml_file, default_flow_style=False)
     return runconfig_path
+
+
+def _filter_by_date(zip_file_list, start_date, end_date, exclude_dates):
+    '''
+    Filter list of zip files based on date
+    Parameters:
+    ----------
+    zip_file_list: list
+        List of zip files to filter
+    start_date: str
+        Start date in YYYYMMDD format
+    end_date: str
+        End date in YYYYMMDD format
+    exclude_dates: list
+        List of dates to exclude
+    Returns:
+    -------
+    zip_file_list: list
+        Filtered list of zip files
+    '''
+    safe_datetimes = [parse_safe_filename(zip_file)[2] for zip_file in zip_file_list]
+    if start_date:
+        start_datetime = datetime.datetime.strptime(start_date, '%Y%m%d')
+    else:
+        start_datetime = min(safe_datetimes)
+    if end_date:
+        end_datetime = datetime.datetime.strptime(end_date, '%Y%m%d')
+    else:
+        end_datetime = max(safe_datetimes)
+
+    if exclude_dates is not None:
+        exclude_datetimes = [
+            datetime.datetime.strptime(d, '%Y%m%d').date
+            for d in exclude_dates
+        ]
+    else:
+        exclude_datetimes = []
+
+    # Filter within date range, and prune excluded dates
+    zip_file_list = [
+        f
+        for (f, dt) in zip(zip_file_list, safe_datetimes)
+        if start_datetime <= dt <= end_datetime and dt.date not in exclude_datetimes
+    ]
+    return zip_file_list
 
 
 def main(slc_dir, dem_file, burst_id, start_date=None, end_date=None,
@@ -344,6 +385,10 @@ def main(slc_dir, dem_file, burst_id, start_date=None, end_date=None,
 
     # Generate burst map and prune it if a list of burst ID is provided
     zip_file_list = sorted(glob.glob(f'{slc_dir}/S1*zip'))
+    # Remove zip files that are not in the date range before generating burst map
+    zip_file_list = _filter_by_date(zip_file_list, start_date, end_date, exclude_dates)
+
+    info.log(f'Generating burst map for {len(zip_file_list)} SAFE files')
     burst_map = generate_burst_map(zip_file_list, orbit_dir, x_spac, y_spac, epsg)
 
     # Identify burst IDs common across the stack and remove from the dataframe
@@ -354,16 +399,6 @@ def main(slc_dir, dem_file, burst_id, start_date=None, end_date=None,
     # If user selects burst IDs to process, prune unnecessary bursts
     if burst_id is not None:
         burst_map = prune_dataframe(burst_map, 'burst_id', burst_id)
-
-    # Select only dates between start and end
-    if start_date is not None:
-        burst_map = burst_map[burst_map['date'] >= start_date]
-    if end_date is not None:
-        burst_map = burst_map[burst_map['date'] <= end_date]
-
-    # Exclude some dates if the user requires it
-    if exclude_dates is not None:
-        burst_map = prune_dataframe(burst_map, 'date', exclude_dates, exclude_items=True)
 
     # Ready to geocode bursts
     for row in burst_map.itertuples():

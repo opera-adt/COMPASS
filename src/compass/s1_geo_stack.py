@@ -13,6 +13,7 @@ import pandas as pd
 import yaml
 from s1reader.s1_orbit import get_orbit_file_from_dir, parse_safe_filename
 from s1reader.s1_reader import load_bursts
+from shapely import geometry
 
 from compass.utils import helpers
 from compass.utils.geo_grid import get_point_epsg
@@ -44,6 +45,10 @@ def create_parser():
                         help='Spacing in meters of geocoded CSLC along X-direction.')
     parser.add_argument('-y', '--y-spac', type=float, default=10,
                         help='Spacing in meters of geocoded CSLC along Y-direction.')
+    parser.add_argument('--bbox', nargs=4, type=float, default=None, 
+                        metavar=('lonmin', 'latmin', 'lonmax', 'latmax'),
+                        help='(Optional) Bounding box of the geocoded stack'
+                             ' in lon/lat degrees. ')
     parser.add_argument('-e', '--epsg', type=int, default=None,
                         help='EPSG projection code for output geocoded bursts')
     parser.add_argument('-f', '--flatten', type=bool, default=True,
@@ -58,7 +63,7 @@ def create_parser():
     return parser.parse_args()
 
 
-def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=4326):
+def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=4326, bbox=None):
     '''
     Generates a dataframe of geogrid infos for each burst ID in `zip_files`.
 
@@ -74,6 +79,9 @@ def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=4326):
         Spacing of geocoded burst along Y-direction
     epsg: int
         EPSG code identifying output product projection system
+    bbox: Optional[tuple[float]]
+        Bounding box of the geocoded bursts (left, bottom, right, top)
+        If not provided, the bounding box is computed for each burst
 
     Returns
     -------
@@ -93,40 +101,37 @@ def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=4326):
         for subswath in i_subswath:
             ref_bursts = load_bursts(zip_file, orbit_path, subswath)
             for burst in ref_bursts:
-                burst_map['burst_id'].append(burst.burst_id)
-                # keep the burst object so we don't have to re-parse
-                burst_map['burst'].append(burst)
-
                 if epsg is None:
                     epsg = get_point_epsg(burst.center.y,
                                           burst.center.x)
 
-                # Initialize geogrid with the info checked at this stage
-                geogrid = isce3.product.bbox_to_geogrid(
-                    burst.as_isce3_radargrid(),
-                    burst.orbit,
-                    isce3.core.LUT2d(),
-                    x_spac, -y_spac,
-                    epsg)
 
-                # Snap coordinates so that adjacent burst coordinates are integer
-                # multiples of the spacing in X-/Y-directions
-                burst_map['x_top_left'].append(
-                    x_spac * np.floor(geogrid.start_x / x_spac)
-                )
-                burst_map['y_top_left'].append(
-                    y_spac * np.ceil(geogrid.start_y / y_spac)
-                )
-                burst_map['x_bottom_right'].append(
-                    x_spac * np.ceil(
-                        (geogrid.start_x + x_spac * geogrid.width) / x_spac
-                    )
-                )
-                burst_map['y_bottom_right'].append(
-                    y_spac * np.floor(
-                        (geogrid.start_y + y_spac * geogrid.length) / y_spac
-                    )
-                )
+                if bbox is not None:
+                    bbox_utm = helpers.convert_bbox_to_utm(bbox, epsg)
+                    burst_border_utm = helpers.convert_polygon_to_utm(burst.border[0], epsg)
+                    # Skip this burst if it doesn't intersect the specified bbox
+                    if not geometry.box(*bbox_utm).intersects(burst_border_utm):
+                        continue
+                else:
+                    # Initialize geogrid with the info checked at this stage
+                    geogrid = isce3.product.bbox_to_geogrid(
+                        burst.as_isce3_radargrid(),
+                        burst.orbit,
+                        isce3.core.LUT2d(),
+                        x_spac, -y_spac,
+                        epsg)
+                    bbox_utm = snap_geogrid(geogrid, x_spac, y_spac)
+
+                burst_map['burst_id'].append(burst.burst_id)
+                # keep the burst object so we don't have to re-parse
+                burst_map['burst'].append(burst)
+
+                left, bottom, right, top = bbox_utm
+                burst_map['x_top_left'].append(left)
+                burst_map['y_top_left'].append(top)
+                burst_map['x_bottom_right'].append(right)
+                burst_map['y_bottom_right'].append(bottom)
+
                 burst_map['epsg'].append(epsg)
                 burst_map['date'].append(burst.sensing_start.strftime("%Y%m%d"))
                 # Save the file paths for creating the runconfig
@@ -135,6 +140,35 @@ def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=4326):
 
     burst_map = pd.DataFrame(data=burst_map)
     return burst_map
+
+
+def snap_geogrid(geogrid, x_spac, y_spac):
+    """Snap the bounding box of the geogrid to integer multiples of the
+    spacing in X-/Y-directions.
+
+    Parameters
+    ----------
+    geogrid : isce3.core.Geogrid
+        Geogrid object
+    x_spac : float
+        Spacing of geocoded burst along X-direction
+    y_spac : float
+        Spacing of geocoded burst along Y-direction
+
+    Returns
+    -------
+    tuple
+        Tuple containing the snapped bounding box coordinates
+        (left, bottom, right, top)
+    """
+    x_left = x_spac * np.floor(geogrid.start_x / x_spac)
+    x_right = x_spac * np.ceil((geogrid.start_x + x_spac * geogrid.width) / x_spac)
+    y_bottom = y_spac * np.floor((geogrid.start_y + y_spac * geogrid.length) / y_spac)
+    y_top = y_spac * np.ceil(geogrid.start_y / y_spac)
+    return (x_left, y_bottom, x_right, y_top)
+
+
+
 
 
 def prune_dataframe(data, id_col, id_list):
@@ -160,7 +194,7 @@ def prune_dataframe(data, id_col, id_list):
        Pruned dataframe with rows in 'id_list'
     '''
     pattern = '|'.join(id_list)
-    df = data.loc[~data[id_col].str.contains(pattern, case=False)]
+    df = data.loc[data[id_col].str.contains(pattern, case=False)]
     return df
 
 
@@ -312,14 +346,9 @@ def _filter_by_date(zip_file_list, start_date, end_date, exclude_dates):
     return zip_file_list
 
 
-def main(slc_dir, dem_file, burst_id, start_date=None, end_date=None,
-         exclude_dates=None, orbit_dir=None,
-         work_dir='stack',
-         pol='dual-pol', x_spac=5, y_spac=10, epsg=None,
-         flatten=True,
-         is_split_spectrum=False,
-         low_band=0.0,
-         high_band=0.0):
+def main(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dates=None,
+         orbit_dir=None, work_dir='stack', pol='dual-pol', x_spac=5, y_spac=10, bbox=None,
+         epsg=None, flatten=True, is_split_spectrum=False, low_band=0.0, high_band=0.0):
     '''
     Create runconfigs and runfiles generating geocoded bursts for
     a static stack of Sentinel-1 A/B SAFE files.
@@ -346,6 +375,9 @@ def main(slc_dir, dem_file, burst_id, start_date=None, end_date=None,
         Spacing of geocoded burst along X-direction
     y_spac: float
         Spacing of geocoded burst along Y-direction
+    bbox: tuple[float], optional
+        Bounding box of the area to geocode: (lonmin, latmin, lonmax, latmax) in degrees.
+        If not provided, will use the bounding box of the stack.
     epsg: int
         EPSG code identifying projection system to use for processing
     flatten: bool
@@ -389,7 +421,7 @@ def main(slc_dir, dem_file, burst_id, start_date=None, end_date=None,
     zip_file_list = _filter_by_date(zip_file_list, start_date, end_date, exclude_dates)
 
     info.log(f'Generating burst map for {len(zip_file_list)} SAFE files')
-    burst_map = generate_burst_map(zip_file_list, orbit_dir, x_spac, y_spac, epsg)
+    burst_map = generate_burst_map(zip_file_list, orbit_dir, x_spac, y_spac, epsg, bbox)
 
     # Identify burst IDs common across the stack and remove from the dataframe
     # burst IDs that are not in common
@@ -431,6 +463,6 @@ if __name__ == '__main__':
 
     main(args.slc_dir, args.dem_file, args.burst_id, args.start_date,
          args.end_date, args.exclude_dates, args.orbit_dir,
-         args.work_dir, args.pol, args.x_spac, args.y_spac, args.epsg,
-         args.flatten, args.is_split_spectrum,
+         args.work_dir, args.pol, args.x_spac, args.y_spac, args.bbox,
+         args.epsg, args.flatten, args.is_split_spectrum,
          args.low_band, args.high_band)

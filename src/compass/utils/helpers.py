@@ -4,7 +4,9 @@ import os
 
 import isce3
 import journal
+import numpy as np
 from osgeo import gdal
+from shapely import geometry
 
 import compass
 
@@ -154,3 +156,56 @@ def check_dem(dem_path: str):
         err_str = f'DEM epsg of {epsg} out of bounds'
         error_channel.log(err_str)
         raise ValueError(err_str)
+
+
+def convert_bbox_to_utm(bbox, epsg):
+    """Convert bounding box coordinates to UTM.
+
+    Parameters
+    ----------
+    bbox : tuple
+        Tuple containing the lon/lat bounding box coordinates
+        (left, bottom, right, top) in degrees
+    epsg : int
+        EPSG code identifying output product projection system
+
+    Returns
+    -------
+    tuple
+        Tuple containing the bounding box coordinates in UTM (meters)
+        (left, bottom, right, top)
+    """
+    lonmin, latmin, lonmax, latmax = bbox
+    xys = _convert_to_utm([(lonmin, latmin), (lonmax, latmax)], epsg)
+    return (*xys[0], *xys[1])
+
+
+def convert_polygon_to_utm(poly, epsg):
+    """Convert bounding box coordinates to UTM.
+
+    Parameters
+    ----------
+    poly: shapely.geometry.Polygon
+        Polygon object
+    epsg : int
+        EPSG code identifying output product projection system
+
+    Returns
+    -------
+    tuple
+        Tuple containing the bounding box coordinates in UTM (meters)
+        (left, bottom, right, top)
+    """
+    coords = np.array(poly.exterior.coords)
+    xys = _convert_to_utm(coords, epsg)
+    return geometry.Polygon(xys)
+
+
+def _convert_to_utm(points_lonlat, epsg):
+    """Convert a list of points from lon/lat to UTM coordinates."""
+    proj = isce3.core.UTM(epsg)
+    # proj.forward expects [Longitude (in radians), latitude (in radians), height (m)]
+    out = []
+    for lon, lat in points_lonlat:
+        out.append(proj.forward(np.deg2rad([lon, lat, 0]))[:2])
+    return out

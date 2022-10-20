@@ -158,7 +158,7 @@ def check_dem(dem_path: str):
         raise ValueError(err_str)
 
 
-def convert_bbox_to_utm(bbox, epsg):
+def bbox_to_utm(bbox, epsg_bbox=4326, epsg_out=None):
     """Convert bounding box coordinates to UTM.
 
     Parameters
@@ -175,12 +175,12 @@ def convert_bbox_to_utm(bbox, epsg):
         Tuple containing the bounding box coordinates in UTM (meters)
         (left, bottom, right, top)
     """
-    lonmin, latmin, lonmax, latmax = bbox
-    xys = _convert_to_utm([(lonmin, latmin), (lonmax, latmax)], epsg)
+    xmin, ymin, xmax, ymax = bbox
+    xys = _convert_to_utm([(xmin, ymin), (xmax, ymax)], epsg_bbox, epsg_out)
     return (*xys[0], *xys[1])
 
 
-def convert_polygon_to_utm(poly, epsg):
+def polygon_to_utm(poly, epsg_poly=4326, epsg_out=None):
     """Convert a shapely.Polygon's coordinates to UTM.
 
     Parameters
@@ -197,15 +197,29 @@ def convert_polygon_to_utm(poly, epsg):
         (left, bottom, right, top)
     """
     coords = np.array(poly.exterior.coords)
-    xys = _convert_to_utm(coords, epsg)
+    xys = _convert_to_utm(coords, epsg_poly, epsg_out)
     return geometry.Polygon(xys)
 
 
-def _convert_to_utm(points_lonlat, epsg):
+def _convert_to_utm(points_xy, epsg_in, epsg_out):
     """Convert a list of points from lon/lat (in degrees) to UTM coordinates."""
-    proj = isce3.core.UTM(epsg)
-    # proj.forward expects [Longitude (in radians), latitude (in radians), height (m)]
+    if epsg_out == epsg_in:
+        return points_xy
+
+    if epsg_in == 4326:
+        # proj.forward expects Longitude/latitude in radians
+        points_ll = np.deg2rad(points_xy)
+    else:
+        # convert points to lon/lat if given a different UTM projection
+        points_ll = []
+        proj_ll = isce3.core.UTM(epsg_in)
+        for x, y in points_xy:
+            points_ll.append(proj_ll.inverse([x, y, 0])[:2])
+        print(points_ll, np.rad2deg(points_ll))
+
+    proj = isce3.core.UTM(epsg_out)
     out = []
-    for lon, lat in points_lonlat:
-        out.append(proj.forward(np.deg2rad([lon, lat, 0]))[:2])
+    for lon, lat in points_ll:
+        # proj.forward expects llh, [Longitude, latitude, height (m)]
+        out.append(proj.forward([lon, lat, 0])[:2])
     return out

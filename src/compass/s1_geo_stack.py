@@ -51,13 +51,14 @@ def create_parser():
     optional.add_argument('-dy', '--y-spac', type=float, default=10,
                           help='Spacing in meters of geocoded CSLC along Y-direction.')
     optional.add_argument('--bbox', nargs=4, type=float, default=None,
-                          metavar=('lonmin', 'latmin', 'lonmax', 'latmax'),
+                          metavar=('xmin', 'ymin', 'xmax', 'ymax'),
                           help='Bounding box of the geocoded stack.')
-    optional.add_argument('--bbox-epsg', type=int, default=4326,
-                          help='EPSG code of the bounding box.'
+    optional.add_argument('--epsg-bbox', type=int, default=4326,
+                          help='EPSG code of the bounding box. '
                                'If 4326, the bounding box is in lon/lat degrees.')
     optional.add_argument('-e', '--epsg', type=int, default=None,
-                          help='EPSG projection code for output geocoded bursts')
+                          help='Output EPSG projection code for geocoded bursts. '
+                               'If None, projection the UTM zone of the first burst.')
     optional.add_argument('-f', '--flatten', type=bool, default=True,
                           help='If True, enables topographic phase flattening.')
     optional.add_argument('-ss', '--range-split-spectrum',
@@ -70,7 +71,8 @@ def create_parser():
     return parser.parse_args()
 
 
-def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=4326, bbox=None):
+def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=None,
+                       bbox=None, epsg_bbox=4326):
     """Generates a dataframe of geogrid infos for each burst ID in `zip_files`.
 
     Parameters
@@ -86,8 +88,11 @@ def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=4326, bbox=Non
     epsg: int
         EPSG code identifying output product projection system
     bbox: Optional[tuple[float]]
-        Bounding box of the geocoded bursts (left, bottom, right, top)
-        If not provided, the bounding box is computed for each burst
+        Desired bounding box of the geocoded bursts as (left, bottom, right, top).
+        If not provided, the bounding box is computed for each burst.
+    epsg_bbox: int
+        EPSG code of the bounding box. If 4326, the bounding box is assumed
+        to be lon/lat degrees (default: 4326).
 
     Returns
     -------
@@ -111,10 +116,13 @@ def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=4326, bbox=Non
                     epsg = get_point_epsg(burst.center.y,
                                           burst.center.x)
 
-
                 if bbox is not None:
-                    bbox_utm = helpers.convert_bbox_to_utm(bbox, epsg)
-                    burst_border_utm = helpers.convert_polygon_to_utm(burst.border[0], epsg)
+                    bbox_utm = helpers.bbox_to_utm(
+                        bbox, epsg_bbox=epsg_bbox, epsg_out=epsg
+                    )
+                    burst_border_utm = helpers.polygon_to_utm(
+                        burst.border[0], epsg
+                    )
                     # Skip this burst if it doesn't intersect the specified bbox
                     if not geometry.box(*bbox_utm).intersects(burst_border_utm):
                         continue
@@ -356,10 +364,11 @@ def _filter_by_date(zip_file_list, start_date, end_date, exclude_dates):
 
 
 def run(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dates=None,
-         orbit_dir=None, work_dir='stack', pol='dual-pol', x_spac=5, y_spac=10, bbox=None,
-         epsg=None, flatten=True, is_split_spectrum=False, low_band=0.0, high_band=0.0):
-    """Create runconfigs and runfiles generating geocoded bursts for
-    a static stack of Sentinel-1 A/B SAFE files.
+        orbit_dir=None, work_dir='stack', pol='dual-pol', x_spac=5, y_spac=10, bbox=None,
+        epsg_bbox=4326, epsg=None, flatten=True, is_split_spectrum=False, low_band=0.0,
+        high_band=0.0):
+    """Create runconfigs and runfiles generating geocoded bursts for a static
+    stack of Sentinel-1 A/B SAFE files.
 
     Parameters
     ----------
@@ -384,7 +393,7 @@ def run(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dat
     y_spac: float
         Spacing of geocoded burst along Y-direction
     bbox: tuple[float], optional
-        Bounding box of the area to geocode: (lonmin, latmin, lonmax, latmax) in degrees.
+        Bounding box of the area to geocode: (xmin, ymin, xmax, ymax) in degrees.
         If not provided, will use the bounding box of the stack.
     epsg: int
         EPSG code identifying projection system to use for processing
@@ -473,7 +482,7 @@ def main():
     main(args.slc_dir, args.dem_file, args.burst_id, args.start_date,
          args.end_date, args.exclude_dates, args.orbit_dir,
          args.work_dir, args.pol, args.x_spac, args.y_spac, args.bbox,
-         args.epsg, args.flatten, args.is_split_spectrum,
+         args.epsg_bbox, args.epsg, args.flatten, args.is_split_spectrum,
          args.low_band, args.high_band)
 
 

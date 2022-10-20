@@ -10,8 +10,8 @@ runconfig:
            safe_file_path: list(str(), min=1)
            # Required. List of orbit (EOF) files
            orbit_file_path: list(str(), min=1)
-           # Required. The unique burst ID to process
-           burst_id: list(str(), min=1, max=27, required=False)
+           # Required. The unique burst IDs to process
+           burst_id: list(str(), min=1, required=False)
 
         dynamic_ancillary_file_group:
            # Digital Elevation Model.

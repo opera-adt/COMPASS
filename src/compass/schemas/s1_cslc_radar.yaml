@@ -64,8 +64,20 @@ rdr2geo_options:
    lines_per_block: int(min=1, required=False)
    # Secondary number of iterations
    extraiter: int(min=1, required=False)
+   # Enable/disable computation of latitude raster
+   compute_latitude: bool(required=False)
+   # Enable/disable computation of longitude raster
+   compute_longitude: bool(required=False)
+   # Enable/disable computation of height raster
+   compute_height: bool(required=False)
    # Enable/disable layover shadow mask output
-   compute_mask: bool(required=False)
+   compute_layover_shadow_mask: bool(required=False)
+   # Enable/disable incidence angle output
+   compute_incidence_angle: bool(required=False)
+   # Enable/disable local incidence output
+   compute_local_incidence_angle: bool(required=False)
+   # Enable/disable azimuth angle output
+   compute_azimuth_angle: bool(required=False)
 
 resample_options:
    # Lines per block to process in batch

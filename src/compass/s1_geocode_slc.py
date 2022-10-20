@@ -11,6 +11,8 @@ import journal
 import numpy as np
 from osgeo import gdal
 
+from compass import s1_rdr2geo
+from compass import s1_geocode_metadata
 from compass.utils.geo_metadata import GeoCslcMetadata
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.helpers import get_module_name
@@ -45,6 +47,7 @@ def run(cfg):
     iters = cfg.geo2rdr_params.numiter
     blocksize = cfg.geo2rdr_params.lines_per_block
     flatten = cfg.geocoding_params.flatten
+    output_epsg = cfg.geocoding_params.output_epsg
 
     # process one burst only
     burst = cfg.bursts[0]
@@ -64,6 +67,12 @@ def run(cfg):
 
     # Get azimuth polynomial coefficients for this burst
     az_carrier_poly2d = burst.get_az_carrier_poly()
+
+    # Generate required metadata layers
+    if cfg.rdr2geo_params.enabled:
+        s1_rdr2geo.run(cfg, save_in_scratch=True)
+        if cfg.rdr2geo_params.geocode_metadata_layers:
+           s1_geocode_metadata.run(cfg, fetch_from_scratch=True)
 
     # Split the range bandwidth of the burst, if required
     if cfg.split_spectrum_params.enabled:
@@ -103,7 +112,7 @@ def run(cfg):
     geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,
                     geo_grid.start_y, 0, geo_grid.spacing_y]
     geo_burst_raster.set_geotransform(geotransform)
-    geo_burst_raster.set_epsg(epsg)
+    geo_burst_raster.set_epsg(output_epsg)
     del geo_burst_raster
 
     # Save burst metadata

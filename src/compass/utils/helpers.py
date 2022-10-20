@@ -167,7 +167,7 @@ def convert_bbox_to_utm(bbox, epsg):
         Tuple containing the lon/lat bounding box coordinates
         (left, bottom, right, top) in degrees
     epsg : int
-        EPSG code identifying output product projection system
+        EPSG code identifying output projection system
 
     Returns
     -------
@@ -181,14 +181,14 @@ def convert_bbox_to_utm(bbox, epsg):
 
 
 def convert_polygon_to_utm(poly, epsg):
-    """Convert bounding box coordinates to UTM.
+    """Convert a shapely.Polygon's coordinates to UTM.
 
     Parameters
     ----------
     poly: shapely.geometry.Polygon
         Polygon object
     epsg : int
-        EPSG code identifying output product projection system
+        EPSG code identifying output projection system
 
     Returns
     -------
@@ -202,7 +202,7 @@ def convert_polygon_to_utm(poly, epsg):
 
 
 def _convert_to_utm(points_lonlat, epsg):
-    """Convert a list of points from lon/lat to UTM coordinates."""
+    """Convert a list of points from lon/lat (in degrees) to UTM coordinates."""
     proj = isce3.core.UTM(epsg)
     # proj.forward expects [Longitude (in radians), latitude (in radians), height (m)]
     out = []

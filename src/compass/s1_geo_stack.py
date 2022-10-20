@@ -23,49 +23,55 @@ def create_parser():
     parser = argparse.ArgumentParser(
         description='S1-A/B geocoded CSLC stack processor.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-s', '--slc-dir', required=True,
-                        help='Directory containing the S1-A/B SLCs (zip files)')
-    parser.add_argument('-d', '--dem-file', required=True,
-                        help='File path to DEM to use for processing.')
-    parser.add_argument('-o', '--orbit-dir', default=None,
-                        help='Directory with orbit files. If None, downloads orbit files')
-    parser.add_argument('-w', '--working-dir', dest='work_dir', default='stack',
-                        help='Directory to store intermediate and final results')
-    parser.add_argument('-sd', '--start-date', help='Start date of the stack to process')
-    parser.add_argument('-ed', '--end-date', help='End date of the stack to process')
-    parser.add_argument('-b', '--burst-id', nargs='+', default=None,
-                        help='List of burst IDs to process. If None, all the burst IDs '
-                             'in the reference date are processed. (default: None)')
-    parser.add_argument('-exd', '--exclude-dates', nargs='+',
-                        help='Date to be excluded from stack processing (format: YYYYMMDD)')
-    parser.add_argument('-p', '--pol', dest='pol', nargs='+', default='co-pol',
-                        help='Polarization to process: dual-pol, co-pol, cross-pol '
-                             ' (default: co-pol).')
-    parser.add_argument('-x', '--x-spac', type=float, default=5,
-                        help='Spacing in meters of geocoded CSLC along X-direction.')
-    parser.add_argument('-y', '--y-spac', type=float, default=10,
-                        help='Spacing in meters of geocoded CSLC along Y-direction.')
-    parser.add_argument('--bbox', nargs=4, type=float, default=None, 
-                        metavar=('lonmin', 'latmin', 'lonmax', 'latmax'),
-                        help='(Optional) Bounding box of the geocoded stack'
-                             ' in lon/lat degrees. ')
-    parser.add_argument('-e', '--epsg', type=int, default=None,
-                        help='EPSG projection code for output geocoded bursts')
-    parser.add_argument('-f', '--flatten', type=bool, default=True,
-                        help='If True, enables flattening (default: True)')
-    parser.add_argument('-ss', '--range-split-spectrum',
-                        dest='is_split_spectrum', type=bool, default=False,
-                        help='If True, enables split-spectrum (default: False)')
-    parser.add_argument('-lb', '--low-band', type=float, default=0.0,
-                        help='Low sub-band bandwidth in Hz (default: 0.0)')
-    parser.add_argument('-hb', '--high-band', type=float, default=0.0,
-                        help='High sub-band bandwidth in Hz (default: 0.0')
+    # Separate the required options from the optional ones
+    # https://stackoverflow.com/a/41747010/
+    parser._action_groups.pop()
+    required = parser.add_argument_group('required arguments')
+    optional = parser.add_argument_group('optional arguments')
+    required.add_argument('-s', '--slc-dir', required=True,
+                          help='Directory containing the S1-A/B SLCs (zip files)')
+    required.add_argument('-d', '--dem-file', required=True,
+                          help='File path to a GDAL-readable DEM to use for processing.')
+    optional.add_argument('-o', '--orbit-dir', default=None,
+                          help='Directory with orbit files. If None, downloads orbit files')
+    optional.add_argument('-w', '--working-dir', dest='work_dir', default='stack',
+                          help='Directory to store intermediate and final results')
+    optional.add_argument('-sd', '--start-date', help='Start date of the stack to process')
+    optional.add_argument('-ed', '--end-date', help='End date of the stack to process')
+    optional.add_argument('-b', '--burst-id', nargs='+', default=None,
+                          help='List of burst IDs to process. If None, burst IDs '
+                             'common to all dates are processed.')
+    optional.add_argument('-exd', '--exclude-dates', nargs='+',
+                          help='Date to be excluded from stack processing (format: YYYYMMDD)')
+    optional.add_argument('-p', '--pol', dest='pol', nargs='+', default='co-pol',
+                          help='Polarization to process: dual-pol, co-pol, cross-pol '
+                               ' (default: co-pol).')
+    optional.add_argument('-dx', '--x-spac', type=float, default=5,
+                          help='Spacing in meters of geocoded CSLC along X-direction.')
+    optional.add_argument('-dy', '--y-spac', type=float, default=10,
+                          help='Spacing in meters of geocoded CSLC along Y-direction.')
+    optional.add_argument('--bbox', nargs=4, type=float, default=None,
+                          metavar=('lonmin', 'latmin', 'lonmax', 'latmax'),
+                          help='Bounding box of the geocoded stack.')
+    optional.add_argument('--bbox-epsg', type=int, default=4326,
+                          help='EPSG code of the bounding box.'
+                               'If 4326, the bounding box is in lon/lat degrees.')
+    optional.add_argument('-e', '--epsg', type=int, default=None,
+                          help='EPSG projection code for output geocoded bursts')
+    optional.add_argument('-f', '--flatten', type=bool, default=True,
+                          help='If True, enables topographic phase flattening.')
+    optional.add_argument('-ss', '--range-split-spectrum',
+                          dest='is_split_spectrum', type=bool, default=False,
+                          help='If True, enables split-spectrum')
+    optional.add_argument('-lb', '--low-band', type=float, default=0.0,
+                          help='Low sub-band bandwidth in Hz (default: 0.0)')
+    optional.add_argument('-hb', '--high-band', type=float, default=0.0,
+                          help='High sub-band bandwidth in Hz (default: 0.0')
     return parser.parse_args()
 
 
 def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=4326, bbox=None):
-    '''
-    Generates a dataframe of geogrid infos for each burst ID in `zip_files`.
+    """Generates a dataframe of geogrid infos for each burst ID in `zip_files`.
 
     Parameters
     ----------
@@ -88,7 +94,7 @@ def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=4326, bbox=Non
     burst_map: pandas.Dataframe
         Pandas dataframe containing geogrid info (e.g. top-left, bottom-right
         x and y coordinates) for each burst to process
-    '''
+    """
     # Initialize dictionary that contains all the info for geocoding
     burst_map = defaultdict(list)
 
@@ -168,12 +174,9 @@ def snap_geogrid(geogrid, x_spac, y_spac):
     return (x_left, y_bottom, x_right, y_top)
 
 
-
-
-
 def prune_dataframe(data, id_col, id_list):
-    '''
-    Prune dataframe based on column ID and list of value
+    """Prune dataframe based on column ID and list of value
+
     Parameters:
     ----------
     data: pandas.DataFrame
@@ -185,31 +188,30 @@ def prune_dataframe(data, id_col, id_list):
         If exclude_items is False (default), then all elements in `data`
             will be kept *except for* those in `id_list`.
         If exclude_items is True, the items in `id_list` will be removed from `data`.
-    exclude_items: bool
-        If True, the items in `id_list` will be removed from `data`.
-        If False, all elements in `data` will be kept *except for* those in `id_list`.
+
     Returns:
     -------
     data: pandas.DataFrame
-       Pruned dataframe with rows in 'id_list'
-    '''
+        Pruned dataframe with rows in 'id_list'
+    """
     pattern = '|'.join(id_list)
     df = data.loc[data[id_col].str.contains(pattern, case=False)]
     return df
 
 
 def get_common_burst_ids(data):
-    '''
-    Get list of burst IDs common among all processed dates
-    Parameters:
+    """Get list of burst IDs common among all processed dates
+
+    Parameters
     ----------
     data: pandas.DataFrame
-      Dataframe containing info for stitching (e.g. burst IDs)
-    Returns:
+        Dataframe containing info for stitching (e.g. burst IDs)
+
+    Returns
     -------
     common_id: list
-      List containing common burst IDs among all the dates
-    '''
+        List containing common burst IDs among all the dates
+    """
     # Identify all the dates for the bursts to stitch
     unique_dates = list(set(data['date']))
 
@@ -224,11 +226,11 @@ def get_common_burst_ids(data):
 
 def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
                      low_band, high_band, pol, x_spac, y_spac):
-    '''
+    """
     Create runconfig to process geocoded bursts
 
     Parameters
-    ---------
+    ----------
     burst_map_row: namedtuple
         one row from the dataframe method `burst_map.itertuples()`
     dem_file: str
@@ -249,7 +251,12 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
         Spacing of geocoded burst along X-direction
     y_spac: float
         Spacing of geocoded burst along Y-direction
-    '''
+
+    Returns
+    -------
+    runconfig: str
+        Path to runconfig file
+    """
     # Load default runconfig and fill it with user-defined options
     yaml_path = f'{helpers.WORKFLOW_SCRIPTS_DIR}/defaults/s1_cslc_geo.yaml'
     with open(yaml_path, 'r') as stream:
@@ -302,9 +309,10 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
 
 
 def _filter_by_date(zip_file_list, start_date, end_date, exclude_dates):
-    '''
+    """
     Filter list of zip files based on date
-    Parameters:
+
+    Parameters
     ----------
     zip_file_list: list
         List of zip files to filter
@@ -314,11 +322,12 @@ def _filter_by_date(zip_file_list, start_date, end_date, exclude_dates):
         End date in YYYYMMDD format
     exclude_dates: list
         List of dates to exclude
-    Returns:
+
+    Returns
     -------
     zip_file_list: list
         Filtered list of zip files
-    '''
+    """
     safe_datetimes = [parse_safe_filename(zip_file)[2] for zip_file in zip_file_list]
     if start_date:
         start_datetime = datetime.datetime.strptime(start_date, '%Y%m%d')
@@ -346,11 +355,10 @@ def _filter_by_date(zip_file_list, start_date, end_date, exclude_dates):
     return zip_file_list
 
 
-def main(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dates=None,
+def run(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dates=None,
          orbit_dir=None, work_dir='stack', pol='dual-pol', x_spac=5, y_spac=10, bbox=None,
          epsg=None, flatten=True, is_split_spectrum=False, low_band=0.0, high_band=0.0):
-    '''
-    Create runconfigs and runfiles generating geocoded bursts for
+    """Create runconfigs and runfiles generating geocoded bursts for
     a static stack of Sentinel-1 A/B SAFE files.
 
     Parameters
@@ -388,7 +396,7 @@ def main(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_da
         Low sub-band bandwidth for split-spectrum in Hz
     high_band: float
         High sub-band bandwidth for split-spectrum in Hz
-    '''
+    """
     start_time = time.time()
     error = journal.error('s1_geo_stack_processor.main')
     info = journal.info('s1_geo_stack_processor.main')
@@ -457,7 +465,8 @@ def main(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_da
     print('Elapsed time (min):', (end_time - start_time) / 60.0)
 
 
-if __name__ == '__main__':
+def main():
+    """Create the command line interface and run the script."""
     # Run main script
     args = create_parser()
 
@@ -466,3 +475,7 @@ if __name__ == '__main__':
          args.work_dir, args.pol, args.x_spac, args.y_spac, args.bbox,
          args.epsg, args.flatten, args.is_split_spectrum,
          args.low_band, args.high_band)
+
+
+if __name__ == '__main__':
+    main()

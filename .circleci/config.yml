@@ -11,6 +11,10 @@ jobs:
           name: "Build COMPASS docker image"
           command: |
             docker build . -f docker/Dockerfile
+      - run:
+          name: "Run unit tests"
+          command: |
+            docker run pytest
 
 workflows:
   build-workflow:

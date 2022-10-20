@@ -202,7 +202,10 @@ def polygon_to_utm(poly, epsg_poly=4326, epsg_out=None):
 
 
 def _convert_to_utm(points_xy, epsg_in, epsg_out):
-    """Convert a list of points from lon/lat (in degrees) to UTM coordinates."""
+    """Convert a list of points to a specified UTM coordinate system.
+
+    If epsg_in is 4326 (lat/lon), assumes points_xy are in degrees.
+    """
     if epsg_out == epsg_in:
         return points_xy
 
@@ -215,7 +218,6 @@ def _convert_to_utm(points_xy, epsg_in, epsg_out):
         proj_ll = isce3.core.UTM(epsg_in)
         for x, y in points_xy:
             points_ll.append(proj_ll.inverse([x, y, 0])[:2])
-        print(points_ll, np.rad2deg(points_ll))
 
     proj = isce3.core.UTM(epsg_out)
     out = []

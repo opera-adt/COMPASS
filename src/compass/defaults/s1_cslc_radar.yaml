@@ -39,8 +39,28 @@ runconfig:
        processing:
            polarization: co-pol
            rdr2geo:
+               # Convergence threshold for rdr2geo algorithm
+               threshold: 1.0e-8
+               # Maximum number of iterations
+               numiter: 25
+               # Lines per block to process in batch
                lines_per_block: 1000
-               compute_mask: True
+               # Secondary number of iterations
+               extraiter: 10
+               # Enable/disable computation of latitute raster
+               compute_latitude: True
+               # Enable/disable computation of longitude raster
+               compute_longitude: True
+               # Enable/disable computation of height raster
+               compute_height: True
+               # Enable/disable layover shadow mask output
+               compute_layover_shadow_mask: True
+               # Enable/disable incidence angle output
+               compute_incidence_angle: False
+               # Enable/disable local incidence output
+               compute_local_incidence_angle: False
+               # Enable/disable azimuth angle output
+               compute_azimuth_angle: False
            geo2rdr:
                lines_per_block: 1000
                threshold: 1.0e-8

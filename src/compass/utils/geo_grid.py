@@ -90,7 +90,7 @@ def assign_check_geogrid(geo_grid, x_start=None, y_start=None,
 
     Parameters
     ----------
-    geo_grid: isce3.product.bbox_to_geogrid
+    geo_grid: isce3.product.geogrid
         ISCE3 object defining the geogrid
     x_start: float
         Geogrid top-left X coordinate
@@ -103,7 +103,7 @@ def assign_check_geogrid(geo_grid, x_start=None, y_start=None,
 
     Returns
     -------
-    geo_grid: isce3.product.bbox_to_geogrid
+    geo_grid: isce3.product.geogrid
         ISCE3 geogrid initialized with user-defined inputs
     '''
 
@@ -145,7 +145,7 @@ def check_geogrid_endpoints(geo_grid, x_end=None, y_end=None):
 
     Parameters
     -----------
-    geo_grid: isce3.product.bbox_to_geogrid
+    geo_grid: isce3.product.geogrid
         ISCE3 object defining the geogrid
     x_end: float
         Geogrid bottom right X coordinate
@@ -213,7 +213,7 @@ def snap_geogrid(geo_grid, x_snap, y_snap, x_end, y_end):
 
     Parameters
     ----------
-    geo_grid: isce3.product.bbox_to_geogrid
+    geo_grid: isce3.product.geogrid
         ISCE3 object definining the geogrid
     x_snap: float
         Snap value along X-direction
@@ -226,7 +226,7 @@ def snap_geogrid(geo_grid, x_snap, y_snap, x_end, y_end):
 
     Returns
     -------
-    geo_grid: isce3.product.bbox_to_geogrid
+    geo_grid: isce3.product.geogrid
         ISCE3 object containing the snapped geogrid
     '''
     if x_end is None: x_end = geo_grid.end_x

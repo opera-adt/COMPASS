@@ -282,6 +282,22 @@ def get_point_epsg(lat, lon):
 
 
 def generate_geogrids(bursts, geo_dict, dem):
+    ''' Create a geogrid for all bursts in given list
+
+    Parameters
+    ----------
+    burst: list[Sentinel1BurstSlc]
+        List of bursts
+    geo_dict: dict
+        Dict of parameters that describe the area to be geocoded
+    dem: str
+        Path to DEM raster
+
+    Returns
+    -------
+    geo_grids: dict
+        Dict of burst ID keys to isce3.product.GeoGridParameters values
+    '''
     dem_raster = isce3.io.Raster(dem)
 
     # Unpack values from geocoding disctionary

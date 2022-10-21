@@ -1,13 +1,8 @@
 #!/usr/bin/env python3
 
 """
-=========
-logger.py
-=========
-Logging utilities for use with OPERA PGEs.
-This module is adapted for OPERA from the NISAR PGE R2.0.0 util/logger.py
-Original Authors: Alice Stanboli, David White
-Adapted By: Scott Collins, Jim Hofman
+Logging utilities for OPERA ADT. Adapted from OPERA PGE logging utilities
+https://github.com/nasa/opera-sds-pge/blob/main/src/opera/util/logger.py
 """
 import datetime
 import inspect
@@ -18,13 +13,15 @@ from os.path import basename, isfile
 
 from compass.utils import error_codes
 from compass.utils.error_codes import ErrorCode
-#from .usage_metrics import get_os_metrics
+
+
+# from .usage_metrics import get_os_metrics
 
 
 def write(log_stream, severity, workflow, module, error_code, error_location,
           description, time_tag=None):
     """
-    Low-level logging function. May be called directly in lieu of PgeLogger class.
+    Low-level logging write function.
     Parameters
     ----------
     log_stream : io.StringIO
@@ -46,7 +43,8 @@ def write(log_stream, severity, workflow, module, error_code, error_location,
         the current time is used.
     """
     if not time_tag:
-        time_tag = datetime.datetime.now().isoformat(sep='T', timespec='microseconds') + "Z"
+        time_tag = datetime.datetime.now().isoformat(sep='T',
+                                                     timespec='microseconds') + "Z"
 
     message_str = f'{time_tag}, {severity}, {workflow}, {module}, ' \
                   f'{str(error_code)}, {error_location}, "{description}"\n'
@@ -57,10 +55,6 @@ def write(log_stream, severity, workflow, module, error_code, error_location,
 def default_log_file_name():
     """
     Returns a path + filename that can be used for the log file right away.
-    To minimize the risk of errors opening a log file, the initial log filename
-    does not rely on anything read from a run config file, SAS output file, etc.
-    Therefore, this filename does not follow the file naming convention.
-    Later (elsewhere), after everything is known, the log file will be renamed.
     Returns
     -------
     file_path : str
@@ -112,7 +106,8 @@ def standardize_severity_string(severity):
     severity : str
         The standardized severity string.
     """
-    severity = severity.strip().title()  # first char uppercase, rest lowercase.
+    # First character upper case, rest lower case
+    severity = severity.strip().title()
 
     # Convert some potential log level name variations
     if severity == 'Warn':
@@ -124,12 +119,9 @@ def standardize_severity_string(severity):
     return severity
 
 
-class PgeLogger:
+class Logger:
     """
-    Class to help with the PGE logging.
-    Advantages over the standalone write() function:
-    * Opens and closes the log file for you
-    * The class's write() function has fewer arguments that need to be provided.
+    Logging class.
     """
 
     LOGGER_CODE_BASE = 900000
@@ -141,7 +133,7 @@ class PgeLogger:
         Parameters
         ----------
         workflow : str, optional
-            Name of the workflow this logger is associated to. Defaults to "pge".
+            Name of the workflow this logger is associated to. Default to CSLC-S1
         error_code_base : int, optional
             The base error code value to associated to the logger. This gives
             the logger a de-facto severity level. Defaults to the Info level
@@ -161,19 +153,25 @@ class PgeLogger:
         self.log_stream = StringIO()
         self.log_stream.seek(0)
 
-        self._workflow = (workflow
-                          if workflow else f"pge_init::{basename(__file__)}")
+        self._workflow = (workflow if workflow else "CSLC-S1")
 
         self._error_code_base = (error_code_base
-                                 if error_code_base else PgeLogger.LOGGER_CODE_BASE)
+                                 if error_code_base else Logger.LOGGER_CODE_BASE)
 
     @property
     def workflow(self):
-        """Return specific workflow"""
+        """Return workflow attribute"""
         return self._workflow
 
     @workflow.setter
     def workflow(self, workflow: str):
+        '''
+        Set workflow attribute
+        Parameters
+        ----------
+        workflow: str
+            Name of the workflow
+        '''
         self._workflow = workflow
 
     @property
@@ -183,6 +181,13 @@ class PgeLogger:
 
     @error_code_base.setter
     def error_code_base(self, error_code_base: int):
+        '''
+        Set error code attribute
+        Parameters
+        ----------
+        error_code_base: int
+            Error code from error_codes.py
+        '''
         self._error_code_base = error_code_base
 
     def close_log_stream(self):
@@ -192,8 +197,6 @@ class PgeLogger:
         Closes the log stream
         """
         if self.log_stream and not self.log_stream.closed:
-        #    self.write_log_summary()
-
             self.log_stream.seek(0)
 
             with open(self.log_filename, 'w', encoding='utf-8') as outfile:
@@ -219,7 +222,8 @@ class PgeLogger:
             count = self.log_count_by_severity[severity]
             return count
         except KeyError:
-            self.warning("PgeLogger", ErrorCode.LOGGING_REQUESTED_SEVERITY_NOT_FOUND,
+            self.warning("Logger",
+                         ErrorCode.LOGGING_REQUESTED_SEVERITY_NOT_FOUND,
                          f"No messages logged with severity: '{severity}' ")
             return 0
 
@@ -250,7 +254,8 @@ class PgeLogger:
             count = 1 + self.log_count_by_severity[severity]
             self.log_count_by_severity[severity] = count
         except KeyError:
-            self.warning("PgeLogger", ErrorCode.LOGGING_COULD_NOT_INCREMENT_SEVERITY,
+            self.warning("Logger",
+                         ErrorCode.LOGGING_COULD_NOT_INCREMENT_SEVERITY,
                          f"Could not increment severity level: '{severity}' ")
 
     def write(self, severity, module, error_code_offset, description,
@@ -278,8 +283,6 @@ class PgeLogger:
 
         caller = inspect.currentframe().f_back
 
-        # TODO: Can the number of back frames be determined implicitly?
-        #       i.e. back up until the first non-logging frame is reached?
         for _ in range(additional_back_frames):
             caller = caller.f_back
 
@@ -366,7 +369,8 @@ class PgeLogger:
 
         raise RuntimeError(description)
 
-    def log(self, module, error_code_offset, description, additional_back_frames=0):
+    def log(self, module, error_code_offset, description,
+            additional_back_frames=0):
         """
         Logs any kind of message.
         Determines the log level (Critical, Warning, Info, or Debug) based on
@@ -399,7 +403,7 @@ class PgeLogger:
     def move(self, new_filename):
         """
         This function is useful when the log file has been given a default name,
-        and needs to be assigned a name that meets the PGE file naming conventions.
+        and needs to be assigned a name that is inline with user preferences.
         Parameters
         ----------
         new_filename : str
@@ -464,10 +468,12 @@ class PgeLogger:
             line_components = line.split(',', maxsplit=6)
 
             if len(line_components) < 7:
-                raise ValueError('Line does not conform to expected formatting style')
+                raise ValueError(
+                    'Line does not conform to expected formatting style')
 
             # Remove leading/trailing whitespace from all parsed fields
-            line_components = tuple(str.strip(line_component) for line_component in line_components)
+            line_components = tuple(
+                str.strip(line_component) for line_component in line_components)
 
             (time_tag,
              severity,
@@ -479,7 +485,8 @@ class PgeLogger:
 
             # Convert time-tag to expected iso format
             date_time = datetime.datetime.fromisoformat(time_tag)
-            time_tag = date_time.isoformat(sep='T', timespec='microseconds') + "Z"
+            time_tag = date_time.isoformat(sep='T',
+                                           timespec='microseconds') + "Z"
 
             # Standardize the error string
             severity = standardize_severity_string(severity)
@@ -507,50 +514,3 @@ class PgeLogger:
             raise ValueError(
                 f'Failed to parse log line "{line}" reason: {str(err)}'
             )
-
-    def log_one_metric(self, module, metric_name, metric_value,
-                       additional_back_frames=0):
-        """
-        Writes one metric value to the log file.
-        Parameters
-        ----------
-        module : str
-            Name of the module where the logging took place.
-        metric_name : str
-            Name of the metric being logged.
-        metric_value : object
-            Value to associate to the logged metric.
-        additional_back_frames : int
-            Number of call-stack frames to "back up" to in order to determine
-            the calling function and line number.
-        """
-        # msg = "{}: {}".format(metric_name, metric_value)
-        msg = f"{metric_name}: {metric_value}"
-        self.log(module, ErrorCode.SUMMARY_STATS_MESSAGE, msg,
-                 additional_back_frames=additional_back_frames + 1)
-
-    # def write_log_summary(self):
-    #     """
-    #     Writes a summary at the end of the log file, which includes totals
-    #     of each message logged for each severity level, OS-level metrics,
-    #     and total elapsed run time (since logger creation).
-    #     """
-    #     module_name = "PgeLogger"
-    #
-    #     # totals of messages logged
-    #     copy_of_log_count_by_severity = self.log_count_by_severity.copy()
-    #     for severity, count in copy_of_log_count_by_severity.items():
-    #         metric_name = "overall.log_messages." + severity.lower()
-    #         self.log_one_metric(module_name, metric_name, count)
-    #
-    #     # overall OS metrics
-    #     metrics = get_os_metrics()
-    #     for metric_name, value in metrics.items():
-    #         self.log_one_metric(module_name, "overall." + metric_name, value)
-    #
-    #     # Overall elapsed time
-    #     elapsed_time_seconds = time.monotonic() - self.start_time
-    #     self.log_one_metric(module_name, "overall.elapsed_seconds",
-    #                         elapsed_time_seconds)
-
-

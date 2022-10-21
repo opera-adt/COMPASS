@@ -55,7 +55,6 @@ class ErrorCode(IntEnum):
     QA_SAS_PROGRAM_STARTING = auto()
     QA_SAS_PROGRAM_COMPLETED = auto()
     QA_SAS_PROGRAM_DISABLED = auto()
-    RENDERING_ISO_METADATA = auto()
     CLOSING_LOG_FILE = auto()
 
     # Debug - 1000 – 1999
@@ -90,9 +89,6 @@ class ErrorCode(IntEnum):
     SAS_PROGRAM_FAILED = auto()
     QA_SAS_PROGRAM_NOT_FOUND = auto()
     QA_SAS_PROGRAM_FAILED = auto()
-    ISO_METADATA_TEMPLATE_NOT_FOUND = auto()
-    ISO_METADATA_GOT_SOME_RENDERING_ERRORS = auto()
-    ISO_METADATA_RENDER_FAILED = auto()
     SAS_OUTPUT_FILE_HAS_MISSING_DATA = auto()
 
     @classmethod

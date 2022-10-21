@@ -32,6 +32,9 @@ runconfig:
         # This section includes parameters to tweak the workflow
         processing: include('processing_options', required=False)
 
+        # This section is related to logging
+        logging: include('logging_options', required=False)
+
         # Worker options (e.g. enable/disable GPU processing, select GPU device ID)
         worker: include('worker_options', required=False)
 
@@ -120,6 +123,10 @@ rdr2geo_options:
    compute_azimuth_angle: bool(required=False)
    # Enable/disable geocoding of the topo layers
    geocode_metadata_layers: bool(required=False)
+
+logging_options:
+  # File path where to store log file
+  path: str(required=False)
 
 worker_options:
   # To prevent downloading DEM / other data automatically. Default True

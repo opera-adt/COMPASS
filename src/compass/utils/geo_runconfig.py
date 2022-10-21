@@ -111,6 +111,10 @@ class GeoRunConfig(RunConfig):
         return self.groups.processing.range_split_spectrum
 
     @property
+    def logging_params(self) -> dict:
+        return self.groups.logging
+
+    @property
     def output_dir(self) -> str:
         date_str = self.sensing_start.strftime("%Y%m%d")
         burst_id = self.burst_id

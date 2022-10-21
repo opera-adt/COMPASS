@@ -16,7 +16,7 @@ from compass.utils.error_codes import ErrorCode
 from compass.utils.yaml_argparse import YamlArgparse
 
 
-def run(cfg, fetch_from_scratch=False):
+def run(cfg, fetch_from_scratch=False, logger=None):
     '''
     Geocode metadata layers
 
@@ -26,12 +26,14 @@ def run(cfg, fetch_from_scratch=False):
         Dictionary with user runconfig options
     fetch_from_scratch: bool
         If True grabs metadata layers from scratch dir
-
+    logger: Logger
+        Object to handle logging
     '''
     module_name = get_module_name(__file__)
-    logger = Logger(workflow='CSLC-S1', log_filename=cfg.logging_params.path)
-    logger.info(module_name, ErrorCode.SAS_PROGRAM_STARTING,
-                f"Starting {module_name} burst")
+    if logger is None:
+        logger = Logger(workflow='CSLC-S1', log_filename=cfg.logging_params.path)
+        logger.info(module_name, ErrorCode.SAS_PROGRAM_STARTING,
+                    f"Starting {module_name} burst")
 
     # Start tracking processing time
     t_start = time.time()
@@ -125,8 +127,6 @@ def run(cfg, fetch_from_scratch=False):
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     logger.info(module_name, ErrorCode.SAS_PROGRAM_COMPLETED,
                 f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
-    # Close log file
-    logger.close_log_stream()
 
 
 if __name__ == "__main__":

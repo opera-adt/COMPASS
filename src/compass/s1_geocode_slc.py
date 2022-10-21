@@ -7,7 +7,6 @@ import os
 import time
 
 import isce3
-import journal
 import numpy as np
 from osgeo import gdal
 
@@ -16,6 +15,8 @@ from compass import s1_geocode_metadata
 from compass.utils.geo_metadata import GeoCslcMetadata
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.helpers import get_module_name
+from compass.utils.logger import Logger
+from compass.utils.error_codes import ErrorCode
 from compass.utils.range_split_spectrum import range_split_spectrum
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -31,8 +32,9 @@ def run(cfg):
         Dictionary with user runconfig options
     '''
     module_name = get_module_name(__file__)
-    info_channel = journal.info(f"{module_name}.run")
-    info_channel.log(f"Starting {module_name} burst")
+    logger = Logger(workflow='CSLC-S1', log_filename=cfg.logging_params.path)
+    logger.info(module_name, ErrorCode.SAS_PROGRAM_STARTING,
+                f"Starting {module_name} burst")
 
     # Start tracking processing time
     t_start = time.time()
@@ -122,7 +124,10 @@ def run(cfg):
         metadata.to_file(f_json, 'json')
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
-    info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
+    logger.info(module_name, ErrorCode.SAS_PROGRAM_COMPLETED,
+                f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
+    # Close log file
+    logger.close_log_stream()
 
 
 if __name__ == "__main__":

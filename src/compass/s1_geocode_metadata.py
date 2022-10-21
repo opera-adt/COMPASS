@@ -7,11 +7,12 @@ import os
 import time
 
 import isce3
-import journal
 
 from osgeo import gdal
 from compass.utils.runconfig import RunConfig
 from compass.utils.helpers import get_module_name
+from compass.utils.logger import Logger
+from compass.utils.error_codes import ErrorCode
 from compass.utils.yaml_argparse import YamlArgparse
 
 
@@ -28,8 +29,9 @@ def run(cfg, fetch_from_scratch=False):
 
     '''
     module_name = get_module_name(__file__)
-    info_channel = journal.info(f"{module_name}.run")
-    info_channel.log(f"Starting {module_name} burst")
+    logger = Logger(workflow='CSLC-S1', log_filename=cfg.logging_params.path)
+    logger.info(module_name, ErrorCode.SAS_PROGRAM_STARTING,
+                f"Starting {module_name} burst")
 
     # Start tracking processing time
     t_start = time.time()
@@ -121,8 +123,10 @@ def run(cfg, fetch_from_scratch=False):
         del output_raster
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
-    info_channel.log(
-        f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
+    logger.info(module_name, ErrorCode.SAS_PROGRAM_COMPLETED,
+                f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
+    # Close log file
+    logger.close_log_stream()
 
 
 if __name__ == "__main__":

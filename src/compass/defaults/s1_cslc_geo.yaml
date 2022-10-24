@@ -34,7 +34,6 @@ runconfig:
           geocoding:
               output_format: ENVI
               flatten: True
-              # Dem margin (in units of input DEM)
               lines_per_block: 1000
               output_epsg:
               x_posting:

@@ -19,7 +19,7 @@ from compass.utils import helpers
 from compass.utils.geo_grid import get_point_epsg
 
 
-DEFAULT_BURST_DB_FILE = os.path.abspath("/u/aurora-r0/staniewi/dev/burst_map_IW_000001_375887.OPERA-JPL.sqlite3")  # noqa
+DEFAULT_BURST_DB_FILE = os.path.abspath("/u/aurora-r0/staniewi/dev/burst_map_bbox_only.sqlite3")  # noqa
 
 
 def create_parser():
@@ -309,6 +309,7 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
     rss['high_band_bandwidth'] = high_band
 
     # Metadata generation
+    # TODO: Need to somehow do this only once per stack
     process['rdr2geo']['enabled'] = enable_metadata
 
     date_str = burst.sensing_start.strftime("%Y%m%d")
@@ -450,8 +451,9 @@ def run(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dat
     zip_file_list = _filter_by_date(zip_file_list, start_date, end_date, exclude_dates)
 
     info.log(f'Generating burst map for {len(zip_file_list)} SAFE files')
-    burst_map = generate_burst_map(zip_file_list, orbit_dir, epsg, bbox, epsg_bbox,
-                                   burst_db_file)
+    burst_map = generate_burst_map(
+        zip_file_list, orbit_dir, epsg, bbox, epsg_bbox, burst_db_file
+    )
 
     # Identify burst IDs common across the stack and remove from the dataframe
     # burst IDs that are not in common

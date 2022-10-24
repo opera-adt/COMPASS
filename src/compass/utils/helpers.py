@@ -6,6 +6,7 @@ import sqlite3
 import isce3
 import journal
 import numpy as np
+from pyproj.transformer import Transformer
 from osgeo import gdal
 from shapely import geometry
 
@@ -212,22 +213,10 @@ def _convert_to_utm(points_xy, epsg_src, epsg_dst):
     if epsg_dst == epsg_src:
         return points_xy
 
-    if epsg_src == 4326:
-        # proj.forward expects Longitude/latitude in radians
-        points_ll = np.deg2rad(points_xy)[:, :2]
-    else:
-        # convert points to lon/lat if given a different UTM projection
-        points_ll = []
-        proj_ll = isce3.core.UTM(epsg_src)
-        for x, y in points_xy:
-            points_ll.append(proj_ll.inverse([x, y, 0])[:2])
-
-    proj = isce3.core.UTM(epsg_dst)
-    out = []
-    for lon, lat in points_ll:
-        # proj.forward expects llh, [Longitude, latitude, height (m)]
-        out.append(proj.forward([lon, lat, 0])[:2])
-    return out
+    t = Transformer.from_crs(epsg_src, epsg_dst, always_xy=True)
+    xs, ys = np.array(points_xy).T
+    xt, yt = t.transform(xs, ys)
+    return list(zip(xt, yt))
 
 
 def get_burst_bbox(burst_id, burst_db_file=None, burst_db_conn=None):

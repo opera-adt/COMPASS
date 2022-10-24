@@ -56,10 +56,10 @@ def create_parser():
     optional.add_argument('--bbox', nargs=4, type=float, default=None,
                           metavar=('xmin', 'ymin', 'xmax', 'ymax'),
                           help='Bounding box of the geocoded stack.')
-    optional.add_argument('--epsg-bbox', type=int, default=4326,
+    optional.add_argument('--bbox-epsg', type=int, default=4326,
                           help='EPSG code of the bounding box. '
                                'If 4326, the bounding box is in lon/lat degrees.')
-    optional.add_argument('-e', '--epsg', type=int, default=None,
+    optional.add_argument('-e', '--output-epsg', type=int, default=None,
                           help='Output EPSG projection code for geocoded bursts. '
                                'If None, looks up the UTM zone for each burst.')
     optional.add_argument('--burst-db-file', type=str, default=DEFAULT_BURST_DB_FILE,
@@ -79,8 +79,8 @@ def create_parser():
     return parser.parse_args()
 
 
-def generate_burst_map(zip_files, orbit_dir, epsg=None, bbox=None,
-                       epsg_bbox=4326, burst_db_file=DEFAULT_BURST_DB_FILE):
+def generate_burst_map(zip_files, orbit_dir, output_epsg=None, bbox=None,
+                       bbox_epsg=4326, burst_db_file=DEFAULT_BURST_DB_FILE):
     """Generates a dataframe of geogrid infos for each burst ID in `zip_files`.
 
     Parameters
@@ -89,12 +89,12 @@ def generate_burst_map(zip_files, orbit_dir, epsg=None, bbox=None,
         List of S1-A/B SAFE (zip) files
     orbit_dir: str
         Directory containing sensor orbit ephemerides
-    epsg: int
+    output_epsg: int
         EPSG code identifying output product projection system
     bbox: Optional[tuple[float]]
         Desired bounding box of the geocoded bursts as (left, bottom, right, top).
         If not provided, the bounding box is computed for each burst.
-    epsg_bbox: int
+    bbox_epsg: int
         EPSG code of the bounding box. If 4326, the bounding box is assumed
         to be lon/lat degrees (default: 4326).
     burst_db_file: str
@@ -119,7 +119,7 @@ def generate_burst_map(zip_files, orbit_dir, epsg=None, bbox=None,
             ref_bursts = load_bursts(zip_file, orbit_path, subswath)
             for burst in ref_bursts:
                 epsg, bbox_utm = _get_burst_epsg_and_bbox(
-                    burst, epsg, bbox, epsg_bbox, burst_db_file
+                    burst, output_epsg, bbox, bbox_epsg, burst_db_file
                 )
                 if epsg is None:  # Flag for skipping burst
                     continue
@@ -144,25 +144,27 @@ def generate_burst_map(zip_files, orbit_dir, epsg=None, bbox=None,
     return burst_map
 
 
-def _get_burst_epsg_and_bbox(burst, epsg, bbox, epsg_bbox, burst_db_file):
+def _get_burst_epsg_and_bbox(burst, output_epsg, bbox, bbox_epsg, burst_db_file):
     """Returns the EPSG code and bounding box for a burst.
- 
+
     Uses specified `bbox` if provided; otherwise, uses burst database (if available).
     """
     # # Get the UTM zone of the first burst from the database
-    # if epsg is None:
-    if os.path.exists(burst_db_file):
-        epsg, _ = helpers.get_burst_bbox(
-            burst.burst_id, burst_db_file
-        )
+    if output_epsg is None:
+        if os.path.exists(burst_db_file):
+            epsg, _ = helpers.get_burst_bbox(
+                burst.burst_id, burst_db_file
+            )
+        else:
+            # Fallback: ust the burst center UTM zone
+            epsg = get_point_epsg(burst.center.y,
+                                  burst.center.x)
     else:
-        # Fallback: ust the burst center UTM zone
-        epsg = get_point_epsg(burst.center.y,
-                                burst.center.x)
+        epsg = output_epsg
 
     if bbox is not None:
         bbox_utm = helpers.bbox_to_utm(
-            bbox, epsg_src=epsg_bbox, epsg_dst=epsg
+            bbox, epsg_src=bbox_epsg, epsg_dst=epsg
         )
         burst_border_utm = helpers.polygon_to_utm(
             burst.border[0], epsg_src=4326, epsg_dst=epsg
@@ -370,7 +372,7 @@ def _filter_by_date(zip_file_list, start_date, end_date, exclude_dates):
 
 def run(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dates=None,
         orbit_dir=None, work_dir='stack', pol='dual-pol', x_spac=5, y_spac=10, bbox=None,
-        epsg_bbox=4326, epsg=None, burst_db_file=DEFAULT_BURST_DB_FILE, flatten=True,
+        bbox_epsg=4326, output_epsg=None, burst_db_file=DEFAULT_BURST_DB_FILE, flatten=True,
         is_split_spectrum=False, low_band=0.0, high_band=0.0, enable_metadata=False):
     """Create runconfigs and runfiles generating geocoded bursts for a static
     stack of Sentinel-1 A/B SAFE files.
@@ -400,12 +402,12 @@ def run(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dat
     bbox: tuple[float], optional
         Bounding box of the area to geocode: (xmin, ymin, xmax, ymax) in degrees.
         If not provided, will use the bounding box of the stack.
-    epsg_bbox: int
+    bbox_epsg: int
         EPSG code of the bounding box coordinates (default: 4326)
         If using EPSG:4326, the bounding box coordinates are in degrees.
-    epsg: int
+    output_epsg: int
         EPSG code identifying projection system to use for output.
-        If not specified, will search for burst center's EPSG from
+        If not specified, will search for each burst center's EPSG from
         the burst database.
     burst_db_file : str
         File path to burst database containing EPSG/extent information.
@@ -453,7 +455,7 @@ def run(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dat
 
     info.log(f'Generating burst map for {len(zip_file_list)} SAFE files')
     burst_map = generate_burst_map(
-        zip_file_list, orbit_dir, epsg, bbox, epsg_bbox, burst_db_file
+        zip_file_list, orbit_dir, output_epsg, bbox, bbox_epsg, burst_db_file
     )
 
     # Identify burst IDs common across the stack and remove from the dataframe
@@ -504,7 +506,7 @@ def main():
     run(args.slc_dir, args.dem_file, args.burst_id, args.start_date,
         args.end_date, args.exclude_dates, args.orbit_dir,
         args.work_dir, args.pol, args.x_spac, args.y_spac, args.bbox,
-        args.epsg_bbox, args.epsg, args.burst_db_file, not args.no_flatten,
+        args.bbox_epsg, args.output_epsg, args.burst_db_file, not args.no_flatten,
         args.is_split_spectrum, args.low_band, args.high_band, args.metadata)
 
 

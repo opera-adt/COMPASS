@@ -62,6 +62,7 @@ def create_parser():
     optional.add_argument('-e', '--epsg', type=int, default=None,
                           help='Output EPSG projection code for geocoded bursts. '
                                'If None, projection the UTM zone of the first burst.')
+    # TODO: fix flattin/bool args. No way to make flatten false.
     optional.add_argument('-f', '--flatten', type=bool, default=True,
                           help='If True, enables topographic phase flattening.')
     optional.add_argument('-ss', '--range-split-spectrum',
@@ -71,6 +72,9 @@ def create_parser():
                           help='Low sub-band bandwidth in Hz (default: 0.0)')
     optional.add_argument('-hb', '--high-band', type=float, default=0.0,
                           help='High sub-band bandwidth in Hz (default: 0.0')
+    optional.add_argument('-m', '--metadata', type=bool, default=False,
+                          help='If True, generates radar metadata layers for each '
+                               'burst stack (see rdr2geo processing options)')
     return parser.parse_args()
 
 
@@ -227,7 +231,7 @@ def get_common_burst_ids(data):
 
 
 def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
-                     low_band, high_band, pol, x_spac, y_spac):
+                     low_band, high_band, pol, x_spac, y_spac, enable_metadata):
     """
     Create runconfig to process geocoded bursts
 
@@ -253,6 +257,8 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
         Spacing of geocoded burst along X-direction
     y_spac: float
         Spacing of geocoded burst along Y-direction
+    enable_metadata: bool
+        Flag to enable/disable metadata generation for each burst stack.
 
     Returns
     -------
@@ -301,6 +307,9 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
     rss['enabled'] = enable_rss
     rss['low_band_bandwidth'] = low_band
     rss['high_band_bandwidth'] = high_band
+
+    # Metadata generation
+    process['rdr2geo']['enabled'] = enable_metadata
 
     date_str = burst.sensing_start.strftime("%Y%m%d")
     os.makedirs(f'{work_dir}/runconfigs', exist_ok=True)
@@ -359,8 +368,8 @@ def _filter_by_date(zip_file_list, start_date, end_date, exclude_dates):
 
 def run(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dates=None,
         orbit_dir=None, work_dir='stack', pol='dual-pol', x_spac=5, y_spac=10, bbox=None,
-        epsg_bbox=4326, epsg=None, burst_db_file=DEFAULT_BURST_DB_FILE, flatten=True, 
-        is_split_spectrum=False, low_band=0.0, high_band=0.0):
+        epsg_bbox=4326, epsg=None, burst_db_file=DEFAULT_BURST_DB_FILE, flatten=True,
+        is_split_spectrum=False, low_band=0.0, high_band=0.0, enable_metadata=False):
     """Create runconfigs and runfiles generating geocoded bursts for a static
     stack of Sentinel-1 A/B SAFE files.
 
@@ -406,6 +415,8 @@ def run(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dat
         Low sub-band bandwidth for split-spectrum in Hz
     high_band: float
         High sub-band bandwidth for split-spectrum in Hz
+    enable_metadata: bool
+        Enable/disable generation of metadata files for each burst stack.
     """
     start_time = time.time()
     error = journal.error('s1_geo_stack_processor.main')
@@ -463,7 +474,8 @@ def run(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dat
             high_band,
             pol,
             x_spac,
-            y_spac
+            y_spac,
+            enable_metadata,
         )
         date_str = row.burst.sensing_start.strftime("%Y%m%d")
         runfile_name = f'{run_dir}/run_{date_str}_{row.burst.burst_id}.sh'
@@ -485,7 +497,7 @@ def main():
         args.end_date, args.exclude_dates, args.orbit_dir,
         args.work_dir, args.pol, args.x_spac, args.y_spac, args.bbox,
         args.epsg_bbox, args.epsg, args.flatten, args.is_split_spectrum,
-        args.low_band, args.high_band)
+        args.low_band, args.high_band, args.metadata)
 
 
 if __name__ == '__main__':

@@ -1,6 +1,7 @@
 '''collection of useful functions used across workflows'''
 
 import os
+import sqlite3
 
 import isce3
 import journal
@@ -211,7 +212,7 @@ def _convert_to_utm(points_xy, epsg_in, epsg_out):
 
     if epsg_in == 4326:
         # proj.forward expects Longitude/latitude in radians
-        points_ll = np.deg2rad(points_xy)
+        points_ll = np.deg2rad(points_xy)[:, :2]
     else:
         # convert points to lon/lat if given a different UTM projection
         points_ll = []
@@ -225,3 +226,46 @@ def _convert_to_utm(points_xy, epsg_in, epsg_out):
         # proj.forward expects llh, [Longitude, latitude, height (m)]
         out.append(proj.forward([lon, lat, 0])[:2])
     return out
+
+
+def get_burst_bbox(burst_id, burst_db_file=None, burst_db_conn=None):
+    """Find the bounding box of a burst in the burst database.
+
+    Parameters
+    ----------
+    burst_id : str
+        JPL burst ID
+    burst_db_file : str
+        Location of burst database sqlite file, by default None
+    burst_db_conn : sqlite3.Connection
+        Connection object to burst database (If already connected)
+        Alternative to providing burst_db_file, will be faster
+        for multiply queries.
+
+    Returns
+    -------
+    epsg : int
+        EPSG code of burst bounding box
+    bbox : tuple[float]
+        Bounding box of burst in EPSG coordinates
+
+    Raises
+    ------
+    ValueError
+        If burst_id is not found in burst database
+    """
+    # example burst db:
+    # /home/staniewi/dev/burst_map_IW_000001_375887.OPERA-JPL.20221020_143224.sqlite3
+    if burst_db_conn is None:
+        burst_db_conn = sqlite3.connect(burst_db_file)
+    burst_db_conn.row_factory = sqlite3.Row  # return rows as dicts
+
+    query = "SELECT epsg, xmin, ymin, xmax, ymax FROM burst_id_map WHERE burst_id_jpl = ?"
+    cur = burst_db_conn.execute(query, (burst_id,))
+
+    result = cur.fetchone()
+    if result is None:
+        raise ValueError(f"Failed to find {burst_id} in {burst_db_file}")
+    epsg = result["EPSG"]
+    bbox = (result["xmin"], result["ymin"], result["xmax"], result["ymax"])
+    return epsg, bbox

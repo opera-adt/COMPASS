@@ -160,7 +160,7 @@ def check_dem(dem_path: str):
         raise ValueError(err_str)
 
 
-def bbox_to_utm(bbox, *, epsg_src, epsg_out):
+def bbox_to_utm(bbox, *, epsg_src, epsg_dst):
     """Convert bounding box coordinates to UTM.
 
     Parameters
@@ -170,7 +170,7 @@ def bbox_to_utm(bbox, *, epsg_src, epsg_out):
         (left, bottom, right, top) in degrees
     epsg_src : int
         EPSG code identifying input bbox coordinate system
-    epsg_out : int
+    epsg_dst : int
         EPSG code identifying output coordinate system
 
     Returns
@@ -180,7 +180,7 @@ def bbox_to_utm(bbox, *, epsg_src, epsg_out):
         (left, bottom, right, top)
     """
     xmin, ymin, xmax, ymax = bbox
-    xys = _convert_to_utm([(xmin, ymin), (xmax, ymax)], epsg_src, epsg_out)
+    xys = _convert_to_utm([(xmin, ymin), (xmax, ymax)], epsg_src, epsg_dst)
     return (*xys[0], *xys[1])
 
 
@@ -256,7 +256,7 @@ def get_burst_bbox(burst_id, burst_db_file=None, burst_db_conn=None):
     burst_ids = [burst_id] if isinstance(burst_id, str) else burst_id
 
     results = []
-    query = f"SELECT epsg, xmin, ymin, xmax, ymax FROM burst_id_map WHERE burst_id_jpl = ?"
+    query = "SELECT epsg, xmin, ymin, xmax, ymax FROM burst_id_map WHERE burst_id_jpl = ?"
     for bid in burst_ids:
         cur = burst_db_conn.execute(query, (bid,))
         results.append(cur.fetchone())

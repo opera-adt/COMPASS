@@ -6,9 +6,7 @@ import os
 import time
 from collections import defaultdict
 
-import isce3
 import journal
-import numpy as np
 import pandas as pd
 import yaml
 from s1reader.s1_orbit import get_orbit_file_from_dir, parse_safe_filename

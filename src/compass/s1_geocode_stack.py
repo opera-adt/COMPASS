@@ -61,9 +61,11 @@ def create_parser():
                                'If 4326, the bounding box is in lon/lat degrees.')
     optional.add_argument('-e', '--epsg', type=int, default=None,
                           help='Output EPSG projection code for geocoded bursts. '
-                               'If None, projection the UTM zone of the first burst.')
+                               'If None, looks up the UTM zone for each burst.')
+    optional.add_argument('--burst-db-file', type=str, default=DEFAULT_BURST_DB_FILE,
+                          help='Sqlite3 database file with burst bounding boxes.')
     optional.add_argument('-nf', '--no-flatten', action='store_true',
-                          help='If True, disables topographic phase flattening.')
+                          help='If flag is set, disables topographic phase flattening.')
     optional.add_argument('-ss', '--range-split-spectrum',
                           dest='is_split_spectrum', action='store_true',
                           help='If flag is set, enables split-spectrum processing.')
@@ -72,12 +74,12 @@ def create_parser():
     optional.add_argument('-hb', '--high-band', type=float, default=0.0,
                           help='For -ss, high sub-band bandwidth in Hz (default: 0.0')
     optional.add_argument('-m', '--metadata', action='store_true',
-                          help='If True, generates radar metadata layers for each '
-                               'burst stack (see rdr2geo processing options)')
+                          help='If flat is set, generates radar metadata layers for each'
+                               ' burst stack (see rdr2geo processing options)')
     return parser.parse_args()
 
 
-def generate_burst_map(zip_files, orbit_dir, epsg=None, bbox=None, 
+def generate_burst_map(zip_files, orbit_dir, epsg=None, bbox=None,
                        epsg_bbox=4326, burst_db_file=DEFAULT_BURST_DB_FILE):
     """Generates a dataframe of geogrid infos for each burst ID in `zip_files`.
 
@@ -144,19 +146,19 @@ def generate_burst_map(zip_files, orbit_dir, epsg=None, bbox=None,
 
 def _get_burst_epsg_and_bbox(burst, epsg, bbox, epsg_bbox, burst_db_file):
     """Returns the EPSG code and bounding box for a burst.
-    
+ 
     Uses specified `bbox` if provided; otherwise, uses burst database (if available).
     """
-    if epsg is None:
-        # Get the UTM zone of the first burst from the database
-        if os.path.exists(burst_db_file):
-            epsg, _ = helpers.get_burst_bbox(
-                burst.burst_id, burst_db_file
-            )
-        else:
-            # Fallback: ust the burst center UTM zone
-            epsg = get_point_epsg(burst.center.y,
-                                  burst.center.x)
+    # # Get the UTM zone of the first burst from the database
+    # if epsg is None:
+    if os.path.exists(burst_db_file):
+        epsg, _ = helpers.get_burst_bbox(
+            burst.burst_id, burst_db_file
+        )
+    else:
+        # Fallback: ust the burst center UTM zone
+        epsg = get_point_epsg(burst.center.y,
+                                burst.center.x)
 
     if bbox is not None:
         bbox_utm = helpers.bbox_to_utm(
@@ -463,8 +465,13 @@ def run(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dat
     if burst_id is not None:
         burst_map = prune_dataframe(burst_map, 'burst_id', burst_id)
 
+    # Find the rows which are the first ones to process each burst
+    # Only these rows will be used to generate metadata (if turned on)
+    first_rows = [(burst_map.burst_id == b).idxmax() for b in burst_map.burst_id.unique()]
+
     # Ready to geocode bursts
     for row in burst_map.itertuples():
+        do_metadata = enable_metadata and (row.Index in first_rows)
         runconfig_path = create_runconfig(
             row,
             dem_file,
@@ -476,7 +483,7 @@ def run(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dat
             pol,
             x_spac,
             y_spac,
-            enable_metadata,
+            do_metadata,
         )
         date_str = row.burst.sensing_start.strftime("%Y%m%d")
         runfile_name = f'{run_dir}/run_{date_str}_{row.burst.burst_id}.sh'
@@ -497,8 +504,8 @@ def main():
     run(args.slc_dir, args.dem_file, args.burst_id, args.start_date,
         args.end_date, args.exclude_dates, args.orbit_dir,
         args.work_dir, args.pol, args.x_spac, args.y_spac, args.bbox,
-        args.epsg_bbox, args.epsg, not args.no_flatten, args.is_split_spectrum,
-        args.low_band, args.high_band, args.metadata)
+        args.epsg_bbox, args.epsg, args.burst_db_file, not args.no_flatten,
+        args.is_split_spectrum, args.low_band, args.high_band, args.metadata)
 
 
 if __name__ == '__main__':

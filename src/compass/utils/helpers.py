@@ -159,7 +159,7 @@ def check_dem(dem_path: str):
         raise ValueError(err_str)
 
 
-def bbox_to_utm(bbox, epsg_bbox=4326, epsg_out=None):
+def bbox_to_utm(bbox, *, epsg_src, epsg_out):
     """Convert bounding box coordinates to UTM.
 
     Parameters
@@ -167,8 +167,10 @@ def bbox_to_utm(bbox, epsg_bbox=4326, epsg_out=None):
     bbox : tuple
         Tuple containing the lon/lat bounding box coordinates
         (left, bottom, right, top) in degrees
-    epsg : int
-        EPSG code identifying output projection system
+    epsg_src : int
+        EPSG code identifying input bbox coordinate system
+    epsg_out : int
+        EPSG code identifying output coordinate system
 
     Returns
     -------
@@ -177,11 +179,11 @@ def bbox_to_utm(bbox, epsg_bbox=4326, epsg_out=None):
         (left, bottom, right, top)
     """
     xmin, ymin, xmax, ymax = bbox
-    xys = _convert_to_utm([(xmin, ymin), (xmax, ymax)], epsg_bbox, epsg_out)
+    xys = _convert_to_utm([(xmin, ymin), (xmax, ymax)], epsg_src, epsg_out)
     return (*xys[0], *xys[1])
 
 
-def polygon_to_utm(poly, epsg_poly=4326, epsg_out=None):
+def polygon_to_utm(poly, *, epsg_src, epsg_dst):
     """Convert a shapely.Polygon's coordinates to UTM.
 
     Parameters
@@ -198,29 +200,29 @@ def polygon_to_utm(poly, epsg_poly=4326, epsg_out=None):
         (left, bottom, right, top)
     """
     coords = np.array(poly.exterior.coords)
-    xys = _convert_to_utm(coords, epsg_poly, epsg_out)
+    xys = _convert_to_utm(coords, epsg_src, epsg_dst)
     return geometry.Polygon(xys)
 
 
-def _convert_to_utm(points_xy, epsg_in, epsg_out):
+def _convert_to_utm(points_xy, epsg_src, epsg_dst):
     """Convert a list of points to a specified UTM coordinate system.
 
-    If epsg_in is 4326 (lat/lon), assumes points_xy are in degrees.
+    If epsg_src is 4326 (lat/lon), assumes points_xy are in degrees.
     """
-    if epsg_out == epsg_in:
+    if epsg_dst == epsg_src:
         return points_xy
 
-    if epsg_in == 4326:
+    if epsg_src == 4326:
         # proj.forward expects Longitude/latitude in radians
         points_ll = np.deg2rad(points_xy)[:, :2]
     else:
         # convert points to lon/lat if given a different UTM projection
         points_ll = []
-        proj_ll = isce3.core.UTM(epsg_in)
+        proj_ll = isce3.core.UTM(epsg_src)
         for x, y in points_xy:
             points_ll.append(proj_ll.inverse([x, y, 0])[:2])
 
-    proj = isce3.core.UTM(epsg_out)
+    proj = isce3.core.UTM(epsg_dst)
     out = []
     for lon, lat in points_ll:
         # proj.forward expects llh, [Longitude, latitude, height (m)]
@@ -255,7 +257,7 @@ def get_burst_bbox(burst_id, burst_db_file=None, burst_db_conn=None):
         If burst_id is not found in burst database
     """
     # example burst db:
-    # /home/staniewi/dev/burst_map_IW_000001_375887.OPERA-JPL.20221020_143224.sqlite3
+    # /home/staniewi/dev/burst_map_IW_000001_375887.OPERA-JPL.sqlite3
     if burst_db_conn is None:
         burst_db_conn = sqlite3.connect(burst_db_file)
     burst_db_conn.row_factory = sqlite3.Row  # return rows as dicts
@@ -266,6 +268,6 @@ def get_burst_bbox(burst_id, burst_db_file=None, burst_db_conn=None):
     result = cur.fetchone()
     if result is None:
         raise ValueError(f"Failed to find {burst_id} in {burst_db_file}")
-    epsg = result["EPSG"]
+    epsg = result["epsg"]
     bbox = (result["xmin"], result["ymin"], result["xmax"], result["ymax"])
     return epsg, bbox

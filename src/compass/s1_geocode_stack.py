@@ -19,6 +19,9 @@ from compass.utils import helpers
 from compass.utils.geo_grid import get_point_epsg
 
 
+DEFAULT_BURST_DB_FILE = os.path.abspath("/u/aurora-r0/staniewi/dev/burst_map_IW_000001_375887.OPERA-JPL.sqlite3")  # noqa
+
+
 def create_parser():
     parser = argparse.ArgumentParser(
         description='S1-A/B geocoded CSLC stack processor.',
@@ -71,8 +74,8 @@ def create_parser():
     return parser.parse_args()
 
 
-def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=None,
-                       bbox=None, epsg_bbox=4326):
+def generate_burst_map(zip_files, orbit_dir, epsg=None, bbox=None, 
+                       epsg_bbox=4326, burst_db_file=DEFAULT_BURST_DB_FILE):
     """Generates a dataframe of geogrid infos for each burst ID in `zip_files`.
 
     Parameters
@@ -81,10 +84,6 @@ def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=None,
         List of S1-A/B SAFE (zip) files
     orbit_dir: str
         Directory containing sensor orbit ephemerides
-    x_spac: float
-        Spacing of geocoded burst along X-direction
-    y_spac: float
-        Spacing of geocoded burst along Y-direction
     epsg: int
         EPSG code identifying output product projection system
     bbox: Optional[tuple[float]]
@@ -93,6 +92,8 @@ def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=None,
     epsg_bbox: int
         EPSG code of the bounding box. If 4326, the bounding box is assumed
         to be lon/lat degrees (default: 4326).
+    burst_db_file: str
+        Path to the burst database file to load bounding boxes.
 
     Returns
     -------
@@ -112,29 +113,11 @@ def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=None,
         for subswath in i_subswath:
             ref_bursts = load_bursts(zip_file, orbit_path, subswath)
             for burst in ref_bursts:
-                if epsg is None:
-                    epsg = get_point_epsg(burst.center.y,
-                                          burst.center.x)
-
-                if bbox is not None:
-                    bbox_utm = helpers.bbox_to_utm(
-                        bbox, epsg_bbox=epsg_bbox, epsg_out=epsg
-                    )
-                    burst_border_utm = helpers.polygon_to_utm(
-                        burst.border[0], epsg
-                    )
-                    # Skip this burst if it doesn't intersect the specified bbox
-                    if not geometry.box(*bbox_utm).intersects(burst_border_utm):
-                        continue
-                else:
-                    # Initialize geogrid with the info checked at this stage
-                    geogrid = isce3.product.bbox_to_geogrid(
-                        burst.as_isce3_radargrid(),
-                        burst.orbit,
-                        isce3.core.LUT2d(),
-                        x_spac, -y_spac,
-                        epsg)
-                    bbox_utm = snap_geogrid(geogrid, x_spac, y_spac)
+                epsg, bbox_utm = _get_burst_epsg_and_bbox(
+                    burst, epsg, bbox, epsg_bbox, burst_db_file
+                )
+                if epsg is None:  # Flag for skipping burst
+                    continue
 
                 burst_map['burst_id'].append(burst.burst_id)
                 # keep the burst object so we don't have to re-parse
@@ -156,30 +139,41 @@ def generate_burst_map(zip_files, orbit_dir, x_spac, y_spac, epsg=None,
     return burst_map
 
 
-def snap_geogrid(geogrid, x_spac, y_spac):
-    """Snap the bounding box of the geogrid to integer multiples of the
-    spacing in X-/Y-directions.
-
-    Parameters
-    ----------
-    geogrid : isce3.core.Geogrid
-        Geogrid object
-    x_spac : float
-        Spacing of geocoded burst along X-direction
-    y_spac : float
-        Spacing of geocoded burst along Y-direction
-
-    Returns
-    -------
-    tuple
-        Tuple containing the snapped bounding box coordinates
-        (left, bottom, right, top)
+def _get_burst_epsg_and_bbox(burst, epsg, bbox, epsg_bbox, burst_db_file):
+    """Returns the EPSG code and bounding box for a burst.
+    
+    Uses specified `bbox` if provided; otherwise, uses burst database (if available).
     """
-    x_left = x_spac * np.floor(geogrid.start_x / x_spac)
-    x_right = x_spac * np.ceil((geogrid.start_x + x_spac * geogrid.width) / x_spac)
-    y_bottom = y_spac * np.floor((geogrid.start_y + y_spac * geogrid.length) / y_spac)
-    y_top = y_spac * np.ceil(geogrid.start_y / y_spac)
-    return (x_left, y_bottom, x_right, y_top)
+    if epsg is None:
+        # Get the UTM zone of the first burst from the database
+        if os.path.exists(burst_db_file):
+            epsg, _ = helpers.get_burst_bbox(
+                burst.burst_id, burst_db_file
+            )
+        else:
+            # Fallback: ust the burst center UTM zone
+            epsg = get_point_epsg(burst.center.y,
+                                  burst.center.x)
+
+    if bbox is not None:
+        bbox_utm = helpers.bbox_to_utm(
+            bbox, epsg_src=epsg_bbox, epsg_dst=epsg
+        )
+        burst_border_utm = helpers.polygon_to_utm(
+            burst.border[0], epsg_src=4326, epsg_dst=epsg
+        )
+        # Skip this burst if it doesn't intersect the specified bbox
+        if not geometry.box(*bbox_utm).intersects(burst_border_utm):
+            return None, None
+    else:
+        epsg_db, bbox_utm = helpers.get_burst_bbox(
+            burst.burst_id, burst_db_file
+        )
+        if epsg_db != epsg:
+            bbox_utm = helpers.transform_bbox(
+                bbox_utm, epsg_src=epsg_db, epsg_dst=epsg
+            )
+    return epsg, bbox_utm
 
 
 def prune_dataframe(data, id_col, id_list):
@@ -365,8 +359,8 @@ def _filter_by_date(zip_file_list, start_date, end_date, exclude_dates):
 
 def run(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dates=None,
         orbit_dir=None, work_dir='stack', pol='dual-pol', x_spac=5, y_spac=10, bbox=None,
-        epsg_bbox=4326, epsg=None, flatten=True, is_split_spectrum=False, low_band=0.0,
-        high_band=0.0):
+        epsg_bbox=4326, epsg=None, burst_db_file=DEFAULT_BURST_DB_FILE, flatten=True, 
+        is_split_spectrum=False, low_band=0.0, high_band=0.0):
     """Create runconfigs and runfiles generating geocoded bursts for a static
     stack of Sentinel-1 A/B SAFE files.
 
@@ -395,8 +389,15 @@ def run(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dat
     bbox: tuple[float], optional
         Bounding box of the area to geocode: (xmin, ymin, xmax, ymax) in degrees.
         If not provided, will use the bounding box of the stack.
+    epsg_bbox: int
+        EPSG code of the bounding box coordinates (default: 4326)
+        If using EPSG:4326, the bounding box coordinates are in degrees.
     epsg: int
-        EPSG code identifying projection system to use for processing
+        EPSG code identifying projection system to use for output.
+        If not specified, will search for burst center's EPSG from
+        the burst database.
+    burst_db_file : str
+        File path to burst database containing EPSG/extent information.
     flatten: bool
         Enable/disable flattening of geocoded burst
     is_split_spectrum: bool
@@ -438,7 +439,8 @@ def run(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dat
     zip_file_list = _filter_by_date(zip_file_list, start_date, end_date, exclude_dates)
 
     info.log(f'Generating burst map for {len(zip_file_list)} SAFE files')
-    burst_map = generate_burst_map(zip_file_list, orbit_dir, x_spac, y_spac, epsg, bbox)
+    burst_map = generate_burst_map(zip_file_list, orbit_dir, epsg, bbox, epsg_bbox,
+                                   burst_db_file)
 
     # Identify burst IDs common across the stack and remove from the dataframe
     # burst IDs that are not in common

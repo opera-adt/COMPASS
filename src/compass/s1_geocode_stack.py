@@ -62,17 +62,16 @@ def create_parser():
     optional.add_argument('-e', '--epsg', type=int, default=None,
                           help='Output EPSG projection code for geocoded bursts. '
                                'If None, projection the UTM zone of the first burst.')
-    # TODO: fix flattin/bool args. No way to make flatten false.
-    optional.add_argument('-f', '--flatten', type=bool, default=True,
-                          help='If True, enables topographic phase flattening.')
+    optional.add_argument('-nf', '--no-flatten', action='store_true',
+                          help='If True, disables topographic phase flattening.')
     optional.add_argument('-ss', '--range-split-spectrum',
-                          dest='is_split_spectrum', type=bool, default=False,
-                          help='If True, enables split-spectrum')
+                          dest='is_split_spectrum', action='store_true',
+                          help='If flag is set, enables split-spectrum processing.')
     optional.add_argument('-lb', '--low-band', type=float, default=0.0,
-                          help='Low sub-band bandwidth in Hz (default: 0.0)')
+                          help='For -ss, low sub-band bandwidth in Hz (default: 0.0)')
     optional.add_argument('-hb', '--high-band', type=float, default=0.0,
-                          help='High sub-band bandwidth in Hz (default: 0.0')
-    optional.add_argument('-m', '--metadata', type=bool, default=False,
+                          help='For -ss, high sub-band bandwidth in Hz (default: 0.0')
+    optional.add_argument('-m', '--metadata', action='store_true',
                           help='If True, generates radar metadata layers for each '
                                'burst stack (see rdr2geo processing options)')
     return parser.parse_args()
@@ -498,7 +497,7 @@ def main():
     run(args.slc_dir, args.dem_file, args.burst_id, args.start_date,
         args.end_date, args.exclude_dates, args.orbit_dir,
         args.work_dir, args.pol, args.x_spac, args.y_spac, args.bbox,
-        args.epsg_bbox, args.epsg, args.flatten, args.is_split_spectrum,
+        args.epsg_bbox, args.epsg, not args.no_flatten, args.is_split_spectrum,
         args.low_band, args.high_band, args.metadata)
 
 

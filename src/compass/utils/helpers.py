@@ -1,10 +1,14 @@
 '''collection of useful functions used across workflows'''
 
 import os
+import sqlite3
 
 import isce3
 import journal
+import numpy as np
+from pyproj.transformer import Transformer
 from osgeo import gdal
+from shapely import geometry
 
 import compass
 
@@ -154,3 +158,120 @@ def check_dem(dem_path: str):
         err_str = f'DEM epsg of {epsg} out of bounds'
         error_channel.log(err_str)
         raise ValueError(err_str)
+
+
+def bbox_to_utm(bbox, *, epsg_src, epsg_dst):
+    """Convert bounding box coordinates to UTM.
+
+    Parameters
+    ----------
+    bbox : tuple
+        Tuple containing the lon/lat bounding box coordinates
+        (left, bottom, right, top) in degrees
+    epsg_src : int
+        EPSG code identifying input bbox coordinate system
+    epsg_dst : int
+        EPSG code identifying output coordinate system
+
+    Returns
+    -------
+    tuple
+        Tuple containing the bounding box coordinates in UTM (meters)
+        (left, bottom, right, top)
+    """
+    xmin, ymin, xmax, ymax = bbox
+    xys = _convert_to_utm([(xmin, ymin), (xmax, ymax)], epsg_src, epsg_dst)
+    return (*xys[0], *xys[1])
+
+
+def polygon_to_utm(poly, *, epsg_src, epsg_dst):
+    """Convert a shapely.Polygon's coordinates to UTM.
+
+    Parameters
+    ----------
+    poly: shapely.geometry.Polygon
+        Polygon object
+    epsg : int
+        EPSG code identifying output projection system
+
+    Returns
+    -------
+    tuple
+        Tuple containing the bounding box coordinates in UTM (meters)
+        (left, bottom, right, top)
+    """
+    coords = np.array(poly.exterior.coords)
+    xys = _convert_to_utm(coords, epsg_src, epsg_dst)
+    return geometry.Polygon(xys)
+
+
+def _convert_to_utm(points_xy, epsg_src, epsg_dst):
+    """Convert a list of points to a specified UTM coordinate system.
+
+    If epsg_src is 4326 (lat/lon), assumes points_xy are in degrees.
+    """
+    if epsg_dst == epsg_src:
+        return points_xy
+
+    t = Transformer.from_crs(epsg_src, epsg_dst, always_xy=True)
+    xs, ys = np.array(points_xy).T
+    xt, yt = t.transform(xs, ys)
+    return list(zip(xt, yt))
+
+
+def get_burst_bbox(burst_id, burst_db_file=None, burst_db_conn=None):
+    """Find the bounding box of a burst (or bursts) in the database.
+
+    Can either pass one string burst_id or a list of burst_ids.
+
+    Parameters
+    ----------
+    burst_id : str or list[str]
+        JPL burst ID, or a list of burst IDs.
+    burst_db_file : str
+        Location of burst database sqlite file, by default None
+    burst_db_conn : sqlite3.Connection
+        Connection object to burst database (If already connected)
+        Alternative to providing burst_db_file, will be faster
+        for multiply queries.
+
+    Returns
+    -------
+    epsg : int, or list[int]
+        EPSG code (or codes) of burst bounding box(es)
+    bbox : tuple[float] or list[tuple[float]]
+        Bounding box of burst in EPSG coordinates, or list of bounding boxes.
+
+    Raises
+    ------
+    ValueError
+        If no burst_id is not found in burst database
+    """
+    # example burst db:
+    # /home/staniewi/dev/burst_map_IW_000001_375887.OPERA-JPL.sqlite3
+    if burst_db_conn is None:
+        burst_db_conn = sqlite3.connect(burst_db_file)
+    burst_db_conn.row_factory = sqlite3.Row  # return rows as dicts
+
+    burst_ids = [burst_id] if isinstance(burst_id, str) else burst_id
+
+    results = []
+    query = "SELECT epsg, xmin, ymin, xmax, ymax FROM burst_id_map WHERE burst_id_jpl = ?"
+    for bid in burst_ids:
+        cur = burst_db_conn.execute(query, (bid,))
+        results.append(cur.fetchone())
+
+    if not results:
+        raise ValueError(f"Failed to find {burst_ids} in {burst_db_file}")
+
+    # If they only requested one, just return the single epsg/bbox
+    if len(results) == 1:
+        result = results[0]
+        epsg = result["epsg"]
+        bbox = (result["xmin"], result["ymin"], result["xmax"], result["ymax"])
+        return epsg, bbox
+
+    # Otherwise, return a list of epsg/bbox tuples
+    epsgs = [r["epsg"] for r in results]
+    bboxes = [(r["xmin"], r["ymin"], r["xmax"], r["ymax"]) for r in results]
+    return epsgs, bboxes

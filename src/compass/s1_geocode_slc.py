@@ -71,6 +71,12 @@ def run(cfg: GeoRunConfig):
         # Get azimuth polynomial coefficients for this burst
         az_carrier_poly2d = burst.get_az_carrier_poly()
 
+        # Generate required metadata layers
+        if cfg.rdr2geo_params.enabled:
+            s1_rdr2geo.run(cfg, save_in_scratch=True)
+            if cfg.rdr2geo_params.geocode_metadata_layers:
+               s1_geocode_metadata.run(cfg, fetch_from_scratch=True)
+
         # Split the range bandwidth of the burst, if required
         if cfg.split_spectrum_params.enabled:
             rdr_burst_raster = range_split_spectrum(burst,

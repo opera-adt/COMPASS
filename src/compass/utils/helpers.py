@@ -238,9 +238,12 @@ def get_burst_bbox(burst_id, burst_db_file=None, burst_db_conn=None):
     Returns
     -------
     epsg : int, or list[int]
-        EPSG code (or codes) of burst bounding box(es)
-    bbox : tuple[float] or list[tuple[float]]
-        Bounding box of burst in EPSG coordinates, or list of bounding boxes.
+        EPSG code(s) of burst bounding box(es)
+    bbox : tuple[float], or list[tuple[float]]
+        Bounding box(es) of burst in EPSG coordinates, or list of bounding boxes.
+        Bounding box given as tuple(xmin, ymin, xmax, ymax)
+    burst_ids: str, or list[str]
+        Burst ID(s) associated with each EPSG and bbox
 
     Raises
     ------
@@ -253,25 +256,29 @@ def get_burst_bbox(burst_id, burst_db_file=None, burst_db_conn=None):
         burst_db_conn = sqlite3.connect(burst_db_file)
     burst_db_conn.row_factory = sqlite3.Row  # return rows as dicts
 
-    burst_ids = [burst_id] if isinstance(burst_id, str) else burst_id
+    burst_ids = [burst_id] if isinstance(burst_id, str) else \
+        ','.join(burst_id)
 
-    results = []
-    query = "SELECT epsg, xmin, ymin, xmax, ymax FROM burst_id_map WHERE burst_id_jpl = ?"
-    for bid in burst_ids:
-        cur = burst_db_conn.execute(query, (bid,))
-        results.append(cur.fetchone())
+    query = "SELECT epsg, xmin, ymin, xmax, ymax burst_id_jpl FROM burst_id_map WHERE burst_id_jpl = ?"
+    cur = burst_db_conn.execute(query, (burst_ids,))
+    results = cur.fetchall()
 
     if not results:
         raise ValueError(f"Failed to find {burst_ids} in {burst_db_file}")
 
+    n_results = len(results)
+    epsgs = [[]] * n_results
+    bboxes = [[]] * n_results
+    burst_ids = [[]] * n_results
+    for i_result, result in enumerate(results):
+        epsg[i_result] = result["epsg"]
+        bbox[i_result]= (result["xmin"], result["ymin"],
+                          result["xmax"], result["ymax"])
+        burst_ids[i_result] = result["burst_id_jpl"]
+
     # If they only requested one, just return the single epsg/bbox
-    if len(results) == 1:
-        result = results[0]
-        epsg = result["epsg"]
-        bbox = (result["xmin"], result["ymin"], result["xmax"], result["ymax"])
-        return epsg, bbox
+    if n_results == 1:
+        return epsgs[0], bboxes[0], burst_ids[0]
 
     # Otherwise, return a list of epsg/bbox tuples
-    epsgs = [r["epsg"] for r in results]
-    bboxes = [(r["xmin"], r["ymin"], r["xmax"], r["ymax"]) for r in results]
-    return epsgs, bboxes
+    return epsgs, bboxes, burst_ids

@@ -78,7 +78,7 @@ class GeoRunConfig(RunConfig):
 
         # Load geogrids
         dem_file = groups_cfg['dynamic_ancillary_file_group']['dem_file']
-        geogrids = generate_geogrids(bursts, geocoding_dict, dem_file)
+        geogrids = generate_geogrids_from_db(bursts, geocoding_dict, dem_file)
 
         # Empty reference dict for base runconfig class constructor
         empty_ref_dict = {}

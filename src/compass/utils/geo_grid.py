@@ -8,6 +8,7 @@ import journal
 from nisar.workflows.geogrid import _grid_size
 import isce3
 
+from compass.utils import helpers
 
 def assign_check_epsg(epsg, epsg_default):
     '''
@@ -281,8 +282,84 @@ def get_point_epsg(lat, lon):
         raise ValueError(err_str)
 
 
-def generate_geogrids(bursts, geo_dict, dem):
+def generate_geogrids_from_db(bursts):
     ''' Create a geogrid for all bursts in given list
+
+    Parameters
+    ----------
+    burst: list[Sentinel1BurstSlc]
+        List of bursts
+
+    Returns
+    -------
+    geo_grids: dict
+        Dict of burst ID keys to isce3.product.GeoGridParameters values
+    '''
+    dem_raster = isce3.io.Raster(dem)
+
+    # Unpack values from geocoding dictionary
+    epsg_dict = geo_dict['output_epsg']
+    x_spacing_dict = geo_dict['x_posting']
+    y_spacing_dict = geo_dict['y_posting']
+    x_snap_dict = geo_dict['x_snap']
+    y_snap_dict = geo_dict['y_snap']
+
+    geo_grids = {}
+
+    # get all burst IDs and their EPSGs + bounding boxes
+    burst_ids = set([b.burst_id for b in bursts])
+    espgs, bboxes = get_burst_bbox(burst_ids, burst_db_file)
+    epsg_bbox_dict = dict(zip(burst_ids, zip(epsgs, bboxes)))
+
+    for burst in bursts:
+        burst_id = burst.burst_id
+
+        # check geogrid already created for burst ID
+        if burst_id in geo_grids:
+            continue
+
+        # extract EPSG and bbox for current burst from dict
+        # bottom right = (xmax, ymin) and top left = (xmin, ymax)
+        epsg, (xmin, ymin, xmax, ymax) = epsg_bbox_dict[burst_id]
+
+        radar_grid = burst.as_isce3_radargrid()
+        orbit = burst.orbit
+
+        # Check spacing in X/Y direction
+        if epsg == dem_raster.get_epsg():
+            x_spacing, y_spacing = assign_check_spacing(x_spacing_dict,
+                                                        y_spacing_dict,
+                                                        4.5e-5, 9.0e-5)
+        else:
+            # Assign spacing in meters
+            x_spacing, y_spacing = assign_check_spacing(x_spacing_dict,
+                                                        y_spacing_dict,
+                                                        5.0, 10.0)
+
+        # Initialize geogrid with the info checked at this stage
+        geo_grid_in = isce3.product.bbox_to_geogrid(radar_grid, orbit,
+                                                    isce3.core.LUT2d(),
+                                                    x_spacing, y_spacing, epsg)
+        # Check and further initialize geo_grid
+        geo_grid = assign_check_geogrid(geo_grid_in, xmin, ymax, xmax, ymin)
+
+        # Check end point of geogrid before compute snaps
+        x_end, y_end = check_geogrid_endpoints(geo_grid, xmax, ymin)
+        # Check snap values
+        check_snap_values(x_snap_dict, y_snap_dict, x_spacing, y_spacing)
+        # Snap coordinates
+        geo_grid = snap_geogrid(geo_grid, x_snap_dict, y_snap_dict, x_end, y_end)
+
+        geo_grids[burst_id] = geo_grid
+
+    curs.close()
+    conn.close()
+
+    return geo_grids
+
+
+def generate_geogrids(bursts, geo_dict, dem):
+    ''' Create a geogrid for all bzaursts in given list
 
     Parameters
     ----------

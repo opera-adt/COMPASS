@@ -12,7 +12,7 @@ RUN apt-get -y update &&\
     apt-get -y install curl git &&\
     adduser --disabled-password compass_user
 
-USER compass_user 
+USER compass_user
 
 COPY docker/specifile.txt /home/compass_user/
 

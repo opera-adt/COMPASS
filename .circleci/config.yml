@@ -14,7 +14,7 @@ jobs:
       - run:
           name: "Run unit tests"
           command: |
-            docker run pytest
+            docker run python -m pytest
 
 workflows:
   build-workflow:

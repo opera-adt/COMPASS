@@ -3,6 +3,8 @@ import numpy as np
 from isce3.splitspectrum import splitspectrum
 from osgeo import gdal
 
+from compass.utils.helpers import save_rdr_burst
+
 def find_next_power(number):
     '''
     Finds the next power of 2 of 'number'
@@ -26,14 +28,14 @@ def find_next_power(number):
     return number
 
 
-def range_split_spectrum(burst, cfg_split_spectrum,
+def range_split_spectrum(bursts, cfg_split_spectrum,
                          scratch_path):
     '''
     Split burst range spectrum
     Parameters
     ----------
-    burst: Sentinel1BurstSlc
-        S1-A/B burst object
+    burst: list[Sentinel1BurstSlc]
+        List of S1-A/B burst objects
     cfg_split_spectrum: dict
         Dictionary with split-spetrum options
     scratch_path: str
@@ -45,6 +47,8 @@ def range_split_spectrum(burst, cfg_split_spectrum,
         3-bands ISCE3 Raster. Band #1: low band;
         Band #2: main band; Band #3: high band
     '''
+    # Extract the burst at VV polarization to split the spectrum
+    burst = bursts[0]
     length, width = burst.shape
     lines_per_block = cfg_split_spectrum.lines_per_block
     burst_id_pol = '_'.join([burst.burst_id, burst.polarization])
@@ -79,16 +83,18 @@ def range_split_spectrum(burst, cfg_split_spectrum,
         freq='A')
 
     # Save the burst locally
-    burst_path = f'{scratch_path}/{burst_id_pol}_temp.vrt'
-    burst.slc_to_vrt_file(burst_path)
+    burst_path = save_rdr_burst(bursts, scratch_path)
 
-    # The output burst will
-    # contain 3 bands: Band #1: low-band image; Band #2 main-band image;
-    # Band #3: high-band image.
+    # If co-pol the output burst will contain 3 bands:
+    # Band #1: VV (HH) low-band; Band #2 VV (HH) main-band; Band #3: VV (HH) high-band.
+    # If dual-pol the output burst will contain 4 bands:
+    # Band #1: VV (HH) low-band; Band #2 VV (HH) main-band;
+    # Band #3: VV (HH) high-band; Band #4: VH (HV) main-band
     in_ds = gdal.Open(burst_path, gdal.GA_ReadOnly)
     driver = gdal.GetDriverByName('ENVI')
+    bands = 4 if len(bursts) > 1 else 3
     out_ds = driver.Create(f'{scratch_path}/{burst_id_pol}_low_main_high.slc',
-                           width, length, 3, gdal.GDT_CFloat32)
+                           width, length, bands, gdal.GDT_CFloat32)
 
     # Prepare necessary variables for block processing
     lines_per_block = min(length, lines_per_block)
@@ -101,9 +107,12 @@ def range_split_spectrum(burst, cfg_split_spectrum,
         else:
             block_length = lines_per_block
 
-        # Read a block of valid burst data
+        # Read a block of valid burst data from VV (or HH polarization)
         burst_data = in_ds.GetRasterBand(1).ReadAsArray(0, line_start,
                                                         width, block_length)
+        if len(bursts) > 1:
+            cross_pol_burst_data = in_ds.GetRasterBand(2).ReadAsArray(0, line_start,
+                                                                      width, block_length)
         # Get the low band sub-image and corresponding metadata
         burst_low_data, _ = split_spectrum_obj.bandpass_shift_spectrum(
             slc_raster=burst_data, low_frequency=low_band_freqs[0],
@@ -127,7 +136,9 @@ def range_split_spectrum(burst, cfg_split_spectrum,
                                            yoff=line_start)
         out_ds.GetRasterBand(3).WriteArray(burst_high_data[0:block_length],
                                            yoff=line_start)
-
+        if len(bursts)>1:
+            out_ds.GetRasterBand(4).WriteArray(cross_pol_burst_data[0:block_length],
+                                               yoff=line_start)
     out_ds.FlushCache()
     out_ds = None
     burst_raster = isce3.io.Raster(

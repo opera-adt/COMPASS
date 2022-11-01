@@ -16,6 +16,7 @@ from compass import s1_geocode_metadata
 from compass.utils.geo_metadata import GeoCslcMetadata
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.helpers import get_module_name
+from compass.utils.helpers import save_rdr_burst
 from compass.utils.range_split_spectrum import range_split_spectrum
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -77,15 +78,21 @@ def run(cfg):
 
     # Split the range bandwidth of the burst, if required
     if cfg.split_spectrum_params.enabled:
-        rdr_burst_raster = range_split_spectrum(burst,
+        rdr_burst_raster = range_split_spectrum(cfg.bursts,
                                                 cfg.split_spectrum_params,
                                                 scratch_path)
     else:
-        temp_slc_path = f'{scratch_path}/{burst_id}_{pol}_temp.vrt'
-        burst.slc_to_vrt_file(temp_slc_path)
+        temp_slc_path = save_rdr_burst(cfg.bursts, scratch_path)
         rdr_burst_raster = isce3.io.Raster(temp_slc_path)
 
-    # Generate output geocoded burst raster
+    # Generate output geocoded burst raster. If more one polarization,
+    # report it in the output burst filename
+    if len(cfg.bursts) > 1:
+        pols = []
+        for pol_burst in cfg.bursts:
+            pols.append(pol_burst.polarization)
+        pol = "_".join(pols)
+
     output_name = f'{cfg.output_dir}/{burst_id}_{date_str}_{pol}.slc'
     geo_burst_raster = isce3.io.Raster(
         output_name,

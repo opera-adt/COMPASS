@@ -26,7 +26,7 @@ def get_boundary_polygon(filename, invalid_value):
         Shapely polygon including valid values
     '''
     if not os.path.isfile(filename):
-        raise FileNotFoundError('cannont generate raster boundary - '
+        raise FileNotFoundError('cannot generate raster boundary - '
                                 f'{filename} not found')
 
     # Optimize this with block-processing?

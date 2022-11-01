@@ -275,3 +275,34 @@ def get_burst_bbox(burst_id, burst_db_file=None, burst_db_conn=None):
     epsgs = [r["epsg"] for r in results]
     bboxes = [(r["xmin"], r["ymin"], r["xmax"], r["ymax"]) for r in results]
     return epsgs, bboxes
+
+
+def save_rdr_burst(bursts, scratch):
+    burst_id = bursts[0].burst_id
+    if len(bursts) > 1:
+        burst_paths = []
+        for pol_burst in bursts:
+            pol = pol_burst.polarization
+            temp_path = f'{scratch}/{burst_id}_{pol}_temp.vrt'
+            burst_paths.append(temp_path)
+            pol_burst.slc_to_vrt_file(temp_path)
+
+        burst_rdr_path = f'{scratch}/{burst_id}_temp.tiff'
+        in_ds = gdal.Open(burst_paths[0], gdal.GA_ReadOnly)
+        driver = gdal.GetDriverByName('GTiff')
+        length, width = in_ds.RasterYSize, in_ds.RasterXSize
+        out_ds = driver.Create(burst_rdr_path, width, length,
+                               len(bursts), gdal.GDT_CFloat32)
+
+        for k in range(len(burst_paths)):
+            in_ds = gdal.Open(burst_paths[k], gdal.GA_ReadOnly)
+            burst_data = in_ds.GetRasterBand(1).ReadAsArray()
+            out_ds.GetRasterBand(k+1).WriteArray(burst_data)
+        out_ds.FlushCache()
+        out_ds = None
+
+    else:
+        pol = bursts[0].polarization
+        burst_rdr_path = f'{scratch}/{burst_id}_{pol}_temp.vrt'
+        bursts[0].slc_to_vrt_file(burst_rdr_path)
+    return burst_rdr_path

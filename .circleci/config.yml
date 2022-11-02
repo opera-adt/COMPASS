@@ -10,12 +10,11 @@ jobs:
       - run:
           name: "Build COMPASS docker image"
           command: |
-            docker build . -f docker/Dockerfile
+            docker build . -f docker/Dockerfile -t test_image
       - run:
-          name: "Run unit tests"
+          name: "Run integration tests"
           command: |
-            docker run conda activate COMPASS
-            docker run python -m pytest
+            docker run test_image bash -c "python -m pytest"
 
 workflows:
   build-workflow:

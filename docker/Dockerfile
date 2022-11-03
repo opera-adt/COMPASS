@@ -56,4 +56,4 @@ RUN echo "Installing OPERA COMPASS" &&\
 WORKDIR /home/compass_user/scratch
 
 #for COMPASS 0.1.1 and future releases
-ENTRYPOINT ["conda", "run", "-n", "COMPASS","s1_cslc.py"]
+ENTRYPOINT ["python"]

@@ -52,8 +52,7 @@ RUN echo "Installing OPERA COMPASS" &&\
     chmod -R o+rwx /home/compass_user/scratch &&\
     echo "conda activate COMPASS" >> /home/compass_user/.bashrc
 
-
 WORKDIR /home/compass_user/scratch
 
 #for COMPASS 0.1.1 and future releases
-ENTRYPOINT ["python"]
+#ENTRYPOINT ["python"]

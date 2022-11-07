@@ -178,7 +178,7 @@ def _get_burst_epsg_and_bbox(burst, output_epsg, bbox, bbox_epsg, burst_db_file)
             burst.burst_id, burst_db_file
         )
         if epsg_db != epsg:
-            bbox_utm = helpers.transform_bbox(
+            bbox_utm = helpers.bbox_to_utm(
                 bbox_utm, epsg_src=epsg_db, epsg_dst=epsg
             )
     return epsg, bbox_utm

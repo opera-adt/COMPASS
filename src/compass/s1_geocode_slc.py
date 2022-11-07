@@ -27,8 +27,8 @@ def run(cfg):
 
     Parameters
     ---------
-    cfg: dict
-        Dictionary with user runconfig options
+    cfg: GeoRunConfig
+        Loaded GeoRunConfig with user runconfig options.
     '''
     module_name = get_module_name(__file__)
     info_channel = journal.info(f"{module_name}.run")

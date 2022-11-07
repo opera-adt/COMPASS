@@ -41,7 +41,10 @@ def create_parser():
     optional.add_argument('-ed', '--end-date', help='End date of the stack to process')
     optional.add_argument('-b', '--burst-id', nargs='+', default=None,
                           help='List of burst IDs to process. If None, burst IDs '
-                             'common to all dates are processed.')
+                               'common to all dates are processed.')
+    optional.add_argument('--common-bursts-only', action='store_true',
+                          help='If flag is set, only bursts present in all dates'
+                               ' are processed.')
     optional.add_argument('-exd', '--exclude-dates', nargs='+',
                           help='Date to be excluded from stack processing (format: YYYYMMDD)')
     optional.add_argument('-p', '--pol', dest='pol', nargs='+', default='co-pol',
@@ -368,9 +371,10 @@ def _filter_by_date(zip_file_list, start_date, end_date, exclude_dates):
     return zip_file_list
 
 
-def run(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dates=None,
-        orbit_dir=None, work_dir='stack', pol='dual-pol', x_spac=5, y_spac=10, bbox=None,
-        bbox_epsg=4326, output_epsg=None, burst_db_file=DEFAULT_BURST_DB_FILE, flatten=True,
+def run(slc_dir, dem_file, burst_id, common_bursts_only=False, start_date=None,
+        end_date=None, exclude_dates=None, orbit_dir=None, work_dir='stack',
+        pol='dual-pol', x_spac=5, y_spac=10, bbox=None, bbox_epsg=4326,
+        output_epsg=None, burst_db_file=DEFAULT_BURST_DB_FILE, flatten=True,
         is_split_spectrum=False, low_band=0.0, high_band=0.0, enable_metadata=False):
     """Create runconfigs and runfiles generating geocoded bursts for a static
     stack of Sentinel-1 A/B SAFE files.
@@ -383,6 +387,8 @@ def run(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dat
         File path to DEM to use for processing
     burst_id: list
         List of burst IDs to process (default: None)
+    common_bursts_only: bool
+        Flag to only process bursts common to all SAFE files (default: False)
     start_date: int
         Date of the start acquisition of the stack (format: YYYYMMDD)
     end_date: int
@@ -458,8 +464,9 @@ def run(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dat
 
     # Identify burst IDs common across the stack and remove from the dataframe
     # burst IDs that are not in common
-    common_ids = get_common_burst_ids(burst_map)
-    burst_map = prune_dataframe(burst_map, 'burst_id', common_ids)
+    if common_bursts_only:
+        common_ids = get_common_burst_ids(burst_map)
+        burst_map = prune_dataframe(burst_map, 'burst_id', common_ids)
 
     # If user selects burst IDs to process, prune unnecessary bursts
     if burst_id is not None:
@@ -501,8 +508,8 @@ def main():
     # Run main script
     args = create_parser()
 
-    run(args.slc_dir, args.dem_file, args.burst_id, args.start_date,
-        args.end_date, args.exclude_dates, args.orbit_dir,
+    run(args.slc_dir, args.dem_file, args.burst_id, args.common_bursts_only,
+        args.start_date, args.end_date, args.exclude_dates, args.orbit_dir,
         args.work_dir, args.pol, args.x_spac, args.y_spac, args.bbox,
         args.bbox_epsg, args.output_epsg, args.burst_db_file, not args.no_flatten,
         args.is_split_spectrum, args.low_band, args.high_band, args.metadata)

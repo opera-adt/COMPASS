@@ -16,6 +16,8 @@ runconfig:
       dynamic_ancillary_file_group:
           # Digital elevation model
           dem_file:
+           # burst database sqlite file
+           db_file:
 
       product_path_group:
           # Directory where PGE will place results

@@ -282,13 +282,19 @@ def get_point_epsg(lat, lon):
         raise ValueError(err_str)
 
 
-def generate_geogrids_from_db(bursts):
+def generate_geogrids_from_db(bursts, geo_dict, dem, burst_db_file):
     ''' Create a geogrid for all bursts in given list
 
     Parameters
     ----------
     burst: list[Sentinel1BurstSlc]
         List of bursts
+    geo_dict: dict
+        Dict of parameters that describe the area to be geocoded
+    dem: str
+        Path to DEM raster
+    burst_db_file : str
+        Location of burst database sqlite file
 
     Returns
     -------
@@ -308,7 +314,7 @@ def generate_geogrids_from_db(bursts):
 
     # get all burst IDs and their EPSGs + bounding boxes
     burst_ids = set([b.burst_id for b in bursts])
-    espgs, bboxes = get_burst_bbox(burst_ids, burst_db_file)
+    epsgs, bboxes = helpers.burst_bbox_from_db(burst_ids, burst_db_file)
     epsg_bbox_dict = dict(zip(burst_ids, zip(epsgs, bboxes)))
 
     for burst in bursts:
@@ -352,14 +358,11 @@ def generate_geogrids_from_db(bursts):
 
         geo_grids[burst_id] = geo_grid
 
-    curs.close()
-    conn.close()
-
     return geo_grids
 
 
 def generate_geogrids(bursts, geo_dict, dem):
-    ''' Create a geogrid for all bzaursts in given list
+    ''' Create a geogrid for all bursts in given list
 
     Parameters
     ----------

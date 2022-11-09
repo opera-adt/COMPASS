@@ -7,7 +7,8 @@ from isce3.product import GeoGridParameters
 import journal
 from ruamel.yaml import YAML
 
-from compass.utils.geo_grid import generate_geogrids, geogrid_as_dict
+from compass.utils.geo_grid import (generate_geogrids_from_db,
+                                    generate_geogrids, geogrid_as_dict)
 from compass.utils.runconfig import (
     runconfig_to_bursts,
     load_validate_yaml,
@@ -78,7 +79,12 @@ class GeoRunConfig(RunConfig):
 
         # Load geogrids
         dem_file = groups_cfg['dynamic_ancillary_file_group']['dem_file']
-        geogrids = generate_geogrids_from_db(bursts, geocoding_dict, dem_file)
+        db_file = groups_cfg['dynamic_ancillary_file_group']['db_file']
+        if db_file is None:
+            geogrids = generate_geogrids(bursts, geocoding_dict, dem_file)
+        else:
+            geogrids = generate_geogrids_from_db(bursts, geocoding_dict,
+                                                 dem_file, db_file)
 
         # Empty reference dict for base runconfig class constructor
         empty_ref_dict = {}

@@ -219,7 +219,7 @@ def _convert_to_utm(points_xy, epsg_src, epsg_dst):
     return list(zip(xt, yt))
 
 
-def get_burst_bbox(burst_id, burst_db_file=None, burst_db_conn=None):
+def burst_bbox_from_db(burst_id, burst_db_file=None, burst_db_conn=None):
     """Find the bounding box of a burst (or bursts) in the database.
 
     Can either pass one string burst_id or a list of burst_ids.
@@ -271,9 +271,9 @@ def get_burst_bbox(burst_id, burst_db_file=None, burst_db_conn=None):
     bboxes = [[]] * n_results
     burst_ids = [[]] * n_results
     for i_result, result in enumerate(results):
-        epsg[i_result] = result["epsg"]
-        bbox[i_result]= (result["xmin"], result["ymin"],
-                          result["xmax"], result["ymax"])
+        epsgs[i_result] = result["epsg"]
+        bboxes[i_result]= (result["xmin"], result["ymin"],
+                           result["xmax"], result["ymax"])
         burst_ids[i_result] = result["burst_id_jpl"]
 
     # If they only requested one, just return the single epsg/bbox

@@ -15,7 +15,7 @@ jobs:
           name: "Run integration tests"
           command: |
             docker run test_image bash -c "cd ~/OPERA/COMPASS &&\
-                                           conda init /bin/bash &&\
+                                           conda init bash &&\
                                            conda activate COMPASS &&\
                                            python -m pytest"
 

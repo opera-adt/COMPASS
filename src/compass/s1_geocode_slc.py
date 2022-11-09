@@ -47,7 +47,6 @@ def run(cfg: GeoRunConfig):
     iters = cfg.geo2rdr_params.numiter
     blocksize = cfg.geo2rdr_params.lines_per_block
     flatten = cfg.geocoding_params.flatten
-    output_epsg = cfg.geocoding_params.output_epsg
 
     # process one burst only
     for  burst in cfg.bursts:

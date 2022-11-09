@@ -148,7 +148,7 @@ def check_dem(dem_path: str):
     error_channel = journal.error('helpers.check_dem')
     try:
         gdal.Open(dem_path, gdal.GA_ReadOnly)
-    except:
+    except ValueError:
         err_str = f'{dem_path} cannot be opened by GDAL'
         error_channel.log(err_str)
         raise ValueError(err_str)

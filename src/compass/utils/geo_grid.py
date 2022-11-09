@@ -304,7 +304,6 @@ def generate_geogrids_from_db(bursts, geo_dict, dem, burst_db_file):
     dem_raster = isce3.io.Raster(dem)
 
     # Unpack values from geocoding dictionary
-    epsg_dict = geo_dict['output_epsg']
     x_spacing_dict = geo_dict['x_posting']
     y_spacing_dict = geo_dict['y_posting']
     x_snap_dict = geo_dict['x_snap']

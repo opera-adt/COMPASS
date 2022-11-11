@@ -69,7 +69,9 @@ runconfig:
                lines_per_block: 1000
                flatten: False
            correction_luts:
+               # LUT spacing in x/slant range direction in meters
                x_spacing: 500
+               # LUT spacing in y/azimuth direction in seconds
                y_spacing: 50
 
        worker:

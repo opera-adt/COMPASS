@@ -86,9 +86,9 @@ resample_options:
    flatten: bool(required=False)
 
 lut_options:
-  # LUT spacing in x/slant range direction
+  # LUT spacing in x/slant range direction in meters
   x_spacing: int(min=1, required=False)
-  # LUT spacing in y/azimuth direction
+  # LUT spacing in y/azimuth direction in seconds
   y_spacing: int(min=1, required=False)
 
 worker_options:

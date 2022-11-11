@@ -294,10 +294,10 @@ def save_rdr_burst(bursts, scratch):
         out_ds = driver.Create(burst_rdr_path, width, length,
                                len(bursts), gdal.GDT_CFloat32)
 
-        for k in range(len(burst_paths)):
-            in_ds = gdal.Open(burst_paths[k], gdal.GA_ReadOnly)
+        for k, burst_path in enumerate(burst_paths, start=1):
+            in_ds = gdal.Open(burst_path, gdal.GA_ReadOnly)
             burst_data = in_ds.GetRasterBand(1).ReadAsArray()
-            out_ds.GetRasterBand(k+1).WriteArray(burst_data)
+            out_ds.GetRasterBand(k).WriteArray(burst_data)
         out_ds.FlushCache()
         out_ds = None
 

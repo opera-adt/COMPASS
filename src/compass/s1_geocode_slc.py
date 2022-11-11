@@ -85,14 +85,10 @@ def run(cfg):
         temp_slc_path = save_rdr_burst(cfg.bursts, scratch_path)
         rdr_burst_raster = isce3.io.Raster(temp_slc_path)
 
-    # Generate output geocoded burst raster. If more one polarization,
-    # report it in the output burst filename
-    if len(cfg.bursts) > 1:
-        pols = []
-        for pol_burst in cfg.bursts:
-            pols.append(pol_burst.polarization)
-        pol = "_".join(pols)
+    # If more one polarization, report it in the output burst filename
+    pol = "_".join(pol_burst.polarization for pol_burst in cfg.bursts)
 
+    # Generate output geocoded CSLC
     output_name = f'{cfg.output_dir}/{burst_id}_{date_str}_{pol}.slc'
     geo_burst_raster = isce3.io.Raster(
         output_name,

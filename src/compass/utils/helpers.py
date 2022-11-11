@@ -278,6 +278,21 @@ def get_burst_bbox(burst_id, burst_db_file=None, burst_db_conn=None):
 
 
 def save_rdr_burst(bursts, scratch):
+    """
+    Save bursts as a multiband Geotiff in the scratch directory
+
+    Parameters
+    ----------
+    bursts: list[Sentinel1BurstSlc]
+        List of burst to save from 'runconfig_to_bursts'
+    scratch: str
+        Path to scratch directory
+
+    Returns
+    -------
+    burst_rdr_path: str
+        Path to saved multi-band burst in radar coordinates
+    """
     burst_id = bursts[0].burst_id
     if len(bursts) > 1:
         burst_paths = []

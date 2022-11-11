@@ -34,7 +34,6 @@ runconfig:
           geocoding:
               output_format: ENVI
               flatten: True
-              # Dem margin (in units of input DEM)
               lines_per_block: 1000
               output_epsg:
               x_posting:
@@ -55,14 +54,43 @@ runconfig:
               enabled: False
               lines_per_block: 1000
               # Low-band bandwidth in Hz
-              low_band_bandwidth: 10000000
+              low_band_bandwidth: 1e7
               # High-band bandwidth in Hz
-              high_band_bandwidth: 10000000
+              high_band_bandwidth: 1e7
+
           correction_luts:
               # LUT spacing in x/slant range direction in meters
               x_spacing: 500
               # LUT spacing in y/azimuth direction in seconds
               y_spacing: 50
+
+          rdr2geo:
+              # Enable/disable computation of topo layers
+              enabled: False
+              # Convergence threshold for rdr2geo algorithm
+              threshold: 1.0e-8
+              # Maximum number of iterations
+              numiter: 25
+              # Lines per block to process in batch
+              lines_per_block: 1000
+              # Secondary number of iterations
+              extraiter: 10
+              # Enable/disable computation of latitude raster
+              compute_latitude: False
+              # Enable/disable computation of longitude raster
+              compute_longitude: False
+              # Enable/disable computation of height raster
+              compute_height: False
+              # Enable/disable layover shadow mask output
+              compute_layover_shadow_mask: True
+              # Enable/disable incidence angle output
+              compute_incidence_angle: True
+              # Enable/disable local incidence output
+              compute_local_incidence_angle: True
+              # Enable/disable azimuth angle output
+              compute_azimuth_angle: True
+              # Enable/disable generation of the topo layers
+              geocode_metadata_layers: True
 
       worker:
           # Optional. To prevent downloading DEM or other data (default: False)

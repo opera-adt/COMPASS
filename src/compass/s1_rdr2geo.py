@@ -16,13 +16,15 @@ from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
 
 
-def run(cfg):
+def run(cfg, save_in_scratch=False):
     '''run rdr2geo with provided runconfig
 
     Parameters
     ----------
     cfg: dict
         Runconfig dictionary with user-defined options
+    save_in_scratch: bool
+        Flag to save output in scratch dir instead of product dir
     '''
     module_name = get_module_name(__file__)
     info_channel = journal.info(f"{module_name}.run")
@@ -30,6 +32,9 @@ def run(cfg):
 
     # Tracking time elapsed for processing
     t_start = time.time()
+
+    # Extract rdr2geo cfg
+    rdr2geo_cfg = cfg.rdr2geo_params
 
     # common rdr2geo inits
     dem_raster = isce3.io.Raster(cfg.dem)
@@ -60,6 +65,8 @@ def run(cfg):
 
         # init output directory in product_path
         output_path = f'{cfg.product_path}/{burst_id}/{date_str}'
+        if save_in_scratch:
+            output_path = f'{cfg.scratch_path}/{burst_id}/{date_str}'
         os.makedirs(output_path, exist_ok=True)
 
         # save SLC to ENVI for all bursts
@@ -84,31 +91,42 @@ def run(cfg):
         grid_doppler = isce3.core.LUT2d()
 
         # init rdr2geo obj
-        rdr2geo_obj = Rdr2Geo(
-            rdr_grid,
-            isce3_orbit,
-            ellipsoid,
-            grid_doppler)
-
-        # set rdr2geo params
-        for key, val in cfg.rdr2geo_params.__dict__.items():
-            setattr(rdr2geo_obj, key, val)
+        rdr2geo_obj = Rdr2Geo(rdr_grid, isce3_orbit, ellipsoid, grid_doppler,
+                              threshold=rdr2geo_cfg.threshold,
+                              numiter=rdr2geo_cfg.numiter,
+                              extraiter=rdr2geo_cfg.extraiter,
+                              lines_per_block=rdr2geo_cfg.lines_per_block)
 
         # prepare output rasters
-        topo_output = {'x':(True, gdal.GDT_Float64),
-                       'y':(True, gdal.GDT_Float64),
-                       'z':(True, gdal.GDT_Float64),
-                       'layoverShadowMask':(cfg.rdr2geo_params.compute_mask,
-                                            gdal.GDT_Byte)}
+        topo_output = {'x': (rdr2geo_cfg.compute_longitude, gdal.GDT_Float64),
+                       'y': (rdr2geo_cfg.compute_latitude, gdal.GDT_Float64),
+                       'z': (rdr2geo_cfg.compute_height, gdal.GDT_Float64),
+                       'layoverShadowMask': (
+                       cfg.rdr2geo_params.compute_layover_shadow_mask,
+                       gdal.GDT_Byte),
+                       'incidence': (rdr2geo_cfg.compute_incidence_angle,
+                                     gdal.GDT_Float32),
+                       'localIncidence': (
+                       rdr2geo_cfg.compute_local_incidence_angle,
+                       gdal.GDT_Float32),
+                       'heading': (
+                       rdr2geo_cfg.compute_azimuth_angle, gdal.GDT_Float32)}
         raster_list = [
             isce3.io.Raster(f'{output_path}/{fname}.rdr', rdr_grid.width,
                             rdr_grid.length, 1, dtype, 'ENVI')
             if enabled else None
             for fname, (enabled, dtype) in topo_output.items()]
-        x_raster, y_raster, z_raster, layover_shadow_raster = raster_list
+
+        x_raster, y_raster, z_raster, layover_shadow_raster, \
+        incident_angle_raster, local_incident_angle_raster, \
+        azimuth_angle_raster = raster_list
 
         # run rdr2geo
-        rdr2geo_obj.topo(dem_raster, x_raster, y_raster, z_raster,
+        rdr2geo_obj.topo(dem_raster, x_raster=x_raster, y_raster=y_raster,
+                         height_raster=z_raster,
+                         incidence_angle_raster=incident_angle_raster,
+                         local_incidence_angle_raster=local_incident_angle_raster,
+                         heading_angle_raster=azimuth_angle_raster,
                          layover_shadow_raster=layover_shadow_raster)
 
         # remove undesired/None rasters from raster list
@@ -119,7 +137,8 @@ def run(cfg):
         output_vrt.set_epsg(rdr2geo_obj.epsg_out)
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
-    info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
+    info_channel.log(
+        f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
 
 
 if __name__ == "__main__":

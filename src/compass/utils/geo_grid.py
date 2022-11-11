@@ -284,7 +284,7 @@ def get_point_epsg(lat, lon):
 def generate_geogrids(bursts, geo_dict, dem):
     dem_raster = isce3.io.Raster(dem)
 
-    # Unpack values from geocoding disctionary
+    # Unpack values from geocoding dictionary
     epsg_dict = geo_dict['output_epsg']
     x_start_dict = geo_dict['top_left']['x']
     y_start_dict = geo_dict['top_left']['y']

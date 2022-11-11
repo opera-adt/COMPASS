@@ -61,7 +61,7 @@ class GeoCslcMetadata():
     doppler: Poly1d
     range_bandwidth: float
     polarization: str # {VV, VH, HH, HV}
-    burst_id: str # t{track_number}_iw{1,2,3}_b{burst_index}
+    burst_id: str # t{track_number}_{burst_number}_iw{1,2,3}
     platform_id: str # S1{A,B}
     center: Point # {center lon, center lat} in degrees
     border: Polygon # list of lon, lat coordinate tuples (in degrees) representing burst border

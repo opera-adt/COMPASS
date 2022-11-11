@@ -11,6 +11,8 @@ import journal
 import numpy as np
 from osgeo import gdal
 
+from compass import s1_rdr2geo
+from compass import s1_geocode_metadata
 from compass.utils.geo_metadata import GeoCslcMetadata
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.helpers import get_module_name
@@ -50,6 +52,7 @@ def run(cfg):
 
     # process one burst only
     burst = cfg.bursts[0]
+    info_channel.log(f"Running on {burst}")
     date_str = burst.sensing_start.strftime("%Y%m%d")
     burst_id = burst.burst_id
     pol = burst.polarization
@@ -72,6 +75,12 @@ def run(cfg):
     # Get azimuth polynomial coefficients for this burst
     az_carrier_poly2d = burst.get_az_carrier_poly()
 
+    # Generate required metadata layers
+    if cfg.rdr2geo_params.enabled:
+        s1_rdr2geo.run(cfg, save_in_scratch=True)
+        if cfg.rdr2geo_params.geocode_metadata_layers:
+           s1_geocode_metadata.run(cfg, fetch_from_scratch=True)
+
     # Split the range bandwidth of the burst, if required
     if cfg.split_spectrum_params.enabled:
         rdr_burst_raster = range_split_spectrum(burst,
@@ -83,8 +92,9 @@ def run(cfg):
         rdr_burst_raster = isce3.io.Raster(temp_slc_path)
 
     # Generate output geocoded burst raster
+    output_name = f'{cfg.output_dir}/{burst_id}_{date_str}_{pol}.slc'
     geo_burst_raster = isce3.io.Raster(
-        f'{cfg.output_dir}/{burst_id}_{date_str}_{pol}.slc',
+        output_name,
         geo_grid.width, geo_grid.length,
         rdr_burst_raster.num_bands, gdal.GDT_CFloat32,
         cfg.geocoding_params.output_format)
@@ -95,7 +105,6 @@ def run(cfg):
 
     # Create sliced radar grid representing valid region of the burst
     sliced_radar_grid = burst.as_isce3_radargrid()[b_bounds]
-
     # Geocode
     isce3.geocode.geocode_slc(geo_burst_raster, rdr_burst_raster,
                               dem_raster,

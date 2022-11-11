@@ -91,6 +91,10 @@ class GeoRunConfig(RunConfig):
         return self.groups.processing.geocoding
 
     @property
+    def rdr2geo_params(self) -> dict:
+        return self.groups.processing.rdr2geo
+
+    @property
     def burst_id(self) -> str:
         return self.bursts[0].burst_id
 

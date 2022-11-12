@@ -49,7 +49,7 @@ def run(cfg: GeoRunConfig):
     flatten = cfg.geocoding_params.flatten
 
     # process one burst only
-    for  burst in cfg.bursts:
+    for burst in cfg.bursts:
         date_str = burst.sensing_start.strftime("%Y%m%d")
         burst_id = burst.burst_id
         pol = burst.polarization
@@ -57,7 +57,7 @@ def run(cfg: GeoRunConfig):
         geo_grid = cfg.geogrids[burst_id]
 
         # Create top output path
-        burst_output_path = f'{cfg.output_dir}/{burst_id}/{date_str}'
+        burst_output_path = f'{cfg.product_path}/{burst_id}/{date_str}'
         os.makedirs(burst_output_path, exist_ok=True)
 
         scratch_path = f'{cfg.scratch_path}/{burst_id}/{date_str}'
@@ -117,11 +117,11 @@ def run(cfg: GeoRunConfig):
         geo_burst_raster.set_epsg(epsg)
         del geo_burst_raster
 
-    # Save burst metadata
-    metadata = GeoCslcMetadata.from_georunconfig(cfg)
-    json_path = f'{burst_output_path}/{id_pol}.json'
-    with open(json_path, 'w') as f_json:
-        metadata.to_file(f_json, 'json')
+        # Save burst metadata
+        metadata = GeoCslcMetadata.from_georunconfig(cfg, burst_id)
+        json_path = f'{burst_output_path}/{id_pol}.json'
+        with open(json_path, 'w') as f_json:
+            metadata.to_file(f_json, 'json')
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")

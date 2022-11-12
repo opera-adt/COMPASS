@@ -283,7 +283,8 @@ def get_point_epsg(lat, lon):
 
 
 def generate_geogrids_from_db(bursts, geo_dict, dem, burst_db_file):
-    ''' Create a geogrid for all bursts in given list
+    ''' Create a geogrid for all bursts in given list from provided burst
+    database
 
     Parameters
     ----------

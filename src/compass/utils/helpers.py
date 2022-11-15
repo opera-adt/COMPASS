@@ -220,14 +220,12 @@ def _convert_to_utm(points_xy, epsg_src, epsg_dst):
 
 
 def burst_bbox_from_db(burst_id, burst_db_file=None, burst_db_conn=None):
-    """Find the bounding box of a burst (or bursts) in the database.
-
-    Can either pass one string burst_id or a list of burst_ids.
+    """Find the bounding box of a burst in the database.
 
     Parameters
     ----------
-    burst_id : str or list[str]
-        JPL burst ID, or a list of burst IDs.
+    burst_id : str
+        JPL burst ID
     burst_db_file : str
         Location of burst database sqlite file, by default None
     burst_db_conn : sqlite3.Connection
@@ -237,18 +235,16 @@ def burst_bbox_from_db(burst_id, burst_db_file=None, burst_db_conn=None):
 
     Returns
     -------
-    epsg : int, or list[int]
+    epsg : int
         EPSG code(s) of burst bounding box(es)
-    bbox : tuple[float], or list[tuple[float]]
-        Bounding box(es) of burst in EPSG coordinates, or list of bounding boxes.
-        Bounding box given as tuple(xmin, ymin, xmax, ymax)
-    burst_ids: str, or list[str]
-        Burst ID(s) associated with each EPSG and bbox
+    bbox : tuple[float]
+        Bounding box of burst in EPSG coordinates. Bounding box given as
+        tuple(xmin, ymin, xmax, ymax)
 
     Raises
     ------
     ValueError
-        If no burst_id is not found in burst database
+        If burst_id is not found in burst database
     """
     # example burst db:
     # /home/staniewi/dev/burst_map_IW_000001_375887.OPERA-JPL.sqlite3
@@ -256,7 +252,52 @@ def burst_bbox_from_db(burst_id, burst_db_file=None, burst_db_conn=None):
         burst_db_conn = sqlite3.connect(burst_db_file)
     burst_db_conn.row_factory = sqlite3.Row  # return rows as dicts
 
-    query_burst_ids = ','.join( [f"\'{b}\'" for b in burst_id])
+    query = "SELECT epsg, xmin, ymin, xmax, ymax FROM burst_id_map WHERE burst_id_jpl = ?"
+    cur = burst_db_conn.execute(query, (burst_id,))
+    result = cur.fetchone()
+
+    if not result:
+        raise ValueError(f"Failed to find {burst_id} in {burst_db_file}")
+
+    epsg = result["epsg"]
+    bbox = (result["xmin"], result["ymin"], result["xmax"], result["ymax"])
+
+    return epsg, bbox
+
+
+def burst_bboxes_from_db(burst_ids, burst_db_file=None, burst_db_conn=None):
+    """Find the bounding box of bursts in the database.
+
+    Parameters
+    ----------
+    burst_id : list[str]
+        list of JPL burst IDs.
+    burst_db_file : str
+        Location of burst database sqlite file, by default None
+    burst_db_conn : sqlite3.Connection
+        Connection object to burst database (If already connected)
+        Alternative to providing burst_db_file, will be faster
+        for multiply queries.
+
+    Returns
+    -------
+    bboxes : dict
+        Burst bounding boxes as a dict with burst IDs as key and tuples of
+        EPSG and bounding boxes (tuple[float]) as values. Bounding box given as
+        tuple(xmin, ymin, xmax, ymax)
+
+    Raises
+    ------
+    ValueError
+        If no burst_ids are found in burst database
+    """
+    # example burst db:
+    # /home/staniewi/dev/burst_map_IW_000001_375887.OPERA-JPL.sqlite3
+    if burst_db_conn is None:
+        burst_db_conn = sqlite3.connect(burst_db_file)
+    burst_db_conn.row_factory = sqlite3.Row  # return rows as dicts
+
+    query_burst_ids = ','.join( [f"\'{b}\'" for b in burst_ids])
     query = f"SELECT epsg, xmin, ymin, xmax, ymax, burst_id_jpl FROM burst_id_map WHERE burst_id_jpl IN ({query_burst_ids})"
     cur = burst_db_conn.execute(query)
     results = cur.fetchall()
@@ -270,13 +311,9 @@ def burst_bbox_from_db(burst_id, burst_db_file=None, burst_db_conn=None):
     burst_ids = [[]] * n_results
     for i_result, result in enumerate(results):
         epsgs[i_result] = result["epsg"]
-        bboxes[i_result]= (result["xmin"], result["ymin"],
+        bboxes[i_result] = (result["xmin"], result["ymin"],
                            result["xmax"], result["ymax"])
         burst_ids[i_result] = result["burst_id_jpl"]
 
-    # If they only requested one, just return the single epsg/bbox
-    if n_results == 1:
-        return epsgs[0], bboxes[0], burst_ids[0]
-
-    # Otherwise, return a list of epsg/bbox tuples
-    return epsgs, bboxes, burst_ids
+    # TODO add warning if not all burst bounding boxes found
+    return dict(zip(burst_ids, zip(epsgs, bboxes)))

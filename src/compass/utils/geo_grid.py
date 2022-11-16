@@ -381,12 +381,8 @@ def generate_geogrids(bursts, geo_dict, dem):
 
     # Unpack values from geocoding dictionary
     epsg_dict = geo_dict['output_epsg']
-    x_start_dict = geo_dict['top_left']['x']
-    y_start_dict = geo_dict['top_left']['y']
     x_spacing_dict = geo_dict['x_posting']
     y_spacing_dict = geo_dict['y_posting']
-    x_end_dict = geo_dict['bottom_right']['x']
-    y_end_dict = geo_dict['bottom_right']['y']
     x_snap_dict = geo_dict['x_snap']
     y_snap_dict = geo_dict['y_snap']
 
@@ -417,16 +413,12 @@ def generate_geogrids(bursts, geo_dict, dem):
                                                         5.0, 10.0)
 
         # Initialize geogrid with the info checked at this stage
-        geo_grid_in = isce3.product.bbox_to_geogrid(radar_grid, orbit,
-                                                    isce3.core.LUT2d(),
-                                                    x_spacing, y_spacing, epsg)
-        # Check and further initialize geo_grid
-        geo_grid = assign_check_geogrid(geo_grid_in, x_start_dict,
-                                        y_start_dict, x_end_dict,
-                                        y_end_dict)
+        geo_grid = isce3.product.bbox_to_geogrid(radar_grid, orbit,
+                                                 isce3.core.LUT2d(),
+                                                 x_spacing, y_spacing, epsg)
 
         # Check end point of geogrid before compute snaps
-        x_end, y_end = check_geogrid_endpoints(geo_grid, x_end_dict, y_end_dict)
+        x_end, y_end = check_geogrid_endpoints(geo_grid)
         # Check snap values
         check_snap_values(x_snap_dict, y_snap_dict, x_spacing, y_spacing)
         # Snap coordinates

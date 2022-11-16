@@ -68,14 +68,6 @@ geocoding_options:
    x_snap: num(min=0, required=False)
    # Controls the product grid along Y (same units as output_epsg)
    y_snap: num(min=0, required=False)
-   # Top-left coordinates (same units as output_epsg)
-   top_left:
-     x: num(required=False)
-     y: num(required=False)
-   # Bottom-right coordinates (same units as output_epsg)
-   bottom_right:
-     x: num(required=False)
-     y: num(required=False)
 
 geo2rdr_options:
   # Convergence threshold for geo2rdr algorithm

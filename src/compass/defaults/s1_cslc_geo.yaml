@@ -42,12 +42,6 @@ runconfig:
               y_posting:
               x_snap:
               y_snap:
-              top_left:
-                  x:
-                  y:
-              bottom_right:
-                  x:
-                  y:
           geo2rdr:
               lines_per_block: 1000
               threshold: 1.0e-8

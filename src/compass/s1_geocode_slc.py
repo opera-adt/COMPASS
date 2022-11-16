@@ -38,10 +38,6 @@ def run(cfg: GeoRunConfig):
     t_start = time.time()
 
     # Common initializations
-    dem_raster = isce3.io.Raster(cfg.dem)
-    epsg = dem_raster.get_epsg()
-    proj = isce3.core.make_projection(epsg)
-    ellipsoid = proj.ellipsoid
     image_grid_doppler = isce3.core.LUT2d()
     threshold = cfg.geo2rdr_params.threshold
     iters = cfg.geo2rdr_params.numiter
@@ -50,6 +46,13 @@ def run(cfg: GeoRunConfig):
 
     # process one burst only
     for burst in cfg.bursts:
+        # Reinitialize the dem raster per burst to prevent raster artifacts
+        # caused by modification in geocodeSlc
+        dem_raster = isce3.io.Raster(cfg.dem)
+        epsg = dem_raster.get_epsg()
+        proj = isce3.core.make_projection(epsg)
+        ellipsoid = proj.ellipsoid
+
         date_str = burst.sensing_start.strftime("%Y%m%d")
         burst_id = burst.burst_id
         pol = burst.polarization
@@ -116,6 +119,7 @@ def run(cfg: GeoRunConfig):
         geo_burst_raster.set_geotransform(geotransform)
         geo_burst_raster.set_epsg(epsg)
         del geo_burst_raster
+        del dem_raster # modified in geocodeSlc
 
         # Save burst metadata
         metadata = GeoCslcMetadata.from_georunconfig(cfg, burst_id)

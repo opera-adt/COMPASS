@@ -297,9 +297,10 @@ def burst_bboxes_from_db(burst_ids, burst_db_file=None, burst_db_conn=None):
         burst_db_conn = sqlite3.connect(burst_db_file)
     burst_db_conn.row_factory = sqlite3.Row  # return rows as dicts
 
-    query_burst_ids = ','.join( [f"\'{b}\'" for b in burst_ids])
-    query = f"SELECT epsg, xmin, ymin, xmax, ymax, burst_id_jpl FROM burst_id_map WHERE burst_id_jpl IN ({query_burst_ids})"
-    cur = burst_db_conn.execute(query)
+    # concatenate '?, ' with for each burst ID for IN query
+    qs_in_query = ', '.join('?' for _ in burst_ids)
+    query = f"SELECT * FROM burst_id_map WHERE burst_id_jpl IN ({qs_in_query})"
+    cur = burst_db_conn.execute(query, burst_ids)
     results = cur.fetchall()
 
     if not results:

@@ -97,7 +97,7 @@ class GeoCslcMetadata():
                 burst = b
 
         if burst is None:
-            err_str = f'{burst_str} not found in cfg.bursts'
+            err_str = f'{burst_id} not found in cfg.bursts'
             raise ValueError(err_str)
 
         geogrid = cfg.geogrids[burst_id]

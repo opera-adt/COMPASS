@@ -150,7 +150,7 @@ def _get_burst_epsg_and_bbox(burst, output_epsg, bbox, bbox_epsg, burst_db_file)
     # # Get the UTM zone of the first burst from the database
     if output_epsg is None:
         if os.path.exists(burst_db_file):
-            epsg, _, _ = helpers.burst_bbox_from_db(
+            epsg, _ = helpers.burst_bbox_from_db(
                 burst.burst_id, burst_db_file
             )
         else:

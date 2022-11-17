@@ -1,4 +1,4 @@
-def compute_geocoding_correction_luts(burst, xstep=500, ystep=50):
+def compute_geocoding_correction_luts(burst, rg_step=200, az_step=0.25):
     '''
     Compute slant range and azimuth LUTs corrections
     to be applied during burst geocoding
@@ -20,8 +20,8 @@ def compute_geocoding_correction_luts(burst, xstep=500, ystep=50):
         2D array containg sum of azimuth corrections
     '''
 
-    az_bistatic = burst.bistatic_delay(xstep=xstep, ystep=ystep)
-    _, _, rg_doppler = burst.geometrical_and_steering_doppler(xstep=xstep, ystep=ystep)
+    az_bistatic = burst.bistatic_delay(range_stepx=rg_step, az_step=az_step)
+    _, _, rg_doppler = burst.geometrical_and_steering_doppler(range_step=rg_step, az_step=az_step)
 
     rg_lut = rg_doppler
     az_lut = az_bistatic.data

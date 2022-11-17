@@ -171,7 +171,7 @@ def _get_burst_epsg_and_bbox(burst, output_epsg, bbox, bbox_epsg, burst_db_file)
         if not geometry.box(*bbox_utm).intersects(burst_border_utm):
             return None, None
     else:
-        epsg_db, bbox_utm, _ = helpers.burst_bbox_from_db(
+        epsg_db, bbox_utm = helpers.burst_bbox_from_db(
             burst.burst_id, burst_db_file
         )
         if epsg_db != epsg:

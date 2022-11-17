@@ -96,10 +96,10 @@ range_split_spectrum_options:
   high_band_bandwidth: num(min=0, required=False)
 
 lut_options:
-  # LUT spacing in x/slant range direction in meters
-  x_spacing: int(min=1, required=False)
-  # LUT spacing in y/azimuth direction in seconds
-  y_spacing: int(min=1, required=False)
+  # LUT spacing in range direction in meters
+  range_spacing: num(min=1, required=False)
+  # LUT spacing in azimuth direction in meters
+  azimuth_spacing: num(min=1, required=False)
 
 rdr2geo_options:
    # Enable/disable computation of topo layers

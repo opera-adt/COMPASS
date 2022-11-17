@@ -38,7 +38,6 @@ runconfig:
               output_format: ENVI
               flatten: True
               lines_per_block: 1000
-              output_epsg:
               x_posting:
               y_posting:
               x_snap:

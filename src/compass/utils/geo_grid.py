@@ -380,7 +380,6 @@ def generate_geogrids(bursts, geo_dict, dem):
     dem_raster = isce3.io.Raster(dem)
 
     # Unpack values from geocoding dictionary
-    epsg_dict = geo_dict['output_epsg']
     x_spacing_dict = geo_dict['x_posting']
     y_spacing_dict = geo_dict['y_posting']
     x_snap_dict = geo_dict['x_snap']
@@ -394,9 +393,7 @@ def generate_geogrids(bursts, geo_dict, dem):
             continue
 
         # Compute Burst epsg if not assigned in runconfig
-        epsg_default = get_point_epsg(burst.center.y,
-                                      burst.center.x)
-        epsg = assign_check_epsg(epsg_dict, epsg_default)
+        epsg = get_point_epsg(burst.center.y, burst.center.x)
 
         radar_grid = burst.as_isce3_radargrid()
         orbit = burst.orbit

@@ -10,7 +10,8 @@ runconfig:
            safe_file_path: list(str(), min=1)
            # Required. List of orbit (EOF) files
            orbit_file_path: list(str(), min=1)
-           # Required. The unique burst IDs to process
+           # The unique burst ID(s) to process. If nothing provided, all bursts
+           # in a SAFE will processed
            burst_id: list(str(), min=1, required=False)
 
         dynamic_ancillary_file_group:

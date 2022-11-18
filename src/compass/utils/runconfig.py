@@ -203,8 +203,10 @@ def runconfig_to_bursts(cfg: SimpleNamespace, auto_download: bool = False) -> li
                 # get burst ID
                 burst_id = burst.burst_id
 
+                # include ALL bursts if no burst IDs given
                 # is burst_id wanted? skip if not given in config
-                if burst_id != cfg.input_file_group.burst_id:
+                if (cfg.input_file_group.burst_id is not None and
+                        burst_id not in cfg.input_file_group.burst_id):
                     continue
 
                 # get polarization and save as tuple with burst ID

@@ -10,12 +10,15 @@ runconfig:
           safe_file_path:
           # Required. List of orbit (EOF) files (min=1)
           orbit_file_path:
-          # Required. The unique burst ID to process
+          # The unique burst ID(s) to process. If nothing provided, all bursts
+          # in a SAFE will processed
           burst_id:
 
       dynamic_ancillary_file_group:
           # Digital elevation model
           dem_file:
+           # burst database sqlite file
+           burst_database_file:
 
       product_path_group:
           # Directory where PGE will place results
@@ -35,17 +38,10 @@ runconfig:
               output_format: ENVI
               flatten: True
               lines_per_block: 1000
-              output_epsg:
               x_posting:
               y_posting:
               x_snap:
               y_snap:
-              top_left:
-                  x:
-                  y:
-              bottom_right:
-                  x:
-                  y:
           geo2rdr:
               lines_per_block: 1000
               threshold: 1.0e-8

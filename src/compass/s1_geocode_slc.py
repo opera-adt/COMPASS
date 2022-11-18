@@ -6,6 +6,7 @@ from datetime import timedelta
 import os
 import time
 
+import h5py
 import isce3
 import journal
 import numpy as np
@@ -18,6 +19,31 @@ from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.helpers import get_module_name
 from compass.utils.range_split_spectrum import range_split_spectrum
 from compass.utils.yaml_argparse import YamlArgparse
+
+
+def create_bs_dataset(h5_root, polarization, shape):
+    '''
+    Create and allocate dataset for isce.geocode.geocode_slc to write to
+
+    h5_root: h5py
+        Root to CSLC
+    polarization: str
+        Dataset name
+    shape: tuple[int]
+    '''
+    bs_group = h5_root.require_group('complex_backscatter')
+
+    # Data type
+    ctype = h5py.h5t.py_create(np.complex64)
+    ctype.commit(h5_root['/'].id, np.string_('complex64'))
+
+    bs_ds = bs_group.create_dataset(polarization, dtype=ctype, shape)
+
+    descr = f'Geocoded SLC image ({polarization})'
+    bd_ds.attrs['description'] = np.string_(descr)
+
+    long_name = f'geocoded single-look complex image {polarization}'
+    bs_ds.attrs['long_name'] = np.string_(long_name)
 
 
 def run(cfg: GeoRunConfig):
@@ -59,10 +85,6 @@ def run(cfg: GeoRunConfig):
         id_pol = f"{burst_id}_{pol}"
         geo_grid = cfg.geogrids[burst_id]
 
-        # Create top output path
-        burst_output_path = f'{cfg.product_path}/{burst_id}/{date_str}'
-        os.makedirs(burst_output_path, exist_ok=True)
-
         scratch_path = f'{cfg.scratch_path}/{burst_id}/{date_str}'
         os.makedirs(scratch_path, exist_ok=True)
 
@@ -74,6 +96,7 @@ def run(cfg: GeoRunConfig):
         az_carrier_poly2d = burst.get_az_carrier_poly()
 
         # Generate required metadata layers
+        # TODO seperate metadata file as needed
         if cfg.rdr2geo_params.enabled:
             s1_rdr2geo.run(cfg, save_in_scratch=True)
             if cfg.rdr2geo_params.geocode_metadata_layers:
@@ -89,13 +112,6 @@ def run(cfg: GeoRunConfig):
             burst.slc_to_vrt_file(temp_slc_path)
             rdr_burst_raster = isce3.io.Raster(temp_slc_path)
 
-        # Generate output geocoded burst raster
-        geo_burst_raster = isce3.io.Raster(
-            f'{burst_output_path}/{id_pol}.slc',
-            geo_grid.width, geo_grid.length,
-            rdr_burst_raster.num_bands, gdal.GDT_CFloat32,
-            cfg.geocoding_params.output_format)
-
         # Extract burst boundaries
         b_bounds = np.s_[burst.first_valid_line:burst.last_valid_line,
                    burst.first_valid_sample:burst.last_valid_sample]
@@ -103,42 +119,54 @@ def run(cfg: GeoRunConfig):
         # Create sliced radar grid representing valid region of the burst
         sliced_radar_grid = burst.as_isce3_radargrid()[b_bounds]
 
-        # Geocode
-        isce3.geocode.geocode_slc(geo_burst_raster, rdr_burst_raster,
-                                  dem_raster,
-                                  radar_grid, sliced_radar_grid,
-                                  geo_grid, orbit,
-                                  native_doppler,
-                                  image_grid_doppler, ellipsoid, threshold,
-                                  iters, blocksize, flatten,
-                                  azimuth_carrier=az_carrier_poly2d)
+        with h5py.File(output_hdf5, 'a') as geo_burst_h5:
+            bs_group = geo_burst_h5.require_group('complex_backscatter')
+            bs_ds = create_bs_dataset(geo_burst_h5, pol,
+                                      (geo_grid.length, geo_grid.width))
 
-        # Set geo transformation
-        geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,
-                        geo_grid.start_y, 0, geo_grid.spacing_y]
-        geo_burst_raster.set_geotransform(geotransform)
-        geo_burst_raster.set_epsg(epsg)
-        del geo_burst_raster
-        del dem_raster # modified in geocodeSlc
+            # access the HDF5 dataset for a given frequency and polarization
+            dataset_path = f'/comoplex_backscatter/{polarization}'
+            gslc_dataset = geo_burst_h5[dataset_path]
 
-        # Save burst metadata
-        metadata = GeoCslcMetadata.from_georunconfig(cfg, burst_id)
-        json_path = f'{burst_output_path}/{id_pol}.json'
-        with open(json_path, 'w') as f_json:
-            metadata.to_file(f_json, 'json')
+            # Construct the output raster directly from HDF5 dataset
+            geo_burst_raster = isce3.io.Raster(f"IH5:::ID={gslc_dataset.id.id}".encode("utf-8"), update=True)
+
+            # Geocode
+            isce3.geocode.geocode_slc(geo_burst_raster, rdr_burst_raster,
+                                      dem_raster,
+                                      radar_grid, sliced_radar_grid,
+                                      geo_grid, orbit,
+                                      native_doppler,
+                                      image_grid_doppler, ellipsoid, threshold,
+                                      iters, blocksize, flatten,
+                                      azimuth_carrier=az_carrier_poly2d)
+
+            # Set geo transformation
+            geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,
+                            geo_grid.start_y, 0, geo_grid.spacing_y]
+            geo_burst_raster.set_geotransform(geotransform)
+            geo_burst_raster.set_epsg(epsg)
+            del geo_burst_raster
+            del dem_raster # modified in geocodeSlc
+
+            # Save burst metadata
+            metadata = GeoCslcMetadata.from_georunconfig(cfg, burst_id)
+            json_path = f'{burst_output_path}/{id_pol}.json'
+            with open(json_path, 'w') as f_json:
+                metadata.to_file(f_json, 'json')
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
 
 
-if __name__ == "__main__":
-    '''Run geocode cslc workflow from command line'''
-    # load arguments from command line
-    parser = YamlArgparse()
+    if __name__ == "__main__":
+        '''Run geocode cslc workflow from command line'''
+        # load arguments from command line
+        parser = YamlArgparse()
 
-    # Get a runconfig dict from command line argumens
-    cfg = GeoRunConfig.load_from_yaml(parser.run_config_path,
-                                      workflow_name='s1_cslc_geo')
+        # Get a runconfig dict from command line argumens
+        cfg = GeoRunConfig.load_from_yaml(parser.run_config_path,
+                                          workflow_name='s1_cslc_geo')
 
-    # Run geocode burst workflow
-    run(cfg)
+        # Run geocode burst workflow
+        run(cfg)

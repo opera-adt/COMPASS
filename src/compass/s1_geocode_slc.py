@@ -9,6 +9,7 @@ import time
 import h5py
 import isce3
 import journal
+from nisar.workflows.h5_prep import set_get_geo_info
 import numpy as np
 
 from compass import s1_rdr2geo
@@ -20,15 +21,16 @@ from compass.utils.range_split_spectrum import range_split_spectrum
 from compass.utils.yaml_argparse import YamlArgparse
 
 
-def init_bs_dataset(h5_root, polarization, shape):
+def init_bs_dataset(h5_root, polarization, geo_grid):
     '''
     Create and allocate dataset for isce.geocode.geocode_slc to write to
 
     h5_root: h5py
         Root to CSLC
     polarization: str
-        Dataset name
-    shape: tuple[int]
+        Polarization to be used as dataset name
+    geo_grid: isce3.product.GeoGridParameters
+        Geogrid out output
     '''
     bs_group = h5_root.require_group('complex_backscatter')
 
@@ -36,6 +38,7 @@ def init_bs_dataset(h5_root, polarization, shape):
     ctype = h5py.h5t.py_create(np.complex64)
     ctype.commit(h5_root['/'].id, np.string_('complex64'))
 
+    shape = (geo_grid.length, geo_grid.width)
     bs_ds = bs_group.create_dataset(polarization, dtype=ctype, shape=shape)
 
     descr = f'Geocoded SLC image ({polarization})'
@@ -44,7 +47,10 @@ def init_bs_dataset(h5_root, polarization, shape):
     long_name = f'geocoded single-look complex image {polarization}'
     bs_ds.attrs['long_name'] = np.string_(long_name)
 
-    #TODO add xds and yds
+    yds, xds = set_get_geo_info(h5_root, '/', geo_grid)
+
+    bs_ds.dims[0].attach_scale(yds)
+    bs_ds.dims[1].attach_scale(xds)
 
 
 def run(cfg: GeoRunConfig):
@@ -128,8 +134,7 @@ def run(cfg: GeoRunConfig):
         with h5py.File(output_hdf5, 'w') as geo_burst_h5:
             geo_burst_h5.attrs['Conventions'] = np.string_("CF-1.8")
             bs_group = geo_burst_h5.require_group('complex_backscatter')
-            init_bs_dataset(geo_burst_h5, pol,
-                            (geo_grid.length, geo_grid.width))
+            init_bs_dataset(geo_burst_h5, pol, geo_grid)
 
             # access the HDF5 dataset for a given frequency and polarization
             dataset_path = f'/complex_backscatter/{pol}'

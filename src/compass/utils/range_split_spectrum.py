@@ -47,7 +47,7 @@ def range_split_spectrum(burst, cfg_split_spectrum,
     '''
     length, width = burst.shape
     lines_per_block = cfg_split_spectrum.lines_per_block
-    burst_id_pol = '_'.join([burst.burst_id, burst.polarization])
+    burst_id_pol = f'{burst.burst_id}_{burst.polarization}'
 
     # In ISCE3, we can use raised cosine to implement S1-A/B Hamming
     window_type = burst.range_window_type

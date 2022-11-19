@@ -287,6 +287,8 @@ class RunConfig:
     # dict of reference radar paths and grids values keyed on burst ID
     # (empty/unused if rdr2geo)
     reference_radar_info: ReferenceRadarInfo
+    # entirety of yaml as string
+    yaml_string: str
 
     @classmethod
     def load_from_yaml(cls, yaml_path: str, workflow_name: str) -> RunConfig:
@@ -313,7 +315,11 @@ class RunConfig:
                 sns.input_file_group.reference_burst.file_path,
                 sns.input_file_group.burst_id)
 
-        return cls(cfg['runconfig']['name'], sns, bursts, ref_rdr_grid_info)
+        with open(yaml_path, 'r') as f_yaml:
+            entire_yaml = f_yaml.read()
+
+        return cls(cfg['runconfig']['name'], sns, bursts, ref_rdr_grid_info,
+                   entire_yaml)
 
     @property
     def burst_id(self) -> list[str]:

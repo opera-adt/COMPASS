@@ -265,3 +265,75 @@ class GeoCslcMetadata():
             json.dump(self_as_dict, dst, indent=4)
         else:
             raise ValueError(f'{fmt} unsupported. Only "json" or "yaml" supported')
+
+    def to_hdf5(self, dst_h5):
+        '''Write self to HDF5
+
+        Parameter:
+        ---------
+        dst_h5: h5py File
+            HDF5 file meta data will be written to
+        '''
+        metadata_group = dst_h5.require_group('metadata')
+
+        # subset of burst class attributes
+        metadata_group['sensing_start'] = np.string_(self.sensing_start.__str__)
+        metadata_group['sensing_stop'] = np.string_(self.sensing_stop.__str__)
+        metadata_group['radar_center_frequency'] = self.radar_center_frequency
+        metadata_group['wavelength'] = self.wavelength
+        metadata_group['azimuth_steer_rate'] = self.azimuth_steer_rate
+        metadata_group['azimuth_time_interval'] = self.azimuth_time_interval
+        metadata_group['slant_range_time'] = self.slant_range_time
+        metadata_group['starting_range'] = self.starting_range
+        metadata_group['range_sampling_rate'] = self.range_sampling_rate
+        metadata_group['range_pixel_spacing'] = self.range_pixel_spacing
+
+        def poly1d_to_h5(h5_group, poly1d_name, poly1d):
+            '''Write isce3.core.Poly1d properties to hdf5
+            '''
+            poly1d_group = h5_group.require_group(poly1d_name)
+            poly1d_group['order'] = poly1d.order
+            poly1d_group['mean'] = poly1d.mean
+            poly1d_group['std'] = poly1d.std
+            poly1d_group['coeffs'] = poly1d.coeffs
+        poly1d_to_h5(metadata_group, 'azimuth_fm_rate', self.azimuth_fm_rate)
+        poly1d_to_h5(metadata_group, 'doppler', self.doppler)
+
+        metadata_group['range_bandwidth'] = self.range_bandwidth
+        metadata_group['polarization'] = np.string_(self.polarization)
+        metadata_group['burst_id'] = np.string_(self.burst_id)
+        metadata_group['platform_id'] = np.string_(self.platform_id)
+
+        center_lon_lat = np.array([val[0] for val in self.center.coords.xy])
+        metadata_group['center' ] = center_lon_lat
+
+        # list of lon, lat coordinate tuples (in degrees) representing burst border
+        border_group = metadata_group.require_group('border')
+        border_x, border_y = self.border.exterior.coords.xy
+        border_group['x'] = border_x
+        border_group['y'] = border_y
+
+        orbit_group = metadata_group.require_group('orbit')
+        self.orbit.save_to_h5(orbit_group)
+
+        metadata_group['orbit_direction'] = np.string_(self.orbit_direction)
+
+        # VRT params
+        metadata_group['tiff_path'] = np.string_(self.tiff_path)
+        metadata_group['i_burst'] = self.i_burst
+        # window parameters
+        metadata_group['range_window_type'] = np.string_(self.range_window_type)
+        metadata_group['range_window_coefficient'] = self.range_window_coefficient
+
+        geogrid_group = metadata_group.require_group('geogrid')
+        geogrid_group['start_x'] = self.geogrid.start_x
+        geogrid_group['start_y'] = self.geogrid.start_y
+        geogrid_group['spacing_x'] = self.geogrid.spacing_x
+        geogrid_group['spacing_y'] = self.geogrid.spacing_y
+        geogrid_group['width'] = self.geogrid.width
+        geogrid_group['length'] = self.geogrid.length
+        geogrid_group['epsg'] = self.geogrid.epsg
+
+        metadata_group['nodata'] = np.string_(self.nodata)
+        metadata_group['input_data_ipf_version'] = np.string_(self.input_data_ipf_version)
+        metadata_group['isce3_version'] = np.string_(self.isce3_version)

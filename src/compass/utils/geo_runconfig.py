@@ -80,8 +80,11 @@ class GeoRunConfig(RunConfig):
         # Empty reference dict for base runconfig class constructor
         empty_ref_dict = {}
 
+        with open(yaml_path, 'r') as f_yaml:
+            entire_yaml = f_yaml.read()
+
         return cls(cfg['runconfig']['name'], sns, bursts, empty_ref_dict,
-                   geogrids)
+                   entire_yaml, geogrids)
 
     @property
     def geocoding_params(self) -> dict:

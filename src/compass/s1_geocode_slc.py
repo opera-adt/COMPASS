@@ -103,11 +103,10 @@ def run(cfg: GeoRunConfig):
         az_carrier_poly2d = burst.get_az_carrier_poly()
 
         # Generate required metadata layers
-        # TODO seperate metadata file as needed
         if cfg.rdr2geo_params.enabled:
             s1_rdr2geo.run(cfg, save_in_scratch=True)
             if cfg.rdr2geo_params.geocode_metadata_layers:
-                s1_geocode_metadata.run(cfg, fetch_from_scratch=True)
+                s1_geocode_metadata.run(cfg, burst, fetch_from_scratch=True)
 
         # Split the range bandwidth of the burst, if required
         if cfg.split_spectrum_params.enabled:
@@ -130,6 +129,7 @@ def run(cfg: GeoRunConfig):
         burst_output_path = f'{cfg.product_path}/{burst_id}/{date_str}'
         os.makedirs(burst_output_path, exist_ok=True)
 
+        '''
         output_hdf5 = f'{burst_output_path}/{id_pol}.hdf5'
         with h5py.File(output_hdf5, 'w') as geo_burst_h5:
             geo_burst_h5.attrs['Conventions'] = np.string_("CF-1.8")
@@ -165,6 +165,7 @@ def run(cfg: GeoRunConfig):
             metadata = GeoCslcMetadata.from_georunconfig(cfg, burst_id)
             metadata.to_hdf5(geo_burst_h5)
             geo_burst_h5['metadata/runconfig'] = np.string_(cfg.yaml_string)
+        '''
 
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]

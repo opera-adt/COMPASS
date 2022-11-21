@@ -53,6 +53,13 @@ runconfig:
               low_band_bandwidth: 1e7
               # High-band bandwidth in Hz
               high_band_bandwidth: 1e7
+
+          correction_luts:
+              # LUT spacing in range direction in meters
+              range_spacing: 120
+              # LUT spacing in azimuth direction in seconds
+              azimuth_spacing: 0.028
+
           rdr2geo:
               # Enable/disable computation of topo layers
               enabled: False

@@ -16,6 +16,7 @@ from compass import s1_geocode_metadata
 from compass.utils.geo_metadata import GeoCslcMetadata
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.helpers import get_module_name
+from compass.utils.lut import compute_geocoding_correction_luts
 from compass.utils.range_split_spectrum import range_split_spectrum
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -66,6 +67,11 @@ def run(cfg: GeoRunConfig):
         scratch_path = f'{cfg.scratch_path}/{burst_id}/{date_str}'
         os.makedirs(scratch_path, exist_ok=True)
 
+
+        # Get range and azimuth LUTs
+        rg_lut, az_lut = compute_geocoding_correction_luts(burst,
+                                                           rg_step=cfg.lut_params.range_spacing,
+                                                           az_step=cfg.lut_params.azimuth_spacing)
         radar_grid = burst.as_isce3_radargrid()
         native_doppler = burst.doppler.lut2d
         orbit = burst.orbit

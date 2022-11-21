@@ -290,6 +290,15 @@ class GeoCslcMetadata():
 
         def poly1d_to_h5(h5_group, poly1d_name, poly1d):
             '''Write isce3.core.Poly1d properties to hdf5
+
+            Parameters
+            ----------
+            h5_group: h5py.Group
+                h5py Group to store poly1d parameters in
+            poly1d_name: str
+                Name of Poly1d whose parameters are to be stored
+            poly1d: isce3.core.Poly1d
+                Poly1d ojbect whose parameters are to be stored
             '''
             poly1d_group = h5_group.require_group(poly1d_name)
             poly1d_group['order'] = poly1d.order

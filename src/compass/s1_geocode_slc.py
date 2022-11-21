@@ -129,8 +129,7 @@ def run(cfg: GeoRunConfig):
         burst_output_path = f'{cfg.product_path}/{burst_id}/{date_str}'
         os.makedirs(burst_output_path, exist_ok=True)
 
-        '''
-        output_hdf5 = f'{burst_output_path}/{id_pol}.hdf5'
+        output_hdf5 = f'{burst_output_path}/{id_pol}.h5'
         with h5py.File(output_hdf5, 'w') as geo_burst_h5:
             geo_burst_h5.attrs['Conventions'] = np.string_("CF-1.8")
             bs_group = geo_burst_h5.require_group('complex_backscatter')
@@ -165,7 +164,6 @@ def run(cfg: GeoRunConfig):
             metadata = GeoCslcMetadata.from_georunconfig(cfg, burst_id)
             metadata.to_hdf5(geo_burst_h5)
             geo_burst_h5['metadata/runconfig'] = np.string_(cfg.yaml_string)
-        '''
 
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]

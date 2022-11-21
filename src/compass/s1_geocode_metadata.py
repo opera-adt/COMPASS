@@ -92,7 +92,7 @@ def run(cfg, burst, fetch_from_scratch=False):
                    'heading': cfg.rdr2geo_params.compute_azimuth_angle,
                    'layoverShadowMask': cfg.rdr2geo_params.compute_layover_shadow_mask}
 
-    out_h5 = f'{output_path}/topo.hdf5'
+    out_h5 = f'{output_path}/topo.h5'
     shape = (geo_grid.length, geo_grid.width)
     with h5py.File(out_h5, 'w') as topo_h5:
         for layer_name, enabled in meta_layers.items():

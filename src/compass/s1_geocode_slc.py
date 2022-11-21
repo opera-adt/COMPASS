@@ -11,12 +11,13 @@ import journal
 import numpy as np
 from osgeo import gdal
 
+from compass.utils.elevation_antenna_pattern import apply_eap_correction
 from compass.utils.geo_metadata import GeoCslcMetadata
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.helpers import get_module_name
 from compass.utils.range_split_spectrum import range_split_spectrum
 from compass.utils.yaml_argparse import YamlArgparse
-
+from s1reader.s1_reader import is_eap_correction_necessary
 
 def run(cfg):
     '''
@@ -74,6 +75,20 @@ def run(cfg):
     else:
         temp_slc_path = f'{scratch_path}/{burst_id}_{pol}_temp.vrt'
         burst.slc_to_vrt_file(temp_slc_path)
+
+        # Check if EAP correction is necessary; Apply the correction if yes
+        check_eap = is_eap_correction_necessary(burst.ipf_version)
+        if check_eap.phase_correction:
+            temp_slc_path_in = temp_slc_path
+            temp_slc_path_corrected = temp_slc_path_in.replace('_temp.vrt',
+                                                               '_corrected_temp.rdr')
+            burst.slc_to_vrt_file(temp_slc_path_in)
+            apply_eap_correction(burst,
+                                 temp_slc_path_in, 
+                                 temp_slc_path_corrected,
+                                 check_eap)
+            temp_slc_path = temp_slc_path_corrected
+
         rdr_burst_raster = isce3.io.Raster(temp_slc_path)
 
     # Generate output geocoded burst raster

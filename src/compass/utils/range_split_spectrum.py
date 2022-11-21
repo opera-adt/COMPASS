@@ -2,6 +2,8 @@ import isce3
 import numpy as np
 from isce3.splitspectrum import splitspectrum
 from osgeo import gdal
+from compass.utils.elevation_antenna_pattern import apply_eap_correction
+from s1reader.s1_reader import is_eap_correction_necessary
 
 def find_next_power(number):
     '''
@@ -81,6 +83,18 @@ def range_split_spectrum(burst, cfg_split_spectrum,
     # Save the burst locally
     burst_path = f'{scratch_path}/{burst_id_pol}_temp.vrt'
     burst.slc_to_vrt_file(burst_path)
+
+    # Check if EAP correction is necessary
+    check_eap = is_eap_correction_necessary(burst.ipf_version)
+    if check_eap.phase_correction:
+        temp_slc_path_in = burst_path
+        temp_slc_path_corrected = temp_slc_path_in.replace('_temp.vrt',
+                                                           '_corrected_temp.rdr')
+        apply_eap_correction(burst,
+                             temp_slc_path_in, 
+                             temp_slc_path_corrected,
+                             check_eap)
+        burst_path = temp_slc_path_corrected
 
     # The output burst will
     # contain 3 bands: Band #1: low-band image; Band #2 main-band image;

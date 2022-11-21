@@ -57,7 +57,7 @@ runconfig:
           correction_luts:
               # LUT spacing in range direction in meters
               range_spacing: 120
-              # LUT spacing in azimuth direction in meters
+              # LUT spacing in azimuth direction in seconds
               azimuth_spacing: 0.028
 
           rdr2geo:

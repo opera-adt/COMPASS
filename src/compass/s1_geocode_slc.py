@@ -21,7 +21,7 @@ from compass.utils.range_split_spectrum import range_split_spectrum
 from compass.utils.yaml_argparse import YamlArgparse
 
 
-def init_bs_dataset(h5_root, polarization, geo_grid):
+def init_backscatter_dataset(h5_root, polarization, geo_grid):
     '''
     Create and allocate dataset for isce.geocode.geocode_slc to write to
 
@@ -32,6 +32,7 @@ def init_bs_dataset(h5_root, polarization, geo_grid):
     geo_grid: isce3.product.GeoGridParameters
         Geogrid out output
     '''
+    # bs : short for backscatter
     bs_group = h5_root.require_group('complex_backscatter')
 
     # Data type
@@ -132,8 +133,7 @@ def run(cfg: GeoRunConfig):
         output_hdf5 = f'{burst_output_path}/{id_pol}.h5'
         with h5py.File(output_hdf5, 'w') as geo_burst_h5:
             geo_burst_h5.attrs['Conventions'] = np.string_("CF-1.8")
-            bs_group = geo_burst_h5.require_group('complex_backscatter')
-            init_bs_dataset(geo_burst_h5, pol, geo_grid)
+            init_backscatter_dataset(geo_burst_h5, pol, geo_grid)
 
             # access the HDF5 dataset for a given frequency and polarization
             dataset_path = f'/complex_backscatter/{pol}'

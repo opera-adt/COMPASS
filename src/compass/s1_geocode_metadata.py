@@ -17,7 +17,7 @@ from compass.utils.helpers import get_module_name
 from compass.utils.yaml_argparse import YamlArgparse
 
 
-def run(cfg, burst, fetch_from_scratch=False);
+def run(cfg, burst, fetch_from_scratch=False):
     '''
     Geocode metadata layers in single HDF5
 

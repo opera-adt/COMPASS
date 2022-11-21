@@ -14,6 +14,8 @@ from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.raster_polygon import get_boundary_polygon
 from compass.utils.wrap_namespace import wrap_namespace, unwrap_to_dict
 
+from s1reader.s1_reader import is_eap_correction_necessary
+
 def _poly1d_from_dict(poly1d_dict) -> Poly1d:
     return Poly1d(poly1d_dict['coeffs'], poly1d_dict['mean'],
                   poly1d_dict['std'])
@@ -80,6 +82,9 @@ class GeoCslcMetadata():
     input_data_ipf_version: str
     isce3_version: str
 
+    # correction applied
+    eap_correction_by_opera: bool
+
     @classmethod
     def from_georunconfig(cls, cfg: GeoRunConfig):
         '''Create GeoBurstMetadata class from GeoRunConfig object
@@ -107,6 +112,10 @@ class GeoCslcMetadata():
         ipf_ver = '?'
         isce3_ver = '?'
 
+        # correction applied
+        check_eap = is_eap_correction_necessary(burst.ipf_version)
+        eap_correction_applied = True if check_eap.phase_correction else False
+
         return cls(burst.sensing_start, burst.sensing_stop,
                    burst.radar_center_frequency, burst.wavelength,
                    burst.azimuth_steer_rate, burst.azimuth_time_interval,
@@ -117,7 +126,8 @@ class GeoCslcMetadata():
                    burst.platform_id, center, geo_boundary, burst.orbit,
                    burst.orbit_direction, burst.tiff_path, burst.i_burst,
                    burst.range_window_type, burst.range_window_coefficient,
-                   cfg.groups, geogrid, nodata_val, ipf_ver, isce3_ver)
+                   cfg.groups, geogrid, nodata_val, ipf_ver, isce3_ver,
+                   eap_correction_applied)
 
 
     @classmethod
@@ -188,7 +198,8 @@ class GeoCslcMetadata():
                    meta_dict['range_window_type'],
                    meta_dict['range_window_coefficient'], cfg, geogrid,
                    meta_dict['nodata'], meta_dict['input_data_ipf_version'],
-                   meta_dict['isce3_version'])
+                   meta_dict['isce3_version'],
+                   meta_dict['eap_correction_by_opera'])
 
     def as_dict(self):
         ''' Convert self to dict for write to YAML/JSON

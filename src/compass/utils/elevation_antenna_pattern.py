@@ -8,7 +8,8 @@ from osgeo import gdal
 
 def apply_eap_correction(burst, path_slc_vrt, path_slc_corrected, check_eap):
     '''
-    Apply Elevation Antenna Pattern correction (EAP correction) on the input burst
+    Apply Elevation Antenna Pattern correction (EAP correction)
+    on the input burst
 
     Parameters:
     -----------
@@ -19,7 +20,8 @@ def apply_eap_correction(burst, path_slc_vrt, path_slc_corrected, check_eap):
     path_slc_corrected: str:
         Path to the burst SLC after EAP correction
     check_eap: Namespace
-        A name space that contains flags if phase and/or magnitute EAP correction are necessary
+        A namespace that contains flags if phase and/or magnitute
+        EAP correction are necessary
 
     Return:
     -------
@@ -56,7 +58,7 @@ def apply_eap_correction(burst, path_slc_vrt, path_slc_corrected, check_eap):
     # Apply the correction
     arr_slc_corrected = arr_slc_in / array_eap_line
 
-    # Write out the corrected result
+    # Write out the EAP-corrected SLC
     dtype = slc_in.GetRasterBand(1).DataType
     drvout = gdal.GetDriverByName('ENVI')
     raster_out = drvout.Create(path_slc_corrected, burst.shape[1],

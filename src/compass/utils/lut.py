@@ -20,8 +20,8 @@ def compute_geocoding_correction_luts(burst, rg_step=200, az_step=0.25):
         2D array containg sum of azimuth corrections
     '''
 
-    az_bistatic = burst.bistatic_delay(range_stepx=rg_step, az_step=az_step)
-    _, _, rg_doppler = burst.geometrical_and_steering_doppler(range_step=rg_step, az_step=az_step)
+    az_bistatic = burst.bistatic_delay(range_step=rg_step, az_step=az_step)
+    rg_doppler = burst.geometrical_and_steering_doppler(range_step=rg_step, az_step=az_step)
 
     rg_lut = rg_doppler
     az_lut = az_bistatic.data

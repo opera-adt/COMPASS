@@ -1,10 +1,14 @@
 '''collection of useful functions used across workflows'''
 
 import os
+import sqlite3
 
 import isce3
 import journal
+import numpy as np
+from pyproj.transformer import Transformer
 from osgeo import gdal
+from shapely import geometry
 
 import compass
 
@@ -144,7 +148,7 @@ def check_dem(dem_path: str):
     error_channel = journal.error('helpers.check_dem')
     try:
         gdal.Open(dem_path, gdal.GA_ReadOnly)
-    except:
+    except ValueError:
         err_str = f'{dem_path} cannot be opened by GDAL'
         error_channel.log(err_str)
         raise ValueError(err_str)
@@ -154,3 +158,163 @@ def check_dem(dem_path: str):
         err_str = f'DEM epsg of {epsg} out of bounds'
         error_channel.log(err_str)
         raise ValueError(err_str)
+
+
+def bbox_to_utm(bbox, *, epsg_src, epsg_dst):
+    """Convert bounding box coordinates to UTM.
+
+    Parameters
+    ----------
+    bbox : tuple
+        Tuple containing the lon/lat bounding box coordinates
+        (left, bottom, right, top) in degrees
+    epsg_src : int
+        EPSG code identifying input bbox coordinate system
+    epsg_dst : int
+        EPSG code identifying output coordinate system
+
+    Returns
+    -------
+    tuple
+        Tuple containing the bounding box coordinates in UTM (meters)
+        (left, bottom, right, top)
+    """
+    xmin, ymin, xmax, ymax = bbox
+    xys = _convert_to_utm([(xmin, ymin), (xmax, ymax)], epsg_src, epsg_dst)
+    return (*xys[0], *xys[1])
+
+
+def polygon_to_utm(poly, *, epsg_src, epsg_dst):
+    """Convert a shapely.Polygon's coordinates to UTM.
+
+    Parameters
+    ----------
+    poly: shapely.geometry.Polygon
+        Polygon object
+    epsg : int
+        EPSG code identifying output projection system
+
+    Returns
+    -------
+    tuple
+        Tuple containing the bounding box coordinates in UTM (meters)
+        (left, bottom, right, top)
+    """
+    coords = np.array(poly.exterior.coords)
+    xys = _convert_to_utm(coords, epsg_src, epsg_dst)
+    return geometry.Polygon(xys)
+
+
+def _convert_to_utm(points_xy, epsg_src, epsg_dst):
+    """Convert a list of points to a specified UTM coordinate system.
+
+    If epsg_src is 4326 (lat/lon), assumes points_xy are in degrees.
+    """
+    if epsg_dst == epsg_src:
+        return points_xy
+
+    t = Transformer.from_crs(epsg_src, epsg_dst, always_xy=True)
+    xs, ys = np.array(points_xy).T
+    xt, yt = t.transform(xs, ys)
+    return list(zip(xt, yt))
+
+
+def burst_bbox_from_db(burst_id, burst_db_file=None, burst_db_conn=None):
+    """Find the bounding box of a burst in the database.
+
+    Parameters
+    ----------
+    burst_id : str
+        JPL burst ID
+    burst_db_file : str
+        Location of burst database sqlite file, by default None
+    burst_db_conn : sqlite3.Connection
+        Connection object to burst database (If already connected)
+        Alternative to providing burst_db_file, will be faster
+        for multiply queries.
+
+    Returns
+    -------
+    epsg : int
+        EPSG code(s) of burst bounding box(es)
+    bbox : tuple[float]
+        Bounding box of burst in EPSG coordinates. Bounding box given as
+        tuple(xmin, ymin, xmax, ymax)
+
+    Raises
+    ------
+    ValueError
+        If burst_id is not found in burst database
+    """
+    # example burst db:
+    # /home/staniewi/dev/burst_map_IW_000001_375887.OPERA-JPL.sqlite3
+    if burst_db_conn is None:
+        burst_db_conn = sqlite3.connect(burst_db_file)
+    burst_db_conn.row_factory = sqlite3.Row  # return rows as dicts
+
+    query = "SELECT epsg, xmin, ymin, xmax, ymax FROM burst_id_map WHERE burst_id_jpl = ?"
+    cur = burst_db_conn.execute(query, (burst_id,))
+    result = cur.fetchone()
+
+    if not result:
+        raise ValueError(f"Failed to find {burst_id} in {burst_db_file}")
+
+    epsg = result["epsg"]
+    bbox = (result["xmin"], result["ymin"], result["xmax"], result["ymax"])
+
+    return epsg, bbox
+
+
+def burst_bboxes_from_db(burst_ids, burst_db_file=None, burst_db_conn=None):
+    """Find the bounding box of bursts in the database.
+
+    Parameters
+    ----------
+    burst_id : list[str]
+        list of JPL burst IDs.
+    burst_db_file : str
+        Location of burst database sqlite file, by default None
+    burst_db_conn : sqlite3.Connection
+        Connection object to burst database (If already connected)
+        Alternative to providing burst_db_file, will be faster
+        for multiply queries.
+
+    Returns
+    -------
+    bboxes : dict
+        Burst bounding boxes as a dict with burst IDs as key and tuples of
+        EPSG and bounding boxes (tuple[float]) as values. Bounding box given as
+        tuple(xmin, ymin, xmax, ymax)
+
+    Raises
+    ------
+    ValueError
+        If no burst_ids are found in burst database
+    """
+    # example burst db:
+    # /home/staniewi/dev/burst_map_IW_000001_375887.OPERA-JPL.sqlite3
+    if burst_db_conn is None:
+        burst_db_conn = sqlite3.connect(burst_db_file)
+    burst_db_conn.row_factory = sqlite3.Row  # return rows as dicts
+
+    # concatenate '?, ' with for each burst ID for IN query
+    qs_in_query = ', '.join('?' for _ in burst_ids)
+    query = f"SELECT * FROM burst_id_map WHERE burst_id_jpl IN ({qs_in_query})"
+    cur = burst_db_conn.execute(query, burst_ids)
+    results = cur.fetchall()
+
+    if not results:
+        raise ValueError(f"Failed to find {burst_ids} in {burst_db_file}")
+
+    n_results = len(results)
+    epsgs = [[]] * n_results
+    bboxes = [[]] * n_results
+    burst_ids = [[]] * n_results
+    for i_result, result in enumerate(results):
+        epsgs[i_result] = result["epsg"]
+        bboxes[i_result] = (result["xmin"], result["ymin"],
+                           result["xmax"], result["ymax"])
+        burst_ids[i_result] = result["burst_id_jpl"]
+
+    # TODO add warning if not all burst bounding boxes found
+    return dict(zip(burst_ids, zip(epsgs, bboxes)))

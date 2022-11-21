@@ -63,7 +63,7 @@ class GeoCslcMetadata():
     doppler: Poly1d
     range_bandwidth: float
     polarization: str # {VV, VH, HH, HV}
-    burst_id: str # t{track_number}_iw{1,2,3}_b{burst_index}
+    burst_id: str # t{track_number}_{burst_number}_iw{1,2,3}
     platform_id: str # S1{A,B}
     center: Point # {center lon, center lat} in degrees
     border: Polygon # list of lon, lat coordinate tuples (in degrees) representing burst border
@@ -86,24 +86,32 @@ class GeoCslcMetadata():
     eap_correction_by_opera: bool
 
     @classmethod
-    def from_georunconfig(cls, cfg: GeoRunConfig):
+    def from_georunconfig(cls, cfg: GeoRunConfig, burst_id: str):
         '''Create GeoBurstMetadata class from GeoRunConfig object
 
         Parameter:
         ---------
         cfg : GeoRunConfig
             GeoRunConfig containing geocoded burst metadata
+        burst_id : str
+            ID of burst to create metadata object for
         '''
-        burst = cfg.bursts[0]
-        burst_id = burst.burst_id
+        burst = None
+        for b in cfg.bursts:
+            if b.burst_id == burst_id:
+                burst = b
+
+        if burst is None:
+            err_str = f'{burst_id} not found in cfg.bursts'
+            raise ValueError(err_str)
 
         geogrid = cfg.geogrids[burst_id]
 
         # get boundary from geocoded raster
-        burst_id = burst.burst_id
         date_str = burst.sensing_start.strftime("%Y%m%d")
         pol = burst.polarization
-        geo_raster_path = f'{cfg.output_dir}/{burst_id}_{date_str}_{pol}.slc'
+        burst_output_path = f'{cfg.product_path}/{burst_id}/{date_str}'
+        geo_raster_path = f'{burst_output_path}/{burst_id}_{pol}.slc'
         geo_boundary = get_boundary_polygon(geo_raster_path, np.nan)
         center = geo_boundary.centroid
 

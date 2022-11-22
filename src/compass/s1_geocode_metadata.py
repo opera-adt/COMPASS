@@ -88,9 +88,9 @@ def run(cfg, burst, fetch_from_scratch=False):
                    'y': cfg.rdr2geo_params.compute_latitude,
                    'z': cfg.rdr2geo_params.compute_height,
                    'incidence': cfg.rdr2geo_params.compute_incidence_angle,
-                   'localIncidence': cfg.rdr2geo_params.compute_local_incidence_angle,
+                   'local_incidence': cfg.rdr2geo_params.compute_local_incidence_angle,
                    'heading': cfg.rdr2geo_params.compute_azimuth_angle,
-                   'layoverShadowMask': cfg.rdr2geo_params.compute_layover_shadow_mask}
+                   'layover_shadow_mask': cfg.rdr2geo_params.compute_layover_shadow_mask}
 
     out_h5 = f'{output_path}/topo.h5'
     shape = (geo_grid.length, geo_grid.width)

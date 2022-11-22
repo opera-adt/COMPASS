@@ -370,7 +370,7 @@ class GeoCslcMetadata():
                               {'description': 'unique ID for burst'})
         add_dataset_and_attrs(metadata_group, 'platform_id',
                               np.string_(self.platform_id),
-                              {'description': 'Sentinel platform ID (S1, S2)'})
+                              {'description': 'Sentinel 1 platform ID (S1, S2)'})
 
         center_lon_lat = np.array([val[0] for val in self.center.coords.xy])
         add_dataset_and_attrs(metadata_group, 'center',

@@ -86,10 +86,10 @@ resample_options:
    flatten: bool(required=False)
 
 lut_options:
-  # LUT spacing in x/slant range direction in meters
-  x_spacing: int(min=0, required=False)
-  # LUT spacing in y/azimuth direction in seconds
-  y_spacing: int(min=0, required=False)
+  # LUT spacing in slant range direction in meters
+  range_spacing: int(min=0, required=False)
+  # LUT spacing in azimuth direction in seconds
+  azimuth_spacing: int(min=0, required=False)
 
 worker_options:
     # To prevent downloading DEM / other data automatically. Default True

@@ -298,10 +298,12 @@ class GeoCslcMetadata():
         # subset of burst class attributes
         add_dataset_and_attrs(metadata_group, 'sensing_start',
                               np.string_(self.sensing_start.__str__),
-                              {'description':'azimuth sensing start'})
+                              {'description': 'azimuth sensing start',
+                               'format': 'YYYY-MM-DD HH:MM:SS.6f'})
         add_dataset_and_attrs(metadata_group, 'sensing_stop',
                               np.string_(self.sensing_stop.__str__),
-                              {'description':'azimuth sensing stop'})
+                              {'description':'azimuth sensing stop',
+                               'format': 'YYYY-MM-DD HH:MM:SS.6f'})
         add_dataset_and_attrs(metadata_group, 'radar_center_frequency',
                               self.radar_center_frequency,
                               {'description':'radar center frequency',
@@ -315,19 +317,19 @@ class GeoCslcMetadata():
                                'units':'degrees/second'})
         add_dataset_and_attrs(metadata_group, 'azimuth_time_interval',
                               self.azimuth_time_interval,
-                              {'description':'azimuth time interval',
+                              {'description':'Time spacing between azimuth lines of the burst',
                                'units':'seconds'})
         add_dataset_and_attrs(metadata_group, 'slant_range_time',
                               self.slant_range_time,
-                              {'description':'tow way slant range time of Doppler centroid frequency estimate',
+                              {'description':'two-way slant range time of Doppler centroid frequency estimate',
                                'units':'seconds'})
         add_dataset_and_attrs(metadata_group, 'starting_range',
                               self.starting_range,
-                              {'description':'starting range',
+                              {'description':'Slant range of the first sample of the input burst',
                                'units':'meters'})
         add_dataset_and_attrs(metadata_group, 'range_sampling_rate',
                               self.range_sampling_rate,
-                              {'descriptin':'range sampling rate',
+                              {'descriptin':'Pixel spacing between slant range samples in the input burst SLC',
                                'units':'Hz'})
         add_dataset_and_attrs(metadata_group, 'range_pixel_spacing',
                               self.range_pixel_spacing,
@@ -360,14 +362,14 @@ class GeoCslcMetadata():
 
         add_dataset_and_attrs(metadata_group, 'range_bandwidth',
                               self.range_bandwidth,
-                              {'description':'bandwidth used during processing',
+                              {'description':'Slant range bandwidth of the signal',
                                'units':'Hz'})
         add_dataset_and_attrs(metadata_group, 'polarization',
                               np.string_(self.polarization),
                               {'description': 'burst polarization'})
         add_dataset_and_attrs(metadata_group, 'burst_id',
                               np.string_(self.burst_id),
-                              {'description': 'unique ID for burst'})
+                              {'description': 'Unique burst identification string (ESA convention)'})
         add_dataset_and_attrs(metadata_group, 'platform_id',
                               np.string_(self.platform_id),
                               {'description': 'Sentinel 1 platform ID (S1, S2)'})

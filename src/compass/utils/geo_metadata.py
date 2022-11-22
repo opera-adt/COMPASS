@@ -276,73 +276,170 @@ class GeoCslcMetadata():
         '''
         metadata_group = dst_h5.require_group('metadata')
 
-        # subset of burst class attributes
-        metadata_group['sensing_start'] = np.string_(self.sensing_start.__str__)
-        metadata_group['sensing_stop'] = np.string_(self.sensing_stop.__str__)
-        metadata_group['radar_center_frequency'] = self.radar_center_frequency
-        metadata_group['wavelength'] = self.wavelength
-        metadata_group['azimuth_steer_rate'] = self.azimuth_steer_rate
-        metadata_group['azimuth_time_interval'] = self.azimuth_time_interval
-        metadata_group['slant_range_time'] = self.slant_range_time
-        metadata_group['starting_range'] = self.starting_range
-        metadata_group['range_sampling_rate'] = self.range_sampling_rate
-        metadata_group['range_pixel_spacing'] = self.range_pixel_spacing
-
-        def poly1d_to_h5(h5_group, poly1d_name, poly1d):
+        def add_dataset_and_attrs(group, name, value, attr_dict):
             '''Write isce3.core.Poly1d properties to hdf5
 
             Parameters
             ----------
-            h5_group: h5py.Group
+            group: h5py.Group
+                h5py Group to store poly1d parameters in
+            name: str
+                Name of dataset to add
+            value: object
+                Value to be added
+            attr_dict: dict[str: object]
+                Dict with attribute name as key and some object as value
+            '''
+            group[name] = value
+            val_ds = group[name]
+            for key, val in attr_dict:
+                val_ds.attrs[key] = val
+
+        # subset of burst class attributes
+        add_dataset_and_attrs(metadata_group, 'sensing_start',
+                              np.string_(self.sensing_start.__str__),
+                              {'description':'azimuth sensing start'})
+        add_dataset_and_attrs(metadata_group, 'sensing_stop',
+                              np.string_(self.sensing_stop.__str__),
+                              {'description':'azimuth sensing stop'})
+        add_dataset_and_attrs(metadata_group, 'radar_center_frequency',
+                              self.radar_center_frequency,
+                              {'description':'radar center frequency',
+                               'units':'Hz'})
+        add_dataset_and_attrs(metadata_group, 'wavelength', self.wavelength,
+                              {'description':'wavelength',
+                               'units':'meters'})
+        add_dataset_and_attrs(metadata_group, 'azimuth_steer_rate',
+                              self.azimuth_steer_rate,
+                              {'description':'IW mode azimuth steer rate',
+                               'units':'degrees/second'})
+        add_dataset_and_attrs(metadata_group, 'azimuth_time_interval',
+                              self.azimuth_time_interval,
+                              {'description':'azimuth time interval',
+                               'units':'seconds'})
+        add_dataset_and_attrs(metadata_group, 'slant_range_time',
+                              self.slant_range_time,
+                              {'description':'tow way slant range time of Doppler centroid frequency estimate',
+                               'units':'seconds'})
+        add_dataset_and_attrs(metadata_group, 'starting_range',
+                              self.starting_range,
+                              {'description':'starting range',
+                               'units':'meters'})
+        add_dataset_and_attrs(metadata_group, 'range_sampling_rate',
+                              self.range_sampling_rate,
+                              {'descriptin':'range sampling rate',
+                               'units':'Hz'})
+        add_dataset_and_attrs(metadata_group, 'range_pixel_spacing',
+                              self.range_pixel_spacing,
+                              {'description':'range pixel spacing',
+                               'units':'meters'})
+
+        def poly1d_to_h5(group, poly1d_name, poly1d):
+            '''Write isce3.core.Poly1d properties to hdf5
+
+            Parameters
+            ----------
+            group: h5py.Group
                 h5py Group to store poly1d parameters in
             poly1d_name: str
                 Name of Poly1d whose parameters are to be stored
             poly1d: isce3.core.Poly1d
                 Poly1d ojbect whose parameters are to be stored
             '''
-            poly1d_group = h5_group.require_group(poly1d_name)
-            poly1d_group['order'] = poly1d.order
-            poly1d_group['mean'] = poly1d.mean
-            poly1d_group['std'] = poly1d.std
-            poly1d_group['coeffs'] = poly1d.coeffs
+            poly1d_group = group.require_group(poly1d_name)
+            add_dataset_and_attrs(poly1d_group, 'order', poly1d.order,
+                                  {'description': 'order of the polynomial'})
+            add_dataset_and_attrs(poly1d_group, 'mean', poly1d.mean,
+                                  {'description': 'mean of the polynomial'})
+            add_dataset_and_attrs(poly1d_group, 'std', poly1d.std,
+                                  {'description': 'standard deviation of the polynomial'})
+            add_dataset_and_attrs(poly1d_group, 'coeffs', poly1d.coeffs,
+                                  {'description': 'coefficients of the polynomial'})
         poly1d_to_h5(metadata_group, 'azimuth_fm_rate', self.azimuth_fm_rate)
         poly1d_to_h5(metadata_group, 'doppler', self.doppler)
 
-        metadata_group['range_bandwidth'] = self.range_bandwidth
-        metadata_group['polarization'] = np.string_(self.polarization)
-        metadata_group['burst_id'] = np.string_(self.burst_id)
-        metadata_group['platform_id'] = np.string_(self.platform_id)
+        add_dataset_and_attrs(metadata_group, 'range_bandwidth',
+                              self.range_bandwidth,
+                              {'description':'bandwidth used during processing',
+                               'units':'Hz'})
+        add_dataset_and_attrs(metadata_group, 'polarization',
+                              np.string_(self.polarization),
+                              {'description': 'burst polarization'})
+        add_dataset_and_attrs(metadata_group, 'burst_id',
+                              np.string_(self.burst_id),
+                              {'description': 'unique ID for burst'})
+        add_dataset_and_attrs(metadata_group, 'platform_id',
+                              np.string_(self.platform_id),
+                              {'description': 'Sentinel platform ID (S1, S2)'})
 
         center_lon_lat = np.array([val[0] for val in self.center.coords.xy])
-        metadata_group['center' ] = center_lon_lat
+        add_dataset_and_attrs(metadata_group, 'center',
+                              center_lon_lat,
+                              {'description': 'coordinates of center of burst',
+                               'units': 'degrees'})
 
         # list of lon, lat coordinate tuples (in degrees) representing burst border
         border_group = metadata_group.require_group('border')
         border_x, border_y = self.border.exterior.coords.xy
-        border_group['x'] = border_x
-        border_group['y'] = border_y
+        add_dataset_and_attrs(border_group, 'x', border_x,
+                              {'description': 'list boundary x-coordinates',
+                               'units': 'degrees'})
+        add_dataset_and_attrs(border_group, 'y', border_y,
+                              {'description': 'list boundary y-coordinates',
+                               'units': 'degrees'})
 
         orbit_group = metadata_group.require_group('orbit')
         self.orbit.save_to_h5(orbit_group)
 
-        metadata_group['orbit_direction'] = np.string_(self.orbit_direction)
+        add_dataset_and_attrs(metadata_group, 'orbit_direction',
+                              np.string_(self.orbit_direction),
+                              {'description':'direction of orbit (ascending, descending)'})
 
         # VRT params
-        metadata_group['tiff_path'] = np.string_(self.tiff_path)
-        metadata_group['i_burst'] = self.i_burst
+        add_dataset_and_attrs(metadata_group, 'tiff_path',
+                              np.string_(self.tiff_path),
+                              {'description': 'path to TIFF containing the burst'})
+        add_dataset_and_attrs(metadata_group, 'i_burst', self.i_burst,
+                              {'description': 'Sentinel platform ID (S1, S2)'})
         # window parameters
-        metadata_group['range_window_type'] = np.string_(self.range_window_type)
-        metadata_group['range_window_coefficient'] = self.range_window_coefficient
+        add_dataset_and_attrs(metadata_group, 'range_window_type',
+                              np.string_(self.range_window_type),
+                              {'description': 'name of the weighting window type used during processing'})
+        add_dataset_and_attrs(metadata_group, 'range_window_coefficient',
+                              self.range_window_coefficient,
+                              {'description': 'value of the weighting window coefficient used during processing'})
 
         geogrid_group = metadata_group.require_group('geogrid')
-        geogrid_group['start_x'] = self.geogrid.start_x
-        geogrid_group['start_y'] = self.geogrid.start_y
-        geogrid_group['spacing_x'] = self.geogrid.spacing_x
-        geogrid_group['spacing_y'] = self.geogrid.spacing_y
-        geogrid_group['width'] = self.geogrid.width
-        geogrid_group['length'] = self.geogrid.length
-        geogrid_group['epsg'] = self.geogrid.epsg
+        add_dataset_and_attrs(geogrid_group, 'start_x', self.geogrid.start_x,
+                              {'description': 'starting y coordinate of geogrid output',
+                               'units': 'consistent with EPSG'})
+        add_dataset_and_attrs(geogrid_group, 'start_y', self.geogrid.start_y,
+                              {'description': 'starting y coordinate of geogrid output',
+                               'units': 'consistent with EPSG'})
+        add_dataset_and_attrs(geogrid_group, 'spacing_x',
+                              self.geogrid.spacing_x,
+                              {'description': 'x spacing coordinate of geogrid output',
+                               'units': 'consistent with EPSG'})
+        add_dataset_and_attrs(geogrid_group, 'spacing_y',
+                              self.geogrid.spacing_y,
+                              {'description': 'y spacing coordinate of geogrid output',
+                               'units': 'consistent with EPSG'})
+        add_dataset_and_attrs(geogrid_group, 'width', self.geogrid.width,
+                              {'description': 'width of geogrid output',
+                               'units': 'consistent with EPSG'})
+        add_dataset_and_attrs(geogrid_group, 'length', self.geogrid.length,
+                              {'description': 'length of geogrid output',
+                               'units': 'consistent with EPSG'})
+        add_dataset_and_attrs(geogrid_group, 'epsg',
+                              self.geogrid.epsg,
+                              {'description': 'EPSG of output geogrid'})
 
-        metadata_group['nodata'] = np.string_(self.nodata)
-        metadata_group['input_data_ipf_version'] = np.string_(self.input_data_ipf_version)
-        metadata_group['isce3_version'] = np.string_(self.isce3_version)
+        add_dataset_and_attrs(metadata_group, 'nodata',
+                              np.string_(self.nodata),
+                              {'description': 'value used when no data present'})
+        add_dataset_and_attrs(metadata_group, 'input_data_ipf_version',
+                              np.string_(self.input_data_ipf_version),
+                              {'description': 'Instrument Processing Facility'})
+        add_dataset_and_attrs(metadata_group, 'isce3_version',
+                              np.string_(self.isce3_version),
+                              {'description': 'Version of ISCE3 used to process'})

@@ -6,6 +6,7 @@ import numpy as np
 import journal
 
 from nisar.workflows.geogrid import _grid_size
+from osgeo import osr
 import isce3
 
 from compass.utils import helpers
@@ -280,6 +281,39 @@ def get_point_epsg(lat, lon):
         err_str = "'Could not determine EPSG for {0}, {1}'.format(lon, lat))"
         error_channel.log(err_str)
         raise ValueError(err_str)
+
+
+def transform_coordinates(x, y, in_epsg, out_epsg):
+    '''
+    Transform x and y coordinates from in_epsg to out_epsg
+    ----------
+    x: float
+        Point coordinate along X-direction
+    y: float
+       Point coordinate along Y-direction
+    in_epsg: int
+        EPSG code for x, y coordinates
+    out_epsg: int
+        Desired EPSG code for output coordinates
+    Returns
+    -------
+    x_coord: float
+        Transformed x coordinate in out_epsg system
+    y_coord: float
+        Longitude corresponding to point (x,y)
+    '''
+
+    in_spat_ref = osr.SpatialReference()
+    in_spat_ref.ImportFromEPSG(in_epsg)
+
+    out_spat_ref = osr.SpatialReference()
+    out_spat_ref.ImportFromEPSG(out_epsg)
+
+    # Get coordinate transformation object
+    trans = osr.CoordinateTransformation(in_spat_ref, out_spat_ref)
+    x_coord, y_coord, _ = trans.TransformPoint(x, y, 0)
+
+    return x_coord, y_coord
 
 
 def generate_geogrids_from_db(bursts, geo_dict, dem, burst_db_file):

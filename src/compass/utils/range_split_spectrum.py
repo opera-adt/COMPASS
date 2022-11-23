@@ -91,7 +91,7 @@ def range_split_spectrum(burst, cfg_split_spectrum,
         temp_slc_path_corrected = temp_slc_path_in.replace('_temp.vrt',
                                                            '_corrected_temp.rdr')
         apply_eap_correction(burst,
-                             temp_slc_path_in, 
+                             temp_slc_path_in,
                              temp_slc_path_corrected,
                              check_eap)
         burst_path = temp_slc_path_corrected

@@ -31,7 +31,7 @@ def apply_eap_correction(burst, path_slc_vrt, path_slc_corrected, check_eap):
     # Remove magnitude component when we don't need to correct it
     if check_eap.phase_correction and not check_eap.magnitude_correction:
         vec_eap_line /= np.abs(vec_eap_line)
-    
+
     # Load the burst SLC to correct
     slc_in = gdal.Open(path_slc_vrt, gdal.GA_ReadOnly)
     arr_slc_in = slc_in.ReadAsArray()

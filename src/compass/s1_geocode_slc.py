@@ -100,7 +100,7 @@ def run(cfg: GeoRunConfig):
                                                                    '_corrected_temp.rdr')
                 burst.slc_to_vrt_file(temp_slc_path_in)
                 apply_eap_correction(burst,
-                                    temp_slc_path_in, 
+                                    temp_slc_path_in,
                                     temp_slc_path_corrected,
                                     check_eap)
                 temp_slc_path = temp_slc_path_corrected

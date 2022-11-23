@@ -10,6 +10,7 @@ from ruamel.yaml import YAML
 from compass.utils.geo_grid import (generate_geogrids_from_db,
                                     generate_geogrids, geogrid_as_dict)
 from compass.utils.runconfig import (
+    create_output_paths,
     runconfig_to_bursts,
     load_validate_yaml,
     RunConfig)
@@ -83,8 +84,11 @@ class GeoRunConfig(RunConfig):
         with open(yaml_path, 'r') as f_yaml:
             entire_yaml = f_yaml.read()
 
+        # Get scratch and output paths
+        output_paths = create_output_paths(sns, bursts)
+
         return cls(cfg['runconfig']['name'], sns, bursts, empty_ref_dict,
-                   entire_yaml, geogrids)
+                   entire_yaml, output_paths, geogrids)
 
     @property
     def geocoding_params(self) -> dict:

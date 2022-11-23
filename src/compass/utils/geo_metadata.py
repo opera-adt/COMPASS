@@ -95,6 +95,10 @@ class GeoCslcMetadata():
         for b in cfg.bursts:
             if b.burst_id == burst_id:
                 burst = b
+                date_str = burst.sensing_start.strftime("%Y%m%d")
+                burst_id_date_key = (burst_id, date_str)
+                out_paths = cfg.output_paths[burst_id_date_key]
+                break
 
         if burst is None:
             err_str = f'{burst_id} not found in cfg.bursts'
@@ -105,15 +109,16 @@ class GeoCslcMetadata():
         # get boundary from geocoded raster
         date_str = burst.sensing_start.strftime("%Y%m%d")
         pol = burst.polarization
-        burst_output_path = f'{cfg.product_path}/{burst_id}/{date_str}'
-        geo_raster_path = f'{burst_output_path}/{burst_id}_{pol}.slc'
-        geo_boundary = get_boundary_polygon(geo_raster_path, np.nan)
+        hdf5_path = out_paths.hdf5_path
+        dataset_path_template = f'HDF5:%FILE_PATH%://complex_backscatter/{pol}'
+        geo_boundary = get_boundary_polygon(hdf5_path, np.nan,
+                                            dataset_path_template)
         center = geo_boundary.centroid
 
         # place holders
-        nodata_val = '?'
+        nodata_val = 'NaN'
         ipf_ver = '?'
-        isce3_ver = '?'
+        isce3_ver = isce3.__version__
 
         return cls(burst.sensing_start, burst.sensing_stop,
                    burst.radar_center_frequency, burst.wavelength,
@@ -290,9 +295,12 @@ class GeoCslcMetadata():
             attr_dict: dict[str: object]
                 Dict with attribute name as key and some object as value
             '''
+            if name in group:
+                del group[name]
+
             group[name] = value
             val_ds = group[name]
-            for key, val in attr_dict:
+            for key, val in attr_dict.items():
                 val_ds.attrs[key] = val
 
         # subset of burst class attributes
@@ -372,23 +380,23 @@ class GeoCslcMetadata():
                               {'description': 'Unique burst identification string (ESA convention)'})
         add_dataset_and_attrs(metadata_group, 'platform_id',
                               np.string_(self.platform_id),
-                              {'description': 'Sentinel 1 platform ID (S1, S2)'})
+                              {'description': 'Sensor platform identification string (e.g., S1A or S1B)'})
 
         center_lon_lat = np.array([val[0] for val in self.center.coords.xy])
         add_dataset_and_attrs(metadata_group, 'center',
                               center_lon_lat,
-                              {'description': 'coordinates of center of burst',
-                               'units': 'degrees'})
+                              {'description': 'Burst center coordinates in UTM',
+                               'units': 'meters'})
 
         # list of lon, lat coordinate tuples (in degrees) representing burst border
         border_group = metadata_group.require_group('border')
         border_x, border_y = self.border.exterior.coords.xy
         add_dataset_and_attrs(border_group, 'x', border_x,
-                              {'description': 'list boundary x-coordinates',
-                               'units': 'degrees'})
+                              {'description': 'X- coordinates of the polygon including valid L2_CSLC_S1 data',
+                               'units': 'meters'})
         add_dataset_and_attrs(border_group, 'y', border_y,
-                              {'description': 'list boundary y-coordinates',
-                               'units': 'degrees'})
+                              {'description': 'Y- coordinates of the polygon including valid L2_CSLC_S1 data',
+                               'units': 'meters'})
 
         orbit_group = metadata_group.require_group('orbit')
         self.orbit.save_to_h5(orbit_group)
@@ -398,11 +406,11 @@ class GeoCslcMetadata():
                               {'description':'direction of orbit (ascending, descending)'})
 
         # VRT params
-        add_dataset_and_attrs(metadata_group, 'tiff_path',
+        add_dataset_and_attrs(metadata_group, 'safe_tiff_path',
                               np.string_(self.tiff_path),
-                              {'description': 'path to TIFF containing the burst'})
+                              {'description': 'Path to TIFF file within the SAFE file containing the burst'})
         add_dataset_and_attrs(metadata_group, 'i_burst', self.i_burst,
-                              {'description': 'Sentinel platform ID (S1, S2)'})
+                              {'description': 'Index of the burst of interest relative to other bursts in the S1-A/B SAFE file'})
         # window parameters
         add_dataset_and_attrs(metadata_group, 'range_window_type',
                               np.string_(self.range_window_type),
@@ -413,32 +421,30 @@ class GeoCslcMetadata():
 
         geogrid_group = metadata_group.require_group('geogrid')
         add_dataset_and_attrs(geogrid_group, 'start_x', self.geogrid.start_x,
-                              {'description': 'starting y coordinate of geogrid output',
-                               'units': 'consistent with EPSG'})
+                              {'description': 'X-coordinate of the L2_CSLC_S1 starting point in the coordinate system selected for processing',
+                               'units': 'meters'})
         add_dataset_and_attrs(geogrid_group, 'start_y', self.geogrid.start_y,
-                              {'description': 'starting y coordinate of geogrid output',
-                               'units': 'consistent with EPSG'})
-        add_dataset_and_attrs(geogrid_group, 'spacing_x',
+                              {'description': 'Y-coordinate of the L2_CSLC_S1 starting point in the coordinate system selected for processing',
+                               'units': 'meters'})
+        add_dataset_and_attrs(geogrid_group, 'x_posting',
                               self.geogrid.spacing_x,
-                              {'description': 'x spacing coordinate of geogrid output',
-                               'units': 'consistent with EPSG'})
-        add_dataset_and_attrs(geogrid_group, 'spacing_y',
+                              {'description': 'Spacing between product pixels along the X-direction ',
+                               'units': 'meters'})
+        add_dataset_and_attrs(geogrid_group, 'y_posting',
                               self.geogrid.spacing_y,
-                              {'description': 'y spacing coordinate of geogrid output',
-                               'units': 'consistent with EPSG'})
+                              {'description': 'Spacing between product pixels along the Y-direction ',
+                               'units': 'meters'})
         add_dataset_and_attrs(geogrid_group, 'width', self.geogrid.width,
-                              {'description': 'width of geogrid output',
-                               'units': 'consistent with EPSG'})
+                              {'description': 'Number of samples in the L2_CSLC_S1 product'})
         add_dataset_and_attrs(geogrid_group, 'length', self.geogrid.length,
-                              {'description': 'length of geogrid output',
-                               'units': 'consistent with EPSG'})
+                              {'description': 'Number of lines in the L2_CSLC_S1 product'})
         add_dataset_and_attrs(geogrid_group, 'epsg',
                               self.geogrid.epsg,
-                              {'description': 'EPSG of output geogrid'})
+                              {'description': 'EPSG code identifying the coordinate system used for processing'})
 
-        add_dataset_and_attrs(metadata_group, 'nodata',
+        add_dataset_and_attrs(metadata_group, 'no_data_value',
                               np.string_(self.nodata),
-                              {'description': 'value used when no data present'})
+                              {'description': 'Value used when no data present'})
         add_dataset_and_attrs(metadata_group, 'input_data_ipf_version',
                               np.string_(self.input_data_ipf_version),
                               {'description': 'Instrument Processing Facility'})

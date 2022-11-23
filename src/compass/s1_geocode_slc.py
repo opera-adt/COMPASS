@@ -42,10 +42,10 @@ def init_backscatter_dataset(h5_root, polarization, geo_grid):
     shape = (geo_grid.length, geo_grid.width)
     bs_ds = bs_group.create_dataset(polarization, dtype=ctype, shape=shape)
 
-    descr = f'Geocoded SLC image ({polarization})'
+    descr = f'{polarization} geocoded SLC image'
     bs_ds.attrs['description'] = np.string_(descr)
 
-    long_name = f'geocoded single-look complex image {polarization}'
+    long_name = f'{polarization} geocoded single-look complex image'
     bs_ds.attrs['long_name'] = np.string_(long_name)
 
     yds, xds = set_get_geo_info(h5_root, '/', geo_grid)
@@ -78,7 +78,6 @@ def run(cfg: GeoRunConfig):
     blocksize = cfg.geo2rdr_params.lines_per_block
     flatten = cfg.geocoding_params.flatten
 
-    # process one burst only
     for burst in cfg.bursts:
         # Reinitialize the dem raster per burst to prevent raster artifacts
         # caused by modification in geocodeSlc
@@ -90,11 +89,7 @@ def run(cfg: GeoRunConfig):
         date_str = burst.sensing_start.strftime("%Y%m%d")
         burst_id = burst.burst_id
         pol = burst.polarization
-        id_pol = f"{burst_id}_{pol}"
         geo_grid = cfg.geogrids[burst_id]
-
-        scratch_path = f'{cfg.scratch_path}/{burst_id}/{date_str}'
-        os.makedirs(scratch_path, exist_ok=True)
 
         radar_grid = burst.as_isce3_radargrid()
         native_doppler = burst.doppler.lut2d
@@ -109,13 +104,22 @@ def run(cfg: GeoRunConfig):
             if cfg.rdr2geo_params.geocode_metadata_layers:
                 s1_geocode_metadata.run(cfg, burst, fetch_from_scratch=True)
 
+        # Get output paths for current burst
+        burst_id_date_key = (burst_id, date_str)
+        out_paths = cfg.output_paths[burst_id_date_key]
+
+        # Create scratch as needed
+        scratch_path = out_paths.scratch_directory
+        os.makedirs(scratch_path, exist_ok=True)
+
         # Split the range bandwidth of the burst, if required
         if cfg.split_spectrum_params.enabled:
             rdr_burst_raster = range_split_spectrum(burst,
                                                     cfg.split_spectrum_params,
                                                     scratch_path)
         else:
-            temp_slc_path = f'{scratch_path}/{id_pol}_temp.vrt'
+            id_date_pol = f"{burst_id}_{date_str}_{pol}"
+            temp_slc_path = f'{scratch_path}/{id_date_pol}_temp.vrt'
             burst.slc_to_vrt_file(temp_slc_path)
             rdr_burst_raster = isce3.io.Raster(temp_slc_path)
 
@@ -126,11 +130,10 @@ def run(cfg: GeoRunConfig):
         # Create sliced radar grid representing valid region of the burst
         sliced_radar_grid = burst.as_isce3_radargrid()[b_bounds]
 
-        # Create top output path
-        burst_output_path = f'{cfg.product_path}/{burst_id}/{date_str}'
-        os.makedirs(burst_output_path, exist_ok=True)
+        # Create top output directory
+        os.makedirs(out_paths.output_directory, exist_ok=True)
 
-        output_hdf5 = f'{burst_output_path}/{id_pol}.h5'
+        output_hdf5 = out_paths.hdf5_path
         with h5py.File(output_hdf5, 'w') as geo_burst_h5:
             geo_burst_h5.attrs['Conventions'] = np.string_("CF-1.8")
             init_backscatter_dataset(geo_burst_h5, pol, geo_grid)

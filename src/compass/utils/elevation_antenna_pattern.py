@@ -40,7 +40,7 @@ def apply_eap_correction(burst, path_slc_vrt, path_slc_corrected, check_eap):
     # Retrieve the EAP correction in range
     vec_eap_line = burst.eap_compensation_lut
 
-    # Remove magnitute component when we don't need to correct it
+    # Remove magnitude component when we don't need to correct it
 
     if check_eap.phase_correction and not check_eap.magnitude_correction:
         vec_eap_line /= np.abs(vec_eap_line)

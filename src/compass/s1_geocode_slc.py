@@ -163,7 +163,8 @@ def run(cfg: GeoRunConfig):
             del geo_burst_raster
             del dem_raster # modified in geocodeSlc
 
-            # Save burst metadata
+        # Save burst metadata with new h5py File instance because io.Raster things
+        with h5py.File(output_hdf5, 'a') as geo_burst_h5:
             metadata = GeoCslcMetadata.from_georunconfig(cfg, burst_id)
             metadata.to_hdf5(geo_burst_h5)
             geo_burst_h5['metadata/runconfig'] = np.string_(cfg.yaml_string)

@@ -53,6 +53,13 @@ def compute_geocoding_correction_luts(burst, cfg, geogrid,
     rg_set, az_set = solid_earth_tides(burst, geogrid,
                                        dem_raster, scratch_path)
 
+    # Resize SET to the size of the correction grid
+    out_shape = rg_doppler.data.shape
+    kwargs = dict(order=1, mode='edge', anti_aliasing=True,
+                  preserve_range=True)
+    new_rg_set = resize(rg_set, out_shape, **kwargs)
+    new_az_set = resize(az_set, out_shape, **kwargs)
+
     # Sum corrections in range and azimuth respectively
     rg_lut = rg_doppler
     az_lut = az_bistatic

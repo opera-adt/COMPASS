@@ -23,28 +23,14 @@ def apply_eap_correction(burst, path_slc_vrt, path_slc_corrected, check_eap):
         A namespace that contains flags if phase and/or magnitute
         EAP correction are necessary
 
-    Return:
-    -------
-    path_burst_corrected:
-        Path to the GDAL-compatible raster after the correction
-
     '''
-
-    #TODO Indicate into the metadata to indicate if EAP correction is applied by OEPRA SAS
-
-
-    if not check_eap.phase_correction:
-        print('Antenna pattern correction is not necessary.')
-        return None
 
     # Retrieve the EAP correction in range
     vec_eap_line = burst.eap_compensation_lut
 
     # Remove magnitude component when we don't need to correct it
-
     if check_eap.phase_correction and not check_eap.magnitude_correction:
         vec_eap_line /= np.abs(vec_eap_line)
-
     
     # Load the burst SLC to correct
     slc_in = gdal.Open(path_slc_vrt, gdal.GA_ReadOnly)

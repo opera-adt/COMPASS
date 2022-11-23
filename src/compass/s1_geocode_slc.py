@@ -92,7 +92,7 @@ def run(cfg: GeoRunConfig):
             burst.slc_to_vrt_file(temp_slc_path)
             rdr_burst_raster = isce3.io.Raster(temp_slc_path)
 
-            # Check if EAP correction is necessary; Apply the correction if True
+            # Check if EAP correction is necessary; Apply the correction if it is True
             check_eap = is_eap_correction_necessary(burst.ipf_version)
             if check_eap.phase_correction:
                 temp_slc_path_in = temp_slc_path

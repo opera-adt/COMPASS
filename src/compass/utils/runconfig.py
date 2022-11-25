@@ -293,7 +293,7 @@ def create_output_paths(sns, bursts):
         output_paths[path_key] = SimpleNamespace(output_directory=out_dir,
                                                  hdf5_path=h5_path,
                                                  scratch_directory=scratch_path)
-        return output_paths
+    return output_paths
 
 @dataclass(frozen=True)
 class RunConfig:

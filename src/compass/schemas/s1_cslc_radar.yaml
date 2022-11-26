@@ -85,6 +85,12 @@ resample_options:
    # Flatten resampled SLC
    flatten: bool(required=False)
 
+lut_options:
+  # LUT spacing in x/slant range direction in meters
+  x_spacing: int(min=0, required=False)
+  # LUT spacing in y/azimuth direction in seconds
+  y_spacing: int(min=0, required=False)
+
 worker_options:
     # To prevent downloading DEM / other data automatically. Default True
     internet_access: bool(required=False)
@@ -105,3 +111,5 @@ processing_options:
    geo2rdr: include('geo2rdr_options', required=False)
    # Options to run resample
    resample: include('resample_options', required=False)
+   # Options to compute model-based LUTs
+   correction_luts: include('lut_options', required=False)

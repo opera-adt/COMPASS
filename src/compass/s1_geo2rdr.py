@@ -61,10 +61,7 @@ def run(cfg: dict):
         burst_id = burst.burst_id
         date_str = burst.sensing_start.strftime("%Y%m%d")
         id_date = (burst_id, date_str)
-
-        # Create top output path
-        top_output_path = f'{cfg.scratch_path}/{burst_id}'
-        os.makedirs(top_output_path, exist_ok=True)
+        out_paths = cfg.output_paths[id_date]
 
         # This ensures running geo2rdr only once; avoiding running for the different polarizations of the same burst_id
         if id_date in id_dates_processed:
@@ -74,10 +71,6 @@ def run(cfg: dict):
         # Get topo layers from vrt
         ref_burst_path = cfg.reference_radar_info.path
         topo_raster = isce3.io.Raster(f'{ref_burst_path}/topo.vrt')
-
-        # Create date directory
-        burst_output_path = f'{top_output_path}/{date_str}'
-        os.makedirs(burst_output_path, exist_ok=True)
 
         # Get radar grid and orbit
         rdr_grid = burst.as_isce3_radargrid()
@@ -90,7 +83,7 @@ def run(cfg: dict):
                               blocksize)
 
         # Execute geo2rdr
-        geo2rdr_obj.geo2rdr(topo_raster, burst_output_path)
+        geo2rdr_obj.geo2rdr(topo_raster, out_paths.output_directory)
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")

@@ -46,20 +46,16 @@ def run(cfg: dict):
 
     # Process all bursts
     for burst in cfg.bursts:
-        # get burst ID of current burst
+        # get burst ID and date string of current burst
         burst_id = burst.burst_id
+        date_str = burst.sensing_start.strftime("%Y%m%d")
 
         # Create top output path
-        top_output_path = f'{cfg.product_path}/{burst_id}'
-        os.makedirs(top_output_path, exist_ok=True)
+        burst_id_date_key = (burst_id, date_str)
+        out_paths = cfg.output_paths[burst_id_date_key]
 
         # Get reference burst radar grid
         ref_rdr_grid = cfg.reference_radar_info.grid
-
-        # Extract date string and create directory
-        date_str = burst.sensing_start.strftime("%Y%m%d")
-        burst_output_path = f'{top_output_path}/{date_str}'
-        os.makedirs(burst_output_path, exist_ok=True)
 
         # Extract polarization
         pol = burst.polarization
@@ -76,8 +72,7 @@ def run(cfg: dict):
         resamp_obj.lines_per_tile = blocksize
 
         # Get range and azimuth offsets
-        offset_path = f'{cfg.scratch_path}/' \
-                      f'{burst_id}/{date_str}'
+        offset_path = out_paths.scratch_directory
         rg_off_raster = isce3.io.Raster(f'{offset_path}/range.off')
         az_off_raster = isce3.io.Raster(f'{offset_path}/azimuth.off')
 
@@ -87,7 +82,7 @@ def run(cfg: dict):
         original_raster = isce3.io.Raster(sec_burst_path)
 
         # Prepare resamled SLC as raster object
-        coreg_burst_path = f'{burst_output_path}/{burst_id}_{date_str}_{pol}.slc'
+        coreg_burst_path = f'{out_paths.output_directory}/{out_paths.file_name_stem}.slc'
         resampled_raster = isce3.io.Raster(coreg_burst_path,
                                            rg_off_raster.width,
                                            rg_off_raster.length,

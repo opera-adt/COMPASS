@@ -288,9 +288,16 @@ def create_output_paths(sns, bursts):
         # Save output dir, output hdf5 and scratch dir to dict as
         # SimpleNamespace
         out_dir = f'{product_paths.product_path}/{burst_id}/{date_str}'
-        h5_path = f"{out_dir}/{burst_id}_{date_str}_{burst.polarization}.h5"
+        os.makedirs(out_dir, exist_ok=True)
+
+        fname_stem = f"{burst_id}_{date_str}_{burst.polarization}"
+        h5_path = f"{out_dir}/{fname_stem}.h5"
+
         scratch_path = f'{product_paths.scratch_path}/{burst_id}/{date_str}'
+        os.makedirs(scratch_path, exist_ok=True)
+
         output_paths[path_key] = SimpleNamespace(output_directory=out_dir,
+                                                 file_name_stem=fname_stem,
                                                  hdf5_path=h5_path,
                                                  scratch_directory=scratch_path)
     return output_paths

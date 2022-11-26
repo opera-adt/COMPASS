@@ -52,20 +52,16 @@ def run(cfg, burst, fetch_from_scratch=False):
     geo_grid = cfg.geogrids[burst_id]
     output_epsg = geo_grid.epsg
 
-    os.makedirs(cfg.output_dir, exist_ok=True)
-
-    scratch_path = f'{cfg.scratch_path}/{burst_id}/{date_str}'
-    os.makedirs(scratch_path, exist_ok=True)
-
     radar_grid = burst.as_isce3_radargrid()
     orbit = burst.orbit
 
-    # Initialize input/output path
-    input_path = f'{cfg.product_path}/{burst_id}/{date_str}'
-    output_path = input_path
+    # Initialize input/output paths
+    burst_id_date_key = (burst_id, date_str)
+    out_paths = cfg.output_paths[burst_id_date_key]
+
+    input_path = out_paths.output_directory
     if fetch_from_scratch:
-        input_path = f'{cfg.scratch_path}/{burst_id}/{date_str}'
-    os.makedirs(output_path, exist_ok=True)
+        input_path = out_paths.scratch_directory
 
     # Initialize geocode object
     geo = isce3.geocode.GeocodeFloat32()
@@ -92,7 +88,7 @@ def run(cfg, burst, fetch_from_scratch=False):
                    'heading': cfg.rdr2geo_params.compute_azimuth_angle,
                    'layover_shadow_mask': cfg.rdr2geo_params.compute_layover_shadow_mask}
 
-    out_h5 = f'{output_path}/topo.h5'
+    out_h5 = f'{out_paths.output_directory}/topo.h5'
     shape = (geo_grid.length, geo_grid.width)
     with h5py.File(out_h5, 'w') as topo_h5:
         for layer_name, enabled in meta_layers.items():
@@ -101,7 +97,7 @@ def run(cfg, burst, fetch_from_scratch=False):
             dtype = np.single
             # layoverShadowMask is last option, no need to change data type
             # and interpolator afterwards
-            if layer_name == 'layoverShadowMask':
+            if layer_name == 'layover_shadow_mask':
                 geo.data_interpolator = 'NEAREST'
                 dtype = np.byte
 

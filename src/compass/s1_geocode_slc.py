@@ -110,7 +110,6 @@ def run(cfg: GeoRunConfig):
 
         # Create scratch as needed
         scratch_path = out_paths.scratch_directory
-        os.makedirs(scratch_path, exist_ok=True)
 
         # Split the range bandwidth of the burst, if required
         if cfg.split_spectrum_params.enabled:
@@ -129,9 +128,6 @@ def run(cfg: GeoRunConfig):
 
         # Create sliced radar grid representing valid region of the burst
         sliced_radar_grid = burst.as_isce3_radargrid()[b_bounds]
-
-        # Create top output directory
-        os.makedirs(out_paths.output_directory, exist_ok=True)
 
         output_hdf5 = out_paths.hdf5_path
         with h5py.File(output_hdf5, 'w') as geo_burst_h5:

@@ -127,7 +127,6 @@ def run(cfg: GeoRunConfig):
         sliced_radar_grid = burst.as_isce3_radargrid()[b_bounds]
 
         output_hdf5 = out_paths.hdf5_path
-        '''
         with h5py.File(output_hdf5, 'w') as geo_burst_h5:
             geo_burst_h5.attrs['Conventions'] = "CF-1.8"
             init_backscatter_dataset(geo_burst_h5, pol, geo_grid)
@@ -156,7 +155,6 @@ def run(cfg: GeoRunConfig):
             geo_burst_raster.set_epsg(epsg)
             del geo_burst_raster
             del dem_raster # modified in geocodeSlc
-        '''
 
         # Save burst metadata with new h5py File instance because io.Raster things
         with h5py.File(output_hdf5, 'a') as geo_burst_h5:

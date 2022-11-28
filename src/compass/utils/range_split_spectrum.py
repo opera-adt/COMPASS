@@ -1,6 +1,5 @@
 import isce3
 import numpy as np
-from compass.utils.elevation_antenna_pattern import apply_eap_correction
 from isce3.splitspectrum import splitspectrum
 from osgeo import gdal
 

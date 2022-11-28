@@ -82,7 +82,7 @@ def run(cfg: GeoRunConfig):
             if cfg.rdr2geo_params.geocode_metadata_layers:
                s1_geocode_metadata.run(cfg, fetch_from_scratch=True)
 
-        
+
         #Load the input burst SLC
         temp_slc_path = f'{scratch_path}/{id_pol}_temp.vrt'
         burst.slc_to_vrt_file(temp_slc_path)

@@ -82,28 +82,33 @@ def run(cfg: GeoRunConfig):
             if cfg.rdr2geo_params.geocode_metadata_layers:
                s1_geocode_metadata.run(cfg, fetch_from_scratch=True)
 
+        
+        #Load the input burst SLC
+        temp_slc_path = f'{scratch_path}/{id_pol}_temp.vrt'
+        burst.slc_to_vrt_file(temp_slc_path)
+
+        # Check if EAP correction is necessary
+        check_eap = is_eap_correction_necessary(burst.ipf_version)
+        if check_eap.phase_correction:
+            temp_slc_path_corrected = temp_slc_path.replace('_temp.vrt',
+                                                            '_corrected_temp.rdr')
+            apply_eap_correction(burst,
+                                 temp_slc_path,
+                                 temp_slc_path_corrected,
+                                 check_eap)
+            # Replace the input burst if the correction is applied
+            temp_slc_path = temp_slc_path_corrected
+
+
         # Split the range bandwidth of the burst, if required
         if cfg.split_spectrum_params.enabled:
             rdr_burst_raster = range_split_spectrum(burst,
+                                                    temp_slc_path,
                                                     cfg.split_spectrum_params,
                                                     scratch_path)
         else:
-            temp_slc_path = f'{scratch_path}/{id_pol}_temp.vrt'
-            burst.slc_to_vrt_file(temp_slc_path)
             rdr_burst_raster = isce3.io.Raster(temp_slc_path)
 
-            # Check if EAP correction is necessary; Apply the correction if it is True
-            check_eap = is_eap_correction_necessary(burst.ipf_version)
-            if check_eap.phase_correction:
-                temp_slc_path_in = temp_slc_path
-                temp_slc_path_corrected = temp_slc_path_in.replace('_temp.vrt',
-                                                                   '_corrected_temp.rdr')
-                burst.slc_to_vrt_file(temp_slc_path_in)
-                apply_eap_correction(burst,
-                                    temp_slc_path_in,
-                                    temp_slc_path_corrected,
-                                    check_eap)
-                temp_slc_path = temp_slc_path_corrected
 
         # Generate output geocoded burst raster
         geo_burst_raster = isce3.io.Raster(

@@ -201,7 +201,7 @@ def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
             # loop over burst objs extracted from SAFE zip
             for burst in load_bursts(safe_file, orbit_path, i_subswath, pol):
                 # get burst ID
-                burst_id = burst.burst_id
+                burst_id = str(burst.burst_id)
 
                 # include ALL bursts if no burst IDs given
                 # is burst_id wanted? skip if not given in config
@@ -279,7 +279,7 @@ def create_output_paths(sns, bursts):
     product_paths = sns.product_path_group
     for burst in bursts:
         # Get burst ID and check if it already
-        burst_id = burst.burst_id
+        burst_id = str(burst.burst_id)
         date_str = burst.sensing_start.strftime("%Y%m%d")
 
         # Key for current burst ID + date combo
@@ -438,7 +438,7 @@ class RunConfig:
         def burst_as_key(burst):
             '''Create an unique key of burst ID, date string, and polarization
             '''
-            return '_'.join([burst.burst_id, date_str(burst), burst.polarization])
+            return '_'.join([str(burst.burst_id), date_str(burst), burst.polarization])
 
         self_as_dict = {}
         for key, val in self.__dict__.items():

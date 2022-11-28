@@ -58,7 +58,7 @@ def run(cfg: dict):
     # Run geo2rdr once per burst ID + date pair
     for burst in cfg.bursts:
         # Extract date string and create directory
-        burst_id = burst.burst_id
+        burst_id = str(burst.burst_id)
         date_str = burst.sensing_start.strftime("%Y%m%d")
         id_date = (burst_id, date_str)
         out_paths = cfg.output_paths[id_date]

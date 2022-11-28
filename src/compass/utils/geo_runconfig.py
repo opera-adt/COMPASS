@@ -99,37 +99,12 @@ class GeoRunConfig(RunConfig):
         return self.groups.processing.rdr2geo
 
     @property
-    def burst_id(self) -> str:
-        return self.bursts[0].burst_id
-
-    @property
-    def sensing_start(self):
-        return self.bursts[0].sensing_start
-
-    @property
-    def polarization(self) -> str:
-        return self.bursts[0].polarization
-
-    @property
     def split_spectrum_params(self) -> dict:
         return self.groups.processing.range_split_spectrum
 
     @property
     def lut_params(self) -> dict:
         return self.groups.processing.correction_luts
-
-    @property
-    def output_dir(self) -> str:
-        date_str = self.sensing_start.strftime("%Y%m%d")
-        burst_id = self.burst_id
-        return f'{super().product_path}/{burst_id}/{date_str}'
-
-    @property
-    def file_stem(self) -> str:
-        burst_id = self.burst_id
-        pol = self.polarization
-        return f'geo_{burst_id}_{pol}'
-
 
     def as_dict(self):
         ''' Convert self to dict for write to YAML/JSON

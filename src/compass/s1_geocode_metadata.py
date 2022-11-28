@@ -48,7 +48,7 @@ def run(cfg, burst, fetch_from_scratch=False):
 
     # process one burst only
     date_str = burst.sensing_start.strftime("%Y%m%d")
-    burst_id = burst.burst_id
+    burst_id = str(burst.burst_id)
     geo_grid = cfg.geogrids[burst_id]
     output_epsg = geo_grid.epsg
 

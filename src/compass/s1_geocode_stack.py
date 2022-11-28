@@ -122,7 +122,7 @@ def generate_burst_map(zip_files, orbit_dir, output_epsg=None, bbox=None,
                 if epsg is None:  # Flag for skipping burst
                     continue
 
-                burst_map['burst_id'].append(burst.burst_id)
+                burst_map['burst_id'].append(str(burst.burst_id))
                 # keep the burst object so we don't have to re-parse
                 burst_map['burst'].append(burst)
 
@@ -151,7 +151,7 @@ def _get_burst_epsg_and_bbox(burst, output_epsg, bbox, bbox_epsg, burst_db_file)
     if output_epsg is None:
         if os.path.exists(burst_db_file):
             epsg, _ = helpers.burst_bbox_from_db(
-                burst.burst_id, burst_db_file
+                str(burst.burst_id), burst_db_file
             )
         else:
             # Fallback: ust the burst center UTM zone
@@ -172,7 +172,7 @@ def _get_burst_epsg_and_bbox(burst, output_epsg, bbox, bbox_epsg, burst_db_file)
             return None, None
     else:
         epsg_db, bbox_utm = helpers.burst_bbox_from_db(
-            burst.burst_id, burst_db_file
+            str(burst.burst_id), burst_db_file
         )
         if epsg_db != epsg:
             bbox_utm = helpers.transform_bbox(
@@ -282,7 +282,7 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
     burst = burst_map_row.burst
     inputs['safe_file_path'] = [burst_map_row.zip_file]
     inputs['orbit_file_path'] = [burst_map_row.orbit_path]
-    inputs['burst_id'] = burst.burst_id
+    inputs['burst_id'] = str(burst.burst_id)
     groups['dynamic_ancillary_file_group']['dem_file'] = dem_file
 
     # Product path
@@ -315,7 +315,7 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
 
     date_str = burst.sensing_start.strftime("%Y%m%d")
     os.makedirs(f'{work_dir}/runconfigs', exist_ok=True)
-    runconfig_path = f'{work_dir}/runconfigs/geo_runconfig_{date_str}_{burst.burst_id}.yaml'
+    runconfig_path = f'{work_dir}/runconfigs/geo_runconfig_{date_str}_{str(burst.burst_id)}.yaml'
     with open(runconfig_path, 'w') as yaml_file:
         yaml.dump(yaml_cfg, yaml_file, default_flow_style=False)
     return runconfig_path

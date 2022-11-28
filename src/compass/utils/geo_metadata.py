@@ -10,6 +10,7 @@ import numpy as np
 from ruamel.yaml import YAML
 from shapely.geometry import Point, Polygon
 
+import compass
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.raster_polygon import get_boundary_polygon
 from compass.utils.wrap_namespace import wrap_namespace, unwrap_to_dict
@@ -93,7 +94,7 @@ class GeoCslcMetadata():
         '''
         burst = None
         for b in cfg.bursts:
-            if b.burst_id == burst_id:
+            if str(b.burst_id) == burst_id:
                 burst = b
                 date_str = burst.sensing_start.strftime("%Y%m%d")
                 burst_id_date_key = (burst_id, date_str)
@@ -303,46 +304,84 @@ class GeoCslcMetadata():
             for key, val in attr_dict.items():
                 val_ds.attrs[key] = val
 
+        # product identification and processing information
+        id_proc_group = metadata_group.require_group('identifcation_and_processing')
+        add_dataset_and_attrs(id_proc_group, 'product_id', 'L2_CSLC_S1', {})
+        add_dataset_and_attrs(id_proc_group, 'product_version', '?', {})
+        add_dataset_and_attrs(id_proc_group, 'software_version',
+                              compass.__version__,
+                              {'description': 'COMPASS  version used to generate the L2_CSLC_S1 product'})
+        add_dataset_and_attrs(id_proc_group, 'isce3_version',
+                              self.isce3_version,
+                              {'description': 'ISCE3 version used to generate the L2_CSLC_S1 product'})
+        add_dataset_and_attrs(id_proc_group, 'project', 'OPERA', {})
+        add_dataset_and_attrs(id_proc_group, 'product_level', '2', {})
+        add_dataset_and_attrs(id_proc_group, 'product_type', 'CSLC_S1', {})
+        add_dataset_and_attrs(id_proc_group, 'processing_datetime',
+                              datetime.now().strftime('%Y-%M-%D %H:%M:%S'),
+                              {'description': 'L2_CSLC_S1 product processing date and time',
+                               'format': 'YYYY-MM-DDD HH:MM:SS'})
+        add_dataset_and_attrs(id_proc_group, 'spacecraft_name',
+                              self.platform_id,
+                              {'description': 'Name of Sensor platform (e.g., S1-A/B)'})
+
         # subset of burst class attributes
-        add_dataset_and_attrs(metadata_group, 'sensing_start',
-                              np.string_(self.sensing_start.__str__),
-                              {'description': 'azimuth sensing start',
+        s1ab_group = metadata_group.require_group('s1ab_burst_metadata')
+        add_dataset_and_attrs(s1ab_group, 'sensing_start',
+                              self.sensing_start.strftime('%Y-%M-%D %H:%M:%S.%f'),
+                              {'description': 'Sensing start time of the burst',
                                'format': 'YYYY-MM-DD HH:MM:SS.6f'})
-        add_dataset_and_attrs(metadata_group, 'sensing_stop',
-                              np.string_(self.sensing_stop.__str__),
-                              {'description':'azimuth sensing stop',
+        add_dataset_and_attrs(s1ab_group, 'sensing_stop',
+                              self.sensing_stop.strftime('%Y-%M-%D %H:%M:%S.%f'),
+                              {'description':'Sensing stop time of the burst',
                                'format': 'YYYY-MM-DD HH:MM:SS.6f'})
-        add_dataset_and_attrs(metadata_group, 'radar_center_frequency',
+        add_dataset_and_attrs(s1ab_group, 'radar_center_frequency',
                               self.radar_center_frequency,
-                              {'description':'radar center frequency',
+                              {'description':'Radar center frequency',
                                'units':'Hz'})
-        add_dataset_and_attrs(metadata_group, 'wavelength', self.wavelength,
-                              {'description':'wavelength',
+        add_dataset_and_attrs(s1ab_group, 'wavelength', self.wavelength,
+                              {'description':'Wavelength of the transmitted signal',
                                'units':'meters'})
-        add_dataset_and_attrs(metadata_group, 'azimuth_steer_rate',
+        add_dataset_and_attrs(s1ab_group, 'azimuth_steer_rate',
                               self.azimuth_steer_rate,
-                              {'description':'IW mode azimuth steer rate',
+                              {'description':'Azimuth steering rate of IW and EW modes',
                                'units':'degrees/second'})
-        add_dataset_and_attrs(metadata_group, 'azimuth_time_interval',
+        # TODO add input width and length
+        add_dataset_and_attrs(s1ab_group, 'azimuth_time_interval',
                               self.azimuth_time_interval,
                               {'description':'Time spacing between azimuth lines of the burst',
                                'units':'seconds'})
-        add_dataset_and_attrs(metadata_group, 'slant_range_time',
-                              self.slant_range_time,
-                              {'description':'two-way slant range time of Doppler centroid frequency estimate',
-                               'units':'seconds'})
-        add_dataset_and_attrs(metadata_group, 'starting_range',
+        add_dataset_and_attrs(s1ab_group, 'starting_range',
                               self.starting_range,
                               {'description':'Slant range of the first sample of the input burst',
                                'units':'meters'})
-        add_dataset_and_attrs(metadata_group, 'range_sampling_rate',
-                              self.range_sampling_rate,
-                              {'descriptin':'Pixel spacing between slant range samples in the input burst SLC',
-                               'units':'Hz'})
-        add_dataset_and_attrs(metadata_group, 'range_pixel_spacing',
+        # TODO do we need this? It's not in the specs.
+        # TODO add far_range?
+        add_dataset_and_attrs(s1ab_group, 'slant_range_time',
+                              self.slant_range_time,
+                              {'description':'two-way slant range time of Doppler centroid frequency estimate',
+                               'units':'seconds'})
+        add_dataset_and_attrs(s1ab_group, 'range_pixel_spacing',
                               self.range_pixel_spacing,
-                              {'description':'range pixel spacing',
+                              {'description':'Pixel spacing between slant range samples in the input burst SLC',
                                'units':'meters'})
+        add_dataset_and_attrs(s1ab_group, 'range_bandwidth',
+                              self.range_bandwidth,
+                              {'description':'Slant range bandwidth of the signal',
+                               'units':'Hz'})
+        add_dataset_and_attrs(s1ab_group, 'polarization',
+                              self.polarization,
+                              {'description': 'Polarization of the burst'})
+        add_dataset_and_attrs(s1ab_group, 'platform_id',
+                              self.platform_id,
+                              {'description': 'Sensor platform identification string (e.g., S1A or S1B)'})
+        # window parameters
+        add_dataset_and_attrs(s1ab_group, 'range_window_type',
+                              self.range_window_type,
+                              {'description': 'name of the weighting window type used during processing'})
+        add_dataset_and_attrs(s1ab_group, 'range_window_coefficient',
+                              self.range_window_coefficient,
+                              {'description': 'value of the weighting window coefficient used during processing'})
 
         def poly1d_to_h5(group, poly1d_name, poly1d):
             '''Write isce3.core.Poly1d properties to hdf5
@@ -365,89 +404,83 @@ class GeoCslcMetadata():
                                   {'description': 'standard deviation of the polynomial'})
             add_dataset_and_attrs(poly1d_group, 'coeffs', poly1d.coeffs,
                                   {'description': 'coefficients of the polynomial'})
-        poly1d_to_h5(metadata_group, 'azimuth_fm_rate', self.azimuth_fm_rate)
-        poly1d_to_h5(metadata_group, 'doppler', self.doppler)
+        poly1d_to_h5(s1ab_group, 'azimuth_fm_rate', self.azimuth_fm_rate)
+        poly1d_to_h5(s1ab_group, 'doppler', self.doppler)
 
-        add_dataset_and_attrs(metadata_group, 'range_bandwidth',
-                              self.range_bandwidth,
-                              {'description':'Slant range bandwidth of the signal',
-                               'units':'Hz'})
-        add_dataset_and_attrs(metadata_group, 'polarization',
-                              np.string_(self.polarization),
-                              {'description': 'burst polarization'})
-        add_dataset_and_attrs(metadata_group, 'burst_id',
-                              np.string_(self.burst_id),
-                              {'description': 'Unique burst identification string (ESA convention)'})
-        add_dataset_and_attrs(metadata_group, 'platform_id',
-                              np.string_(self.platform_id),
-                              {'description': 'Sensor platform identification string (e.g., S1A or S1B)'})
-
-        center_lon_lat = np.array([val[0] for val in self.center.coords.xy])
-        add_dataset_and_attrs(metadata_group, 'center',
-                              center_lon_lat,
-                              {'description': 'Burst center coordinates in UTM',
-                               'units': 'meters'})
-
-        # list of lon, lat coordinate tuples (in degrees) representing burst border
-        border_group = metadata_group.require_group('border')
-        border_x, border_y = self.border.exterior.coords.xy
-        add_dataset_and_attrs(border_group, 'x', border_x,
-                              {'description': 'X- coordinates of the polygon including valid L2_CSLC_S1 data',
-                               'units': 'meters'})
-        add_dataset_and_attrs(border_group, 'y', border_y,
-                              {'description': 'Y- coordinates of the polygon including valid L2_CSLC_S1 data',
-                               'units': 'meters'})
-
+        # save orbit
         orbit_group = metadata_group.require_group('orbit')
-        self.orbit.save_to_h5(orbit_group)
-
-        add_dataset_and_attrs(metadata_group, 'orbit_direction',
-                              np.string_(self.orbit_direction),
-                              {'description':'direction of orbit (ascending, descending)'})
+        ref_epoch = self.orbit.reference_epoch.isoformat().replace('T', ' ')
+        add_dataset_and_attrs(orbit_group, 'ref_epoch', ref_epoch,
+                              {'description': 'Reference epoch of the state vectors',
+                               'format': 'YYYY-MM-DD HH:MM:SS.6f'})
+        orbit_time_obj = self.orbit.time
+        add_dataset_and_attrs(orbit_group, 'time',
+                              np.linspace(orbit_time_obj.first,
+                                          orbit_time_obj.last,
+                                          orbit_time_obj.size),
+                              {'description': 'Time of the orbit state vectors relative to the reference epoch',
+                               'units': 'seconds'})
+        for i_ax, axis in enumerate('xyz'):
+            add_dataset_and_attrs(orbit_group, f'position_{axis}',
+                                  self.orbit.position[:, i_ax],
+                                  {'description': f'Platform position along {axis}-direction',
+                                   'units': 'meters'})
+            add_dataset_and_attrs(orbit_group, f'velocity_{axis}',
+                                  self.orbit.velocity[:, i_ax],
+                                  {'description': f'Platform velocity along {axis}-direction',
+                                   'units': 'meters/second'})
+        add_dataset_and_attrs(orbit_group, 'orbit_direction',
+                              self.orbit_direction,
+                              {'description':'Direction of sensor orbit ephermerides (e.g., ascending, descending)'})
 
         # VRT params
         add_dataset_and_attrs(metadata_group, 'safe_tiff_path',
-                              np.string_(self.tiff_path),
+                              self.tiff_path,
                               {'description': 'Path to TIFF file within the SAFE file containing the burst'})
-        add_dataset_and_attrs(metadata_group, 'i_burst', self.i_burst,
-                              {'description': 'Index of the burst of interest relative to other bursts in the S1-A/B SAFE file'})
-        # window parameters
-        add_dataset_and_attrs(metadata_group, 'range_window_type',
-                              np.string_(self.range_window_type),
-                              {'description': 'name of the weighting window type used during processing'})
-        add_dataset_and_attrs(metadata_group, 'range_window_coefficient',
-                              self.range_window_coefficient,
-                              {'description': 'value of the weighting window coefficient used during processing'})
 
-        geogrid_group = metadata_group.require_group('geogrid')
-        add_dataset_and_attrs(geogrid_group, 'start_x', self.geogrid.start_x,
+        processing_group = metadata_group.require_group('processing')
+        add_dataset_and_attrs(processing_group, 'burst_id',
+                              self.burst_id,
+                              {'description': 'Unique burst identification string (ESA convention)'})
+        center_lon_lat = np.array([val[0] for val in self.center.coords.xy])
+        add_dataset_and_attrs(processing_group, 'center',
+                              center_lon_lat,
+                              {'description': 'Burst geographical center coordinates in the projection system used for processing',
+                               'units': 'meters'})
+        # list of coordinate tuples (in degrees) representing burst border
+        border_x, border_y = self.border.exterior.coords.xy
+        border_lon_lat = np.array([[lon, lat] for lon, lat in zip(border_x,
+                                                                  border_y)])
+        add_dataset_and_attrs(processing_group, 'border', border_lon_lat,
+                              {'description': 'X- and Y- coordinates of the polygon including valid L2_CSLC_S1 data',
+                               'units': 'meters'})
+        add_dataset_and_attrs(processing_group, 'i_burst', self.i_burst,
+                              {'description': 'Index of the burst of interest relative to other bursts in the S1-A/B SAFE file'})
+        add_dataset_and_attrs(processing_group, 'start_x', self.geogrid.start_x,
                               {'description': 'X-coordinate of the L2_CSLC_S1 starting point in the coordinate system selected for processing',
                                'units': 'meters'})
-        add_dataset_and_attrs(geogrid_group, 'start_y', self.geogrid.start_y,
+        add_dataset_and_attrs(processing_group, 'start_y', self.geogrid.start_y,
                               {'description': 'Y-coordinate of the L2_CSLC_S1 starting point in the coordinate system selected for processing',
                                'units': 'meters'})
-        add_dataset_and_attrs(geogrid_group, 'x_posting',
+        add_dataset_and_attrs(processing_group, 'x_posting',
                               self.geogrid.spacing_x,
                               {'description': 'Spacing between product pixels along the X-direction ',
                                'units': 'meters'})
-        add_dataset_and_attrs(geogrid_group, 'y_posting',
+        add_dataset_and_attrs(processing_group, 'y_posting',
                               self.geogrid.spacing_y,
                               {'description': 'Spacing between product pixels along the Y-direction ',
                                'units': 'meters'})
-        add_dataset_and_attrs(geogrid_group, 'width', self.geogrid.width,
+        add_dataset_and_attrs(processing_group, 'width', self.geogrid.width,
                               {'description': 'Number of samples in the L2_CSLC_S1 product'})
-        add_dataset_and_attrs(geogrid_group, 'length', self.geogrid.length,
+        add_dataset_and_attrs(processing_group, 'length', self.geogrid.length,
                               {'description': 'Number of lines in the L2_CSLC_S1 product'})
-        add_dataset_and_attrs(geogrid_group, 'epsg',
+        add_dataset_and_attrs(processing_group, 'epsg',
                               self.geogrid.epsg,
                               {'description': 'EPSG code identifying the coordinate system used for processing'})
 
         add_dataset_and_attrs(metadata_group, 'no_data_value',
-                              np.string_(self.nodata),
+                              self.nodata,
                               {'description': 'Value used when no data present'})
         add_dataset_and_attrs(metadata_group, 'input_data_ipf_version',
-                              np.string_(self.input_data_ipf_version),
+                              self.input_data_ipf_version,
                               {'description': 'Instrument Processing Facility'})
-        add_dataset_and_attrs(metadata_group, 'isce3_version',
-                              np.string_(self.isce3_version),
-                              {'description': 'Version of ISCE3 used to process'})

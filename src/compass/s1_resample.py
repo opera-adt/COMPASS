@@ -47,7 +47,7 @@ def run(cfg: dict):
     # Process all bursts
     for burst in cfg.bursts:
         # get burst ID and date string of current burst
-        burst_id = burst.burst_id
+        burst_id = str(burst.burst_id)
         date_str = burst.sensing_start.strftime("%Y%m%d")
 
         # Create top output path

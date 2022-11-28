@@ -60,7 +60,7 @@ def run(cfg, save_in_scratch=False):
     for burst in cfg.bursts:
         # extract date string and create directory
         date_str = burst.sensing_start.strftime("%Y%m%d")
-        burst_id = burst.burst_id
+        burst_id = str(burst.burst_id)
         pol = burst.polarization
 
         # init output directory in product_path

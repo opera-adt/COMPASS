@@ -3,7 +3,6 @@
 '''wrapper for geocoded SLC'''
 
 from datetime import timedelta
-import os
 import time
 
 import h5py
@@ -33,26 +32,18 @@ def init_backscatter_dataset(h5_root, polarization, geo_grid):
     geo_grid: isce3.product.GeoGridParameters
         Geogrid out output
     '''
-    # bs : short for backscatter
-    bs_group = h5_root.require_group('complex_backscatter')
-
-    # Data type
-    ctype = h5py.h5t.py_create(np.complex64)
-    ctype.commit(h5_root['/'].id, np.string_('complex64'))
+    backscatter_group = h5_root.require_group('complex_backscatter')
 
     shape = (geo_grid.length, geo_grid.width)
-    bs_ds = bs_group.create_dataset(polarization, dtype=ctype, shape=shape)
+    backscatter_ds = backscatter_group.create_dataset(polarization,
+                                                      dtype='complex64',
+                                                      shape=shape)
 
-    descr = f'{polarization} geocoded SLC image'
-    bs_ds.attrs['description'] = np.string_(descr)
+    backscatter_ds.attrs['description'] = \
+        f'{polarization} geocoded SLC image'
 
-    long_name = f'{polarization} geocoded single-look complex image'
-    bs_ds.attrs['long_name'] = np.string_(long_name)
-
-    yds, xds = set_get_geo_info(h5_root, '/', geo_grid)
-
-    bs_ds.dims[0].attach_scale(yds)
-    bs_ds.dims[1].attach_scale(xds)
+    backscatter_ds.attrs['long_name'] = \
+        f'{polarization} geocoded single-look complex image'
 
 
 def run(cfg: GeoRunConfig):
@@ -88,7 +79,7 @@ def run(cfg: GeoRunConfig):
         ellipsoid = proj.ellipsoid
 
         date_str = burst.sensing_start.strftime("%Y%m%d")
-        burst_id = burst.burst_id
+        burst_id = str(burst.burst_id)
         pol = burst.polarization
         geo_grid = cfg.geogrids[burst_id]
 
@@ -136,8 +127,9 @@ def run(cfg: GeoRunConfig):
         sliced_radar_grid = burst.as_isce3_radargrid()[b_bounds]
 
         output_hdf5 = out_paths.hdf5_path
+        '''
         with h5py.File(output_hdf5, 'w') as geo_burst_h5:
-            geo_burst_h5.attrs['Conventions'] = np.string_("CF-1.8")
+            geo_burst_h5.attrs['Conventions'] = "CF-1.8"
             init_backscatter_dataset(geo_burst_h5, pol, geo_grid)
 
             # access the HDF5 dataset for a given frequency and polarization
@@ -164,12 +156,13 @@ def run(cfg: GeoRunConfig):
             geo_burst_raster.set_epsg(epsg)
             del geo_burst_raster
             del dem_raster # modified in geocodeSlc
+        '''
 
         # Save burst metadata with new h5py File instance because io.Raster things
         with h5py.File(output_hdf5, 'a') as geo_burst_h5:
             metadata = GeoCslcMetadata.from_georunconfig(cfg, burst_id)
             metadata.to_hdf5(geo_burst_h5)
-            geo_burst_h5['metadata/runconfig'] = np.string_(cfg.yaml_string)
+            geo_burst_h5['metadata/runconfig'] = cfg.yaml_string
 
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]

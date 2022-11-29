@@ -434,9 +434,13 @@ class GeoCslcMetadata():
                               {'description':'Direction of sensor orbit ephermerides (e.g., ascending, descending)'})
 
         # VRT params
-        add_dataset_and_attrs(metadata_group, 'safe_tiff_path',
+        input_group = metadata_group.require_group('input')
+        add_dataset_and_attrs(input_group, 'safe_tiff_path',
                               self.tiff_path,
                               {'description': 'Path to TIFF file within the SAFE file containing the burst'})
+        add_dataset_and_attrs(input_group, 'input_data_ipf_version',
+                              self.input_data_ipf_version,
+                              {'description': 'Instrument Processing Facility'})
 
         processing_group = metadata_group.require_group('processing')
         add_dataset_and_attrs(processing_group, 'burst_id',
@@ -477,10 +481,6 @@ class GeoCslcMetadata():
         add_dataset_and_attrs(processing_group, 'epsg',
                               self.geogrid.epsg,
                               {'description': 'EPSG code identifying the coordinate system used for processing'})
-
-        add_dataset_and_attrs(metadata_group, 'no_data_value',
+        add_dataset_and_attrs(processing_group, 'no_data_value',
                               self.nodata,
                               {'description': 'Value used when no data present'})
-        add_dataset_and_attrs(metadata_group, 'input_data_ipf_version',
-                              self.input_data_ipf_version,
-                              {'description': 'Instrument Processing Facility'})

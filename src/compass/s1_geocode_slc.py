@@ -107,7 +107,6 @@ def run(cfg: GeoRunConfig):
         else:
             rdr_burst_raster = isce3.io.Raster(temp_slc_path)
 
-
         # Generate output geocoded burst raster
         geo_burst_raster = isce3.io.Raster(
             f'{burst_output_path}/{id_pol}.slc',

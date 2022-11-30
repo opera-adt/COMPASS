@@ -13,37 +13,13 @@ import numpy as np
 
 from compass import s1_rdr2geo
 from compass import s1_geocode_metadata
-from compass.utils.geo_metadata import GeoCslcMetadata
 from compass.utils.geo_runconfig import GeoRunConfig
+from compass.utils.h5_helpers import (init_geocoded_dataset,
+                                      geo_burst_metadata_to_hdf5)
 from compass.utils.helpers import get_module_name
 from compass.utils.lut import compute_geocoding_correction_luts
 from compass.utils.range_split_spectrum import range_split_spectrum
 from compass.utils.yaml_argparse import YamlArgparse
-
-
-def init_backscatter_dataset(h5_root, polarization, geo_grid):
-    '''
-    Create and allocate dataset for isce.geocode.geocode_slc to write to
-
-    h5_root: h5py
-        Root to CSLC
-    polarization: str
-        Polarization to be used as dataset name
-    geo_grid: isce3.product.GeoGridParameters
-        Geogrid out output
-    '''
-    backscatter_group = h5_root.require_group('complex_backscatter')
-
-    shape = (geo_grid.length, geo_grid.width)
-    backscatter_ds = backscatter_group.create_dataset(polarization,
-                                                      dtype='complex64',
-                                                      shape=shape)
-
-    backscatter_ds.attrs['description'] = \
-        f'{polarization} geocoded SLC image'
-
-    backscatter_ds.attrs['long_name'] = \
-        f'{polarization} geocoded single-look complex image'
 
 
 def run(cfg: GeoRunConfig):
@@ -128,8 +104,9 @@ def run(cfg: GeoRunConfig):
 
         output_hdf5 = out_paths.hdf5_path
         with h5py.File(output_hdf5, 'w') as geo_burst_h5:
-            geo_burst_h5.attrs['Conventions'] = "CF-1.8"
-            init_backscatter_dataset(geo_burst_h5, pol, geo_grid)
+            backscatter_group = geo_burst_h5.require_group('complex_backscatter')
+            init_geocoded_dataset(backscatter_group, pol, geo_grid,
+                                  'complex64', f'{pol} geocoded SLC image')
 
             # access the HDF5 dataset for a given frequency and polarization
             dataset_path = f'/complex_backscatter/{pol}'
@@ -158,8 +135,7 @@ def run(cfg: GeoRunConfig):
 
         # Save burst metadata with new h5py File instance because io.Raster things
         with h5py.File(output_hdf5, 'a') as geo_burst_h5:
-            metadata = GeoCslcMetadata.from_georunconfig(cfg, burst_id)
-            metadata.to_hdf5(geo_burst_h5)
+            geo_burst_metadata_to_hdf5(geo_burst_h5, burst, geo_grid)
             geo_burst_h5['metadata/runconfig'] = cfg.yaml_string
 
 

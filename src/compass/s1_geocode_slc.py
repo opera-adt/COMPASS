@@ -11,7 +11,6 @@ import journal
 import numpy as np
 from osgeo import gdal
 
-
 from compass import s1_rdr2geo
 from compass import s1_geocode_metadata
 
@@ -82,8 +81,7 @@ def run(cfg: GeoRunConfig):
             if cfg.rdr2geo_params.geocode_metadata_layers:
                s1_geocode_metadata.run(cfg, fetch_from_scratch=True)
 
-
-        #Load the input burst SLC
+        # Load the input burst SLC
         temp_slc_path = f'{scratch_path}/{id_pol}_temp.vrt'
         burst.slc_to_vrt_file(temp_slc_path)
 
@@ -108,7 +106,6 @@ def run(cfg: GeoRunConfig):
                                                     scratch_path)
         else:
             rdr_burst_raster = isce3.io.Raster(temp_slc_path)
-
 
         # Generate output geocoded burst raster
         geo_burst_raster = isce3.io.Raster(

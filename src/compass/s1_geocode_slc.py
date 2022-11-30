@@ -11,7 +11,6 @@ import journal
 import numpy as np
 from osgeo import gdal
 
-
 from compass import s1_rdr2geo
 from compass import s1_geocode_metadata
 

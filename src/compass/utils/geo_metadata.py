@@ -207,7 +207,7 @@ class GeoCslcMetadata():
                    meta_dict['range_window_coefficient'], cfg, geogrid,
                    meta_dict['nodata'], meta_dict['input_data_ipf_version'],
                    meta_dict['isce3_version'],
-                   meta_dict['eap_correction_by_opera'])
+                   meta_dict['opera_corrected_antenna_pattern'])
 
     def as_dict(self):
         ''' Convert self to dict for write to YAML/JSON

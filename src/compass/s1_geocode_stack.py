@@ -126,13 +126,6 @@ def generate_burst_map(zip_files, orbit_dir, output_epsg=None, bbox=None,
                 # keep the burst object so we don't have to re-parse
                 burst_map['burst'].append(burst)
 
-                left, bottom, right, top = bbox_utm
-                burst_map['x_top_left'].append(left)
-                burst_map['y_top_left'].append(top)
-                burst_map['x_bottom_right'].append(right)
-                burst_map['y_bottom_right'].append(bottom)
-
-                burst_map['epsg'].append(epsg)
                 burst_map['date'].append(burst.sensing_start.strftime("%Y%m%d"))
                 # Save the file paths for creating the runconfig
                 burst_map['orbit_path'].append(orbit_path)
@@ -232,7 +225,8 @@ def get_common_burst_ids(data):
 
 
 def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
-                     low_band, high_band, pol, x_spac, y_spac, enable_metadata):
+                     low_band, high_band, pol, x_spac, y_spac, enable_metadata,
+                     burst_db_file):
     """
     Create runconfig to process geocoded bursts
 
@@ -282,8 +276,9 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
     burst = burst_map_row.burst
     inputs['safe_file_path'] = [burst_map_row.zip_file]
     inputs['orbit_file_path'] = [burst_map_row.orbit_path]
-    inputs['burst_id'] = str(burst.burst_id)
+    inputs['burst_id'] = [str(burst.burst_id)]
     groups['dynamic_ancillary_file_group']['dem_file'] = dem_file
+    groups['dynamic_ancillary_file_group']['burst_database_file'] = burst_db_file
 
     # Product path
     product['product_path'] = work_dir
@@ -295,14 +290,6 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
     geocode['flatten'] = flatten
     geocode['x_posting'] = x_spac
     geocode['y_posting'] = y_spac
-
-    geocode['top_left']['x'] = burst_map_row.x_top_left
-    geocode['top_left']['y'] = burst_map_row.y_top_left
-    geocode['bottom_right']['x'] = burst_map_row.x_bottom_right
-    geocode['bottom_right']['y'] = burst_map_row.y_bottom_right
-    # geocode['x_snap'] = None
-    # geocode['y_snap'] = None
-    geocode['output_epsg'] = burst_map_row.epsg
 
     # Range split spectrum
     rss['enabled'] = enable_rss
@@ -484,6 +471,7 @@ def run(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dat
             x_spac,
             y_spac,
             do_metadata,
+            burst_db_file=burst_db_file,
         )
         date_str = row.burst.sensing_start.strftime("%Y%m%d")
         runfile_name = f'{run_dir}/run_{date_str}_{row.burst.burst_id}.sh'

@@ -97,7 +97,7 @@ def run(cfg: GeoRunConfig):
 
         # Extract burst boundaries
         b_bounds = np.s_[burst.first_valid_line:burst.last_valid_line,
-                   burst.first_valid_sample:burst.last_valid_sample]
+                         burst.first_valid_sample:burst.last_valid_sample]
 
         # Create sliced radar grid representing valid region of the burst
         sliced_radar_grid = burst.as_isce3_radargrid()[b_bounds]

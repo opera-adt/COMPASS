@@ -135,7 +135,7 @@ def run(cfg: GeoRunConfig):
 
         # Save burst metadata with new h5py File instance because io.Raster things
         with h5py.File(output_hdf5, 'a') as geo_burst_h5:
-            geo_burst_metadata_to_hdf5(geo_burst_h5, burst, geo_grid)
+            geo_burst_metadata_to_hdf5(geo_burst_h5, burst, geo_grid, cfg)
             geo_burst_h5['metadata/runconfig'] = cfg.yaml_string
 
 

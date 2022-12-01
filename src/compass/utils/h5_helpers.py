@@ -193,7 +193,8 @@ def init_geocoded_dataset(geocoded_group, dataset_name, geo_grid, dtype,
     else:
         raise NotImplementedError('Waiting for implementation / Not supported in ISCE3')
 
-def geo_burst_metadata_to_hdf5(dst_h5, burst, geogrid):
+
+def geo_burst_metadata_to_hdf5(dst_h5, burst, geogrid, cfg):
     '''Write burst metadata to HDF5
 
     Parameter:
@@ -203,6 +204,7 @@ def geo_burst_metadata_to_hdf5(dst_h5, burst, geogrid):
     burst: Sentinel1BurstSlc
         Burst
     '''
+    time_str_fmt = 'time_str_fmt'
     metadata_group = dst_h5.require_group('metadata')
 
     def add_dataset_and_attrs(group, name, value, attr_dict):
@@ -241,21 +243,21 @@ def geo_burst_metadata_to_hdf5(dst_h5, burst, geogrid):
     add_dataset_and_attrs(id_proc_group, 'product_level', '2', {})
     add_dataset_and_attrs(id_proc_group, 'product_type', 'CSLC_S1', {})
     add_dataset_and_attrs(id_proc_group, 'processing_datetime',
-                          datetime.now().strftime('%Y-%M-%D %H:%M:%S'),
+                          datetime.now().strftime(time_str_fmt),
                           {'description': 'L2_CSLC_S1 product processing date and time',
                            'format': 'YYYY-MM-DDD HH:MM:SS'})
     add_dataset_and_attrs(id_proc_group, 'spacecraft_name',
                           burst.platform_id,
                           {'description': 'Name of Sensor platform (e.g., S1-A/B)'})
 
-    # subset of burst class attributes
+    # burst metadata
     s1ab_group = metadata_group.require_group('s1ab_burst_metadata')
     add_dataset_and_attrs(s1ab_group, 'sensing_start',
-                          burst.sensing_start.strftime('%Y-%M-%D %H:%M:%S.%f'),
+                          burst.sensing_start.strftime('time_str_fmt.%f'),
                           {'description': 'Sensing start time of the burst',
                            'format': 'YYYY-MM-DD HH:MM:SS.6f'})
     add_dataset_and_attrs(s1ab_group, 'sensing_stop',
-                          burst.sensing_stop.strftime('%Y-%M-%D %H:%M:%S.%f'),
+                          burst.sensing_stop.strftime('time_str_fmt.%f'),
                           {'description':'Sensing stop time of the burst',
                            'format': 'YYYY-MM-DD HH:MM:SS.6f'})
     add_dataset_and_attrs(s1ab_group, 'radar_center_frequency',
@@ -330,6 +332,36 @@ def geo_burst_metadata_to_hdf5(dst_h5, burst, geogrid):
     poly1d_to_h5(s1ab_group, 'azimuth_fm_rate', burst.azimuth_fm_rate)
     poly1d_to_h5(s1ab_group, 'doppler', burst.doppler.poly1d)
 
+    # EAP metadata only written if it exists
+    if burst.burst_eap is not None:
+        eap_group = s1ab_group.require_group('elevation_antenna_pattern_correction')
+        eap = burst.burst_eap
+        add_dataset_and_attrs(eap_group, 'sampling_frequency',
+                              eap.freq_sampling,
+                              {'description': 'range sampling frequency',
+                               'units': 'Hz'})
+        add_dataset_and_attrs(eap_group, 'eta_start',
+                              eap.eta_start.strftime(time_str_fmt),
+                              {'description': '?',
+                               'format': 'YYYY-MM-DD HH:MM:SS.6f'})
+        add_dataset_and_attrs(eap_group, 'tau_0', eap.tau_0,
+                              {'description': 'slant range time',
+                               'units': 'seconds'})
+        add_dataset_and_attrs(eap_group, 'tau_sub', eap.tau_sub,
+                              {'description': 'slant range time',
+                               'units': 'seconds'})
+        add_dataset_and_attrs(eap_group, 'theta_sub', eap.theta_sub,
+                              {'description': 'elevation angle',
+                               'units': 'radians'})
+        add_dataset_and_attrs(eap_group, 'azimuth_time',
+                              eap.azimuth_time.strftime(time_str_fmt),
+                              {'description': '?',
+                               'format': 'YYYY-MM-DD HH:MM:SS.6f'})
+        add_dataset_and_attrs(eap_group, 'ascending_node_time',
+                              eap.ascending_node_time.strftime(time_str_fmt),
+                              {'description': '?',
+                               'format': 'YYYY-MM-DD HH:MM:SS.6f'})
+
     # save orbit
     orbit_group = metadata_group.require_group('orbit')
     ref_epoch = burst.orbit.reference_epoch.isoformat().replace('T', ' ')
@@ -356,15 +388,18 @@ def geo_burst_metadata_to_hdf5(dst_h5, burst, geogrid):
                           burst.orbit_direction,
                           {'description':'Direction of sensor orbit ephermerides (e.g., ascending, descending)'})
 
-    # VRT params
+    # input params
     input_group = metadata_group.require_group('input')
-    add_dataset_and_attrs(input_group, 'safe_tiff_path',
+    add_dataset_and_attrs(input_group, 'burst_file_path',
                           burst.tiff_path,
                           {'description': 'Path to TIFF file within the SAFE file containing the burst'})
     add_dataset_and_attrs(input_group, 'input_data_ipf_version',
                           str(burst.ipf_version),
-                          {'description': 'Instrument Processing Facility'})
+                          {'description': 'Version of Instrument Processing Facility used to generate SAFE file'})
+    add_dataset_and_attrs(input_group, 'dem_file', cfg.dem,
+                          {'description': 'Path to DEM file'})
 
+    # processing params
     processing_group = metadata_group.require_group('processing')
     add_dataset_and_attrs(processing_group, 'burst_id',
                           str(burst.burst_id),

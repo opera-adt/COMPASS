@@ -53,9 +53,9 @@ def init_geocoded_dataset(geocoded_group, dataset_name, geo_grid, dtype,
     # We should label appropriate arrays as scales and attach them to datasets
     # explicitly as show below.
     x_ds.make_scale()
-    geocoded_ds.dims[0].attach_scale(x_ds)
+    geocoded_ds.dims[1].attach_scale(x_ds)
     y_ds.make_scale()
-    geocoded_ds.dims[1].attach_scale(y_ds)
+    geocoded_ds.dims[0].attach_scale(y_ds)
 
     # Associate grid mapping with data - projection created later
     geocoded_ds.attrs['grid_mapping'] = np.string_("projection")

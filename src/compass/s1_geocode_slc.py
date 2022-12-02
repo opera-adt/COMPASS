@@ -56,7 +56,7 @@ def run(cfg: GeoRunConfig):
         ellipsoid = proj.ellipsoid
 
         date_str = burst.sensing_start.strftime("%Y%m%d")
-        burst_id = burst.burst_id
+        burst_id = str(burst.burst_id)
         pol = burst.polarization
         id_pol = f"{burst_id}_{pol}"
         geo_grid = cfg.geogrids[burst_id]

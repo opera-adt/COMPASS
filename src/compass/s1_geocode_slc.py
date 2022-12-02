@@ -13,13 +13,15 @@ from osgeo import gdal
 
 from compass import s1_rdr2geo
 from compass import s1_geocode_metadata
+
+from compass.utils.elevation_antenna_pattern import apply_eap_correction
 from compass.utils.geo_metadata import GeoCslcMetadata
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.helpers import get_module_name
 from compass.utils.lut import compute_geocoding_correction_luts
 from compass.utils.range_split_spectrum import range_split_spectrum
 from compass.utils.yaml_argparse import YamlArgparse
-
+from s1reader.s1_reader import is_eap_correction_necessary
 
 def run(cfg: GeoRunConfig):
     '''
@@ -55,7 +57,7 @@ def run(cfg: GeoRunConfig):
         ellipsoid = proj.ellipsoid
 
         date_str = burst.sensing_start.strftime("%Y%m%d")
-        burst_id = burst.burst_id
+        burst_id = str(burst.burst_id)
         pol = burst.polarization
         id_pol = f"{burst_id}_{pol}"
         geo_grid = cfg.geogrids[burst_id]
@@ -85,14 +87,30 @@ def run(cfg: GeoRunConfig):
             if cfg.rdr2geo_params.geocode_metadata_layers:
                s1_geocode_metadata.run(cfg, fetch_from_scratch=True)
 
+        # Load the input burst SLC
+        temp_slc_path = f'{scratch_path}/{id_pol}_temp.vrt'
+        burst.slc_to_vrt_file(temp_slc_path)
+
+        # Check if EAP correction is necessary
+        check_eap = is_eap_correction_necessary(burst.ipf_version)
+        if check_eap.phase_correction:
+            temp_slc_path_corrected = temp_slc_path.replace('_temp.vrt',
+                                                            '_corrected_temp.rdr')
+            apply_eap_correction(burst,
+                                 temp_slc_path,
+                                 temp_slc_path_corrected,
+                                 check_eap)
+            # Replace the input burst if the correction is applied
+            temp_slc_path = temp_slc_path_corrected
+
+
         # Split the range bandwidth of the burst, if required
         if cfg.split_spectrum_params.enabled:
             rdr_burst_raster = range_split_spectrum(burst,
+                                                    temp_slc_path,
                                                     cfg.split_spectrum_params,
                                                     scratch_path)
         else:
-            temp_slc_path = f'{scratch_path}/{id_pol}_temp.vrt'
-            burst.slc_to_vrt_file(temp_slc_path)
             rdr_burst_raster = isce3.io.Raster(temp_slc_path)
 
         # Generate output geocoded burst raster
@@ -123,7 +141,7 @@ def run(cfg: GeoRunConfig):
         geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,
                         geo_grid.start_y, 0, geo_grid.spacing_y]
         geo_burst_raster.set_geotransform(geotransform)
-        geo_burst_raster.set_epsg(epsg)
+        geo_burst_raster.set_epsg(geo_grid.epsg)
         del geo_burst_raster
         del dem_raster # modified in geocodeSlc
 

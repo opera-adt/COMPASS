@@ -26,7 +26,9 @@ def find_next_power(number):
     return number
 
 
-def range_split_spectrum(burst, cfg_split_spectrum,
+def range_split_spectrum(burst,
+                         burst_path,
+                         cfg_split_spectrum,
                          scratch_path):
     '''
     Split burst range spectrum
@@ -34,6 +36,8 @@ def range_split_spectrum(burst, cfg_split_spectrum,
     ----------
     burst: Sentinel1BurstSlc
         S1-A/B burst object
+    burst_path: str
+        Path to the burst SLC to apply split spectrum
     cfg_split_spectrum: dict
         Dictionary with split-spetrum options
     scratch_path: str
@@ -78,9 +82,6 @@ def range_split_spectrum(burst, cfg_split_spectrum,
         slant_range=rdr_grid.slant_range,
         freq='A')
 
-    # Save the burst locally
-    burst_path = f'{scratch_path}/{burst_id_pol}_temp.vrt'
-    burst.slc_to_vrt_file(burst_path)
 
     # The output burst will
     # contain 3 bands: Band #1: low-band image; Band #2 main-band image;

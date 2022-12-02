@@ -135,7 +135,7 @@ def run(cfg: GeoRunConfig):
         geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,
                         geo_grid.start_y, 0, geo_grid.spacing_y]
         geo_burst_raster.set_geotransform(geotransform)
-        geo_burst_raster.set_epsg(epsg)
+        geo_burst_raster.set_epsg(geo_grid.epsg)
         del geo_burst_raster
         del dem_raster # modified in geocodeSlc
 

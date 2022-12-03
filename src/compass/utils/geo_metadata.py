@@ -14,6 +14,8 @@ from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.raster_polygon import get_boundary_polygon
 from compass.utils.wrap_namespace import wrap_namespace, unwrap_to_dict
 
+from s1reader.s1_reader import is_eap_correction_necessary
+
 def _poly1d_from_dict(poly1d_dict) -> Poly1d:
     return Poly1d(poly1d_dict['coeffs'], poly1d_dict['mean'],
                   poly1d_dict['std'])
@@ -61,7 +63,7 @@ class GeoCslcMetadata():
     doppler: Poly1d
     range_bandwidth: float
     polarization: str # {VV, VH, HH, HV}
-    burst_id: str # t{track_number}_iw{1,2,3}_b{burst_index}
+    burst_id: str # t{track_number}_{burst_number}_iw{1,2,3}
     platform_id: str # S1{A,B}
     center: Point # {center lon, center lat} in degrees
     border: Polygon # list of lon, lat coordinate tuples (in degrees) representing burst border
@@ -80,25 +82,36 @@ class GeoCslcMetadata():
     input_data_ipf_version: str
     isce3_version: str
 
+    # correction applied
+    eap_correction_by_opera: bool
+
     @classmethod
-    def from_georunconfig(cls, cfg: GeoRunConfig):
+    def from_georunconfig(cls, cfg: GeoRunConfig, burst_id: str):
         '''Create GeoBurstMetadata class from GeoRunConfig object
 
         Parameter:
         ---------
         cfg : GeoRunConfig
             GeoRunConfig containing geocoded burst metadata
+        burst_id : str
+            ID of burst to create metadata object for
         '''
-        burst = cfg.bursts[0]
-        burst_id = burst.burst_id
+        burst = None
+        for b in cfg.bursts:
+            if b.burst_id == burst_id:
+                burst = b
+
+        if burst is None:
+            err_str = f'{burst_id} not found in cfg.bursts'
+            raise ValueError(err_str)
 
         geogrid = cfg.geogrids[burst_id]
 
         # get boundary from geocoded raster
-        burst_id = burst.burst_id
         date_str = burst.sensing_start.strftime("%Y%m%d")
         pol = burst.polarization
-        geo_raster_path = f'{cfg.output_dir}/{burst_id}_{date_str}_{pol}.slc'
+        burst_output_path = f'{cfg.product_path}/{burst_id}/{date_str}'
+        geo_raster_path = f'{burst_output_path}/{burst_id}_{pol}.slc'
         geo_boundary = get_boundary_polygon(geo_raster_path, np.nan)
         center = geo_boundary.centroid
 
@@ -106,6 +119,10 @@ class GeoCslcMetadata():
         nodata_val = '?'
         ipf_ver = '?'
         isce3_ver = '?'
+
+        # correction applied
+        check_eap = is_eap_correction_necessary(burst.ipf_version)
+        eap_correction_applied = True if check_eap.phase_correction else False
 
         return cls(burst.sensing_start, burst.sensing_stop,
                    burst.radar_center_frequency, burst.wavelength,
@@ -117,7 +134,8 @@ class GeoCslcMetadata():
                    burst.platform_id, center, geo_boundary, burst.orbit,
                    burst.orbit_direction, burst.tiff_path, burst.i_burst,
                    burst.range_window_type, burst.range_window_coefficient,
-                   cfg.groups, geogrid, nodata_val, ipf_ver, isce3_ver)
+                   cfg.groups, geogrid, nodata_val, ipf_ver, isce3_ver,
+                   eap_correction_applied)
 
 
     @classmethod
@@ -188,7 +206,8 @@ class GeoCslcMetadata():
                    meta_dict['range_window_type'],
                    meta_dict['range_window_coefficient'], cfg, geogrid,
                    meta_dict['nodata'], meta_dict['input_data_ipf_version'],
-                   meta_dict['isce3_version'])
+                   meta_dict['isce3_version'],
+                   meta_dict['opera_corrected_antenna_pattern'])
 
     def as_dict(self):
         ''' Convert self to dict for write to YAML/JSON

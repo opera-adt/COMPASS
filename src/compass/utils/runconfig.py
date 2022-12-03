@@ -50,7 +50,7 @@ def load_validate_yaml(yaml_path: str, workflow_name: str) -> dict:
             error_channel.log(err_str)
             raise yamale.YamaleError(err_str) from yamale_err
     else:
-        raise FileNotFoundError
+        raise FileNotFoundError(f'Yaml file {yaml_path} not found.')
 
     # validate yaml file taken from command line
     try:
@@ -140,7 +140,7 @@ def validate_group_dict(group_cfg: dict, workflow_name) -> None:
     helpers.check_write_dir(product_path_group['sas_output_file'])
 
 
-def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
+def runconfig_to_bursts(cfg: SimpleNamespace, auto_download: bool = False) -> list[Sentinel1BurstSlc]:
     '''Return bursts based on parameters in given runconfig
 
     Parameters
@@ -203,8 +203,10 @@ def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
                 # get burst ID
                 burst_id = burst.burst_id
 
+                # include ALL bursts if no burst IDs given
                 # is burst_id wanted? skip if not given in config
-                if burst_id != cfg.input_file_group.burst_id:
+                if (cfg.input_file_group.burst_id is not None and
+                        burst_id not in cfg.input_file_group.burst_id):
                     continue
 
                 # get polarization and save as tuple with burst ID
@@ -356,6 +358,10 @@ class RunConfig:
     @property
     def resample_params(self) -> dict:
         return self.groups.processing.resample
+
+    @property
+    def lut_params(self) -> dict:
+        return self.groups.processing.correction_luts
 
     @property
     def safe_files(self) -> list[str]:

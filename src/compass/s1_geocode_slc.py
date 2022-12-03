@@ -8,8 +8,8 @@ import time
 import h5py
 import isce3
 import journal
-from nisar.workflows.h5_prep import set_get_geo_info
 import numpy as np
+from s1reader.s1_reader import is_eap_correction_necessary
 
 from compass import s1_rdr2geo
 from compass import s1_geocode_metadata
@@ -21,7 +21,6 @@ from compass.utils.helpers import get_module_name
 from compass.utils.lut import compute_geocoding_correction_luts
 from compass.utils.range_split_spectrum import range_split_spectrum
 from compass.utils.yaml_argparse import YamlArgparse
-from s1reader.s1_reader import is_eap_correction_necessary
 
 def run(cfg: GeoRunConfig):
     '''
@@ -86,10 +85,10 @@ def run(cfg: GeoRunConfig):
         scratch_path = out_paths.scratch_directory
 
         # Load the input burst SLC
-        temp_slc_path = f'{scratch_path}/{id_pol}_temp.vrt'
+        temp_slc_path = f'{scratch_path}/{out_paths.file_name_stem}_temp.vrt'
         burst.slc_to_vrt_file(temp_slc_path)
 
-        # Check if EAP correction is necessary
+        # Apply EAP correction if necessary
         check_eap = is_eap_correction_necessary(burst.ipf_version)
         if check_eap.phase_correction:
             temp_slc_path_corrected = temp_slc_path.replace('_temp.vrt',
@@ -98,6 +97,7 @@ def run(cfg: GeoRunConfig):
                                  temp_slc_path,
                                  temp_slc_path_corrected,
                                  check_eap)
+
             # Replace the input burst if the correction is applied
             temp_slc_path = temp_slc_path_corrected
 
@@ -109,9 +109,6 @@ def run(cfg: GeoRunConfig):
                                                     cfg.split_spectrum_params,
                                                     scratch_path)
         else:
-            id_date_pol = f"{burst_id}_{date_str}_{pol}"
-            temp_slc_path = f'{scratch_path}/{id_date_pol}_temp.vrt'
-            burst.slc_to_vrt_file(temp_slc_path)
             rdr_burst_raster = isce3.io.Raster(temp_slc_path)
 
         # Extract burst boundaries
@@ -123,6 +120,7 @@ def run(cfg: GeoRunConfig):
 
         output_hdf5 = out_paths.hdf5_path
         with h5py.File(output_hdf5, 'w') as geo_burst_h5:
+            geo_burst_h5.attrs['Conventions'] = "CF-1.8"
             backscatter_group = geo_burst_h5.require_group('complex_backscatter')
             init_geocoded_dataset(backscatter_group, pol, geo_grid,
                                   'complex64', f'{pol} geocoded SLC image')

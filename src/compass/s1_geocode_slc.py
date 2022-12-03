@@ -13,6 +13,7 @@ import numpy as np
 
 from compass import s1_rdr2geo
 from compass import s1_geocode_metadata
+from compass.utils.elevation_antenna_pattern import apply_eap_correction
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.h5_helpers import (init_geocoded_dataset,
                                       geo_burst_metadata_to_hdf5)
@@ -20,7 +21,7 @@ from compass.utils.helpers import get_module_name
 from compass.utils.lut import compute_geocoding_correction_luts
 from compass.utils.range_split_spectrum import range_split_spectrum
 from compass.utils.yaml_argparse import YamlArgparse
-
+from s1reader.s1_reader import is_eap_correction_necessary
 
 def run(cfg: GeoRunConfig):
     '''
@@ -84,9 +85,27 @@ def run(cfg: GeoRunConfig):
         # Create scratch as needed
         scratch_path = out_paths.scratch_directory
 
+        # Load the input burst SLC
+        temp_slc_path = f'{scratch_path}/{id_pol}_temp.vrt'
+        burst.slc_to_vrt_file(temp_slc_path)
+
+        # Check if EAP correction is necessary
+        check_eap = is_eap_correction_necessary(burst.ipf_version)
+        if check_eap.phase_correction:
+            temp_slc_path_corrected = temp_slc_path.replace('_temp.vrt',
+                                                            '_corrected_temp.rdr')
+            apply_eap_correction(burst,
+                                 temp_slc_path,
+                                 temp_slc_path_corrected,
+                                 check_eap)
+            # Replace the input burst if the correction is applied
+            temp_slc_path = temp_slc_path_corrected
+
+
         # Split the range bandwidth of the burst, if required
         if cfg.split_spectrum_params.enabled:
             rdr_burst_raster = range_split_spectrum(burst,
+                                                    temp_slc_path,
                                                     cfg.split_spectrum_params,
                                                     scratch_path)
         else:

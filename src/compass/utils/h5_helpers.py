@@ -40,7 +40,7 @@ def init_geocoded_dataset(geocoded_group, dataset_name, geo_grid, dtype,
     dy = geo_grid.spacing_y
     y0 = geo_grid.start_y + 0.5 * dy
     yf = y0 + (geo_grid.length - 1) * dy
-    y_vect = np.linspace(y0, yf - dy, geo_grid.length, dtype=np.float64)
+y_vect = np.linspace(y0, yf, geo_grid.length, dtype=np.float64)
 
     # following copied and pasted (and slightly modified) from:
     # https://github-fn.jpl.nasa.gov/isce-3/isce/wiki/CF-Conventions-and-Map-Projections

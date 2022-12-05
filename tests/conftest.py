@@ -25,7 +25,7 @@ def download_if_needed(local_path):
 def test_paths():
     test_paths = types.SimpleNamespace()
 
-    burst_id = 't71_151200_iw1'
+    burst_id = 't071_151200_iw1'
     b_date = '20200511'
 
     # get test working directory
@@ -33,7 +33,7 @@ def test_paths():
 
     # set other paths relative to working directory
     test_data_path = f'{test_path}/data'
-    out_path = f'{test_path}/gburst'
+    out_path = f'{test_path}/product'
 
     # paths for template and actual runconfig
     gslc_template_path = f'{test_data_path}/geo_cslc_s1_template.yaml'
@@ -48,7 +48,7 @@ def test_paths():
         f_cfg.write(cfg)
 
     # output geocoded SLC paths
-    test_paths.test_gslc = f'{out_path}/{burst_id}/{b_date}/{burst_id}_{b_date}_VV.slc'
+    test_paths.test_gslc = f'{out_path}/{burst_id}/{b_date}/{burst_id}_VV.slc'
 
     # reference geocoded SLC paths
     test_paths.ref_gslc = f'{test_data_path}/reference/ref_compass_gslc.slc'

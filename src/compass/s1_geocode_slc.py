@@ -121,6 +121,11 @@ def run(cfg: GeoRunConfig):
         output_hdf5 = out_paths.hdf5_path
         with h5py.File(output_hdf5, 'w') as geo_burst_h5:
             geo_burst_h5.attrs['Conventions'] = "CF-1.8"
+
+            # add type to root for GDAL recognition of datasets
+            ctype = h5py.h5t.py_create(np.complex64)
+            ctype.commit(geo_burst_h5['/'].id, np.string_('complex64'))
+
             backscatter_group = geo_burst_h5.require_group('complex_backscatter')
             init_geocoded_dataset(backscatter_group, pol, geo_grid,
                                   'complex64', f'{pol} geocoded SLC image')

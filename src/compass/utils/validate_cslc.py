@@ -1,7 +1,7 @@
 import argparse
-import json
 import os
 
+import h5py
 import numpy as np
 from osgeo import gdal
 
@@ -10,7 +10,6 @@ def cmd_line_parser():
     """
     Command line parser
     """
-
     parser = argparse.ArgumentParser(description="""Validate
                                      reference and generated (secondary) S1 CSLC products""",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -23,6 +22,44 @@ def cmd_line_parser():
     parser.add_argument('-ms', '--sec-metadata', type=str, dest='sec_metadata',
                         help='Secondary CSLC metadata to compare with reference metadata')
     return parser.parse_args()
+
+
+def _gdal_nfo_retrieve(path_h5):
+    """
+    Extract polarization, geotransform array, projection, and SLC from
+    given HDF5
+
+    Parameters
+    ----------
+    path_h5: str
+        File path to CSLC HDF5 product
+
+    Returns
+    -------
+    pol: str
+        Polarization of CSLC product
+    geotransform: np.array
+        Array holding x/y start, x/y spacing, and geogrid dimensions
+    proj: str
+        EPSG projection of geogrid
+    slc: np.array
+        Array holding geocoded complex backscatter
+    """
+    raster_key = 'complex_backscatter'
+
+    # Extract polarization with h5py
+    with h5py.File(path_h5) as h:
+        # convert keyview to list to get polarization key
+        pol = list(h[raster_key].keys())[0]
+
+    # Extract some info from reference/secondary CSLC products with GDAL
+    h5_gdal_path = f'HDF5:{path_h5}://{raster_key}/{pol}'
+    dataset = gdal.Open(h5_gdal_path, gdal.GA_ReadOnly)
+    geotransform = dataset.GetGeoTransform()
+    proj = dataset.GetProjection()
+    slc = dataset.GetRasterBand(1).ReadAsArray()
+
+    return pol, geotransform, proj, slc
 
 
 def compare_cslc_products(file_ref, file_sec):
@@ -48,38 +85,28 @@ def compare_cslc_products(file_ref, file_sec):
         return
 
     # Extract some info from reference/secondary CSLC products
-    dataset_ref = gdal.Open(file_ref, gdal.GA_ReadOnly)
-    geotransform_ref = dataset_ref.GetGeoTransform()
-    ref_proj = dataset_ref.GetProjection()
-    nbands_ref = dataset_ref.RasterCount
-
-    dataset_sec = gdal.Open(file_sec, gdal.GA_ReadOnly)
-    geotransform_sec = dataset_sec.GetGeoTransform()
-    sec_proj = dataset_sec.GetProjection()
-    nbands_sec = dataset_sec.RasterCount
+    pol_ref, geotransform_ref, proj_ref, slc_ref = _gdal_nfo_retrieve(file_ref)
+    pol_sec, geotransform_sec, proj_sec, slc_sec = _gdal_nfo_retrieve(file_sec)
 
     # Compare number of bands
     print('Comparing CSLC number of bands ...')
-    if not nbands_ref == nbands_sec:
-        print(f'ERROR Number of bands in reference CSLC {nbands_ref} differs'
-              f'from number of bands {nbands_sec} in secondary CSLC')
+    if not pol_ref == pol_sec:
+        print(f'ERROR Polarization in reference CSLC {pol_ref} differs '
+              f'from polarization {pol_sec} in secondary CSLC')
         return
 
     print('Comparing CSLC projection ...')
-    if not ref_proj == sec_proj:
-        print(f'ERROR projection in reference CSLC {ref_proj} differs'
-              f'from projection in secondary CSLC {sec_proj}')
+    if not proj_ref == proj_sec:
+        print(f'ERROR projection in reference CSLC {proj_ref} differs '
+              f'from projection in secondary CSLC {proj_sec}')
 
     print('Comparing geo transform arrays ...')
     if not np.array_equal(geotransform_ref, geotransform_sec):
-        print(f'ERROR Reference geo transform array {dataset_ref} differs'
-              f'from secondary CSLC geo transform array {dataset_sec}')
+        print(f'ERROR Reference geo transform array {geotransform_ref} differs'
+              f'from secondary CSLC geo transform array {geotransform_sec}')
         return
 
     # Compare amplitude of reference and generated CSLC products
-    slc_ref = dataset_ref.GetRasterBand(1).ReadAsArray()
-    slc_sec = dataset_sec.GetRasterBand(1).ReadAsArray()
-
     print('Check mean real part difference between CSLC products is < 1.0e-5')
     assert np.allclose(slc_ref.real, slc_sec.real,
                        atol=0.0, rtol=1.0e-5, equal_nan=True)
@@ -87,7 +114,35 @@ def compare_cslc_products(file_ref, file_sec):
     assert np.allclose(slc_ref.imag, slc_sec.imag,
                        atol=0.0, rtol=1.0e-5, equal_nan=True)
 
-    return
+
+def _get_metadata_keys(path_h5):
+    """
+    Extract metadata group/dataset names of a given HDF5
+
+    Parameters
+    ----------
+    path_h5: str
+        File path to CSLC HDF5 product
+
+    Returns
+    -------
+    metadata_dict: str
+        Dict holding metadata group and dataset names where:
+        keys: metadata key names representing datasets or groups
+        values: set of key names belonging to each metadata key names
+    """
+    metadata_dict = {}
+    with h5py.File(path_h5, 'r') as h:
+        metadata = h['metadata']
+        # get metadata keys and iterate
+        metadata_keys = set(metadata.keys())
+        for metadata_key in metadata_keys:
+            if not isinstance(metadata[metadata_key], h5py.Group):
+                continue
+            # save keys to current metadata key
+            metadata_dict[metadata_key] = set(metadata[metadata_key].keys())
+
+    return metadata_dict
 
 
 def compare_cslc_metadata(file_ref, file_sec):
@@ -111,12 +166,9 @@ def compare_cslc_metadata(file_ref, file_sec):
         print(f'ERROR CSLC metadata not found: {file_sec}')
         return
 
-    # Load metadata
-    with open(file_ref, 'r') as f:
-        metadata_ref = json.load(f)
-
-    with open(file_sec, 'r') as f:
-        metadata_sec = json.load(f)
+    # Get metadata keys
+    metadata_ref = _get_metadata_keys(file_ref)
+    metadata_sec = _get_metadata_keys(file_sec)
 
     # Intersect metadata keys
     set_ref_minus_sec = metadata_ref.keys() - metadata_sec.keys()
@@ -127,15 +179,24 @@ def compare_cslc_metadata(file_ref, file_sec):
         err_str += f'\nReference CSLC metadata extra entries: {set_ref_minus_sec}'
     if set_sec_minus_ref:
         err_str += f'\nSecondary CSLC metadata extra entries: {set_sec_minus_ref}'
+
     # Check if metadata key differ
     assert not set_ref_minus_sec or not set_sec_minus_ref, err_str
 
-    # Check remaining metadatakeys
-    for k_ref, v_ref in metadata_ref.items():
-        if metadata_sec[k_ref] != v_ref:
-            print(f'ERROR the content of metadata key {k_ref} from'
-                  f'reference CSLC metadata has a value {v_ref} whereas the same'
-                  f'key in the secondary CSLC metadata has value {metadata_sec[k_ref]}')
+    # Check sub metadatakeys (after establishing top level metadata matches)
+    for key in metadata_ref.keys():
+        # Intersect metadata keys
+        set_ref_minus_sec = metadata_ref[key] - metadata_sec[key]
+        set_sec_minus_ref = metadata_sec[key] - metadata_ref[key]
+
+        err_str = "Metadata keys do not match.\n"
+        if set_ref_minus_sec:
+            err_str += f'\nReference CSLC {key} metadata extra entries: {set_ref_minus_sec}'
+        if set_sec_minus_ref:
+            err_str += f'\nSecondary CSLC {key} metadata extra entries: {set_sec_minus_ref}'
+
+        # Check if metadata key differ
+        assert not set_ref_minus_sec or not set_sec_minus_ref, err_str
 
 
 if __name__ == '__main__':
@@ -146,5 +207,5 @@ if __name__ == '__main__':
     print('All CSLC product checks have passed')
 
     # Check CSLC metadata
-    compare_cslc_metadata(cmd.ref_metadata, cmd.sec_metadata)
+    compare_cslc_metadata(cmd.ref_product, cmd.sec_product)
     print('All CSLC metadata checks have passed')

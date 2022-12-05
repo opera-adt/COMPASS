@@ -8,7 +8,8 @@ from osgeo import gdal
 from shapely.geometry import MultiPoint
 
 
-def get_boundary_polygon(filename, invalid_value):
+def get_boundary_polygon(filename, invalid_value=np.nan,
+                         dataset_path_template=None):
     '''
     Get boundary polygon for raster in 'filename'.
      Polygon includes only valid pixels
@@ -19,6 +20,9 @@ def get_boundary_polygon(filename, invalid_value):
         Path to GDAL friendly file containing geocoded raster
     invalid_value: np.nan or float
         Invalid data value for raster in 'filename'
+    dataset_path_template: str
+        Template string with place holder string, %FILE_PATH%, to be replace by
+        actual path containing dataset. Will only be used if not None.
 
     Returns
     --------
@@ -30,7 +34,14 @@ def get_boundary_polygon(filename, invalid_value):
                                 f'{filename} not found')
 
     # Optimize this with block-processing?
-    ds = gdal.Open(filename, gdal.GA_ReadOnly)
+    if dataset_path_template is not None:
+        dataset_path = dataset_path_template.replace('%FILE_PATH%', filename)
+    else:
+        dataset_path = filename
+    try:
+        ds = gdal.Open(dataset_path, gdal.GA_ReadOnly)
+    except:
+        raise ValueError(f'GDAL unable to open: {dataset_path}')
     burst = ds.GetRasterBand(1).ReadAsArray()
 
     if np.isnan(invalid_value):

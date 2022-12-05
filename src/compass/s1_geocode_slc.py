@@ -3,25 +3,24 @@
 '''wrapper for geocoded SLC'''
 
 from datetime import timedelta
-import os
 import time
 
+import h5py
 import isce3
 import journal
 import numpy as np
-from osgeo import gdal
+from s1reader.s1_reader import is_eap_correction_necessary
 
 from compass import s1_rdr2geo
 from compass import s1_geocode_metadata
-
 from compass.utils.elevation_antenna_pattern import apply_eap_correction
-from compass.utils.geo_metadata import GeoCslcMetadata
 from compass.utils.geo_runconfig import GeoRunConfig
+from compass.utils.h5_helpers import (init_geocoded_dataset,
+                                      geo_burst_metadata_to_hdf5)
 from compass.utils.helpers import get_module_name
 from compass.utils.lut import compute_geocoding_correction_luts
 from compass.utils.range_split_spectrum import range_split_spectrum
 from compass.utils.yaml_argparse import YamlArgparse
-from s1reader.s1_reader import is_eap_correction_necessary
 
 def run(cfg: GeoRunConfig):
     '''
@@ -47,7 +46,6 @@ def run(cfg: GeoRunConfig):
     blocksize = cfg.geo2rdr_params.lines_per_block
     flatten = cfg.geocoding_params.flatten
 
-    # process one burst only
     for burst in cfg.bursts:
         # Reinitialize the dem raster per burst to prevent raster artifacts
         # caused by modification in geocodeSlc
@@ -59,21 +57,13 @@ def run(cfg: GeoRunConfig):
         date_str = burst.sensing_start.strftime("%Y%m%d")
         burst_id = str(burst.burst_id)
         pol = burst.polarization
-        id_pol = f"{burst_id}_{pol}"
         geo_grid = cfg.geogrids[burst_id]
-
-        # Create top output path
-        burst_output_path = f'{cfg.product_path}/{burst_id}/{date_str}'
-        os.makedirs(burst_output_path, exist_ok=True)
-
-        scratch_path = f'{cfg.scratch_path}/{burst_id}/{date_str}'
-        os.makedirs(scratch_path, exist_ok=True)
-
 
         # Get range and azimuth LUTs
         rg_lut, az_lut = compute_geocoding_correction_luts(burst,
                                                            rg_step=cfg.lut_params.range_spacing,
                                                            az_step=cfg.lut_params.azimuth_spacing)
+
         radar_grid = burst.as_isce3_radargrid()
         native_doppler = burst.doppler.lut2d
         orbit = burst.orbit
@@ -85,13 +75,20 @@ def run(cfg: GeoRunConfig):
         if cfg.rdr2geo_params.enabled:
             s1_rdr2geo.run(cfg, save_in_scratch=True)
             if cfg.rdr2geo_params.geocode_metadata_layers:
-               s1_geocode_metadata.run(cfg, fetch_from_scratch=True)
+                s1_geocode_metadata.run(cfg, burst, fetch_from_scratch=True)
+
+        # Get output paths for current burst
+        burst_id_date_key = (burst_id, date_str)
+        out_paths = cfg.output_paths[burst_id_date_key]
+
+        # Create scratch as needed
+        scratch_path = out_paths.scratch_directory
 
         # Load the input burst SLC
-        temp_slc_path = f'{scratch_path}/{id_pol}_temp.vrt'
+        temp_slc_path = f'{scratch_path}/{out_paths.file_name_stem}_temp.vrt'
         burst.slc_to_vrt_file(temp_slc_path)
 
-        # Check if EAP correction is necessary
+        # Apply EAP correction if necessary
         check_eap = is_eap_correction_necessary(burst.ipf_version)
         if check_eap.phase_correction:
             temp_slc_path_corrected = temp_slc_path.replace('_temp.vrt',
@@ -100,6 +97,7 @@ def run(cfg: GeoRunConfig):
                                  temp_slc_path,
                                  temp_slc_path_corrected,
                                  check_eap)
+
             # Replace the input burst if the correction is applied
             temp_slc_path = temp_slc_path_corrected
 
@@ -113,43 +111,55 @@ def run(cfg: GeoRunConfig):
         else:
             rdr_burst_raster = isce3.io.Raster(temp_slc_path)
 
-        # Generate output geocoded burst raster
-        geo_burst_raster = isce3.io.Raster(
-            f'{burst_output_path}/{id_pol}.slc',
-            geo_grid.width, geo_grid.length,
-            rdr_burst_raster.num_bands, gdal.GDT_CFloat32,
-            cfg.geocoding_params.output_format)
-
         # Extract burst boundaries
         b_bounds = np.s_[burst.first_valid_line:burst.last_valid_line,
-                   burst.first_valid_sample:burst.last_valid_sample]
+                         burst.first_valid_sample:burst.last_valid_sample]
 
         # Create sliced radar grid representing valid region of the burst
         sliced_radar_grid = burst.as_isce3_radargrid()[b_bounds]
 
-        # Geocode
-        isce3.geocode.geocode_slc(geo_burst_raster, rdr_burst_raster,
-                                  dem_raster,
-                                  radar_grid, sliced_radar_grid,
-                                  geo_grid, orbit,
-                                  native_doppler,
-                                  image_grid_doppler, ellipsoid, threshold,
-                                  iters, blocksize, flatten,
-                                  azimuth_carrier=az_carrier_poly2d)
+        output_hdf5 = out_paths.hdf5_path
+        with h5py.File(output_hdf5, 'w') as geo_burst_h5:
+            geo_burst_h5.attrs['Conventions'] = "CF-1.8"
 
-        # Set geo transformation
-        geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,
-                        geo_grid.start_y, 0, geo_grid.spacing_y]
-        geo_burst_raster.set_geotransform(geotransform)
-        geo_burst_raster.set_epsg(geo_grid.epsg)
-        del geo_burst_raster
-        del dem_raster # modified in geocodeSlc
+            # add type to root for GDAL recognition of datasets
+            ctype = h5py.h5t.py_create(np.complex64)
+            ctype.commit(geo_burst_h5['/'].id, np.string_('complex64'))
 
-        # Save burst metadata
-        metadata = GeoCslcMetadata.from_georunconfig(cfg, burst_id)
-        json_path = f'{burst_output_path}/{id_pol}.json'
-        with open(json_path, 'w') as f_json:
-            metadata.to_file(f_json, 'json')
+            backscatter_group = geo_burst_h5.require_group('complex_backscatter')
+            init_geocoded_dataset(backscatter_group, pol, geo_grid,
+                                  'complex64', f'{pol} geocoded SLC image')
+
+            # access the HDF5 dataset for a given frequency and polarization
+            dataset_path = f'/complex_backscatter/{pol}'
+            gslc_dataset = geo_burst_h5[dataset_path]
+
+            # Construct the output raster directly from HDF5 dataset
+            geo_burst_raster = isce3.io.Raster(f"IH5:::ID={gslc_dataset.id.id}".encode("utf-8"), update=True)
+
+            # Geocode
+            isce3.geocode.geocode_slc(geo_burst_raster, rdr_burst_raster,
+                                      dem_raster,
+                                      radar_grid, sliced_radar_grid,
+                                      geo_grid, orbit,
+                                      native_doppler,
+                                      image_grid_doppler, ellipsoid, threshold,
+                                      iters, blocksize, flatten,
+                                      azimuth_carrier=az_carrier_poly2d)
+
+            # Set geo transformation
+            geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,
+                            geo_grid.start_y, 0, geo_grid.spacing_y]
+            geo_burst_raster.set_geotransform(geotransform)
+            geo_burst_raster.set_epsg(epsg)
+            del geo_burst_raster
+            del dem_raster # modified in geocodeSlc
+
+        # Save burst metadata with new h5py File instance because io.Raster things
+        with h5py.File(output_hdf5, 'a') as geo_burst_h5:
+            geo_burst_metadata_to_hdf5(geo_burst_h5, burst, geo_grid, cfg)
+            geo_burst_h5['metadata/runconfig'] = cfg.yaml_string
+
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")

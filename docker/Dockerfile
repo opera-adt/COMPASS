@@ -33,7 +33,7 @@ SHELL ["conda", "run", "-n", "COMPASS", "/bin/bash", "-c"]
 RUN echo "Installing OPERA s1-reader" &&\
     mkdir -p $HOME/OPERA &&\
     cd $HOME/OPERA &&\
-    git clone git@github.com:opera-adt/s1-reader.git &&\
+    git clone https://github.com/opera-adt/s1-reader.git &&\
     python -m pip install ./s1-reader
 
 COPY . /home/compass_user/OPERA/COMPASS

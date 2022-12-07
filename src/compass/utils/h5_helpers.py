@@ -405,7 +405,7 @@ def geo_burst_metadata_to_hdf5(dst_h5, burst, geogrid, cfg):
                           str(burst.burst_id),
                           {'description': 'Unique burst identification string (ESA convention)'})
 
-    dataset_path_template = f'HDF5:%FILE_PATH%://complex_backscatter/{burst.polarization}'
+    dataset_path_template = f'HDF5:%FILE_PATH%://SLC/{burst.polarization}'
     geo_boundary = get_boundary_polygon(processing_group.file.filename, np.nan,
                                         dataset_path_template)
     center = geo_boundary.centroid

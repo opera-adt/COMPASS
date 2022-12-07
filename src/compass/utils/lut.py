@@ -1,3 +1,9 @@
+'''
+Placeholder for model-based correction LUT
+'''
+
+import os
+
 def compute_geocoding_correction_luts(burst, rg_step=200, az_step=0.25, dem_path=None, scratch_path=None):
     '''
     Compute slant range and azimuth LUTs corrections
@@ -31,13 +37,15 @@ def compute_geocoding_correction_luts(burst, rg_step=200, az_step=0.25, dem_path
     rg_doppler = burst.geometrical_and_steering_doppler(range_step=rg_step, az_step=az_step)
 
     if dem_path is None:
-        # Skip the FM mismatch rate calculation
-        az_fm_mismatch = None
-    else:
-        az_fm_mismatch = burst.az_fm_rate_mismatch_mitigation(dem_path,
-                                                              scratch_path,
-                                                              rg_step=rg_step,
-                                                              az_step=az_step)
+        raise ValueError('DEM for azimith FM rate mismatch was not provided.')
+
+    if os.path.exists(dem_path):
+        raise FileNotFoundError(f'Cannot find the dem file: {dem_path}')
+
+    az_fm_mismatch = burst.az_fm_rate_mismatch_mitigation(dem_path,
+                                                          scratch_path,
+                                                          rg_step=rg_step,
+                                                          az_step=az_step)
 
     rg_lut = rg_doppler
     az_lut = az_bistatic.data

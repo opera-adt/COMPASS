@@ -4,7 +4,10 @@ Placeholder for model-based correction LUT
 
 import os
 
-def compute_geocoding_correction_luts(burst, rg_step=200, az_step=0.25, dem_path=None, scratch_path=None):
+import isce3
+
+def compute_geocoding_correction_luts(burst, rg_step=200, az_step=0.25,
+                                      dem_path=None, scratch_path=None):
     '''
     Compute slant range and azimuth LUTs corrections
     to be applied during burst geocoding
@@ -47,11 +50,11 @@ def compute_geocoding_correction_luts(burst, rg_step=200, az_step=0.25, dem_path
                                                           rg_step=rg_step,
                                                           az_step=az_step)
 
-    az_lut = az_bistatic.data
-
-    if not az_fm_mismatch is None:
-        az_lut_data = az_bistatic.data + az_fm_mismatch.data
-        az_lut = isce3.core.LUT2d(az_bistatic.x_start, az_bistatic.y_start, 
-                az_bistatic.x_spacing, az_bistatic.x_spacing, az_lut_data)
+    az_lut_data = az_bistatic.data + az_fm_mismatch.data
+    az_lut = isce3.core.LUT2d(az_bistatic.x_start,
+                              az_bistatic.y_start,
+                              az_bistatic.x_spacing,
+                              az_bistatic.x_spacing,
+                              az_lut_data)
 
     return rg_lut, az_lut

@@ -1,7 +1,6 @@
 '''
 Placeholder for model-based correction LUT
 '''
-
 import os
 
 import isce3
@@ -22,7 +21,7 @@ def compute_geocoding_correction_luts(burst, rg_step=200, az_step=0.25,
         LUT spacing along y/azimuth in seconds
     dem_path: str
         Path to the DEM required for azimuth FM rate mismatch.
-        If `None`, the calculation of the FM mismatch will be skipped.
+        If `None`, the function will raise an error.
     scratch_path: str
         Path to the scratch directory.
         If `None`, `burst.az_fm_rate_mismatch_mitigation()` will

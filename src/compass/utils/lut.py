@@ -35,7 +35,7 @@ def compute_geocoding_correction_luts(burst, rg_step=200, az_step=0.25,
         2D array containg sum of azimuth corrections
     '''
 
-    az_bistatic = burst.bistatic_delay(range_step=rg_step, az_step=az_step)
+    az_lut = burst.bistatic_delay(range_step=rg_step, az_step=az_step)
     rg_lut = burst.geometrical_and_steering_doppler(range_step=rg_step, az_step=az_step)
 
     if dem_path is None:
@@ -46,14 +46,14 @@ def compute_geocoding_correction_luts(burst, rg_step=200, az_step=0.25,
 
     az_fm_mismatch = burst.az_fm_rate_mismatch_mitigation(dem_path,
                                                           scratch_path,
-                                                          rg_step=rg_step,
+                                                          rangeg_step=rg_step,
                                                           az_step=az_step)
 
-    az_lut_data = az_bistatic.data + az_fm_mismatch.data
-    az_lut = isce3.core.LUT2d(az_bistatic.x_start,
-                              az_bistatic.y_start,
-                              az_bistatic.x_spacing,
-                              az_bistatic.x_spacing,
+    az_lut_data = az_lut.data + az_fm_mismatch.data
+    az_lut = isce3.core.LUT2d(az_lut.x_start,
+                              az_lut.y_start,
+                              az_lut.x_spacing,
+                              az_lut.x_spacing,
                               az_lut_data)
 
     return rg_lut, az_lut

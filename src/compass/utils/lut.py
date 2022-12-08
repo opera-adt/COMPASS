@@ -27,9 +27,9 @@ def compute_geocoding_correction_luts(burst, rg_step=200, az_step=0.25, dem_path
 
     Returns
     -------
-    rg_lut: ndarray
+    rg_lut: isce3.core.LUT2d
         2D array containing sum of range corrections
-    az_lut: ndarray
+    az_lut: isce3.core.LUT2d
         2D array containg sum of azimuth corrections
     '''
 
@@ -47,7 +47,6 @@ def compute_geocoding_correction_luts(burst, rg_step=200, az_step=0.25, dem_path
                                                           rg_step=rg_step,
                                                           az_step=az_step)
 
-    rg_lut = rg_doppler
     az_lut = az_bistatic.data
 
     if not az_fm_mismatch is None:

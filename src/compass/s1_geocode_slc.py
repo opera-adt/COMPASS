@@ -62,7 +62,8 @@ def run(cfg: GeoRunConfig):
         # Get range and azimuth LUTs
         rg_lut, az_lut = compute_geocoding_correction_luts(burst,
                                                            rg_step=cfg.lut_params.range_spacing,
-                                                           az_step=cfg.lut_params.azimuth_spacing)
+                                                           az_step=cfg.lut_params.azimuth_spacing,
+                                                           dem_path=cfg.dem)
 
         radar_grid = burst.as_isce3_radargrid()
         native_doppler = burst.doppler.lut2d

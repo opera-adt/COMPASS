@@ -18,9 +18,9 @@ WORKDIR /home/compass_user
 
 RUN mkdir -p /home/compass_user/OPERA &&\
     cd /home/compass_user/OPERA &&\
-    curl -sSL https://github.com/seongsujeong/COMPASS/archive/refs/tags/v0.1.3-temp.tar.gz -o compass_src.tar.gz &&\
+    curl -sSL https://github.com/seongsujeong/COMPASS/archive/refs/tags/v0.2.0-beta.tar.gz -o compass_src.tar.gz &&\
     tar -xvf compass_src.tar.gz &&\
-    ln -s COMPASS-0.1.3-temp COMPASS &&\
+    ln -s COMPASS-0.2.0-beta COMPASS &&\
     rm compass_src.tar.gz
 
 

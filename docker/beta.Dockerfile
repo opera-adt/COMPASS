@@ -48,4 +48,4 @@ RUN echo "Installing OPERA s1-reader" &&\
 
 WORKDIR /home/compass_user/scratch
 
-ENTRYPOINT ["conda", "run", "-n", "COMPASS","s1_cslc.py"]
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "COMPASS","s1_cslc.py"]

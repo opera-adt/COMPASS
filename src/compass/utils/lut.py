@@ -41,12 +41,12 @@ def compute_geocoding_correction_luts(burst, rg_step=200, az_step=0.25,
     if dem_path is None:
         raise ValueError('DEM for azimith FM rate mismatch was not provided.')
 
-    if os.path.exists(dem_path):
+    if not os.path.exists(dem_path):
         raise FileNotFoundError(f'Cannot find the dem file: {dem_path}')
 
     az_fm_mismatch = burst.az_fm_rate_mismatch_mitigation(dem_path,
                                                           scratch_path,
-                                                          rangeg_step=rg_step,
+                                                          range_step=rg_step,
                                                           az_step=az_step)
 
     az_lut_data = az_lut.data + az_fm_mismatch.data

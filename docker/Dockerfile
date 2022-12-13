@@ -1,8 +1,8 @@
 FROM ubuntu:22.04
 
 LABEL author="OPERA ADT" \
-      description="s1 cslc 0.1.0 point release" \
-      version="interface_0.1"
+      description="s1 cslc 0.2 Beta release" \
+      version="0.2-beta"
 
 RUN apt-get -y update &&\
     apt-get -y install curl git &&\
@@ -33,9 +33,9 @@ SHELL ["conda", "run", "-n", "COMPASS", "/bin/bash", "-c"]
 
 RUN echo "Installing OPERA s1-reader" &&\
     cd ${HOME}/OPERA &&\
-    curl -sSL https://github.com/opera-adt/s1-reader/archive/refs/tags/v0.1.2.tar.gz -o s1_reader_src.tar.gz &&\
+    curl -sSL https://github.com/opera-adt/s1-reader/archive/refs/tags/v0.1.3.tar.gz -o s1_reader_src.tar.gz &&\
     tar -xvf s1_reader_src.tar.gz &&\
-    ln -s s1-reader-0.1.2 s1-reader &&\
+    ln -s s1-reader-0.1.3 s1-reader &&\
     rm s1_reader_src.tar.gz &&\
     python -m pip install ./s1-reader &&\
     echo "Installing OPERA COMPASS" &&\
@@ -44,4 +44,4 @@ RUN echo "Installing OPERA s1-reader" &&\
 
 WORKDIR /home/compass_user/scratch
 
-ENTRYPOINT ["conda", "run", "-n", "COMPASS","s1_cslc.py"]
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "COMPASS", "s1_cslc.py"]

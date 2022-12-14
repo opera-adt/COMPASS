@@ -16,7 +16,8 @@ from compass import s1_geocode_metadata
 from compass.utils.elevation_antenna_pattern import apply_eap_correction
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.h5_helpers import (init_geocoded_dataset,
-                                      geo_burst_metadata_to_hdf5)
+                                      geo_burst_metadata_to_hdf5,
+                                      burst_corrections_to_hdf5)
 from compass.utils.helpers import get_module_name
 from compass.utils.lut import compute_geocoding_correction_luts
 from compass.utils.range_split_spectrum import range_split_spectrum
@@ -155,9 +156,11 @@ def run(cfg: GeoRunConfig):
             del geo_burst_raster
             del dem_raster # modified in geocodeSlc
 
-        # Save burst metadata with new h5py File instance because io.Raster things
+        # Save burst corrections and metadata with new h5py File instance
+        # because io.Raster things
         with h5py.File(output_hdf5, 'a') as geo_burst_h5:
             geo_burst_metadata_to_hdf5(geo_burst_h5, burst, geo_grid, cfg)
+            burst_corrections_to_hdf5(geo_burst_h5, burst, cfg)
             geo_burst_h5['metadata/runconfig'] = cfg.yaml_string
 
 

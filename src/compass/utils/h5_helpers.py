@@ -3,9 +3,15 @@ from datetime import datetime
 import isce3
 import numpy as np
 from osgeo import osr
+from s1reader.s1_reader import is_eap_correction_necessary
 
 import compass
+from compass.utils.lut import compute_geocoding_correction_luts
 from compass.utils.raster_polygon import get_boundary_polygon
+
+
+TIME_STR_FMT = '%Y-%m-%d %H:%M:%S'
+
 
 def init_geocoded_dataset(geocoded_group, dataset_name, geo_grid, dtype,
                           description):
@@ -194,40 +200,45 @@ def init_geocoded_dataset(geocoded_group, dataset_name, geo_grid, dtype,
         raise NotImplementedError('Waiting for implementation / Not supported in ISCE3')
 
 
+def add_dataset_and_attrs(group, name, value, attr_dict):
+    '''Write isce3.core.Poly1d properties to hdf5
+
+    Parameters
+    ----------
+    group: h5py.Group
+        h5py Group to store poly1d parameters in
+    name: str
+        Name of dataset to add
+    value: object
+        Value to be added
+    attr_dict: dict[str: object]
+        Dict with attribute name as key and some object as value
+    '''
+    if name in group:
+        del group[name]
+
+    group[name] = value
+    val_ds = group[name]
+    for key, val in attr_dict.items():
+        val_ds.attrs[key] = val
+
+
 def geo_burst_metadata_to_hdf5(dst_h5, burst, geogrid, cfg):
-    '''Write burst metadata to HDF5
+    '''
+    Write burst metadata to HDF5
 
     Parameter:
     ---------
     dst_h5: h5py File
         HDF5 file meta data will be written to
     burst: Sentinel1BurstSlc
-        Burst
+        Burst whose metadata is to written to HDF5
+    geogrid: isce3.product.GeoGridParameters
+        Geo grid object defining the geocoded area
+    cfg: types.SimpleNamespace
+        SimpleNamespace containing run configuration
     '''
-    time_str_fmt = 'time_str_fmt'
     metadata_group = dst_h5.require_group('metadata')
-
-    def add_dataset_and_attrs(group, name, value, attr_dict):
-        '''Write isce3.core.Poly1d properties to hdf5
-
-        Parameters
-        ----------
-        group: h5py.Group
-            h5py Group to store poly1d parameters in
-        name: str
-            Name of dataset to add
-        value: object
-            Value to be added
-        attr_dict: dict[str: object]
-            Dict with attribute name as key and some object as value
-        '''
-        if name in group:
-            del group[name]
-
-        group[name] = value
-        val_ds = group[name]
-        for key, val in attr_dict.items():
-            val_ds.attrs[key] = val
 
     # product identification and processing information
     id_proc_group = metadata_group.require_group('identifcation_and_processing')
@@ -243,7 +254,7 @@ def geo_burst_metadata_to_hdf5(dst_h5, burst, geogrid, cfg):
     add_dataset_and_attrs(id_proc_group, 'product_level', '2', {})
     add_dataset_and_attrs(id_proc_group, 'product_type', 'CSLC_S1', {})
     add_dataset_and_attrs(id_proc_group, 'processing_datetime',
-                          datetime.now().strftime(time_str_fmt),
+                          datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                           {'description': 'L2_CSLC_S1 product processing date and time',
                            'format': 'YYYY-MM-DDD HH:MM:SS'})
     add_dataset_and_attrs(id_proc_group, 'spacecraft_name',
@@ -253,11 +264,11 @@ def geo_burst_metadata_to_hdf5(dst_h5, burst, geogrid, cfg):
     # burst metadata
     s1ab_group = metadata_group.require_group('s1ab_burst_metadata')
     add_dataset_and_attrs(s1ab_group, 'sensing_start',
-                          burst.sensing_start.strftime('time_str_fmt.%f'),
+                          burst.sensing_start.strftime(TIME_STR_FMT),
                           {'description': 'Sensing start time of the burst',
                            'format': 'YYYY-MM-DD HH:MM:SS.6f'})
     add_dataset_and_attrs(s1ab_group, 'sensing_stop',
-                          burst.sensing_stop.strftime('time_str_fmt.%f'),
+                          burst.sensing_stop.strftime(TIME_STR_FMT),
                           {'description':'Sensing stop time of the burst',
                            'format': 'YYYY-MM-DD HH:MM:SS.6f'})
     add_dataset_and_attrs(s1ab_group, 'radar_center_frequency',
@@ -331,36 +342,6 @@ def geo_burst_metadata_to_hdf5(dst_h5, burst, geogrid, cfg):
                               {'description': 'coefficients of the polynomial'})
     poly1d_to_h5(s1ab_group, 'azimuth_fm_rate', burst.azimuth_fm_rate)
     poly1d_to_h5(s1ab_group, 'doppler', burst.doppler.poly1d)
-
-    # EAP metadata only written if it exists
-    if burst.burst_eap is not None:
-        eap_group = s1ab_group.require_group('elevation_antenna_pattern_correction')
-        eap = burst.burst_eap
-        add_dataset_and_attrs(eap_group, 'sampling_frequency',
-                              eap.freq_sampling,
-                              {'description': 'range sampling frequency',
-                               'units': 'Hz'})
-        add_dataset_and_attrs(eap_group, 'eta_start',
-                              eap.eta_start.strftime(time_str_fmt),
-                              {'description': '?',
-                               'format': 'YYYY-MM-DD HH:MM:SS.6f'})
-        add_dataset_and_attrs(eap_group, 'tau_0', eap.tau_0,
-                              {'description': 'slant range time',
-                               'units': 'seconds'})
-        add_dataset_and_attrs(eap_group, 'tau_sub', eap.tau_sub,
-                              {'description': 'slant range time',
-                               'units': 'seconds'})
-        add_dataset_and_attrs(eap_group, 'theta_sub', eap.theta_sub,
-                              {'description': 'elevation angle',
-                               'units': 'radians'})
-        add_dataset_and_attrs(eap_group, 'azimuth_time',
-                              eap.azimuth_time.strftime(time_str_fmt),
-                              {'description': '?',
-                               'format': 'YYYY-MM-DD HH:MM:SS.6f'})
-        add_dataset_and_attrs(eap_group, 'ascending_node_time',
-                              eap.ascending_node_time.strftime(time_str_fmt),
-                              {'description': '?',
-                               'format': 'YYYY-MM-DD HH:MM:SS.6f'})
 
     # save orbit
     orbit_group = metadata_group.require_group('orbit')
@@ -446,3 +427,80 @@ def geo_burst_metadata_to_hdf5(dst_h5, burst, geogrid, cfg):
                           {'description': 'EPSG code identifying the coordinate system used for processing'})
     add_dataset_and_attrs(processing_group, 'no_data_value', 'NaN',
                           {'description': 'Value used when no data present'})
+
+
+def burst_corrections_to_hdf5(dst_h5, burst, cfg):
+    '''
+    Write azimuth, slant range, and EAP (if needed) correction LUT2ds to HDF5
+
+    Parameter:
+    ---------
+    dst_h5: h5py File
+        HDF5 file meta data will be written to
+    burst: Sentinel1BurstSlc
+        Burst containing corrections
+    cfg: types.SimpleNamespace
+        SimpleNamespace containing run configuration
+    '''
+    # geocoding correction LUTs
+    correction_group = dst_h5.require_group('corrections')
+
+    # Get range and azimuth LUTs
+    rg_lut, az_lut = compute_geocoding_correction_luts(burst,
+                                                       rg_step=cfg.lut_params.range_spacing,
+                                                       az_step=cfg.lut_params.azimuth_spacing)
+
+    desc = ' correction as a function of slant range and azimuth time'
+    add_dataset_and_attrs(correction_group, 'azimuth_LUT', az_lut.data,
+                          {'description': f'azimuth {desc}',
+                           'units': 'seconds'})
+    add_dataset_and_attrs(correction_group, 'slant_range_LUT', rg_lut.data,
+                          {'description': f'slant_range {desc}',
+                           'units': 'seconds'})
+
+    # az/rg_lut share the same grid
+    slant_range = np.linspace(az_lut.x_start,
+                              az_lut.x_start + az_lut.width * az_lut.x_spacing,
+                              az_lut.width, dtype=np.float64)
+    add_dataset_and_attrs(correction_group, 'slant_range', slant_range,
+                          {'description': 'slant range of LUT data',
+                           'units': 'meters'})
+
+    azimuth = np.linspace(az_lut.y_start,
+                          az_lut.y_start + az_lut.width * az_lut.x_spacing,
+                          az_lut.width, dtype=np.float64)
+    add_dataset_and_attrs(correction_group, 'azimuth_time', azimuth,
+                          {'description': 'azimuth time of LUT data',
+                           'units': 'seconds'})
+
+    # EAP metadata depending on IPF version
+    check_eap = is_eap_correction_necessary(burst.ipf_version)
+    if check_eap.phase_correction:
+        eap_group = correction_group.require_group('elevation_antenna_pattern_correction')
+        eap = burst.burst_eap
+        add_dataset_and_attrs(eap_group, 'sampling_frequency',
+                              eap.freq_sampling,
+                              {'description': 'range sampling frequency',
+                               'units': 'Hz'})
+        add_dataset_and_attrs(eap_group, 'eta_start',
+                              eap.eta_start.strftime(TIME_STR_FMT),
+                              {'description': '?',
+                               'format': 'YYYY-MM-DD HH:MM:SS.6f'})
+        add_dataset_and_attrs(eap_group, 'tau_0', eap.tau_0,
+                              {'description': 'slant range time',
+                               'units': 'seconds'})
+        add_dataset_and_attrs(eap_group, 'tau_sub', eap.tau_sub,
+                              {'description': 'slant range time',
+                               'units': 'seconds'})
+        add_dataset_and_attrs(eap_group, 'theta_sub', eap.theta_sub,
+                              {'description': 'elevation angle',
+                               'units': 'radians'})
+        add_dataset_and_attrs(eap_group, 'azimuth_time',
+                              eap.azimuth_time.strftime(TIME_STR_FMT),
+                              {'description': '?',
+                               'format': 'YYYY-MM-DD HH:MM:SS.6f'})
+        add_dataset_and_attrs(eap_group, 'ascending_node_time',
+                              eap.ascending_node_time.strftime(TIME_STR_FMT),
+                              {'description': '?',
+                               'format': 'YYYY-MM-DD HH:MM:SS.6f'})
+

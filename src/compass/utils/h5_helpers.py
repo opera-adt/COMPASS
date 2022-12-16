@@ -234,11 +234,7 @@ def add_dataset_and_attrs(group, meta_item):
     # Convert data to written if necessary
     val = meta_item.value
     val = np.string_(val) if isinstance(val, str) else val
-    try:
-        group[meta_item.name] = val
-    except:
-        import ipdb; ipdb.set_trace()
-        wtf = 0
+    group[meta_item.name] = val
 
     # Write data and attributes
     val_ds = group[meta_item.name]

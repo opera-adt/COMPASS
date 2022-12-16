@@ -120,23 +120,30 @@ def run(cfg: GeoRunConfig):
         sliced_radar_grid = burst.as_isce3_radargrid()[b_bounds]
 
         output_hdf5 = out_paths.hdf5_path
+        '''
         with h5py.File(output_hdf5, 'w') as geo_burst_h5:
             geo_burst_h5.attrs['Conventions'] = "CF-1.8"
+            geo_burst_h5.attrs["contact"] = np.string_("operaops@jpl.nasa.gov")
+            geo_burst_h5.attrs["institution"] = np.string_("NASA JPL")
+            geo_burst_h5.attrs["mission_name"] = np.string_("OPERA")
+            geo_burst_h5.attrs["reference_document"] = np.string_("TBD")
+            geo_burst_h5.attrs["title"] = np.string_("OPERA L2 CSLC Product")
 
             # add type to root for GDAL recognition of datasets
             ctype = h5py.h5t.py_create(np.complex64)
             ctype.commit(geo_burst_h5['/'].id, np.string_('complex64'))
 
-            backscatter_group = geo_burst_h5.require_group('SLC')
-            init_geocoded_dataset(backscatter_group, pol, geo_grid,
-                                  'complex64', f'{pol} geocoded SLC image')
+            slc_group = geo_burst_h5.require_group('SLC')
+            init_geocoded_dataset(slc_group, pol, geo_grid, 'complex64',
+                                  f'{pol} geocoded SLC image')
 
             # access the HDF5 dataset for a given frequency and polarization
             dataset_path = f'/SLC/{pol}'
             gslc_dataset = geo_burst_h5[dataset_path]
 
             # Construct the output raster directly from HDF5 dataset
-            geo_burst_raster = isce3.io.Raster(f"IH5:::ID={gslc_dataset.id.id}".encode("utf-8"), update=True)
+            geo_burst_raster = isce3.io.Raster(f"IH5:::ID={gslc_dataset.id.id}".encode("utf-8"),
+                                               update=True)
 
             # Geocode
             isce3.geocode.geocode_slc(geo_burst_raster, rdr_burst_raster,
@@ -155,11 +162,12 @@ def run(cfg: GeoRunConfig):
             geo_burst_raster.set_epsg(epsg)
             del geo_burst_raster
             del dem_raster # modified in geocodeSlc
+        '''
 
         # Save burst corrections and metadata with new h5py File instance
         # because io.Raster things
         with h5py.File(output_hdf5, 'a') as geo_burst_h5:
-            geo_burst_metadata_to_hdf5(geo_burst_h5, burst, geo_grid, cfg)
+            geo_burst_metadata_to_hdf5(geo_burst_h5, burst, cfg)
             burst_corrections_to_hdf5(geo_burst_h5, burst, cfg)
             geo_burst_h5['metadata/runconfig'] = cfg.yaml_string
 

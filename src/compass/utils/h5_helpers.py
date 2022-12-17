@@ -437,29 +437,22 @@ def corrections_to_h5group(parent_group, burst, cfg):
     azimuth = np.linspace(bistatic_delay_lut.y_start, y_end,
                           bistatic_delay_lut.width, dtype=np.float64)
 
-    # correction LUTs axis
+    # correction LUTs axis and doppler correction LUTs
+    desc = ' correction as a function of slant range and azimuth time'
     correction_axis_items = [
         meta('slant_range', slant_range, 'slant range of LUT data',
              {'units': 'meters'}),
         meta('zero_doppler_time', azimuth, 'azimuth time of LUT data',
-             {'units': 'seconds'})
-    ]
-    correction_axis_group = parent_group.require_group('corrections')
-    for meta_item in correction_axis_items:
-        add_dataset_and_attrs(correction_axis_group, meta_item)
-
-    # doppler correction LUTs
-    desc = ' correction as a function of slant range and azimuth time'
-    doppler_correction_items = [
+             {'units': 'seconds'}),
         meta('bistatic_delay', bistatic_delay_lut.data,
              f'bistatic delay {desc}', {'units': 'seconds'}),
         meta('geometry_steering_doppler', geometrical_steering_doppler.data,
              f'geometry steering doppler {desc}',
              {'units': 'seconds'}),
     ]
-    doppler_correction_group = parent_group.require_group('corrections/doppler')
-    for meta_item in doppler_correction_items:
-        add_dataset_and_attrs(doppler_correction_group, meta_item)
+    correction_axis_group = parent_group.require_group('corrections')
+    for meta_item in correction_axis_items:
+        add_dataset_and_attrs(correction_axis_group, meta_item)
 
     # EAP metadata depending on IPF version
     check_eap = is_eap_correction_necessary(burst.ipf_version)

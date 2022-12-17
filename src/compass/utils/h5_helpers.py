@@ -1,4 +1,3 @@
-from datetime import datetime
 from dataclasses import dataclass, field
 import os
 
@@ -16,13 +15,13 @@ from compass.utils.raster_polygon import get_boundary_polygon
 TIME_STR_FMT = '%Y-%m-%d %H:%M:%S.%f'
 
 
-def init_geocoded_dataset(geocoded_group, dataset_name, geo_grid, dtype,
+def init_geocoded_dataset(grid_group, dataset_name, burst, geo_grid, dtype,
                           description):
     '''
     Create and allocate dataset for isce.geocode.geocode_slc to write to that
     is NC compliant
 
-    geocoded_group: h5py.Group
+    grid_group: h5py.Group
         h5py group where geocoded dataset will be created in
     dataset_name: str
         Name of dataset to be created
@@ -34,10 +33,10 @@ def init_geocoded_dataset(geocoded_group, dataset_name, geo_grid, dtype,
         Description of dataset to be geocoded
     '''
     shape = (geo_grid.length, geo_grid.width)
-    geocoded_ds = geocoded_group.require_dataset(dataset_name, dtype=dtype,
-                                                 shape=shape)
+    cslc_ds = grid_group.require_dataset(dataset_name, dtype=dtype,
+                                         shape=shape)
 
-    geocoded_ds.attrs['description'] = description
+    cslc_ds.attrs['description'] = description
 
     # Compute x scale
     dx = geo_grid.spacing_x
@@ -53,28 +52,45 @@ def init_geocoded_dataset(geocoded_group, dataset_name, geo_grid, dtype,
 
     # following copied and pasted (and slightly modified) from:
     # https://github-fn.jpl.nasa.gov/isce-3/isce/wiki/CF-Conventions-and-Map-Projections
-    x_ds = geocoded_group.require_dataset('x', dtype='float64', data=x_vect,
-                                          shape=x_vect.shape)
-    y_ds = geocoded_group.require_dataset('y', dtype='float64', data=y_vect,
-                                          shape=y_vect.shape)
+    x_ds = grid_group.require_dataset('x', dtype='float64', data=x_vect,
+                                      shape=x_vect.shape)
+    y_ds = grid_group.require_dataset('y', dtype='float64', data=y_vect,
+                                      shape=y_vect.shape)
 
     # Mapping of dimension scales to datasets is not done automatically in HDF5
     # We should label appropriate arrays as scales and attach them to datasets
     # explicitly as show below.
     x_ds.make_scale()
-    geocoded_ds.dims[1].attach_scale(x_ds)
+    cslc_ds.dims[1].attach_scale(x_ds)
     y_ds.make_scale()
-    geocoded_ds.dims[0].attach_scale(y_ds)
+    cslc_ds.dims[0].attach_scale(y_ds)
 
     # Associate grid mapping with data - projection created later
-    geocoded_ds.attrs['grid_mapping'] = np.string_("projection")
+    cslc_ds.attrs['grid_mapping'] = np.string_("projection")
+
+    # dataset from burst
+    freq_meta_items = [
+        # 'azimuthBandwidth':
+        meta('range_bandwidth', burst.range_bandwidth,
+             'Processed range bandwidth in Hz'),
+        meta('center_frequency', burst.radar_center_frequency,
+             'Center frequency of the processed image in Hz'),
+        meta('slant_range_spacing', burst.range_pixel_spacing,
+             'Slant range spacing of grid. '
+             'Same as difference between consecutive samples in slantRange array'),
+        meta('zeroDoppler_time_spacing', burst.azimuth_time_interval,
+             'Time interval in the along track direction for raster layers. This is same '
+             'as the spacing between consecutive entries in the zeroDopplerTime array')
+    ]
+    for meta_item in freq_meta_items:
+        add_dataset_and_attrs(grid_group, meta_item)
 
     # Set up osr for wkt
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(geo_grid.epsg)
 
     #Create a new single int dataset for projections
-    projection_ds = geocoded_group.require_dataset('projection', (), dtype='i')
+    projection_ds = grid_group.require_dataset('projection', (), dtype='i')
     projection_ds[()] = geo_grid.epsg
 
     # WGS84 ellipsoid
@@ -276,26 +292,24 @@ def save_orbit(orbit, orbit_group):
                                         " (or) Custom")
 
 
-def geo_burst_metadata_to_hdf5(dst_h5, burst, cfg):
+def identity_to_h5group(dst_group, burst, dataset_path):
     '''
     Write burst metadata to HDF5
 
     Parameter:
     ---------
-    dst_h5: h5py File
-        HDF5 file meta data will be written to
+    dst_group: h5py Group
+        HDF5 group meta data will be written to
     burst: Sentinel1BurstSlc
         Burst whose metadata is to written to HDF5
-    geogrid: isce3.product.GeoGridParameters
-        Geo grid object defining the geocoded area
-    cfg: types.SimpleNamespace
-        SimpleNamespace containing run configuration
+    dataset_path: str
+        Path to CSLC data in HDF5
     '''
     # identification datasets
     # TODO use following or boundary from SAFE?
     # TODO will need some changes to accommodate dateline
-    dataset_path_template = f'HDF5:%FILE_PATH%://SLC/{burst.polarization}'
-    geo_boundary = get_boundary_polygon(dst_h5.file.filename, np.nan,
+    dataset_path_template = f'HDF5:%FILE_PATH%:/{dataset_path}'
+    geo_boundary = get_boundary_polygon(dst_group.file.filename, np.nan,
                                         dataset_path_template)
     id_meta_items = [
         meta('absolute_orbit_number', burst.abs_orbit_number, 'Absolute orbit number'),
@@ -332,14 +346,33 @@ def geo_burst_metadata_to_hdf5(dst_h5, burst, cfg):
         # 'plannedDatatakeId':
         # 'plannedObservationId':
         ]
-    id_group = dst_h5.require_group('identification')
+    id_group = dst_group.require_group('identification')
     for meta_item in id_meta_items:
         add_dataset_and_attrs(id_group, meta_item)
 
+
+def metadata_to_h5group(parent_group, burst, cfg):
+    '''
+    Write burst metadata to HDF5
+
+    Parameter:
+    ---------
+    parent_group: h5py Group
+        HDF5 group meta data will be written to
+    burst: Sentinel1BurstSlc
+        Burst whose metadata is to written to HDF5
+    geogrid: isce3.product.GeoGridParameters
+        Geo grid object defining the geocoded area
+    cfg: types.SimpleNamespace
+        SimpleNamespace containing run configuration
+    '''
+    # create metadata group to write datasets to
+    meta_group = parent_group.require_group('metadata')
+
     # orbit items
-    if 'orbit' in dst_h5['/CSLC/metadata']:
-        del dst_h5['/CSLC/metadata/orbit']
-    orbit_group = dst_h5.require_group('/CSLC/metadata/orbit')
+    if 'orbit' in meta_group:
+        del meta_group['orbit']
+    orbit_group = meta_group.require_group('orbit')
     save_orbit(burst.orbit, orbit_group)
 
     # input items
@@ -354,90 +387,77 @@ def geo_burst_metadata_to_hdf5(dst_h5, burst, cfg):
              'Input noise file used'),
         meta('dem_source', os.path.basename(cfg.dem), 'DEM source description')
     ]
-    input_group = dst_h5.require_group('/CSLC/metadata/processingInformation/inputs')
+    input_group = meta_group.require_group('processingInformation/inputs')
     for meta_item in input_items:
         add_dataset_and_attrs(input_group, meta_item)
 
     # algorithm items
     algorithm_items = [
-        meta('dem_interpolation', 'BIQUINTIC', 'DEM interpolation method'),
-        meta('geocoding', 'SINC INTERPOLATION', 'Geocoding algorithm'),
+        meta('dem_interpolation', 'biquintic', 'DEM interpolation method'),
+        meta('geocoding', 'sinc interpolation', 'Geocoding algorithm'),
         meta('ISCE_version', isce3.__version__,
              'ISCE version used for processing'),
         meta('s1Reader_version', s1reader.__version__,
              'S1-Reader version used for processing'),
         meta('COMPASS_version', compass.__version__,
-             'COMPASS SAS version used for processing'),
+             'COMPASS version used for processing'),
     ]
-    algorithm_group = dst_h5.require_group('/CSLC/metadata/processingInformation/algorithms')
+    algorithm_group = meta_group.require_group('processingInformation/algorithms')
     for meta_item in algorithm_items:
         add_dataset_and_attrs(algorithm_group, meta_item)
 
-    # frequencyA datasets
-    freq_meta_items = [
-        # 'frequencyA/azimuthBandwidth':
-        meta('range_bandwidth', burst.range_bandwidth,
-             'Processed range bandwidth in Hz'),
-        meta('center_frequency', burst.radar_center_frequency,
-             'Center frequency of the processed image in Hz'),
-        meta('slant_range_spacing', burst.range_pixel_spacing,
-             'Slant range spacing of grid. '
-             'Same as difference between consecutive samples in slantRange array'),
-        meta('zeroDoppler_time_spacing', burst.azimuth_time_interval,
-             'Time interval in the along track direction for raster layers. This is same '
-             'as the spacing between consecutive entries in the zeroDopplerTime array')
-    ]
-    freq_group = dst_h5.require_group('/CSLC/grids/frequencyA')
-    for meta_item in freq_meta_items:
-        add_dataset_and_attrs(freq_group, meta_item)
+    # runconfig yaml text
+    meta_group['runconfig'] = cfg.yaml_string
 
 
-def burst_corrections_to_hdf5(dst_h5, burst, cfg):
+def corrections_to_h5group(parent_group, burst, cfg):
     '''
     Write azimuth, slant range, and EAP (if needed) correction LUT2ds to HDF5
 
     Parameter:
     ---------
-    dst_h5: h5py File
-        HDF5 file meta data will be written to
+    parent_group: h5py Group
+        HDF5 group where correction data will be written to
     burst: Sentinel1BurstSlc
         Burst containing corrections
     cfg: types.SimpleNamespace
         SimpleNamespace containing run configuration
     '''
     # Get range and azimuth LUTs
-    rg_lut, az_lut = compute_geocoding_correction_luts(burst,
-                                                       rg_step=cfg.lut_params.range_spacing,
-                                                       az_step=cfg.lut_params.azimuth_spacing)
+    geometrical_steering_doppler, bistatic_delay_lut = \
+        compute_geocoding_correction_luts(burst,
+                                          rg_step=cfg.lut_params.range_spacing,
+                                          az_step=cfg.lut_params.azimuth_spacing)
 
-    # az/rg_lut share the same grid
-    slant_range = np.linspace(az_lut.x_start,
-                              az_lut.x_start + az_lut.width * az_lut.x_spacing,
-                              az_lut.width, dtype=np.float64)
-    azimuth = np.linspace(az_lut.y_start,
-                          az_lut.y_start + az_lut.width * az_lut.x_spacing,
-                          az_lut.width, dtype=np.float64)
+    # create linspace for axises shared by both LUTs
+    x_end = bistatic_delay_lut.x_start + bistatic_delay_lut.width * bistatic_delay_lut.x_spacing
+    slant_range = np.linspace(bistatic_delay_lut.x_start, x_end,
+                              bistatic_delay_lut.width, dtype=np.float64)
+    y_end = bistatic_delay_lut.y_start + bistatic_delay_lut.width * bistatic_delay_lut.x_spacing
+    azimuth = np.linspace(bistatic_delay_lut.y_start, y_end,
+                          bistatic_delay_lut.width, dtype=np.float64)
 
     # correction LUTs axis
     correction_axis_items = [
         meta('slant_range', slant_range, 'slant range of LUT data',
              {'units': 'meters'}),
-        meta('azimuth_time', azimuth, 'azimuth time of LUT data',
+        meta('zero_doppler_time', azimuth, 'azimuth time of LUT data',
              {'units': 'seconds'})
     ]
-    correction_axis_group = dst_h5.require_group('/CSLC/grids/corrections')
+    correction_axis_group = parent_group.require_group('corrections')
     for meta_item in correction_axis_items:
         add_dataset_and_attrs(correction_axis_group, meta_item)
 
     # doppler correction LUTs
     desc = ' correction as a function of slant range and azimuth time'
     doppler_correction_items = [
-        meta('azimuth_LUT', az_lut.data, f'azimuth {desc}',
-             {'units': 'seconds'}),
-        meta('slant_range_LUT', rg_lut.data, f'slant_range {desc}',
+        meta('bistatic_delay', bistatic_delay_lut.data,
+             f'bistatic delay {desc}', {'units': 'seconds'}),
+        meta('geometry_steering_doppler', geometrical_steering_doppler.data,
+             f'geometry steering doppler {desc}',
              {'units': 'seconds'}),
     ]
-    doppler_correction_group = dst_h5.require_group('/CSLC/grids/corrections/doppler')
+    doppler_correction_group = parent_group.require_group('corrections/doppler')
     for meta_item in doppler_correction_items:
         add_dataset_and_attrs(doppler_correction_group, meta_item)
 
@@ -447,24 +467,19 @@ def burst_corrections_to_hdf5(dst_h5, burst, cfg):
         eap = burst.burst_eap
         eap_items = [
             meta('sampling_frequency', eap.freq_sampling,
-                 {'description': 'range sampling frequency',
-                  'units': 'Hz'}),
+                 'range sampling frequency', { 'units': 'Hz'}),
             meta('eta_start', eap.eta_start.strftime(TIME_STR_FMT),
-                 {'description': '?',
-                  'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
-            meta('tau_0', eap.tau_0, {'description': 'slant range time',
-                                      'units': 'seconds'}),
-            meta('tau_sub', eap.tau_sub, {'description': 'slant range time',
-                                          'units': 'seconds'}),
-            meta('theta_sub', eap.theta_sub, {'description': 'elevation angle',
-                                              'units': 'radians'}),
-            meta('azimuth_time', eap.azimuth_time.strftime(TIME_STR_FMT),
-                 {'description': '?',
-                  'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
-            meta('ascending_node_time', eap.ascending_node_time.strftime(TIME_STR_FMT),
-                  {'description': '?',
-                   'format': 'YYYY-MM-DD HH:MM:SS.6f'})
+                 'Sensing start time', {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
+            meta('tau_0', eap.tau_0, 'slant range time', {'units': 'seconds'}),
+            meta('tau_sub', eap.tau_sub, 'slant range time',
+                 {'units': 'seconds'}),
+            meta('theta_sub', eap.theta_sub, 'elevation angle',
+                 {'units': 'radians'}),
+            meta('ascending_node_time',
+                 eap.ascending_node_time.strftime(TIME_STR_FMT),
+                 'Ascending node crossing time (ANX)',
+                 {'format': 'YYYY-MM-DD HH:MM:SS.6f'})
         ]
-        eap_group = dst_h5.require_group('/CSLC/grids/corrections/elevation_antenna_pattern')
+        eap_group = parent_group.require_group('corrections/elevation_antenna_pattern')
         for meta_item in eap_items:
             add_dataset_and_attrs(eap_group, meta_item)

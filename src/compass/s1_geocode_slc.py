@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-'''wrapper for geocoded SLC'''
+'''wrapper for geocoded CSLC'''
 
 from datetime import timedelta
 import time
@@ -15,9 +15,10 @@ from compass import s1_rdr2geo
 from compass import s1_geocode_metadata
 from compass.utils.elevation_antenna_pattern import apply_eap_correction
 from compass.utils.geo_runconfig import GeoRunConfig
-from compass.utils.h5_helpers import (init_geocoded_dataset,
-                                      geo_burst_metadata_to_hdf5,
-                                      burst_corrections_to_hdf5)
+from compass.utils.h5_helpers import (corrections_to_h5group,
+                                      identity_to_h5group,
+                                      init_geocoded_dataset,
+                                      metadata_to_h5group)
 from compass.utils.helpers import get_module_name
 from compass.utils.lut import compute_geocoding_correction_luts
 from compass.utils.range_split_spectrum import range_split_spectrum
@@ -126,18 +127,20 @@ def run(cfg: GeoRunConfig):
             geo_burst_h5.attrs["institution"] = np.string_("NASA JPL")
             geo_burst_h5.attrs["mission_name"] = np.string_("OPERA")
             geo_burst_h5.attrs["reference_document"] = np.string_("TBD")
-            geo_burst_h5.attrs["title"] = np.string_("OPERA L2 CSLC Product")
+            geo_burst_h5.attrs["title"] = np.string_("OPERA L2 CSLC S1 Product")
 
             # add type to root for GDAL recognition of datasets
             ctype = h5py.h5t.py_create(np.complex64)
             ctype.commit(geo_burst_h5['/'].id, np.string_('complex64'))
 
-            slc_group = geo_burst_h5.require_group('SLC')
-            init_geocoded_dataset(slc_group, pol, geo_grid, 'complex64',
-                                  f'{pol} geocoded SLC image')
+            root_path = '/science/SENTINEL1'
+            grid_path = f'{root_path}/CSLC/grids'
+            grid_group = geo_burst_h5.require_group(grid_path)
+            init_geocoded_dataset(grid_group, pol, burst, geo_grid,
+                                  'complex64', f'{pol} geocoded CSLC image')
 
             # access the HDF5 dataset for a given frequency and polarization
-            dataset_path = f'/SLC/{pol}'
+            dataset_path = f'{grid_path}/{pol}'
             gslc_dataset = geo_burst_h5[dataset_path]
 
             # Construct the output raster directly from HDF5 dataset
@@ -165,10 +168,12 @@ def run(cfg: GeoRunConfig):
         # Save burst corrections and metadata with new h5py File instance
         # because io.Raster things
         with h5py.File(output_hdf5, 'a') as geo_burst_h5:
-            geo_burst_metadata_to_hdf5(geo_burst_h5, burst, cfg)
-            burst_corrections_to_hdf5(geo_burst_h5, burst, cfg)
-            geo_burst_h5['metadata/runconfig'] = cfg.yaml_string
+            root_group = geo_burst_h5[root_path]
+            identity_to_h5group(root_group, burst, dataset_path)
 
+            cslc_group = geo_burst_h5.require_group(f'{root_path}/CSLC')
+            metadata_to_h5group(cslc_group, burst, cfg)
+            corrections_to_h5group(cslc_group, burst, cfg)
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")

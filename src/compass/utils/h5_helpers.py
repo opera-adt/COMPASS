@@ -387,7 +387,7 @@ def metadata_to_h5group(parent_group, burst, cfg):
              'Input noise file used'),
         meta('dem_source', os.path.basename(cfg.dem), 'DEM source description')
     ]
-    input_group = meta_group.require_group('processingInformation/inputs')
+    input_group = meta_group.require_group('processing_information/inputs')
     for meta_item in input_items:
         add_dataset_and_attrs(input_group, meta_item)
 
@@ -402,7 +402,7 @@ def metadata_to_h5group(parent_group, burst, cfg):
         meta('COMPASS_version', compass.__version__,
              'COMPASS version used for processing'),
     ]
-    algorithm_group = meta_group.require_group('processingInformation/algorithms')
+    algorithm_group = meta_group.require_group('processing_information/algorithms')
     for meta_item in algorithm_items:
         add_dataset_and_attrs(algorithm_group, meta_item)
 
@@ -433,7 +433,7 @@ def corrections_to_h5group(parent_group, burst, cfg):
     x_end = bistatic_delay_lut.x_start + bistatic_delay_lut.width * bistatic_delay_lut.x_spacing
     slant_range = np.linspace(bistatic_delay_lut.x_start, x_end,
                               bistatic_delay_lut.width, dtype=np.float64)
-    y_end = bistatic_delay_lut.y_start + bistatic_delay_lut.width * bistatic_delay_lut.x_spacing
+    y_end = bistatic_delay_lut.y_start + bistatic_delay_lut.length * bistatic_delay_lut.y_spacing
     azimuth = np.linspace(bistatic_delay_lut.y_start, y_end,
                           bistatic_delay_lut.width, dtype=np.float64)
 

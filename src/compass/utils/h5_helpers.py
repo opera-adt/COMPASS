@@ -1,3 +1,7 @@
+'''
+Collection of functions to help write HDF5 datasets and metadata
+'''
+
 from dataclasses import dataclass, field
 import os
 
@@ -70,10 +74,10 @@ def init_geocoded_dataset(grid_group, dataset_name, burst, geo_grid, dtype,
 
     # dataset from burst
     freq_meta_items = [
-        meta('slant_range_spacing', burst.range_pixel_spacing,
+        Meta('slant_range_spacing', burst.range_pixel_spacing,
              'Slant range spacing of grid. '
              'Same as difference between consecutive samples in slantRange array'),
-        meta('zeroDoppler_time_spacing', burst.azimuth_time_interval,
+        Meta('zeroDoppler_time_spacing', burst.azimuth_time_interval,
              'Time interval in the along track direction for raster layers. This is same '
              'as the spacing between consecutive entries in the zeroDopplerTime array')
     ]
@@ -214,7 +218,7 @@ def init_geocoded_dataset(grid_group, dataset_name, burst, geo_grid, dtype,
         raise NotImplementedError('Waiting for implementation / Not supported in ISCE3')
 
 @dataclass
-class meta:
+class Meta:
     '''
     Convenience dataclass for passing parameters to be written to h5py.Dataset
     '''
@@ -235,7 +239,7 @@ def add_dataset_and_attrs(group, meta_item):
     ----------
     group: h5py.Group
         h5py Group to store poly1d parameters in
-    meta_item: meta
+    meta_item: Meta
         Name of dataset to add
     '''
     # Ensure it is clear to write by deleting pre-existing Dataset
@@ -282,8 +286,9 @@ def save_orbit(orbit, orbit_group):
 
     # Orbit source/type
     # TODO: Update orbit type:
-    d = orbit_group.require_dataset("orbit_type", (), "S10", data=np.string_("POE"))
-    d.attrs["description"] = np.string_("PrOE (or) NOE (or) MOE (or) POE"
+    orbit_ds = orbit_group.require_dataset("orbit_type", (), "S10",
+                                           data=np.string_("POE"))
+    orbit_ds.attrs["description"] = np.string_("PrOE (or) NOE (or) MOE (or) POE"
                                         " (or) Custom")
 
 
@@ -294,44 +299,43 @@ def identity_to_h5group(dst_group, burst, dataset_path):
     Parameter:
     ---------
     dst_group: h5py Group
-        HDF5 group meta data will be written to
+        HDF5 group metadata will be written to
     burst: Sentinel1BurstSlc
         Burst whose metadata is to written to HDF5
     dataset_path: str
         Path to CSLC data in HDF5
     '''
     # identification datasets
-    # TODO use following or boundary from SAFE?
     # TODO will need some changes to accommodate dateline
     dataset_path_template = f'HDF5:%FILE_PATH%:/{dataset_path}'
     geo_boundary = get_boundary_polygon(dst_group.file.filename, np.nan,
                                         dataset_path_template)
     id_meta_items = [
-        meta('absolute_orbit_number', burst.abs_orbit_number, 'Absolute orbit number'),
+        Meta('absolute_orbit_number', burst.abs_orbit_number, 'Absolute orbit number'),
         # NOTE: The field below does not exist on opera_rtc.xml
         # 'relativeOrbitNumber':
         #   [int(burst.burst_id[1:4]), 'Relative orbit number'],
-        meta('track_number', burst.burst_id.track_number, 'Track number'),
-        meta('burst_ID', str(burst.burst_id), 'Burst identification (burst ID)'),
-        meta('bounding_polygon', str(geo_boundary),
+        Meta('track_number', burst.burst_id.track_number, 'Track number'),
+        Meta('burst_ID', str(burst.burst_id), 'Burst identification (burst ID)'),
+        Meta('bounding_polygon', str(geo_boundary),
              'OGR compatible WKT representation of bounding polygon of the image'),
-        meta('mission_ID', burst.platform_id, 'Mission identifier'),
-        meta('product_type', 'CSLC-S1', 'Product type'),
+        Meta('mission_ID', burst.platform_id, 'Mission identifier'),
+        Meta('product_type', 'CSLC-S1', 'Product type'),
         # NOTE: in NISAR, the value has to be in UPPERCASE or lowercase?
-        meta('look_direction', 'Right', 'Look direction can be left or right'),
-        meta('orbit_pass_direction', burst.orbit_direction,
+        Meta('look_direction', 'Right', 'Look direction can be left or right'),
+        Meta('orbit_pass_direction', burst.orbit_direction,
              'Orbit direction can be ascending or descending'),
         # NOTE: using the same date format as `s1_reader.as_datetime()`
-        meta('zero_doppler_start_time', burst.sensing_start.strftime(TIME_STR_FMT),
+        Meta('zero_doppler_start_time', burst.sensing_start.strftime(TIME_STR_FMT),
              'Azimuth start time of product'),
-        meta('zero_doppler_end_time', burst.sensing_stop.strftime(TIME_STR_FMT),
+        Meta('zero_doppler_end_time', burst.sensing_stop.strftime(TIME_STR_FMT),
             'Azimuth stop time of product'),
-        meta('list_of_frequencies', ['A'],
+        Meta('list_of_frequencies', ['A'],
              'List of frequency layers available in the product'),  # T)C
-        meta('is_geocoded', True, 'Flag to indicate radar geometry or geocoded product'),
-        meta('is_urgent_observation', False,
+        Meta('is_geocoded', True, 'Flag to indicate radar geometry or geocoded product'),
+        Meta('is_urgent_observation', False,
              'List of booleans indicating if datatakes are nominal or urgent'),
-        meta('diagnostic_mode_flag', False,
+        Meta('diagnostic_mode_flag', False,
              'Indicates if the radar mode is a diagnostic mode or not: True or False'),
         # missing:
         # 'processingType'
@@ -353,7 +357,7 @@ def metadata_to_h5group(parent_group, burst, cfg):
     Parameter:
     ---------
     parent_group: h5py Group
-        HDF5 group meta data will be written to
+        HDF5 group Meta data will be written to
     burst: Sentinel1BurstSlc
         Burst whose metadata is to written to HDF5
     geogrid: isce3.product.GeoGridParameters
@@ -377,13 +381,13 @@ def metadata_to_h5group(parent_group, burst, cfg):
     l1_slc_granules = [os.path.basename(f) for f in cfg.safe_files]
     orbit_files = [os.path.basename(f) for f in cfg.orbit_path]
     input_items = [
-        meta('l1_slc_granules', l1_slc_granules, 'Input L1 RSLC product used'),
-        meta('orbit_files', orbit_files, 'List of input orbit files used'),
-        meta('calibration_file', burst.burst_calibration.basename_cads,
+        Meta('l1_slc_granules', l1_slc_granules, 'Input L1 RSLC product used'),
+        Meta('orbit_files', orbit_files, 'List of input orbit files used'),
+        Meta('calibration_file', burst.burst_calibration.basename_cads,
              'Input calibration file used'),
-        meta('noise_file', burst.burst_noise.basename_nads,
+        Meta('noise_file', burst.burst_noise.basename_nads,
              'Input noise file used'),
-        meta('dem_source', os.path.basename(cfg.dem), 'DEM source description')
+        Meta('dem_source', os.path.basename(cfg.dem), 'DEM source description')
     ]
     input_group = meta_group.require_group('inputs')
     for meta_item in input_items:
@@ -391,14 +395,14 @@ def metadata_to_h5group(parent_group, burst, cfg):
 
     # algorithm items
     algorithm_items = [
-        meta('dem_interpolation', 'biquintic', 'DEM interpolation method'),
-        meta('geocoding', 'sinc interpolation', 'Geocoding algorithm'),
-        meta('ISCE_version', isce3.__version__,
+        Meta('dem_interpolation', 'biquintic', 'DEM interpolation method'),
+        Meta('geocoding', 'sinc interpolation', 'Geocoding algorithm'),
+        Meta('ISCE_version', isce3.__version__,
              'ISCE version used for processing'),
-        meta('s1Reader_version', s1reader.__version__,
+        Meta('s1Reader_version', s1reader.__version__,
              'S1-Reader version used for processing'),
-        meta('COMPASS_version', compass.__version__,
-             'COMPASS version used for processing'),
+        Meta('COMPASS_version', compass.__version__,
+             'COMPASS version used for processing')
     ]
     algorithm_group = processing_group.require_group('algorithms')
     for meta_item in algorithm_items:
@@ -406,43 +410,40 @@ def metadata_to_h5group(parent_group, burst, cfg):
 
     # burst items
     burst_meta_items = [
-        meta('sensing_start', burst.sensing_start.strftime(TIME_STR_FMT),
+        Meta('sensing_start', burst.sensing_start.strftime(TIME_STR_FMT),
              'Sensing start time of the burst',
-             {'format': 'YYYY-MM-DD HH:MM:SS.6f'})
-        meta('sensing_stop', burst.sensing_stop.strftime(TIME_STR_FMT),
+             {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
+        Meta('sensing_stop', burst.sensing_stop.strftime(TIME_STR_FMT),
              'Sensing stop time of the burst',
-             {'format': 'YYYY-MM-DD HH:MM:SS.6f'})
-        meta('radar_center_frequency', burst.radar_center_frequency,
-             'Radar center frequency', {'units':'Hz'})
-        meta('wavelength', burst.wavelength,
-             'Wavelength of the transmitted signal', {'units':'meters'})
-        meta('azimuth_steer_rate', burst.azimuth_steer_rate,
+             {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
+        Meta('radar_center_frequency', burst.radar_center_frequency,
+             'Radar center frequency', {'units':'Hz'}),
+        Meta('wavelength', burst.wavelength,
+             'Wavelength of the transmitted signal', {'units':'meters'}),
+        Meta('azimuth_steer_rate', burst.azimuth_steer_rate,
              'Azimuth steering rate of IW and EW modes',
-             {'units':'degrees/second'})
-        # TODO add input width and length
-        meta('azimuth_time_interval', burst.azimuth_time_interval,
+             {'units':'degrees/second'}),
+        Meta('azimuth_time_interval', burst.azimuth_time_interval,
              'Time spacing between azimuth lines of the burst',
-             {'units':'seconds'})
-        meta('starting_range', burst.starting_range,
+             {'units':'seconds'}),
+        Meta('starting_range', burst.starting_range,
              'Slant range of the first sample of the input burst',
-             {'units':'meters'})
-        # TODO do we need this? It's not in the specs.
-        # TODO add far_range?
-        meta('slant_range_time', burst.slant_range_time,
+             {'units':'meters'}),
+        Meta('slant_range_time', burst.slant_range_time,
              'two-way slant range time of Doppler centroid frequency estimate',
-             {'units':'seconds'})
-        meta('range_pixel_spacing', burst.range_pixel_spacing,
+             {'units':'seconds'}),
+        Meta('range_pixel_spacing', burst.range_pixel_spacing,
              'Pixel spacing between slant range samples in the input burst SLC',
-             {'units':'meters'})
-        meta('range_bandwidth', burst.range_bandwidth,
-             'Slant range bandwidth of the signal', {'units':'Hz'})
-        meta('polarization', burst.polarization, 'Polarization of the burst')
-        meta('platform_id', burst.platform_id,
-             'Sensor platform identification string (e.g., S1A or S1B)')
+             {'units':'meters'}),
+        Meta('range_bandwidth', burst.range_bandwidth,
+             'Slant range bandwidth of the signal', {'units':'Hz'}),
+        Meta('polarization', burst.polarization, 'Polarization of the burst'),
+        Meta('platform_id', burst.platform_id,
+             'Sensor platform identification string (e.g., S1A or S1B)'),
         # window parameters
-        meta('range_window_type', burst.range_window_type,
-             'name of the weighting window type used during processing')
-        meta('range_window_coefficient', burst.range_window_coefficient,
+        Meta('range_window_type', burst.range_window_type,
+             'name of the weighting window type used during processing'),
+        Meta('range_window_coefficient', burst.range_window_coefficient,
              'value of the weighting window coefficient used during processing')
     ]
     burst_meta_group = processing_group.require_group('s1_burst_metadata')
@@ -484,9 +485,9 @@ def corrections_to_h5group(parent_group, burst, cfg):
 
     # correction LUTs axis and doppler correction LUTs
     correction_axis_items = [
-        meta('slant_range', slant_range, 'slant range of LUT data',
+        Meta('slant_range', slant_range, 'slant range of LUT data',
              {'units': 'meters'}),
-        meta('zero_doppler_time', azimuth, 'azimuth time of LUT data',
+        Meta('zero_doppler_time', azimuth, 'azimuth time of LUT data',
              {'units': 'seconds'})
     ]
     for meta_item in correction_axis_items:
@@ -494,9 +495,9 @@ def corrections_to_h5group(parent_group, burst, cfg):
 
     desc = ' correction as a function of slant range and azimuth time'
     dopp_correction_items = [
-        meta('bistatic_delay', bistatic_delay_lut.data,
+        Meta('bistatic_delay', bistatic_delay_lut.data,
              f'bistatic delay (azimuth) {desc}', {'units': 'seconds'}),
-        meta('geometry_steering_doppler', geometrical_steering_doppler.data,
+        Meta('geometry_steering_doppler', geometrical_steering_doppler.data,
              f'geometry steering doppler (range) {desc}',
              {'units': 'meters'}),
     ]
@@ -509,16 +510,16 @@ def corrections_to_h5group(parent_group, burst, cfg):
     if check_eap.phase_correction:
         eap = burst.burst_eap
         eap_items = [
-            meta('sampling_frequency', eap.freq_sampling,
+            Meta('sampling_frequency', eap.freq_sampling,
                  'range sampling frequency', { 'units': 'Hz'}),
-            meta('eta_start', eap.eta_start.strftime(TIME_STR_FMT),
+            Meta('eta_start', eap.eta_start.strftime(TIME_STR_FMT),
                  'Sensing start time', {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
-            meta('tau_0', eap.tau_0, 'slant range time', {'units': 'seconds'}),
-            meta('tau_sub', eap.tau_sub, 'slant range time',
+            Meta('tau_0', eap.tau_0, 'slant range time', {'units': 'seconds'}),
+            Meta('tau_sub', eap.tau_sub, 'slant range time',
                  {'units': 'seconds'}),
-            meta('theta_sub', eap.theta_sub, 'elevation angle',
+            Meta('theta_sub', eap.theta_sub, 'elevation angle',
                  {'units': 'radians'}),
-            meta('ascending_node_time',
+            Meta('ascending_node_time',
                  eap.ascending_node_time.strftime(TIME_STR_FMT),
                  'Ascending node crossing time (ANX)',
                  {'format': 'YYYY-MM-DD HH:MM:SS.6f'})

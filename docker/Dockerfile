@@ -33,9 +33,9 @@ SHELL ["conda", "run", "-n", "COMPASS", "/bin/bash", "-c"]
 
 RUN echo "Installing OPERA s1-reader" &&\
     cd ${HOME}/OPERA &&\
-    curl -sSL https://github.com/opera-adt/s1-reader/archive/refs/tags/v0.1.3.tar.gz -o s1_reader_src.tar.gz &&\
+    curl -sSL https://github.com/opera-adt/s1-reader/archive/refs/tags/v0.1.4.tar.gz -o s1_reader_src.tar.gz &&\
     tar -xvf s1_reader_src.tar.gz &&\
-    ln -s s1-reader-0.1.3 s1-reader &&\
+    ln -s s1-reader-0.1.4 s1-reader &&\
     rm s1_reader_src.tar.gz &&\
     python -m pip install ./s1-reader &&\
     echo "Installing OPERA COMPASS" &&\

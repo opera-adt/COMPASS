@@ -62,7 +62,8 @@ def run(cfg: GeoRunConfig):
         # Get range and azimuth LUTs
         rg_lut, az_lut = compute_geocoding_correction_luts(burst,
                                                            rg_step=cfg.lut_params.range_spacing,
-                                                           az_step=cfg.lut_params.azimuth_spacing)
+                                                           az_step=cfg.lut_params.azimuth_spacing,
+                                                           dem_path=cfg.dem)
 
         radar_grid = burst.as_isce3_radargrid()
         native_doppler = burst.doppler.lut2d
@@ -126,12 +127,12 @@ def run(cfg: GeoRunConfig):
             ctype = h5py.h5t.py_create(np.complex64)
             ctype.commit(geo_burst_h5['/'].id, np.string_('complex64'))
 
-            backscatter_group = geo_burst_h5.require_group('complex_backscatter')
+            backscatter_group = geo_burst_h5.require_group('SLC')
             init_geocoded_dataset(backscatter_group, pol, geo_grid,
                                   'complex64', f'{pol} geocoded SLC image')
 
             # access the HDF5 dataset for a given frequency and polarization
-            dataset_path = f'/complex_backscatter/{pol}'
+            dataset_path = f'/SLC/{pol}'
             gslc_dataset = geo_burst_h5[dataset_path]
 
             # Construct the output raster directly from HDF5 dataset

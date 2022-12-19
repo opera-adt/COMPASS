@@ -19,7 +19,7 @@ from compass.utils.raster_polygon import get_boundary_polygon
 TIME_STR_FMT = '%Y-%m-%d %H:%M:%S.%f'
 
 
-def init_geocoded_dataset(grid_group, dataset_name, burst, geo_grid, dtype,
+def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
                           description):
     '''
     Create and allocate dataset for isce.geocode.geocode_slc to write to that
@@ -56,10 +56,10 @@ def init_geocoded_dataset(grid_group, dataset_name, burst, geo_grid, dtype,
 
     # following copied and pasted (and slightly modified) from:
     # https://github-fn.jpl.nasa.gov/isce-3/isce/wiki/CF-Conventions-and-Map-Projections
-    x_ds = grid_group.require_dataset('x', dtype='float64', data=x_vect,
-                                      shape=x_vect.shape)
-    y_ds = grid_group.require_dataset('y', dtype='float64', data=y_vect,
-                                      shape=y_vect.shape)
+    x_ds = grid_group.require_dataset('x_coordinates', dtype='float64',
+                                      data=x_vect, shape=x_vect.shape)
+    y_ds = grid_group.require_dataset('y_coordinates', dtype='float64',
+                                      data=y_vect, shape=y_vect.shape)
 
     # Mapping of dimension scales to datasets is not done automatically in HDF5
     # We should label appropriate arrays as scales and attach them to datasets
@@ -72,16 +72,13 @@ def init_geocoded_dataset(grid_group, dataset_name, burst, geo_grid, dtype,
     # Associate grid mapping with data - projection created later
     cslc_ds.attrs['grid_mapping'] = np.string_("projection")
 
-    # dataset from burst
-    freq_meta_items = [
-        Meta('slant_range_spacing', burst.range_pixel_spacing,
-             'Slant range spacing of grid. '
-             'Same as difference between consecutive samples in slantRange array'),
-        Meta('zeroDoppler_time_spacing', burst.azimuth_time_interval,
-             'Time interval in the along track direction for raster layers. This is same '
-             'as the spacing between consecutive entries in the zeroDopplerTime array')
+    grid_meta_items = [
+        Meta('x_spacing', geo_grid.spacing_x,
+             'Spacing of geo grid in x-axis.'),
+        Meta('y_spacing', geo_grid.spacing_y,
+             'Spacing of geo grid in y-axis.')
     ]
-    for meta_item in freq_meta_items:
+    for meta_item in grid_meta_items:
         add_dataset_and_attrs(grid_group, meta_item)
 
     # Set up osr for wkt
@@ -232,6 +229,15 @@ class Meta:
     attr_dict: dict = field(default_factory=dict)
 
 
+def _as_np_string_if_needed(val):
+    '''
+    If type str encountered, convert and return as np.string_. Otherwise return
+    as is.
+    '''
+    val = np.string_(val) if isinstance(val, str) else val
+    return val
+
+
 def add_dataset_and_attrs(group, meta_item):
     '''Write isce3.core.Poly1d properties to hdf5
 
@@ -247,18 +253,18 @@ def add_dataset_and_attrs(group, meta_item):
         del group[meta_item.name]
 
     # Convert data to written if necessary
-    val = meta_item.value
-    val = np.string_(val) if isinstance(val, str) else val
+    val = _as_np_string_if_needed(meta_item.value)
     group[meta_item.name] = val
 
     # Write data and attributes
     val_ds = group[meta_item.name]
-    val_ds.attrs['description'] = meta_item.description
+    desc = _as_np_string_if_needed(meta_item.description)
+    val_ds.attrs['description'] = desc
     for key, val in meta_item.attr_dict.items():
-        val_ds.attrs[key] = val
+        val_ds.attrs[key] = _as_np_string_if_needed(val)
 
 
-def save_orbit(orbit, orbit_group):
+def save_orbit(orbit, orbit_direction, orbit_group):
     '''
     Write burst to HDF5
 
@@ -269,23 +275,29 @@ def save_orbit(orbit, orbit_group):
     orbit_group: h5py.Group
         HDF5 group where orbit parameters will be written
     '''
-    orbit.save_to_h5(orbit_group)
-    # Add description attributes.
-    orbit_group["time"].attrs["description"] = np.string_("Time vector record. This"
-        " record contains the time corresponding to position, velocity,"
-        " acceleration records")
-    orbit_group["position"].attrs["description"] = np.string_("Position vector"
-        " record. This record contains the platform position data with"
-        " respect to WGS84 G1762 reference frame")
-    orbit_group["velocity"].attrs["description"] = np.string_("Velocity vector"
-        " record. This record contains the platform velocity data with"
-        " respect to WGS84 G1762 reference frame")
-    orbit_group.create_dataset(
-        'referenceEpoch',
-        data=np.string_(orbit.reference_epoch.isoformat()))
+    ref_epoch = orbit.reference_epoch.isoformat().replace('T', ' ')
+    orbit_items = [
+        Meta('ref_epoch', ref_epoch, 'Reference epoch of the state vectors',
+             {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
+        Meta('time', np.linspace(orbit.time.first,
+                                 orbit.time.last,
+                                 orbit.time.size),
+             'Time of the orbit state vectors relative to the reference epoch',
+             {'units': 'seconds'}),
+        Meta('orbit_direction', orbit_direction,
+             'Direction of sensor orbit ephermerides (e.g., ascending, descending)')
+    ]
+    for i_ax, axis in enumerate('xyz'):
+        desc_suffix = f'{axis}-direction with respect to WGS84 G1762 reference frame'
+        orbit_items.append(Meta(f'position_{axis}', orbit.position[:, i_ax],
+                                f'Platform position along {desc_suffix}',
+                                {'units': 'meters'}))
+        orbit_items.append(Meta(f'velocity_{axis}', orbit.velocity[:, i_ax],
+                                f'Platform velocity along {desc_suffix}',
+                                {'units': 'meters/second'}))
+    for meta_item in orbit_items:
+        add_dataset_and_attrs(orbit_group, meta_item)
 
-    # Orbit source/type
-    # TODO: Update orbit type:
     orbit_ds = orbit_group.require_dataset("orbit_type", (), "S10",
                                            data=np.string_("POE"))
     orbit_ds.attrs["description"] = np.string_("PrOE (or) NOE (or) MOE (or) POE"
@@ -311,6 +323,7 @@ def identity_to_h5group(dst_group, burst, dataset_path):
     geo_boundary = get_boundary_polygon(dst_group.file.filename, np.nan,
                                         dataset_path_template)
     id_meta_items = [
+        Meta('product_version', '?', 'CSLC product version'),
         Meta('absolute_orbit_number', burst.abs_orbit_number, 'Absolute orbit number'),
         # NOTE: The field below does not exist on opera_rtc.xml
         # 'relativeOrbitNumber':
@@ -372,24 +385,24 @@ def metadata_to_h5group(parent_group, burst, cfg):
     if 'orbit' in meta_group:
         del meta_group['orbit']
     orbit_group = meta_group.require_group('orbit')
-    save_orbit(burst.orbit, orbit_group)
+    save_orbit(burst.orbit, burst.orbit_direction, orbit_group)
 
     # create metadata group to write datasets to
     processing_group = meta_group.require_group('processing_information')
 
     # input items
-    l1_slc_granules = [os.path.basename(f) for f in cfg.safe_files]
+    l1_slc_files = [os.path.basename(f) for f in cfg.safe_files]
     orbit_files = [os.path.basename(f) for f in cfg.orbit_path]
     input_items = [
-        Meta('l1_slc_granules', l1_slc_granules, 'Input L1 RSLC product used'),
+        Meta('l1_slc_files', l1_slc_files, 'Input L1 RSLC files used'),
         Meta('orbit_files', orbit_files, 'List of input orbit files used'),
         Meta('calibration_file', burst.burst_calibration.basename_cads,
              'Input calibration file used'),
         Meta('noise_file', burst.burst_noise.basename_nads,
              'Input noise file used'),
-        Meta('dem_source', os.path.basename(cfg.dem), 'DEM source description')
+        Meta('dem_source', os.path.basename(cfg.dem), 'sorce DEM file')
     ]
-    input_group = meta_group.require_group('inputs')
+    input_group = processing_group.require_group('inputs')
     for meta_item in input_items:
         add_dataset_and_attrs(input_group, meta_item)
 
@@ -481,29 +494,23 @@ def corrections_to_h5group(parent_group, burst, cfg):
                               bistatic_delay_lut.width, dtype=np.float64)
     y_end = bistatic_delay_lut.y_start + bistatic_delay_lut.length * bistatic_delay_lut.y_spacing
     azimuth = np.linspace(bistatic_delay_lut.y_start, y_end,
-                          bistatic_delay_lut.width, dtype=np.float64)
+                          bistatic_delay_lut.length, dtype=np.float64)
 
     # correction LUTs axis and doppler correction LUTs
-    correction_axis_items = [
+    desc = ' correction as a function of slant range and azimuth time'
+    correction_items = [
         Meta('slant_range', slant_range, 'slant range of LUT data',
              {'units': 'meters'}),
         Meta('zero_doppler_time', azimuth, 'azimuth time of LUT data',
-             {'units': 'seconds'})
-    ]
-    for meta_item in correction_axis_items:
-        add_dataset_and_attrs(correction_group, meta_item)
-
-    desc = ' correction as a function of slant range and azimuth time'
-    dopp_correction_items = [
+             {'units': 'seconds'}),
         Meta('bistatic_delay', bistatic_delay_lut.data,
              f'bistatic delay (azimuth) {desc}', {'units': 'seconds'}),
         Meta('geometry_steering_doppler', geometrical_steering_doppler.data,
              f'geometry steering doppler (range) {desc}',
              {'units': 'meters'}),
     ]
-    dopp_correction_group = correction_group.require_group('doppler')
-    for meta_item in dopp_correction_items:
-        add_dataset_and_attrs(dopp_correction_group, meta_item)
+    for meta_item in correction_items:
+        add_dataset_and_attrs(correction_group, meta_item)
 
     # EAP metadata depending on IPF version
     check_eap = is_eap_correction_necessary(burst.ipf_version)

@@ -136,8 +136,8 @@ def run(cfg: GeoRunConfig):
             root_path = '/science/SENTINEL1'
             grid_path = f'{root_path}/CSLC/grids'
             grid_group = geo_burst_h5.require_group(grid_path)
-            init_geocoded_dataset(grid_group, pol, burst, geo_grid,
-                                  'complex64', f'{pol} geocoded CSLC image')
+            init_geocoded_dataset(grid_group, pol, geo_grid, 'complex64',
+                                  f'{pol} geocoded CSLC image')
 
             # access the HDF5 dataset for a given frequency and polarization
             dataset_path = f'{grid_path}/{pol}'

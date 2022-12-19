@@ -45,7 +45,7 @@ def _gdal_nfo_retrieve(path_h5):
     slc: np.array
         Array holding geocoded complex backscatter
     """
-    raster_key = 'complex_backscatter'
+    raster_key = 'SLC'
 
     # Extract polarization with h5py
     with h5py.File(path_h5) as h:

@@ -501,7 +501,7 @@ def corrections_to_h5group(parent_group, burst, cfg):
              f'geometry steering doppler (range) {desc}',
              {'units': 'meters'}),
     ]
-    dopp_correction_group = parent_group.require_group('doppler')
+    dopp_correction_group = correction_group.require_group('doppler')
     for meta_item in dopp_correction_items:
         add_dataset_and_attrs(dopp_correction_group, meta_item)
 
@@ -524,6 +524,6 @@ def corrections_to_h5group(parent_group, burst, cfg):
                  'Ascending node crossing time (ANX)',
                  {'format': 'YYYY-MM-DD HH:MM:SS.6f'})
         ]
-        eap_group = parent_group.require_group('corrections/elevation_antenna_pattern')
+        eap_group = correction_group.require_group('elevation_antenna_pattern')
         for meta_item in eap_items:
             add_dataset_and_attrs(eap_group, meta_item)

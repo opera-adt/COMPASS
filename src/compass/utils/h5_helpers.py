@@ -70,11 +70,6 @@ def init_geocoded_dataset(grid_group, dataset_name, burst, geo_grid, dtype,
 
     # dataset from burst
     freq_meta_items = [
-        # 'azimuthBandwidth':
-        meta('range_bandwidth', burst.range_bandwidth,
-             'Processed range bandwidth in Hz'),
-        meta('center_frequency', burst.radar_center_frequency,
-             'Center frequency of the processed image in Hz'),
         meta('slant_range_spacing', burst.range_pixel_spacing,
              'Slant range spacing of grid. '
              'Same as difference between consecutive samples in slantRange array'),
@@ -375,6 +370,9 @@ def metadata_to_h5group(parent_group, burst, cfg):
     orbit_group = meta_group.require_group('orbit')
     save_orbit(burst.orbit, orbit_group)
 
+    # create metadata group to write datasets to
+    processing_group = meta_group.require_group('processing_information')
+
     # input items
     l1_slc_granules = [os.path.basename(f) for f in cfg.safe_files]
     orbit_files = [os.path.basename(f) for f in cfg.orbit_path]
@@ -387,7 +385,7 @@ def metadata_to_h5group(parent_group, burst, cfg):
              'Input noise file used'),
         meta('dem_source', os.path.basename(cfg.dem), 'DEM source description')
     ]
-    input_group = meta_group.require_group('processing_information/inputs')
+    input_group = meta_group.require_group('inputs')
     for meta_item in input_items:
         add_dataset_and_attrs(input_group, meta_item)
 
@@ -402,9 +400,54 @@ def metadata_to_h5group(parent_group, burst, cfg):
         meta('COMPASS_version', compass.__version__,
              'COMPASS version used for processing'),
     ]
-    algorithm_group = meta_group.require_group('processing_information/algorithms')
+    algorithm_group = processing_group.require_group('algorithms')
     for meta_item in algorithm_items:
         add_dataset_and_attrs(algorithm_group, meta_item)
+
+    # burst items
+    burst_meta_items = [
+        meta('sensing_start', burst.sensing_start.strftime(TIME_STR_FMT),
+             'Sensing start time of the burst',
+             {'format': 'YYYY-MM-DD HH:MM:SS.6f'})
+        meta('sensing_stop', burst.sensing_stop.strftime(TIME_STR_FMT),
+             'Sensing stop time of the burst',
+             {'format': 'YYYY-MM-DD HH:MM:SS.6f'})
+        meta('radar_center_frequency', burst.radar_center_frequency,
+             'Radar center frequency', {'units':'Hz'})
+        meta('wavelength', burst.wavelength,
+             'Wavelength of the transmitted signal', {'units':'meters'})
+        meta('azimuth_steer_rate', burst.azimuth_steer_rate,
+             'Azimuth steering rate of IW and EW modes',
+             {'units':'degrees/second'})
+        # TODO add input width and length
+        meta('azimuth_time_interval', burst.azimuth_time_interval,
+             'Time spacing between azimuth lines of the burst',
+             {'units':'seconds'})
+        meta('starting_range', burst.starting_range,
+             'Slant range of the first sample of the input burst',
+             {'units':'meters'})
+        # TODO do we need this? It's not in the specs.
+        # TODO add far_range?
+        meta('slant_range_time', burst.slant_range_time,
+             'two-way slant range time of Doppler centroid frequency estimate',
+             {'units':'seconds'})
+        meta('range_pixel_spacing', burst.range_pixel_spacing,
+             'Pixel spacing between slant range samples in the input burst SLC',
+             {'units':'meters'})
+        meta('range_bandwidth', burst.range_bandwidth,
+             'Slant range bandwidth of the signal', {'units':'Hz'})
+        meta('polarization', burst.polarization, 'Polarization of the burst')
+        meta('platform_id', burst.platform_id,
+             'Sensor platform identification string (e.g., S1A or S1B)')
+        # window parameters
+        meta('range_window_type', burst.range_window_type,
+             'name of the weighting window type used during processing')
+        meta('range_window_coefficient', burst.range_window_coefficient,
+             'value of the weighting window coefficient used during processing')
+    ]
+    burst_meta_group = processing_group.require_group('s1_burst_metadata')
+    for meta_item in burst_meta_items:
+        add_dataset_and_attrs(burst_meta_group, meta_item)
 
     # runconfig yaml text
     meta_group['runconfig'] = cfg.yaml_string
@@ -423,6 +466,8 @@ def corrections_to_h5group(parent_group, burst, cfg):
     cfg: types.SimpleNamespace
         SimpleNamespace containing run configuration
     '''
+    correction_group = parent_group.require_group('corrections')
+
     # Get range and azimuth LUTs
     geometrical_steering_doppler, bistatic_delay_lut = \
         compute_geocoding_correction_luts(burst,
@@ -438,21 +483,26 @@ def corrections_to_h5group(parent_group, burst, cfg):
                           bistatic_delay_lut.width, dtype=np.float64)
 
     # correction LUTs axis and doppler correction LUTs
-    desc = ' correction as a function of slant range and azimuth time'
     correction_axis_items = [
         meta('slant_range', slant_range, 'slant range of LUT data',
              {'units': 'meters'}),
         meta('zero_doppler_time', azimuth, 'azimuth time of LUT data',
-             {'units': 'seconds'}),
-        meta('bistatic_delay', bistatic_delay_lut.data,
-             f'bistatic delay {desc}', {'units': 'seconds'}),
-        meta('geometry_steering_doppler', geometrical_steering_doppler.data,
-             f'geometry steering doppler {desc}',
-             {'units': 'seconds'}),
+             {'units': 'seconds'})
     ]
-    correction_axis_group = parent_group.require_group('corrections')
     for meta_item in correction_axis_items:
-        add_dataset_and_attrs(correction_axis_group, meta_item)
+        add_dataset_and_attrs(correction_group, meta_item)
+
+    desc = ' correction as a function of slant range and azimuth time'
+    dopp_correction_items = [
+        meta('bistatic_delay', bistatic_delay_lut.data,
+             f'bistatic delay (azimuth) {desc}', {'units': 'seconds'}),
+        meta('geometry_steering_doppler', geometrical_steering_doppler.data,
+             f'geometry steering doppler (range) {desc}',
+             {'units': 'meters'}),
+    ]
+    dopp_correction_group = parent_group.require_group('doppler')
+    for meta_item in dopp_correction_items:
+        add_dataset_and_attrs(dopp_correction_group, meta_item)
 
     # EAP metadata depending on IPF version
     check_eap = is_eap_correction_necessary(burst.ipf_version)

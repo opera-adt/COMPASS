@@ -29,15 +29,25 @@ def compute_geocoding_correction_luts(burst, rg_step=200, az_step=0.25,
 
     Returns
     -------
-    rg_lut: isce3.core.LUT2d:
-        2D array containing sum of range corrections
-        LUT2D object of bistatic delay correction in seconds as a function
-        of the azimuth time and slant range, or range and azimuth indices.
+    geometrical_steering_doppler: isce3.core.LUT2d:
+        LUT2D object of total doppler (geometrical doppler +  steering doppler)
+        in seconds as the function of the azimuth time and slant range,
+        or range and azimuth indices.
         This correction needs to be added to the SLC tagged azimuth time to
         get the corrected azimuth times.
-    az_lut: isce3.core.LUT2d:
-        LUT2D object of range delay correction [seconds] as a function
-        of the azimuth time and slant range, or x and y indices.
+
+    bistatic_delay: isce3.core.LUT2d:
+        LUT2D object of bistatic delay correction in seconds as a function
+        of the azimuth time and slant range, or range and azimuth indices.
+        This correction needs to be added to the SLC tagged range time to
+        get the corrected range times.
+
+    az_fm_mismatch: isce3.core.LUT2d:
+        LUT2D object of azimuth FM rate mismatch mitigation,
+        in seconds as the function of the azimuth time and slant range,
+        or range and azimuth indices.
+        This correction needs to be added to the SLC tagged azimuth time to
+        get the corrected azimuth times.
     '''
 
     bistatic_delay = burst.bistatic_delay(range_step=rg_step, az_step=az_step)

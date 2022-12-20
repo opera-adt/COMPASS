@@ -444,7 +444,8 @@ def metadata_to_h5group(parent_group, burst, cfg):
     # algorithm items
     algorithm_items = [
         Meta('dem_interpolation', 'biquintic', 'DEM interpolation method'),
-        Meta('geocoding', 'sinc interpolation', 'Geocoding algorithm'),
+        Meta('geocoding_interpolator', 'sinc interpolation',
+             'Geocoding algorithm'),
         Meta('ISCE_version', isce3.__version__,
              'ISCE version used for processing'),
         Meta('s1Reader_version', s1reader.__version__,

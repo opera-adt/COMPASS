@@ -683,7 +683,7 @@ def corrections_to_h5group(parent_group, burst, cfg):
                  'azimuth_last_azimuth_line'),
             Meta('azimuth_last_range_sample', noise.azimuth_last_range_sample,
                  'azimuth_last_range_sample'),
-            Meta('azimuth_line', noise.azimuth_line, 'azimuth_line'),
+            Meta('azimuth_line', noise.azimuth_line, 'azimuth line index for noise LUT'),
             Meta('azimuth_lut', noise.azimuth_lut, 'azimuth_lut')
         ]
         noise_group = correction_group.require_group('noise')

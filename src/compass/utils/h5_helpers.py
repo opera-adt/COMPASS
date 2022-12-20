@@ -277,7 +277,7 @@ def save_orbit(orbit, orbit_direction, orbit_group):
     '''
     ref_epoch = orbit.reference_epoch.isoformat().replace('T', ' ')
     orbit_items = [
-        Meta('ref_epoch', ref_epoch, 'Reference epoch of the state vectors',
+        Meta('reference_epoch', ref_epoch, 'Reference epoch of the state vectors',
              {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
         Meta('time', np.linspace(orbit.time.first,
                                  orbit.time.last,
@@ -501,8 +501,12 @@ def corrections_to_h5group(parent_group, burst, cfg):
     correction_items = [
         Meta('slant_range', slant_range, 'slant range of LUT data',
              {'units': 'meters'}),
+        Meta('slant_range_spacing', bistatic_delay_lut.x_spacing,
+             'spacing of slant range of LUT data', {'units': 'meters'}),
         Meta('zero_doppler_time', azimuth, 'azimuth time of LUT data',
              {'units': 'seconds'}),
+        Meta('zero_doppler_time_spacing', bistatic_delay_lut.y_spacing,
+             'spacing of azimuth time of LUT data', {'units': 'seconds'}),
         Meta('bistatic_delay', bistatic_delay_lut.data,
              f'bistatic delay (azimuth) {desc}', {'units': 'seconds'}),
         Meta('geometry_steering_doppler', geometrical_steering_doppler.data,

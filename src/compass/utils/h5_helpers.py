@@ -534,7 +534,7 @@ def metadata_to_h5group(parent_group, burst, cfg):
         Meta('coeffs', poly1d.coeffs, 'coefficients of the polynomial'),
         poly1d_group = group.require_group(poly1d_name)
         for meta_item in burst_meta_items:
-            add_dataset_and_attrs(burst_meta_group, meta_item)
+            add_dataset_and_attrs(poly1d_group, meta_item)
 
     poly1d_to_h5(burst_meta_group, 'azimuth_fm_rate', burst.azimuth_fm_rate)
     poly1d_to_h5(burst_meta_group, 'doppler', burst.doppler.poly1d)

@@ -128,7 +128,7 @@ def run(cfg: GeoRunConfig):
             geo_burst_h5.attrs["institution"] = np.string_("NASA JPL")
             geo_burst_h5.attrs["mission_name"] = np.string_("OPERA")
             geo_burst_h5.attrs["reference_document"] = np.string_("TBD")
-            geo_burst_h5.attrs["title"] = np.string_("OPERA L2 CSLC S1 Product")
+            geo_burst_h5.attrs["title"] = np.string_("OPERA L2_CSLC_S1 Product")
 
             # add type to root for GDAL recognition of datasets
             ctype = h5py.h5t.py_create(np.complex64)

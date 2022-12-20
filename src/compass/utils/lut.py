@@ -5,7 +5,7 @@ import os
 import isce3
 
 def compute_geocoding_correction_luts(burst, rg_step=200, az_step=0.25,
-                                      dem_path=None, scratch_path=None):
+                                      dem_path, scratch_path=None):
     '''
     Compute slant range and azimuth LUTs corrections
     to be applied during burst geocoding

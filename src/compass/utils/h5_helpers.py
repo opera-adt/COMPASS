@@ -61,8 +61,8 @@ def add_dataset_and_attrs(group, meta_item):
     val = _as_np_string_if_needed(meta_item.value)
     try:
         group[meta_item.name] = val
-    except ValueError:
-        raise ValueError(f'unable to write {meta_item.name}')
+    except TypeError:
+        raise TypeError(f'unable to write {meta_item.name}')
 
     # Write data and attributes
     val_ds = group[meta_item.name]

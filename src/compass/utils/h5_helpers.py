@@ -498,8 +498,8 @@ def metadata_to_h5group(parent_group, burst, cfg):
         Meta('polarization', burst.polarization, 'Polarization of the burst'),
         Meta('platform_id', burst.platform_id,
              'Sensor platform identification string (e.g., S1A or S1B)'),
-        Meta('center', burst.center, 'Latitude, longitude center of burst',
-             {'units':'degrees'}),
+        Meta('center', [xy[0] for xy in burst.center.coords.xy],
+             'Longitude, latitude center of burst', {'units':'degrees'}),
         # window parameters
         Meta('range_window_type', burst.range_window_type,
              'Name of the weighting window type used during processing'),

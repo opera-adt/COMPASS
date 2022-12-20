@@ -121,6 +121,7 @@ def run(cfg: GeoRunConfig):
         sliced_radar_grid = burst.as_isce3_radargrid()[b_bounds]
 
         output_hdf5 = out_paths.hdf5_path
+        root_path = '/science/SENTINEL1'
         with h5py.File(output_hdf5, 'w') as geo_burst_h5:
             geo_burst_h5.attrs['Conventions'] = "CF-1.8"
             geo_burst_h5.attrs["contact"] = np.string_("operaops@jpl.nasa.gov")
@@ -133,7 +134,6 @@ def run(cfg: GeoRunConfig):
             ctype = h5py.h5t.py_create(np.complex64)
             ctype.commit(geo_burst_h5['/'].id, np.string_('complex64'))
 
-            root_path = '/science/SENTINEL1'
             grid_path = f'{root_path}/CSLC/grids'
             grid_group = geo_burst_h5.require_group(grid_path)
             init_geocoded_dataset(grid_group, pol, geo_grid, 'complex64',
@@ -169,7 +169,7 @@ def run(cfg: GeoRunConfig):
         # because io.Raster things
         with h5py.File(output_hdf5, 'a') as geo_burst_h5:
             root_group = geo_burst_h5[root_path]
-            identity_to_h5group(root_group, burst, dataset_path)
+            identity_to_h5group(root_group, burst)
 
             cslc_group = geo_burst_h5.require_group(f'{root_path}/CSLC')
             metadata_to_h5group(cslc_group, burst, cfg)

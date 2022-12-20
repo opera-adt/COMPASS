@@ -10,7 +10,6 @@ import numpy as np
 from osgeo import osr
 import s1reader
 from s1reader.s1_burst_slc import Sentinel1BurstSlc
-from s1reader.s1_reader import is_eap_correction_necessary
 import shapely
 
 import compass
@@ -331,7 +330,7 @@ def get_polygon_wkt(burst: Sentinel1BurstSlc):
     return geometry_polygon.wkt
 
 
-def identity_to_h5group(dst_group, burst, dataset_path):
+def identity_to_h5group(dst_group, burst):
     '''
     Write burst metadata to HDF5
 
@@ -351,7 +350,8 @@ def identity_to_h5group(dst_group, burst, dataset_path):
         Meta('track_number', burst.burst_id.track_number, 'Track number'),
         Meta('burst_id', str(burst.burst_id), 'Burst identification (burst ID)'),
         Meta('bounding_polygon', get_polygon_wkt(burst),
-             'OGR compatible WKT representation of bounding polygon of the image'),
+             'OGR compatible WKT representation of bounding polygon of the image',
+             {'units':'degrees'}),
         Meta('mission_id', burst.platform_id, 'Mission identifier'),
         Meta('product_type', 'CSLC-S1', 'Product type'),
         Meta('look_direction', 'Right', 'Look direction can be left or right'),
@@ -389,6 +389,9 @@ def metadata_to_h5group(parent_group, burst, cfg):
     cfg: types.SimpleNamespace
         SimpleNamespace containing run configuration
     '''
+    if 'metadata' in parent_group:
+        del parent_group['metadata']
+
     # create metadata group to write datasets to
     meta_group = parent_group.require_group('metadata')
 
@@ -402,20 +405,37 @@ def metadata_to_h5group(parent_group, burst, cfg):
     processing_group = meta_group.require_group('processing_information')
 
     # input items
-    l1_slc_files = [os.path.basename(f) for f in cfg.safe_files]
     orbit_files = [os.path.basename(f) for f in cfg.orbit_path]
     input_items = [
-        Meta('l1_slc_files', l1_slc_files, 'Input L1 RSLC files used'),
+        Meta('l1_slc_files', burst.safe_filename, 'Input L1 RSLC file used'),
         Meta('orbit_files', orbit_files, 'List of input orbit files used'),
         Meta('calibration_file', burst.burst_calibration.basename_cads,
              'Input calibration file used'),
         Meta('noise_file', burst.burst_noise.basename_nads,
              'Input noise file used'),
-        Meta('dem_source', os.path.basename(cfg.dem), 'sorce DEM file')
+        Meta('dem_source', os.path.basename(cfg.dem), 'sorce DEM file'),
     ]
     input_group = processing_group.require_group('inputs')
     for meta_item in input_items:
         add_dataset_and_attrs(input_group, meta_item)
+
+    vrt_items = [
+        Meta('tiff_path', burst.tiff_path,
+             'Path to measurement tiff inside RSLC SAFE file'),
+        Meta('burst_index', burst.i_burst,
+             'Burst index relative other bursts in swath'),
+        Meta('first_valid_sample', burst.first_valid_sample,
+             'First valid sample for burst in measurement tiff'),
+        Meta('last_valid_sample', burst.last_valid_sample,
+             'Last valid sample for burst in measurement tiff'),
+        Meta('first_valid_line', burst.first_valid_line,
+             'First valid line for burst in measurement tiff'),
+        Meta('last_valid_line', burst.last_valid_line,
+             'Last valid line for burst in measurement tiff')
+    ]
+    vrt_group = input_group.require_group('vrt_parameters')
+    for meta_item in vrt_items:
+        add_dataset_and_attrs(vrt_group, meta_item)
 
     # algorithm items
     algorithm_items = [
@@ -434,14 +454,11 @@ def metadata_to_h5group(parent_group, burst, cfg):
 
     # burst items
     burst_meta_items = [
+        Meta('ipf_version', str(burst.ipf_version),
+             'Image Processing Facility'),
         Meta('sensing_start', burst.sensing_start.strftime(TIME_STR_FMT),
              'Sensing start time of the burst',
              {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
-        Meta('sensing_stop', burst.sensing_stop.strftime(TIME_STR_FMT),
-             'Sensing stop time of the burst',
-             {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
-        Meta('length', burst.length, 'length of SLC', {'units':'pixels'}),
-        Meta('width', burst.width, 'width of SLC', {'units':'pixels'}),
         Meta('radar_center_frequency', burst.radar_center_frequency,
              'Radar center frequency', {'units':'Hz'}),
         Meta('wavelength', burst.wavelength,
@@ -452,29 +469,71 @@ def metadata_to_h5group(parent_group, burst, cfg):
         Meta('azimuth_time_interval', burst.azimuth_time_interval,
              'Time spacing between azimuth lines of the burst',
              {'units':'seconds'}),
-        Meta('starting_range', burst.starting_range,
-             'Slant range of the first sample of the input burst',
-             {'units':'meters'}),
         Meta('slant_range_time', burst.slant_range_time,
              'two-way slant range time of Doppler centroid frequency estimate',
              {'units':'seconds'}),
+        Meta('starting_range', burst.starting_range,
+             'Slant range of the first sample of the input burst',
+             {'units':'meters'}),
+        Meta('sensing_stop', burst.sensing_stop.strftime(TIME_STR_FMT),
+             'Sensing stop time of the burst',
+             {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
+        Meta('iw2_mid_range', burst.iw2_mid_range,
+             'Slant range of the middle of the IW2 swath',
+             {'units':'meters'}),
+        Meta('range_sampling_rate', burst.range_sampling_rate,
+             'Sampling rate of slant range in the input burst SLC',
+             {'units':'Hz'}),
         Meta('range_pixel_spacing', burst.range_pixel_spacing,
              'Pixel spacing between slant range samples in the input burst SLC',
              {'units':'meters'}),
+        Meta('shape', burst.shape, 'Shape of SLC (length, width)',
+             {'units':'pixels'}),
         Meta('range_bandwidth', burst.range_bandwidth,
              'Slant range bandwidth of the signal', {'units':'Hz'}),
         Meta('polarization', burst.polarization, 'Polarization of the burst'),
         Meta('platform_id', burst.platform_id,
              'Sensor platform identification string (e.g., S1A or S1B)'),
+        Meta('center', burst.center, 'Latitude, longitude center of burst',
+             {'units':'degrees'}),
         # window parameters
         Meta('range_window_type', burst.range_window_type,
-             'name of the weighting window type used during processing'),
+             'Name of the weighting window type used during processing'),
         Meta('range_window_coefficient', burst.range_window_coefficient,
-             'value of the weighting window coefficient used during processing')
+             'Value of the weighting window coefficient used during processing'),
+        Meta('rank', burst.rank,
+             "The number of PRI between transmitted pulse and return echo"),
+        Meta('prf_raw_data', burst.prf_raw_data,
+             'Pulse repetition frequency (PRF) of the raw data',
+             {'units':'Hz'}),
+        Meta('range_chirp_rate', burst.range_chirp_rate,
+             'Range chirp rate', {'units':'Hz'})
     ]
     burst_meta_group = processing_group.require_group('s1_burst_metadata')
     for meta_item in burst_meta_items:
         add_dataset_and_attrs(burst_meta_group, meta_item)
+
+    def poly1d_to_h5(group, poly1d_name, poly1d):
+        '''Write isce3.core.Poly1d properties to hdf5
+        Parameters
+        ----------
+        group: h5py.Group
+            h5py Group to store poly1d parameters in
+        poly1d_name: str
+            Name of Poly1d whose parameters are to be stored
+        poly1d: isce3.core.Poly1d
+            Poly1d ojbect whose parameters are to be stored
+        '''
+        Meta('order', poly1d.order, 'order of the polynomial'),
+        Meta('mean', poly1d.mean, 'mean of the polynomial'),
+        Meta('std', poly1d.std, 'standard deviation of the polynomial'),
+        Meta('coeffs', poly1d.coeffs, 'coefficients of the polynomial'),
+        poly1d_group = group.require_group(poly1d_name)
+        for meta_item in burst_meta_items:
+            add_dataset_and_attrs(burst_meta_group, meta_item)
+
+    poly1d_to_h5(burst_meta_group, 'azimuth_fm_rate', burst.azimuth_fm_rate)
+    poly1d_to_h5(burst_meta_group, 'doppler', burst.doppler.poly1d)
 
     # runconfig yaml text
     meta_group['runconfig'] = cfg.yaml_string
@@ -529,9 +588,37 @@ def corrections_to_h5group(parent_group, burst, cfg):
     for meta_item in correction_items:
         add_dataset_and_attrs(correction_group, meta_item)
 
-    # EAP metadata depending on IPF version
-    check_eap = is_eap_correction_necessary(burst.ipf_version)
-    if check_eap.phase_correction:
+    # Extended FM rate and doppler centroid polynomial coefficients for azimuth
+    # FM rate mismatch mitigation
+    extended_coeffs = burst.extended_coeffs
+    fm_rate_aztime_vec = [t.strftime(TIME_STR_FMT)
+                          for t in extended_coeffs.fm_rate_aztime_vec]
+    dc_aztime_vec = [t.strftime(TIME_STR_FMT)
+                     for t in extended_coeffs.dc_aztime_vec]
+    extended_coeffs_items = [
+        Meta('fm_rate_azimuth_time', fm_rate_aztime_vec,
+             'Azimuth time for FM rate coefficient data',
+             {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
+        Meta('fm_rate_slant_range_time', extended_coeffs.fm_rate_tau0_vec,
+             'Slant range time for FM rate coefficient data',
+             {'units':'seconds'}),
+        Meta('fm_rate_coefficients', extended_coeffs.fm_rate_coeff_arr,
+             'Azimuth time for FM rate coefficient data'),
+        Meta('doppler_centroid_azimuth_time', dc_aztime_vec,
+             'Azimuth time for doppler centroid coefficient data',
+             {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
+        Meta('doppler_centroid_slant_range_time', extended_coeffs.dc_tau0_vec,
+             'Slant range time for doppler centroid coefficient data',
+             {'units':'seconds'}),
+        Meta('doppler_centroid_coefficients', extended_coeffs.dc_coeff_arr,
+             'Azimuth time for doppler centroid coefficient data')
+    ]
+    extended_coeffs_group = correction_group.require_group('extended_coefficients')
+    for meta_item in extended_coeffs_items:
+        add_dataset_and_attrs(extended_coeffs_group, meta_item)
+
+    # write out EAP metadata, if present
+    if burst.burst_eap is not None:
         eap = burst.burst_eap
         eap_items = [
             Meta('sampling_frequency', eap.freq_sampling,
@@ -551,3 +638,47 @@ def corrections_to_h5group(parent_group, burst, cfg):
         eap_group = correction_group.require_group('elevation_antenna_pattern')
         for meta_item in eap_items:
             add_dataset_and_attrs(eap_group, meta_item)
+
+    # write out calibration metadata, if present
+    if burst.burst_calibration is not None:
+        cal = burst.burst_calibration
+        cal_items = [
+            Meta('basename', cal.basename_cads, ''),
+            Meta('azimuth_time', cal.azimuth_time.strftime(TIME_STR_FMT),
+                 'Start time', {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
+            Meta('line', cal.line, 'line'),
+            Meta('pixel', cal.pixel, 'pixel'),
+            Meta('sigma_naught', cal.sigma_naught, 'sigma_naught'),
+            Meta('beta_naught', cal.beta_naught, 'beta_naught'),
+            Meta('gamma', cal.gamma, 'gamma'),
+            Meta('dn', cal.dn, 'dn'),
+        ]
+        cal_group = correction_group.require_group('calibration')
+        for meta_item in cal_items:
+            add_dataset_and_attrs(cal_group, meta_item)
+
+    # write out noise metadata, if present
+    if burst.burst_noise is not None:
+        noise = burst.burst_noise
+        noise_items = [
+            Meta('basename', noise.basename_nads, ''),
+            Meta('range_azimith_time',
+                 noise.range_azimith_time.strftime(TIME_STR_FMT),
+                 'Start time', {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
+            Meta('range_line', noise.range_line, 'Range line'),
+            Meta('range_pixel', noise.range_pixel, 'Range pixel array'),
+            Meta('range_lut', noise.range_lut, 'Range lookup table data'),
+            Meta('azimuth_first_azimuth_line', noise.azimuth_first_azimuth_line,
+                 'azimuth_first_azimuth_line'),
+            Meta('azimuth_first_range_sample', noise.azimuth_first_range_sample,
+                 'azimuth_first_range_sample'),
+            Meta('azimuth_last_azimuth_line', noise.azimuth_last_azimuth_line,
+                 'azimuth_last_azimuth_line'),
+            Meta('azimuth_last_range_sample', noise.azimuth_last_range_sample,
+                 'azimuth_last_range_sample'),
+            Meta('azimuth_line', noise.azimuth_line, 'azimuth_line'),
+            Meta('azimuth_lut', noise.azimuth_lut, 'azimuth_lut')
+        ]
+        noise_group = correction_group.require_group('noise')
+        for meta_item in noise_items:
+            add_dataset_and_attrs(noise_group, meta_item)

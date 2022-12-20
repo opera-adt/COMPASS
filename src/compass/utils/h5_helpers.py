@@ -676,7 +676,7 @@ def corrections_to_h5group(parent_group, burst, cfg):
             Meta('range_pixel', noise.range_pixel, 'Range pixel array'),
             Meta('range_lut', noise.range_lut, 'Range noise lookup table data'),
             Meta('azimuth_first_azimuth_line', noise.azimuth_first_azimuth_line,
-                 'azimuth_first_azimuth_line'),
+                 'First line of the burst in subswath. None if not available in annotation.'),
             Meta('azimuth_first_range_sample', noise.azimuth_first_range_sample,
                  'First range sample of the burst. None if not available in annotation.'),
             Meta('azimuth_last_azimuth_line', noise.azimuth_last_azimuth_line,

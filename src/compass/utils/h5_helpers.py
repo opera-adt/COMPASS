@@ -673,7 +673,7 @@ def corrections_to_h5group(parent_group, burst, cfg):
                  noise.range_azimith_time.strftime(TIME_STR_FMT),
                  'Start time', {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
             Meta('range_line', noise.range_line, 'Range line'),
-            Meta('range_pixel', noise.range_pixel, 'Range pixel array'),
+            Meta('range_pixel', noise.range_pixel, 'Range array in pixel for LUT'),
             Meta('range_lut', noise.range_lut, 'Range noise lookup table data'),
             Meta('azimuth_first_azimuth_line', noise.azimuth_first_azimuth_line,
                  'First line of the burst in subswath. None if not available in annotation.'),

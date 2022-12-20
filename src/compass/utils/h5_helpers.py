@@ -678,7 +678,7 @@ def corrections_to_h5group(parent_group, burst, cfg):
             Meta('azimuth_first_azimuth_line', noise.azimuth_first_azimuth_line,
                  'azimuth_first_azimuth_line'),
             Meta('azimuth_first_range_sample', noise.azimuth_first_range_sample,
-                 'azimuth_first_range_sample'),
+                 'First range sample of the burst. None if not available in annotation.'),
             Meta('azimuth_last_azimuth_line', noise.azimuth_last_azimuth_line,
                  'Last line of the burst in subswatn. None if not available in annotation.'),
             Meta('azimuth_last_range_sample', noise.azimuth_last_range_sample,

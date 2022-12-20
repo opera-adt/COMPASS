@@ -9,11 +9,12 @@ import isce3
 import numpy as np
 from osgeo import osr
 import s1reader
+from s1reader.s1_burst_slc import Sentinel1BurstSlc
 from s1reader.s1_reader import is_eap_correction_necessary
+import shapely
 
 import compass
 from compass.utils.lut import compute_geocoding_correction_luts
-from compass.utils.raster_polygon import get_boundary_polygon
 
 
 TIME_STR_FMT = '%Y-%m-%d %H:%M:%S.%f'
@@ -304,6 +305,32 @@ def save_orbit(orbit, orbit_direction, orbit_group):
                                         " (or) Custom")
 
 
+def get_polygon_wkt(burst: Sentinel1BurstSlc):
+    '''
+    Get WKT for butst's bounding polygon
+    It returns "POLYGON" when
+    there is only one polygon that defines the burst's border
+    It returns "MULTIPOLYGON" when
+    there is more than one polygon that defines the burst's border
+    Parameters:
+    -----------
+    burst: Sentinel1BurstSlc
+        Input burst
+    Return:
+    _ : str
+        "POLYGON" or "MULTIPOLYGON" in WKT
+        as the bounding polygon of the input burst
+
+    '''
+
+    if len(burst.border) ==1:
+        geometry_polygon = burst.border[0]
+    else:
+        geometry_polygon = shapely.geometry.MultiPolygon(burst.border)
+
+    return geometry_polygon.wkt
+
+
 def identity_to_h5group(dst_group, burst, dataset_path):
     '''
     Write burst metadata to HDF5
@@ -318,27 +345,18 @@ def identity_to_h5group(dst_group, burst, dataset_path):
         Path to CSLC data in HDF5
     '''
     # identification datasets
-    # TODO will need some changes to accommodate dateline
-    dataset_path_template = f'HDF5:%FILE_PATH%:/{dataset_path}'
-    geo_boundary = get_boundary_polygon(dst_group.file.filename, np.nan,
-                                        dataset_path_template)
     id_meta_items = [
         Meta('product_version', '?', 'CSLC product version'),
         Meta('absolute_orbit_number', burst.abs_orbit_number, 'Absolute orbit number'),
-        # NOTE: The field below does not exist on opera_rtc.xml
-        # 'relativeOrbitNumber':
-        #   [int(burst.burst_id[1:4]), 'Relative orbit number'],
         Meta('track_number', burst.burst_id.track_number, 'Track number'),
-        Meta('burst_ID', str(burst.burst_id), 'Burst identification (burst ID)'),
-        Meta('bounding_polygon', str(geo_boundary),
+        Meta('burst_id', str(burst.burst_id), 'Burst identification (burst ID)'),
+        Meta('bounding_polygon', get_polygon_wkt(burst),
              'OGR compatible WKT representation of bounding polygon of the image'),
-        Meta('mission_ID', burst.platform_id, 'Mission identifier'),
+        Meta('mission_id', burst.platform_id, 'Mission identifier'),
         Meta('product_type', 'CSLC-S1', 'Product type'),
-        # NOTE: in NISAR, the value has to be in UPPERCASE or lowercase?
         Meta('look_direction', 'Right', 'Look direction can be left or right'),
         Meta('orbit_pass_direction', burst.orbit_direction,
              'Orbit direction can be ascending or descending'),
-        # NOTE: using the same date format as `s1_reader.as_datetime()`
         Meta('zero_doppler_start_time', burst.sensing_start.strftime(TIME_STR_FMT),
              'Azimuth start time of product'),
         Meta('zero_doppler_end_time', burst.sensing_stop.strftime(TIME_STR_FMT),
@@ -350,13 +368,6 @@ def identity_to_h5group(dst_group, burst, dataset_path):
              'List of booleans indicating if datatakes are nominal or urgent'),
         Meta('diagnostic_mode_flag', False,
              'Indicates if the radar mode is a diagnostic mode or not: True or False'),
-        # missing:
-        # 'processingType'
-        # 'productVersion'
-        # 'frameNumber':  # TBD
-        # 'productVersion': # Defined by RTC SAS
-        # 'plannedDatatakeId':
-        # 'plannedObservationId':
         ]
     id_group = dst_group.require_group('identification')
     for meta_item in id_meta_items:
@@ -429,11 +440,13 @@ def metadata_to_h5group(parent_group, burst, cfg):
         Meta('sensing_stop', burst.sensing_stop.strftime(TIME_STR_FMT),
              'Sensing stop time of the burst',
              {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
+        Meta('length', burst.length, 'length of SLC', {'units':'pixels'}),
+        Meta('width', burst.width, 'width of SLC', {'units':'pixels'}),
         Meta('radar_center_frequency', burst.radar_center_frequency,
              'Radar center frequency', {'units':'Hz'}),
         Meta('wavelength', burst.wavelength,
              'Wavelength of the transmitted signal', {'units':'meters'}),
-        Meta('azimuth_steer_rate', burst.azimuth_steer_rate,
+        Meta('azimuth_steering_rate', burst.azimuth_steer_rate,
              'Azimuth steering rate of IW and EW modes',
              {'units':'degrees/second'}),
         Meta('azimuth_time_interval', burst.azimuth_time_interval,

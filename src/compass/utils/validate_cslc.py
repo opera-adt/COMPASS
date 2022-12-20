@@ -15,12 +15,8 @@ def cmd_line_parser():
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-r', '--ref-product', type=str, dest='ref_product',
                         help='Reference CSLC product (i.e., golden dataset)')
-    parser.add_argument('-mr', '--ref-metadata', type=str, dest='ref_metadata',
-                        help='Reference CSLC metadata file (i.e., golden metadata)')
     parser.add_argument('-s', '--sec-product', type=str, dest='sec_product',
                         help='Secondary CSLC product to compare with reference')
-    parser.add_argument('-ms', '--sec-metadata', type=str, dest='sec_metadata',
-                        help='Secondary CSLC metadata to compare with reference metadata')
     return parser.parse_args()
 
 
@@ -45,15 +41,16 @@ def _gdal_nfo_retrieve(path_h5):
     slc: np.array
         Array holding geocoded complex backscatter
     """
-    raster_key = 'SLC'
+    grid_path = 'science/SENTINEL1/CSLC/grids'
 
     # Extract polarization with h5py
     with h5py.File(path_h5) as h:
-        # convert keyview to list to get polarization key
-        pol = list(h[raster_key].keys())[0]
+        for pol in ['VV', 'VH', 'HH', 'HV']:
+            if pol in h[grid_path]:
+                break
 
     # Extract some info from reference/secondary CSLC products with GDAL
-    h5_gdal_path = f'HDF5:{path_h5}://{raster_key}/{pol}'
+    h5_gdal_path = f'HDF5:{path_h5}://{grid_path}/{pol}'
     dataset = gdal.Open(h5_gdal_path, gdal.GA_ReadOnly)
     geotransform = dataset.GetGeoTransform()
     proj = dataset.GetProjection()
@@ -207,5 +204,7 @@ if __name__ == '__main__':
     print('All CSLC product checks have passed')
 
     # Check CSLC metadata
+    '''
     compare_cslc_metadata(cmd.ref_product, cmd.sec_product)
     print('All CSLC metadata checks have passed')
+    '''

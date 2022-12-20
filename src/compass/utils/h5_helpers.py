@@ -528,12 +528,14 @@ def metadata_to_h5group(parent_group, burst, cfg):
         poly1d: isce3.core.Poly1d
             Poly1d ojbect whose parameters are to be stored
         '''
-        Meta('order', poly1d.order, 'order of the polynomial'),
-        Meta('mean', poly1d.mean, 'mean of the polynomial'),
-        Meta('std', poly1d.std, 'standard deviation of the polynomial'),
-        Meta('coeffs', poly1d.coeffs, 'coefficients of the polynomial'),
+        poly1d_items = [
+            Meta('order', poly1d.order, 'order of the polynomial'),
+            Meta('mean', poly1d.mean, 'mean of the polynomial'),
+            Meta('std', poly1d.std, 'standard deviation of the polynomial'),
+            Meta('coeffs', poly1d.coeffs, 'coefficients of the polynomial'),
+        ]
         poly1d_group = group.require_group(poly1d_name)
-        for meta_item in burst_meta_items:
+        for meta_item in poly1d_items:
             add_dataset_and_attrs(poly1d_group, meta_item)
 
     poly1d_to_h5(burst_meta_group, 'azimuth_fm_rate', burst.azimuth_fm_rate)

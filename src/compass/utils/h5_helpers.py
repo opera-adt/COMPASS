@@ -633,7 +633,7 @@ def corrections_to_h5group(parent_group, burst, cfg):
             Meta('eta_start', eap.eta_start.strftime(TIME_STR_FMT),
                  'Sensing start time', {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
             Meta('tau_0', eap.tau_0, 'slant range time of the product', {'units': 'seconds'}),
-            Meta('tau_sub', eap.tau_sub, 'slant range time',
+            Meta('tau_sub', eap.tau_sub, 'slant range time of AUX_CAL antenna pattern',
                  {'units': 'seconds'}),
             Meta('theta_sub', eap.theta_sub, 'elevation angle',
                  {'units': 'radians'}),

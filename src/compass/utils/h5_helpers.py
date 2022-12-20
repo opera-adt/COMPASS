@@ -674,7 +674,7 @@ def corrections_to_h5group(parent_group, burst, cfg):
                  'Start time', {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
             Meta('range_line', noise.range_line, 'Range line'),
             Meta('range_pixel', noise.range_pixel, 'Range pixel array'),
-            Meta('range_lut', noise.range_lut, 'Range lookup table data'),
+            Meta('range_lut', noise.range_lut, 'Range noise lookup table data'),
             Meta('azimuth_first_azimuth_line', noise.azimuth_first_azimuth_line,
                  'azimuth_first_azimuth_line'),
             Meta('azimuth_first_range_sample', noise.azimuth_first_range_sample,

@@ -408,6 +408,9 @@ def metadata_to_h5group(parent_group, burst, cfg):
     # create metadata group to write datasets to
     processing_group = meta_group.require_group('processing_information')
 
+    # runconfig yaml text
+    processing_group['runconfig'] = cfg.yaml_string
+
     # input items
     orbit_files = [os.path.basename(f) for f in cfg.orbit_path]
     input_items = [
@@ -541,9 +544,6 @@ def metadata_to_h5group(parent_group, burst, cfg):
 
     poly1d_to_h5(burst_meta_group, 'azimuth_fm_rate', burst.azimuth_fm_rate)
     poly1d_to_h5(burst_meta_group, 'doppler', burst.doppler.poly1d)
-
-    # runconfig yaml text
-    meta_group['runconfig'] = cfg.yaml_string
 
 
 def corrections_to_h5group(parent_group, burst, cfg):

@@ -19,6 +19,59 @@ from compass.utils.lut import compute_geocoding_correction_luts
 TIME_STR_FMT = '%Y-%m-%d %H:%M:%S.%f'
 
 
+@dataclass
+class Meta:
+    '''
+    Convenience dataclass for passing parameters to be written to h5py.Dataset
+    '''
+    # Dataset name
+    name: str
+    # Data to be stored in Dataset
+    value: object
+    # Description attribute of Dataset
+    description: str
+    # Other attributes to be written to Dataset
+    attr_dict: dict = field(default_factory=dict)
+
+
+def _as_np_string_if_needed(val):
+    '''
+    If type str encountered, convert and return as np.string_. Otherwise return
+    as is.
+    '''
+    val = np.string_(val) if isinstance(val, str) else val
+    return val
+
+
+def add_dataset_and_attrs(group, meta_item):
+    '''Write isce3.core.Poly1d properties to hdf5
+
+    Parameters
+    ----------
+    group: h5py.Group
+        h5py Group to store poly1d parameters in
+    meta_item: Meta
+        Name of dataset to add
+    '''
+    # Ensure it is clear to write by deleting pre-existing Dataset
+    if meta_item.name in group:
+        del group[meta_item.name]
+
+    # Convert data to written if necessary
+    val = _as_np_string_if_needed(meta_item.value)
+    try:
+        group[meta_item.name] = val
+    except ValueError:
+        raise ValueError(f'unable to write {meta_item.name}')
+
+    # Write data and attributes
+    val_ds = group[meta_item.name]
+    desc = _as_np_string_if_needed(meta_item.description)
+    val_ds.attrs['description'] = desc
+    for key, val in meta_item.attr_dict.items():
+        val_ds.attrs[key] = _as_np_string_if_needed(val)
+
+
 def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
                           description):
     '''
@@ -213,55 +266,6 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
 
     else:
         raise NotImplementedError('Waiting for implementation / Not supported in ISCE3')
-
-@dataclass
-class Meta:
-    '''
-    Convenience dataclass for passing parameters to be written to h5py.Dataset
-    '''
-    # Dataset name
-    name: str
-    # Data to be stored in Dataset
-    value: object
-    # Description attribute of Dataset
-    description: str
-    # Other attributes to be written to Dataset
-    attr_dict: dict = field(default_factory=dict)
-
-
-def _as_np_string_if_needed(val):
-    '''
-    If type str encountered, convert and return as np.string_. Otherwise return
-    as is.
-    '''
-    val = np.string_(val) if isinstance(val, str) else val
-    return val
-
-
-def add_dataset_and_attrs(group, meta_item):
-    '''Write isce3.core.Poly1d properties to hdf5
-
-    Parameters
-    ----------
-    group: h5py.Group
-        h5py Group to store poly1d parameters in
-    meta_item: Meta
-        Name of dataset to add
-    '''
-    # Ensure it is clear to write by deleting pre-existing Dataset
-    if meta_item.name in group:
-        del group[meta_item.name]
-
-    # Convert data to written if necessary
-    val = _as_np_string_if_needed(meta_item.value)
-    group[meta_item.name] = val
-
-    # Write data and attributes
-    val_ds = group[meta_item.name]
-    desc = _as_np_string_if_needed(meta_item.description)
-    val_ds.attrs['description'] = desc
-    for key, val in meta_item.attr_dict.items():
-        val_ds.attrs[key] = _as_np_string_if_needed(val)
 
 
 def save_orbit(orbit, orbit_direction, orbit_group):

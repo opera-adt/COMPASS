@@ -669,8 +669,8 @@ def corrections_to_h5group(parent_group, burst, cfg):
         noise = burst.burst_noise
         noise_items = [
             Meta('basename', noise.basename_nads, ''),
-            Meta('range_azimith_time',
-                 noise.range_azimith_time.strftime(TIME_STR_FMT),
+            Meta('range_azimuth_time',
+                 noise.range_azimuth_time.strftime(TIME_STR_FMT),
                  'Start time', {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
             Meta('range_line', noise.range_line, 'Range line'),
             Meta('range_pixel', noise.range_pixel, 'Range pixel array'),

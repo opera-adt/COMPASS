@@ -29,14 +29,20 @@ def compute_geocoding_correction_luts(burst, rg_step=200, az_step=0.25,
 
     Returns
     -------
-    rg_lut: isce3.core.LUT2d
+    rg_lut: isce3.core.LUT2d:
         2D array containing sum of range corrections
-    az_lut: isce3.core.LUT2d
-        2D array containg sum of azimuth corrections
+        LUT2D object of bistatic delay correction in seconds as a function
+        of the azimuth time and slant range, or range and azimuth indices.
+        This correction needs to be added to the SLC tagged azimuth time to
+        get the corrected azimuth times.
+    az_lut: isce3.core.LUT2d:
+        LUT2D object of range delay correction [seconds] as a function
+        of the azimuth time and slant range, or x and y indices.
     '''
 
-    az_lut = burst.bistatic_delay(range_step=rg_step, az_step=az_step)
-    rg_lut = burst.geometrical_and_steering_doppler(range_step=rg_step, az_step=az_step)
+    bistatic_delay = burst.bistatic_delay(range_step=rg_step, az_step=az_step)
+    geometrical_steering_doppler= burst.geometrical_and_steering_doppler(range_step=rg_step,
+                                                                         az_step=az_step)
 
     if dem_path is None:
         raise ValueError('DEM for azimith FM rate mismatch was not provided.')
@@ -49,11 +55,4 @@ def compute_geocoding_correction_luts(burst, rg_step=200, az_step=0.25,
                                                           range_step=rg_step,
                                                           az_step=az_step)
 
-    az_lut_data = az_lut.data + az_fm_mismatch.data
-    az_lut = isce3.core.LUT2d(az_lut.x_start,
-                              az_lut.y_start,
-                              az_lut.x_spacing,
-                              az_lut.x_spacing,
-                              az_lut_data)
-
-    return rg_lut, az_lut
+    return geometrical_steering_doppler, bistatic_delay, az_fm_mismatch

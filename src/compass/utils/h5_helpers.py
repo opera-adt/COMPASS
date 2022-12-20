@@ -632,7 +632,7 @@ def corrections_to_h5group(parent_group, burst, cfg):
                  'range sampling frequency', { 'units': 'Hz'}),
             Meta('eta_start', eap.eta_start.strftime(TIME_STR_FMT),
                  'Sensing start time', {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
-            Meta('tau_0', eap.tau_0, 'slant range time', {'units': 'seconds'}),
+            Meta('tau_0', eap.tau_0, 'slant range time of the product', {'units': 'seconds'}),
             Meta('tau_sub', eap.tau_sub, 'slant range time',
                  {'units': 'seconds'}),
             Meta('theta_sub', eap.theta_sub, 'elevation angle',

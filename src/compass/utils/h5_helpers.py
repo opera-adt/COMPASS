@@ -610,7 +610,7 @@ def corrections_to_h5group(parent_group, burst, cfg):
              'Slant range time for FM rate coefficient data',
              {'units':'seconds'}),
         Meta('fm_rate_coefficients', extended_coeffs.fm_rate_coeff_arr,
-             'Azimuth time for FM rate coefficient data'),
+             'FM rate coefficient data'),
         Meta('doppler_centroid_azimuth_time', dc_aztime_vec,
              'Azimuth time for doppler centroid coefficient data',
              {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
@@ -618,7 +618,7 @@ def corrections_to_h5group(parent_group, burst, cfg):
              'Slant range time for doppler centroid coefficient data',
              {'units':'seconds'}),
         Meta('doppler_centroid_coefficients', extended_coeffs.dc_coeff_arr,
-             'Azimuth time for doppler centroid coefficient data')
+             'Doppler centroid coefficient data')
     ]
     extended_coeffs_group = correction_group.require_group('extended_coefficients')
     for meta_item in extended_coeffs_items:

@@ -4,7 +4,7 @@ Placeholder for model-based correction LUT
 import os
 import isce3
 
-def compute_geocoding_correction_luts(burst, dem_path=None,
+def compute_geocoding_correction_luts(burst, dem_path,
                                       rg_step=200, az_step=0.25,
                                       scratch_path=None):
     '''

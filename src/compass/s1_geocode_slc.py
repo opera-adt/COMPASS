@@ -28,7 +28,6 @@ def run(cfg: GeoRunConfig):
     '''
     Run geocode burst workflow with user-defined
     args stored in dictionary runconfig *cfg*
-
     Parameters
     ---------
     cfg: GeoRunConfig

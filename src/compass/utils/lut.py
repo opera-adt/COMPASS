@@ -9,7 +9,6 @@ def compute_geocoding_correction_luts(burst, dem_path,
     '''
     Compute slant range and azimuth LUTs corrections
     to be applied during burst geocoding
-
     Parameters
     ----------
     burst: Sentinel1BurstSlc

@@ -278,7 +278,7 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
     inputs['orbit_file_path'] = [burst_map_row.orbit_path]
     inputs['burst_id'] = [str(burst.burst_id)]
     groups['dynamic_ancillary_file_group']['dem_file'] = dem_file
-    groups['dynamic_ancillary_file_group']['burst_database_file'] = burst_db_file
+    groups['static_ancillary_file_group']['burst_database_file'] = burst_db_file
 
     # Product path
     product['product_path'] = work_dir

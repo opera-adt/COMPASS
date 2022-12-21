@@ -1,9 +1,15 @@
+'''
+Collection of functions to compare 2 CSLC HDF5 contents and metadata
+'''
 import argparse
 import os
 
 import h5py
 import numpy as np
 from osgeo import gdal
+
+
+DATA_ROOT = 'science/SENTINEL1'
 
 
 def cmd_line_parser():
@@ -15,12 +21,8 @@ def cmd_line_parser():
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-r', '--ref-product', type=str, dest='ref_product',
                         help='Reference CSLC product (i.e., golden dataset)')
-    parser.add_argument('-mr', '--ref-metadata', type=str, dest='ref_metadata',
-                        help='Reference CSLC metadata file (i.e., golden metadata)')
     parser.add_argument('-s', '--sec-product', type=str, dest='sec_product',
                         help='Secondary CSLC product to compare with reference')
-    parser.add_argument('-ms', '--sec-metadata', type=str, dest='sec_metadata',
-                        help='Secondary CSLC metadata to compare with reference metadata')
     return parser.parse_args()
 
 
@@ -45,15 +47,16 @@ def _gdal_nfo_retrieve(path_h5):
     slc: np.array
         Array holding geocoded complex backscatter
     """
-    raster_key = 'SLC'
+    grid_path = f'{DATA_ROOT}/CSLC/grids'
 
     # Extract polarization with h5py
     with h5py.File(path_h5) as h:
-        # convert keyview to list to get polarization key
-        pol = list(h[raster_key].keys())[0]
+        for pol in ['VV', 'VH', 'HH', 'HV']:
+            if pol in h[grid_path]:
+                break
 
     # Extract some info from reference/secondary CSLC products with GDAL
-    h5_gdal_path = f'HDF5:{path_h5}://{raster_key}/{pol}'
+    h5_gdal_path = f'HDF5:{path_h5}://{grid_path}/{pol}'
     dataset = gdal.Open(h5_gdal_path, gdal.GA_ReadOnly)
     geotransform = dataset.GetGeoTransform()
     proj = dataset.GetProjection()
@@ -115,34 +118,31 @@ def compare_cslc_products(file_ref, file_sec):
                        atol=0.0, rtol=1.0e-5, equal_nan=True)
 
 
-def _get_metadata_keys(path_h5):
-    """
-    Extract metadata group/dataset names of a given HDF5
+def _get_group_item_paths(h5py_group):
+    '''
+    Get paths for all datasets and groups nested within a h5py.Group
 
     Parameters
     ----------
-    path_h5: str
-        File path to CSLC HDF5 product
+    h5py_group: h5py.Group
+        Group object where paths to objects within are to be retrieved.
 
     Returns
     -------
-    metadata_dict: str
-        Dict holding metadata group and dataset names where:
-        keys: metadata key names representing datasets or groups
-        values: set of key names belonging to each metadata key names
-    """
-    metadata_dict = {}
-    with h5py.File(path_h5, 'r') as h:
-        metadata = h['metadata']
-        # get metadata keys and iterate
-        metadata_keys = set(metadata.keys())
-        for metadata_key in metadata_keys:
-            if not isinstance(metadata[metadata_key], h5py.Group):
-                continue
-            # save keys to current metadata key
-            metadata_dict[metadata_key] = set(metadata[metadata_key].keys())
+    paths: list[str]
+        Paths of all items in given h5py.Group
+    '''
+    paths = []
+    # Iterate of items with the group
+    for v in h5py_group.values():
+        # Save name/path of current value
+        paths.append(v.name)
 
-    return metadata_dict
+        # If value is Group, get names/paths within
+        if isinstance(v, h5py.Group):
+            paths.extend(_get_group_item_paths(v))
+
+    return paths
 
 
 def compare_cslc_metadata(file_ref, file_sec):
@@ -167,12 +167,13 @@ def compare_cslc_metadata(file_ref, file_sec):
         return
 
     # Get metadata keys
-    metadata_ref = _get_metadata_keys(file_ref)
-    metadata_sec = _get_metadata_keys(file_sec)
+    with h5py.File(file_ref, 'r') as h_ref, h5py.File(file_sec, 'r') as h_sec:
+        metadata_ref = set(_get_group_item_paths(h_ref[DATA_ROOT]))
+        metadata_sec = set(_get_group_item_paths(h_sec[DATA_ROOT]))
 
     # Intersect metadata keys
-    set_ref_minus_sec = metadata_ref.keys() - metadata_sec.keys()
-    set_sec_minus_ref = metadata_sec.keys() - metadata_ref.keys()
+    set_ref_minus_sec = metadata_ref - metadata_sec
+    set_sec_minus_ref = metadata_sec - metadata_ref
 
     err_str = "Metadata keys do not match.\n"
     if set_ref_minus_sec:
@@ -182,21 +183,6 @@ def compare_cslc_metadata(file_ref, file_sec):
 
     # Check if metadata key differ
     assert not set_ref_minus_sec or not set_sec_minus_ref, err_str
-
-    # Check sub metadatakeys (after establishing top level metadata matches)
-    for key in metadata_ref.keys():
-        # Intersect metadata keys
-        set_ref_minus_sec = metadata_ref[key] - metadata_sec[key]
-        set_sec_minus_ref = metadata_sec[key] - metadata_ref[key]
-
-        err_str = "Metadata keys do not match.\n"
-        if set_ref_minus_sec:
-            err_str += f'\nReference CSLC {key} metadata extra entries: {set_ref_minus_sec}'
-        if set_sec_minus_ref:
-            err_str += f'\nSecondary CSLC {key} metadata extra entries: {set_sec_minus_ref}'
-
-        # Check if metadata key differ
-        assert not set_ref_minus_sec or not set_sec_minus_ref, err_str
 
 
 def main():

@@ -9,7 +9,7 @@ LABEL author="OPERA ADT" \
 #    adduser --disabled-password compass_user
 
 RUN yum -y update &&\
-    yun -y install curl &&\
+    yum -y install curl &&\
     adduser compass_user
 
 #USER root

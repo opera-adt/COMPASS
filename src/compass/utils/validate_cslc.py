@@ -199,7 +199,8 @@ def compare_cslc_metadata(file_ref, file_sec):
         assert not set_ref_minus_sec or not set_sec_minus_ref, err_str
 
 
-if __name__ == '__main__':
+def main():
+    '''Entrypoint of the script'''
     cmd = cmd_line_parser()
 
     # Check CSLC products
@@ -209,3 +210,6 @@ if __name__ == '__main__':
     # Check CSLC metadata
     compare_cslc_metadata(cmd.ref_product, cmd.sec_product)
     print('All CSLC metadata checks have passed')
+
+if __name__ == '__main__':
+    main()

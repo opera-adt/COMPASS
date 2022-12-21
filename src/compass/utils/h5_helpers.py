@@ -562,8 +562,9 @@ def corrections_to_h5group(parent_group, burst, cfg):
     correction_group = parent_group.require_group('corrections')
 
     # Get range and azimuth LUTs
-    geometrical_steering_doppler, bistatic_delay_lut = \
+    geometrical_steering_doppler, bistatic_delay_lut, az_fm_mismatch = \
         compute_geocoding_correction_luts(burst,
+                                          dem_path=cfg.dem,
                                           rg_step=cfg.lut_params.range_spacing,
                                           az_step=cfg.lut_params.azimuth_spacing)
 
@@ -591,6 +592,9 @@ def corrections_to_h5group(parent_group, burst, cfg):
         Meta('geometry_steering_doppler', geometrical_steering_doppler.data,
              f'geometry steering doppler (range) {desc}',
              {'units': 'meters'}),
+        Meta('azimuth_fm_rate_mismatch', az_fm_mismatch.data,
+             f'azimuth FM rate mismatch mitigation (azimuth) {desc}',
+             {'units': 'seconds'}),
     ]
     for meta_item in correction_items:
         add_dataset_and_attrs(correction_group, meta_item)

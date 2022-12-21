@@ -1,15 +1,18 @@
-FROM ubuntu:22.04
+FROM oraclelinux:8
 
 LABEL author="OPERA ADT" \
       description="s1 cslc 0.2 Beta release" \
       version="0.2-beta"
 
-RUN apt-get -y update &&\
-    apt-get -y install curl git &&\
-    adduser --disabled-password compass_user
+#RUN apt-get -y update &&\
+#    apt-get -y install curl git &&\
+#    adduser --disabled-password compass_user
 
+RUN yum -y update &&\
+    yun -y install curl &&\
+    adduser compass_user
 
-USER root
+#USER root
 COPY . /home/compass_user/OPERA/COMPASS
 
 RUN chown -R compass_user:compass_user /home/compass_user/OPERA &&\

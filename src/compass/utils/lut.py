@@ -2,7 +2,6 @@ def compute_geocoding_correction_luts(burst, rg_step=200, az_step=0.25):
     '''
     Compute slant range and azimuth LUTs corrections
     to be applied during burst geocoding
-
     Parameters
     ----------
     burst: Sentinel1BurstSlc
@@ -11,7 +10,6 @@ def compute_geocoding_correction_luts(burst, rg_step=200, az_step=0.25):
         LUT spacing (in pixels) along x/slant range in meters
     ystep: int
         LUT spacing (in pixels) along x/azimuth in seconds
-
     Returns
     -------
     rg_lut: isce3.core.LUT2d:

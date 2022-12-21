@@ -21,7 +21,7 @@ def compute_geocoding_correction_luts(burst, dem_path=None,
         LUT spacing along x/slant range in meters
     ystep: int
         LUT spacing along y/azimuth in seconds
-    
+
     scratch_path: str
         Path to the scratch directory.
         If `None`, `burst.az_fm_rate_mismatch_mitigation()` will

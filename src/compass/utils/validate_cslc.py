@@ -211,5 +211,6 @@ def main():
     compare_cslc_metadata(cmd.ref_product, cmd.sec_product)
     print('All CSLC metadata checks have passed')
 
+
 if __name__ == '__main__':
     main()

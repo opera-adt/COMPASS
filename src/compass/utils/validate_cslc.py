@@ -110,12 +110,32 @@ def compare_cslc_products(file_ref, file_sec):
         return
 
     # Compare amplitude of reference and generated CSLC products
-    print('Check mean real part difference between CSLC products is < 1.0e-5')
-    assert np.allclose(slc_ref.real, slc_sec.real,
-                       atol=0.0, rtol=1.0e-5, equal_nan=True)
-    print('Check mean imaginary part difference between CSLC products is < 1.0e-5')
-    assert np.allclose(slc_ref.imag, slc_sec.imag,
-                       atol=0.0, rtol=1.0e-5, equal_nan=True)
+    diff_real = slc_ref.real - slc_sec.real
+    diff_imag = slc_ref.imag - slc_sec.imag
+
+    # Compute total number of pixels different from nan from ref and sec
+    tot_pixels_ref = np.count_nonzero(~np.isnan(np.abs(slc_ref)))
+    tot_pixels_sec = np.count_nonzero(~np.isnan(np.abs(slc_ref)))
+
+    # Check that total number of pixel is the same
+    assert tot_pixels_ref == tot_pixels_sec
+
+    # Compute the number of pixels in real part above threshold
+    pixels_real = np.count_nonzero(diff_real > 1.0e-5)
+    pixels_imag = np.count_nonzero(diff_imag > 1.0e-5)
+
+    # Compute percentage of pixels in real and imaginary part above threshold
+    percentage_real = pixels_real / tot_pixels_ref
+    percentage_imag = pixels_imag / tot_pixels_ref
+
+    # Check that percentage of pixels above threshold is lower than 0.1 %
+    print('Check that the percentage of pixels in the difference between reference'
+          'and secondary products real parts is below 0.1 %')
+    assert percentage_real < 0.1
+
+    print('Check that the percentage of pixels in the difference between reference'
+          'and secondary products imaginary parts is below 0.1 %')
+    assert percentage_imag < 0.1
 
 
 def _get_group_item_paths(h5py_group):

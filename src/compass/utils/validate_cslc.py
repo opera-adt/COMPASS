@@ -110,6 +110,7 @@ def compare_cslc_products(file_ref, file_sec):
         return
 
     # Compare amplitude of reference and generated CSLC products
+    np.seterr(invalid='ignore')
     diff_real = np.abs((slc_ref.real - slc_sec.real) / slc_sec.real)
     diff_imag =  np.abs((slc_ref.imag - slc_sec.imag) / slc_sec.imag)
 
@@ -130,11 +131,11 @@ def compare_cslc_products(file_ref, file_sec):
 
     # Check that percentage of pixels above threshold is lower than 0.1 %
     print('Check that the percentage of pixels in the difference between reference'
-          'and secondary products real parts is below 0.1 %')
+          'and secondary products real parts above the threshold 1.0e-5 is below 0.1 %')
     assert percentage_real < 0.001
 
     print('Check that the percentage of pixels in the difference between reference'
-          'and secondary products imaginary parts is below 0.1 %')
+          'and secondary products imaginary parts above the threshold 1.0e-5 is below 0.1 % %')
     assert percentage_imag < 0.001
 
 

@@ -28,14 +28,19 @@ def find_next_power(number):
     return number
 
 
-def range_split_spectrum(bursts, cfg_split_spectrum,
+def range_split_spectrum(bursts,
+                         burst_path,
+                         cfg_split_spectrum,
                          scratch_path):
     '''
     Split burst range spectrum
+
     Parameters
     ----------
     burst: list[Sentinel1BurstSlc]
         List of S1-A/B burst objects
+    burst_path: str
+        Path to the burst SLC to apply split spectrum
     cfg_split_spectrum: dict
         Dictionary with split-spetrum options
     scratch_path: str
@@ -51,7 +56,7 @@ def range_split_spectrum(bursts, cfg_split_spectrum,
     burst = bursts[0]
     length, width = burst.shape
     lines_per_block = cfg_split_spectrum.lines_per_block
-    burst_id_pol = '_'.join([burst.burst_id, burst.polarization])
+    burst_id_pol = f'{str(burst.burst_id)}_{burst.polarization}'
 
     # In ISCE3, we can use raised cosine to implement S1-A/B Hamming
     window_type = burst.range_window_type

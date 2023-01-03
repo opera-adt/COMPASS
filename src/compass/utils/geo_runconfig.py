@@ -7,8 +7,10 @@ from isce3.product import GeoGridParameters
 import journal
 from ruamel.yaml import YAML
 
-from compass.utils.geo_grid import generate_geogrids, geogrid_as_dict
+from compass.utils.geo_grid import (generate_geogrids_from_db,
+                                    generate_geogrids, geogrid_as_dict)
 from compass.utils.runconfig import (
+    create_output_paths,
     runconfig_to_bursts,
     load_validate_yaml,
     RunConfig)
@@ -17,15 +19,6 @@ from compass.utils.wrap_namespace import wrap_namespace
 
 def check_geocode_dict(geocode_cfg: dict) -> None:
     error_channel = journal.error('runconfig.check_and_prepare_geocode_params')
-
-    # check output EPSG
-    output_epsg = geocode_cfg['output_epsg']
-    if output_epsg is not None:
-        # check 1024 <= output_epsg <= 32767:
-        if output_epsg < 1024 or 32767 < output_epsg:
-            err_str = f'output epsg {output_epsg} in YAML out of bounds'
-            error_channel.log(err_str)
-            raise ValueError(err_str)
 
     for xy in 'xy':
         # check posting value in current axis
@@ -78,13 +71,24 @@ class GeoRunConfig(RunConfig):
 
         # Load geogrids
         dem_file = groups_cfg['dynamic_ancillary_file_group']['dem_file']
-        geogrids = generate_geogrids(bursts, geocoding_dict, dem_file)
+        burst_database_file = groups_cfg['static_ancillary_file_group']['burst_database_file']
+        if burst_database_file is None:
+            geogrids = generate_geogrids(bursts, geocoding_dict, dem_file)
+        else:
+            geogrids = generate_geogrids_from_db(bursts, geocoding_dict,
+                                                 dem_file, burst_database_file)
 
         # Empty reference dict for base runconfig class constructor
         empty_ref_dict = {}
 
+        with open(yaml_path, 'r') as f_yaml:
+            entire_yaml = f_yaml.read()
+
+        # Get scratch and output paths
+        output_paths = create_output_paths(sns, bursts)
+
         return cls(cfg['runconfig']['name'], sns, bursts, empty_ref_dict,
-                   geogrids)
+                   entire_yaml, output_paths, geogrids)
 
     @property
     def geocoding_params(self) -> dict:
@@ -95,33 +99,12 @@ class GeoRunConfig(RunConfig):
         return self.groups.processing.rdr2geo
 
     @property
-    def burst_id(self) -> str:
-        return self.bursts[0].burst_id
-
-    @property
-    def sensing_start(self):
-        return self.bursts[0].sensing_start
-
-    @property
-    def polarization(self) -> str:
-        return self.bursts[0].polarization
-
-    @property
     def split_spectrum_params(self) -> dict:
         return self.groups.processing.range_split_spectrum
 
     @property
-    def output_dir(self) -> str:
-        date_str = self.sensing_start.strftime("%Y%m%d")
-        burst_id = self.burst_id
-        return f'{super().product_path}/{burst_id}/{date_str}'
-
-    @property
-    def file_stem(self) -> str:
-        burst_id = self.burst_id
-        pol = self.polarization
-        return f'geo_{burst_id}_{pol}'
-
+    def lut_params(self) -> dict:
+        return self.groups.processing.correction_luts
 
     def as_dict(self):
         ''' Convert self to dict for write to YAML/JSON

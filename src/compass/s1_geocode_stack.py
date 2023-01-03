@@ -122,17 +122,10 @@ def generate_burst_map(zip_files, orbit_dir, output_epsg=None, bbox=None,
                 if epsg is None:  # Flag for skipping burst
                     continue
 
-                burst_map['burst_id'].append(burst.burst_id)
+                burst_map['burst_id'].append(str(burst.burst_id))
                 # keep the burst object so we don't have to re-parse
                 burst_map['burst'].append(burst)
 
-                left, bottom, right, top = bbox_utm
-                burst_map['x_top_left'].append(left)
-                burst_map['y_top_left'].append(top)
-                burst_map['x_bottom_right'].append(right)
-                burst_map['y_bottom_right'].append(bottom)
-
-                burst_map['epsg'].append(epsg)
                 burst_map['date'].append(burst.sensing_start.strftime("%Y%m%d"))
                 # Save the file paths for creating the runconfig
                 burst_map['orbit_path'].append(orbit_path)
@@ -150,8 +143,8 @@ def _get_burst_epsg_and_bbox(burst, output_epsg, bbox, bbox_epsg, burst_db_file)
     # # Get the UTM zone of the first burst from the database
     if output_epsg is None:
         if os.path.exists(burst_db_file):
-            epsg, _ = helpers.get_burst_bbox(
-                burst.burst_id, burst_db_file
+            epsg, _ = helpers.burst_bbox_from_db(
+                str(burst.burst_id), burst_db_file
             )
         else:
             # Fallback: ust the burst center UTM zone
@@ -171,8 +164,8 @@ def _get_burst_epsg_and_bbox(burst, output_epsg, bbox, bbox_epsg, burst_db_file)
         if not geometry.box(*bbox_utm).intersects(burst_border_utm):
             return None, None
     else:
-        epsg_db, bbox_utm = helpers.get_burst_bbox(
-            burst.burst_id, burst_db_file
+        epsg_db, bbox_utm = helpers.burst_bbox_from_db(
+            str(burst.burst_id), burst_db_file
         )
         if epsg_db != epsg:
             bbox_utm = helpers.transform_bbox(
@@ -232,7 +225,8 @@ def get_common_burst_ids(data):
 
 
 def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
-                     low_band, high_band, pol, x_spac, y_spac, enable_metadata):
+                     low_band, high_band, pol, x_spac, y_spac, enable_metadata,
+                     burst_db_file):
     """
     Create runconfig to process geocoded bursts
 
@@ -282,8 +276,9 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
     burst = burst_map_row.burst
     inputs['safe_file_path'] = [burst_map_row.zip_file]
     inputs['orbit_file_path'] = [burst_map_row.orbit_path]
-    inputs['burst_id'] = burst.burst_id
+    inputs['burst_id'] = [str(burst.burst_id)]
     groups['dynamic_ancillary_file_group']['dem_file'] = dem_file
+    groups['static_ancillary_file_group']['burst_database_file'] = burst_db_file
 
     # Product path
     product['product_path'] = work_dir
@@ -296,14 +291,6 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
     geocode['x_posting'] = x_spac
     geocode['y_posting'] = y_spac
 
-    geocode['top_left']['x'] = burst_map_row.x_top_left
-    geocode['top_left']['y'] = burst_map_row.y_top_left
-    geocode['bottom_right']['x'] = burst_map_row.x_bottom_right
-    geocode['bottom_right']['y'] = burst_map_row.y_bottom_right
-    # geocode['x_snap'] = None
-    # geocode['y_snap'] = None
-    geocode['output_epsg'] = burst_map_row.epsg
-
     # Range split spectrum
     rss['enabled'] = enable_rss
     rss['low_band_bandwidth'] = low_band
@@ -315,7 +302,7 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
 
     date_str = burst.sensing_start.strftime("%Y%m%d")
     os.makedirs(f'{work_dir}/runconfigs', exist_ok=True)
-    runconfig_path = f'{work_dir}/runconfigs/geo_runconfig_{date_str}_{burst.burst_id}.yaml'
+    runconfig_path = f'{work_dir}/runconfigs/geo_runconfig_{date_str}_{str(burst.burst_id)}.yaml'
     with open(runconfig_path, 'w') as yaml_file:
         yaml.dump(yaml_cfg, yaml_file, default_flow_style=False)
     return runconfig_path
@@ -484,6 +471,7 @@ def run(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dat
             x_spac,
             y_spac,
             do_metadata,
+            burst_db_file=burst_db_file,
         )
         date_str = row.burst.sensing_start.strftime("%Y%m%d")
         runfile_name = f'{run_dir}/run_{date_str}_{row.burst.burst_id}.sh'

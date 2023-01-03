@@ -10,12 +10,17 @@ runconfig:
            safe_file_path: list(str(), min=1)
            # Required. List of orbit (EOF) files
            orbit_file_path: list(str(), min=1)
-           # Required. The unique burst ID to process
-           burst_id: str(required=True)
+           # The unique burst ID(s) to process. If nothing provided, all bursts
+           # in a SAFE will processed
+           burst_id: list(str(), min=1, required=False)
 
         dynamic_ancillary_file_group:
            # Digital Elevation Model.
            dem_file: str(required=False)
+
+        static_ancillary_file_group:
+           # burst database sqlite file
+           burst_database_file: str(required=False)
 
         product_path_group:
            # Directory where PGE will place results
@@ -46,6 +51,8 @@ processing_options:
    geo2rdr: include('geo2rdr_options', required=False)
    # Range split-spectrum options
    range_split_spectrum: include('range_split_spectrum_options', required=False)
+   # Options to generate model-based slant range and azimuth correction LUTs
+   correction_luts: include('lut_options', required=False)
    # Computation of topo layers
    rdr2geo: include('rdr2geo_options', required=False)
 
@@ -56,24 +63,14 @@ geocoding_options:
    flatten: bool(required=False)
    # Number of lines to process in batch
    lines_per_block: int(min=1, required=False)
-   # Product EPSG code. Same as DEM if not provided
-   output_epsg: int(min=1024, max=32767, required=False)
-   # Product posting along X (same units as output_epsg)
+   # Product posting along X (same units as burst center EPSG)
    x_posting: num(min=0, required=False)
-   # Product posting along Y (same units as output_epsg)
+   # Product posting along Y (same units as burst center EPSG)
    y_posting: num(min=0, required=False)
-   # Controls the product grid along X (same units as output_epsg)
+   # Controls the product grid along X (same units as burst center EPSG)
    x_snap: num(min=0, required=False)
-   # Controls the product grid along Y (same units as output_epsg)
+   # Controls the product grid along Y (same units as burst center EPSG)
    y_snap: num(min=0, required=False)
-   # Top-left coordinates (same units as output_epsg)
-   top_left:
-     x: num(required=False)
-     y: num(required=False)
-   # Bottom-right coordinates (same units as output_epsg)
-   bottom_right:
-     x: num(required=False)
-     y: num(required=False)
 
 geo2rdr_options:
   # Convergence threshold for geo2rdr algorithm
@@ -92,6 +89,12 @@ range_split_spectrum_options:
   low_band_bandwidth: num(min=0, required=False)
   # Bandwidth of the high-band sub-image
   high_band_bandwidth: num(min=0, required=False)
+
+lut_options:
+  # LUT spacing in range direction in meters
+  range_spacing: num(min=0, required=False)
+  # LUT spacing in azimuth direction in seconds
+  azimuth_spacing: num(min=0, required=False)
 
 rdr2geo_options:
    # Enable/disable computation of topo layers

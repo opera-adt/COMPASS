@@ -6,8 +6,10 @@ from datetime import timedelta
 import os
 import time
 
+import h5py
 import isce3
 import journal
+import numpy as np
 
 from osgeo import gdal
 from compass.utils.runconfig import RunConfig
@@ -15,9 +17,9 @@ from compass.utils.helpers import get_module_name
 from compass.utils.yaml_argparse import YamlArgparse
 
 
-def run(cfg, fetch_from_scratch=False):
+def run(cfg, burst, fetch_from_scratch=False):
     '''
-    Geocode metadata layers
+    Geocode metadata layers in single HDF5
 
     Parameters
     ----------
@@ -25,7 +27,6 @@ def run(cfg, fetch_from_scratch=False):
         Dictionary with user runconfig options
     fetch_from_scratch: bool
         If True grabs metadata layers from scratch dir
-
     '''
     module_name = get_module_name(__file__)
     info_channel = journal.info(f"{module_name}.run")
@@ -43,29 +44,24 @@ def run(cfg, fetch_from_scratch=False):
     threshold = cfg.geo2rdr_params.threshold
     iters = cfg.geo2rdr_params.numiter
     blocksize = cfg.geo2rdr_params.lines_per_block
-    output_epsg = cfg.geocoding_params.output_epsg
     output_format = cfg.geocoding_params.output_format
 
     # process one burst only
-    burst = cfg.bursts[0]
     date_str = burst.sensing_start.strftime("%Y%m%d")
-    burst_id = burst.burst_id
+    burst_id = str(burst.burst_id)
     geo_grid = cfg.geogrids[burst_id]
-
-    os.makedirs(cfg.output_dir, exist_ok=True)
-
-    scratch_path = f'{cfg.scratch_path}/{burst_id}/{date_str}'
-    os.makedirs(scratch_path, exist_ok=True)
+    output_epsg = geo_grid.epsg
 
     radar_grid = burst.as_isce3_radargrid()
     orbit = burst.orbit
 
-    # Initialize input/output path
-    input_path = f'{cfg.product_path}/{burst_id}/{date_str}'
-    output_path = input_path
+    # Initialize input/output paths
+    burst_id_date_key = (burst_id, date_str)
+    out_paths = cfg.output_paths[burst_id_date_key]
+
+    input_path = out_paths.output_directory
     if fetch_from_scratch:
-        input_path = f'{cfg.scratch_path}/{burst_id}/{date_str}'
-    os.makedirs(output_path, exist_ok=True)
+        input_path = out_paths.scratch_directory
 
     # Initialize geocode object
     geo = isce3.geocode.GeocodeFloat32()
@@ -79,46 +75,47 @@ def run(cfg, fetch_from_scratch=False):
                 geo_grid.spacing_x, geo_grid.spacing_y,
                 geo_grid.width, geo_grid.length, geo_grid.epsg)
 
+    # Geocode list of products
+    geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,
+                    geo_grid.start_y, 0, geo_grid.spacing_y]
+
     # Get the metadata layers to compute
     meta_layers = {'x': cfg.rdr2geo_params.compute_longitude,
                    'y': cfg.rdr2geo_params.compute_latitude,
                    'z': cfg.rdr2geo_params.compute_height,
                    'incidence': cfg.rdr2geo_params.compute_incidence_angle,
-                   'localIncidence': cfg.rdr2geo_params.compute_local_incidence_angle,
-                   'heading': cfg.rdr2geo_params.compute_azimuth_angle}
-    input_rasters = [
-        isce3.io.Raster(f'{input_path}/{fname}.rdr')
-        for fname, enabled in meta_layers.items() if enabled]
-    output_rasters = [
-        isce3.io.Raster(f'{output_path}/{fname}.geo',
-                        geo_grid.width, geo_grid.length, 1, gdal.GDT_Float32,
-                        output_format)
-        for fname, enabled in meta_layers.items() if enabled]
+                   'local_incidence': cfg.rdr2geo_params.compute_local_incidence_angle,
+                   'heading': cfg.rdr2geo_params.compute_azimuth_angle,
+                   'layover_shadow_mask': cfg.rdr2geo_params.compute_layover_shadow_mask}
 
-    # Geocode list of products
-    geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,
-                    geo_grid.start_y, 0, geo_grid.spacing_y]
-    for input_raster, output_raster in zip(input_rasters, output_rasters):
-        geo.geocode(radar_grid=radar_grid, input_raster=input_raster,
-                    output_raster=output_raster, dem_raster=dem_raster,
-                    output_mode=isce3.geocode.GeocodeOutputMode.INTERP)
-        output_raster.set_geotransform(geotransform)
-        output_raster.set_epsg(output_epsg)
-        del output_raster
+    out_h5 = f'{out_paths.output_directory}/topo.h5'
+    shape = (geo_grid.length, geo_grid.width)
+    with h5py.File(out_h5, 'w') as topo_h5:
+        for layer_name, enabled in meta_layers.items():
+            if not enabled:
+                continue
+            dtype = np.single
+            # layoverShadowMask is last option, no need to change data type
+            # and interpolator afterwards
+            if layer_name == 'layover_shadow_mask':
+                geo.data_interpolator = 'NEAREST'
+                dtype = np.byte
 
-    # Geocode layover shadow separately
-    if cfg.rdr2geo_params.compute_layover_shadow_mask:
-        input_raster = isce3.io.Raster(f'{input_path}/layoverShadowMask.rdr')
-        output_raster = isce3.io.Raster(f'{output_path}/layoverShadowMask.geo',
-                                        geo_grid.width, geo_grid.length, 1,
-                                        gdal.GDT_Byte, output_format)
-        geo.data_interpolator = 'NEAREST'
-        geo.geocode(radar_grid=radar_grid, input_raster=input_raster,
-                    output_raster=output_raster, dem_raster=dem_raster,
-                    output_mode=isce3.geocode.GeocodeOutputMode.INTERP)
-        output_raster.set_geotransform(geotransform)
-        output_raster.set_epsg(output_epsg)
-        del output_raster
+            topo_ds = topo_h5.create_dataset(layer_name, dtype=dtype,
+                                             shape=shape)
+            topo_ds.attrs['description'] = np.string_(layer_name)
+            output_raster = isce3.io.Raster(f"IH5:::ID={topo_ds.id.id}".encode("utf-8"),
+                                            update=True)
+
+            input_raster = isce3.io.Raster(f'{input_path}/{layer_name}.rdr')
+
+            geo.geocode(radar_grid=radar_grid, input_raster=input_raster,
+                        output_raster=output_raster, dem_raster=dem_raster,
+                        output_mode=isce3.geocode.GeocodeOutputMode.INTERP)
+            output_raster.set_geotransform(geotransform)
+            output_raster.set_epsg(output_epsg)
+            del input_raster
+            del output_raster
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     info_channel.log(

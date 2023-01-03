@@ -561,43 +561,44 @@ def corrections_to_h5group(parent_group, burst, cfg):
     '''
     correction_group = parent_group.require_group('corrections')
 
-    # Get range and azimuth LUTs
-    geometrical_steering_doppler, bistatic_delay_lut, az_fm_mismatch = \
-        compute_geocoding_correction_luts(burst,
-                                          dem_path=cfg.dem,
-                                          rg_step=cfg.lut_params.range_spacing,
-                                          az_step=cfg.lut_params.azimuth_spacing)
+    # If enabled, save the correction LUTs
+    if cfg.lut_params.enabled:
+        geometrical_steering_doppler, bistatic_delay_lut, az_fm_mismatch = \
+            compute_geocoding_correction_luts(burst,
+                                              dem_path=cfg.dem,
+                                              rg_step=cfg.lut_params.range_spacing,
+                                              az_step=cfg.lut_params.azimuth_spacing)
 
-    # create linspace for axises shared by both LUTs
-    x_end = bistatic_delay_lut.x_start + bistatic_delay_lut.width * bistatic_delay_lut.x_spacing
-    slant_range = np.linspace(bistatic_delay_lut.x_start, x_end,
-                              bistatic_delay_lut.width, dtype=np.float64)
-    y_end = bistatic_delay_lut.y_start + bistatic_delay_lut.length * bistatic_delay_lut.y_spacing
-    azimuth = np.linspace(bistatic_delay_lut.y_start, y_end,
-                          bistatic_delay_lut.length, dtype=np.float64)
+        # create slant range and azimuth vectors shared by the LUTs
+        x_end = bistatic_delay_lut.x_start + bistatic_delay_lut.width * bistatic_delay_lut.x_spacing
+        slant_range = np.linspace(bistatic_delay_lut.x_start, x_end,
+                                  bistatic_delay_lut.width, dtype=np.float64)
+        y_end = bistatic_delay_lut.y_start + bistatic_delay_lut.length * bistatic_delay_lut.y_spacing
+        azimuth = np.linspace(bistatic_delay_lut.y_start, y_end,
+                              bistatic_delay_lut.length, dtype=np.float64)
 
-    # correction LUTs axis and doppler correction LUTs
-    desc = ' correction as a function of slant range and azimuth time'
-    correction_items = [
-        Meta('slant_range', slant_range, 'slant range of LUT data',
-             {'units': 'meters'}),
-        Meta('slant_range_spacing', bistatic_delay_lut.x_spacing,
-             'spacing of slant range of LUT data', {'units': 'meters'}),
-        Meta('zero_doppler_time', azimuth, 'azimuth time of LUT data',
-             {'units': 'seconds'}),
-        Meta('zero_doppler_time_spacing', bistatic_delay_lut.y_spacing,
-             'spacing of azimuth time of LUT data', {'units': 'seconds'}),
-        Meta('bistatic_delay', bistatic_delay_lut.data,
-             f'bistatic delay (azimuth) {desc}', {'units': 'seconds'}),
-        Meta('geometry_steering_doppler', geometrical_steering_doppler.data,
-             f'geometry steering doppler (range) {desc}',
-             {'units': 'meters'}),
-        Meta('azimuth_fm_rate_mismatch', az_fm_mismatch.data,
-             f'azimuth FM rate mismatch mitigation (azimuth) {desc}',
-             {'units': 'seconds'}),
-    ]
-    for meta_item in correction_items:
-        add_dataset_and_attrs(correction_group, meta_item)
+        # correction LUTs axis and doppler correction LUTs
+        desc = ' correction as a function of slant range and azimuth time'
+        correction_items = [
+            Meta('slant_range', slant_range, 'slant range of LUT data',
+                {'units': 'meters'}),
+            Meta('slant_range_spacing', bistatic_delay_lut.x_spacing,
+                 'spacing of slant range of LUT data', {'units': 'meters'}),
+            Meta('zero_doppler_time', azimuth, 'azimuth time of LUT data',
+                 {'units': 'seconds'}),
+            Meta('zero_doppler_time_spacing', bistatic_delay_lut.y_spacing,
+                 'spacing of azimuth time of LUT data', {'units': 'seconds'}),
+            Meta('bistatic_delay', bistatic_delay_lut.data,
+                 f'bistatic delay (azimuth) {desc}', {'units': 'seconds'}),
+            Meta('geometry_steering_doppler', geometrical_steering_doppler.data,
+                 f'geometry steering doppler (range) {desc}',
+                 {'units': 'meters'}),
+            Meta('azimuth_fm_rate_mismatch', az_fm_mismatch.data,
+                 f'azimuth FM rate mismatch mitigation (azimuth) {desc}',
+                 {'units': 'seconds'}),
+        ]
+        for meta_item in correction_items:
+            add_dataset_and_attrs(correction_group, meta_item)
 
     # Extended FM rate and doppler centroid polynomial coefficients for azimuth
     # FM rate mismatch mitigation

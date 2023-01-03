@@ -60,12 +60,28 @@ def run(cfg: GeoRunConfig):
         pol = burst.polarization
         geo_grid = cfg.geogrids[burst_id]
 
-        # Get range and azimuth LUTs
-        geometrical_steer_doppler, bistatic_delay, az_fm_mismatch =\
-             compute_geocoding_correction_luts(burst,
-                                               dem_path=cfg.dem,
-                                               rg_step=cfg.lut_params.range_spacing,
-                                               az_step=cfg.lut_params.azimuth_spacing)
+        # If enabled, get range and azimuth LUTs
+        if cfg.lut_params.enabled:
+            geometrical_steer_doppler, bistatic_delay, az_fm_mismatch =\
+                compute_geocoding_correction_luts(burst,
+                                                  dem_path=cfg.dem,
+                                                  rg_step=cfg.lut_params.range_spacing,
+                                                  az_step=cfg.lut_params.azimuth_spacing)
+            rg_lut_data = geometrical_steer_doppler.data
+            az_lut_data = bistatic_delay.data + az_fm_mismatch.data
+            rg_lut = isce3.core.LUT2d(bistatic_delay.x_start,
+                                      bistatic_delay.y_start,
+                                      bistatic_delay.x_spacing,
+                                      bistatic_delay.y_spacing,
+                                      rg_lut_data)
+            az_lut = isce3.core.LUT2d(bistatic_delay.x_start,
+                                      bistatic_delay.y_start,
+                                      bistatic_delay.x_spacing,
+                                      bistatic_delay.y_spacing,
+                                      az_lut_data)
+        else:
+            rg_lut = isce3.core.LUT2d()
+            az_lut = isce3.core.LUT2d()
 
         radar_grid = burst.as_isce3_radargrid()
         native_doppler = burst.doppler.lut2d
@@ -103,7 +119,6 @@ def run(cfg: GeoRunConfig):
 
             # Replace the input burst if the correction is applied
             temp_slc_path = temp_slc_path_corrected
-
 
         # Split the range bandwidth of the burst, if required
         if cfg.split_spectrum_params.enabled:
@@ -156,7 +171,9 @@ def run(cfg: GeoRunConfig):
                                       native_doppler,
                                       image_grid_doppler, ellipsoid, threshold,
                                       iters, blocksize, flatten,
-                                      azimuth_carrier=az_carrier_poly2d)
+                                      azimuth_carrier=az_carrier_poly2d,
+                                      az_time_correction=az_lut,
+                                      srange_correction=rg_lut)
 
             # Set geo transformation
             geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,

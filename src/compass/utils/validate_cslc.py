@@ -124,22 +124,34 @@ def compare_cslc_products(file_ref, file_sec):
     # Check that total number of pixel is the same
     assert tot_pixels_ref == tot_pixels_sec
 
-    # Compute the number of pixels in real part above threshold
-    max_diff_threshold = 1e-5
-
-    # Compute percentage of pixels in real and imaginary part above threshold
+    # Compute percentage of pixels in real/imaginary part above threshold
+    pixel_diff_threshold = 1e-5
     percent_fail_threshold = 0.001
-    any_percent_fail = False
-    err_str = []
+
+    # container to capture all possible dtype failures
+    # tests passes if empty i.e. no failures were captured
+    dtype_fails = []
+
     for dtype_op, dtype_str in zip([np.real, np.imag],
                                    ['real', 'imag']):
-        diff = (dtype_op(ma_slc_ref) - dtype_op(ma_slc_sec) / dtype_op(ma_slc_ref))
-        percent_fail = diff / tot_pixels_ref
-        err_str.append(f'Check that percentage of pixels in the difference between '
-                       f'reference and secondary products {dtype_str} parts above the'
-                       f'threshold {max_diff_threshold} is below {percent_fail*100}')
-        any_percent_fail = percent_fail < percent_fail_threshold
-    assert any_percent_fail, '\n'.join(err_str)
+        # compute difference pixel by pixel
+        diff = (dtype_op(ma_slc_ref) - dtype_op(ma_slc_sec)) / dtype_op(ma_slc_sec)
+
+        # count number of pixels that exceed threshold
+        n_diff_gt_threshold = np.count_non_zero(diff > pixel_diff_threshold)
+
+        # compute percentage of pixels that fail
+        percent_fail = n_diff_gt_threshold / tot_pixels_ref
+
+        # Check that percentage of pixels above percent_fail_threshold
+        if percent_fail > percent_fail_threshold:
+            dtype_fails.append(dtype_str)
+
+    # check no fails occurred by check of
+    err_str = f'Percentage of pixels in the difference between reference and '
+              f'secondary products parts above the threshold {pixel_diff_threshold} '
+              f'is above {percent_fail_threshold*100}% for: '
+    assert len(dtype_fails) == 0, err_str + ','.join(dtype_fails)
 
 
 def _get_group_item_paths(h5py_group):

@@ -110,9 +110,12 @@ def compare_cslc_products(file_ref, file_sec):
         return
 
     # Compare amplitude of reference and generated CSLC products
-    np.seterr(invalid='ignore')
-    diff_real = np.abs((slc_ref.real - slc_sec.real) / slc_sec.real)
-    diff_imag =  np.abs((slc_ref.imag - slc_sec.imag) / slc_sec.imag)
+    nan_ref = np.isnan(slc_ref)
+    nan_sec = np.isnan(slc_sec)
+    np.testing.assert_array_equal(nan_ref, nan_sec)
+
+    ma_slc_ref = np.ma.masked_array(slc_ref, mask=~nan_ref)
+    ma_slc_sec = np.ma.masked_array(slc_sec, mask=~nan_sec)
 
     # Compute total number of pixels different from nan from ref and sec
     tot_pixels_ref = np.count_nonzero(~np.isnan(np.abs(slc_ref)))
@@ -122,21 +125,21 @@ def compare_cslc_products(file_ref, file_sec):
     assert tot_pixels_ref == tot_pixels_sec
 
     # Compute the number of pixels in real part above threshold
-    failed_pixels_real = np.count_nonzero(diff_real > 1.0e-5)
-    failed_pixels_imag = np.count_nonzero(diff_imag > 1.0e-5)
+    max_diff_threshold = 1e-5
 
     # Compute percentage of pixels in real and imaginary part above threshold
-    percentage_real = failed_pixels_real / tot_pixels_ref
-    percentage_imag = failed_pixels_imag / tot_pixels_ref
-
-    # Check that percentage of pixels above threshold is lower than 0.1 %
-    print('Check that the percentage of pixels in the difference between reference'
-          'and secondary products real parts above the threshold 1.0e-5 is below 0.1 %')
-    assert percentage_real < 0.001
-
-    print('Check that the percentage of pixels in the difference between reference'
-          'and secondary products imaginary parts above the threshold 1.0e-5 is below 0.1 % %')
-    assert percentage_imag < 0.001
+    percent_fail_threshold = 0.001
+    any_percent_fail = False
+    err_str = []
+    for dtype_op, dtype_str in zip([np.real, np.imag],
+                                   ['real', 'imag']):
+        diff = (dtype_op(ma_slc_ref) - dtype_op(ma_slc_sec) / dtype_op(ma_slc_ref))
+        percent_fail = diff / tot_pixels_ref
+        err_str.append(f'Check that percentage of pixels in the difference between '
+                       f'reference and secondary products {dtype_str} parts above the'
+                       f'threshold {max_diff_threshold} is below {percent_fail*100}')
+        any_percent_fail = percent_fail < percent_fail_threshold
+    assert any_percent_fail, '\n'.join(err_str)
 
 
 def _get_group_item_paths(h5py_group):

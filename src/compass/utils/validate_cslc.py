@@ -135,10 +135,10 @@ def compare_cslc_products(file_ref, file_sec):
     for dtype_op, dtype_str in zip([np.real, np.imag],
                                    ['real', 'imag']):
         # compute difference pixel by pixel
-        diff = (dtype_op(ma_slc_ref) - dtype_op(ma_slc_sec)) / dtype_op(ma_slc_sec)
+        diff = (dtype_op(ma_slc_ref) - dtype_op(ma_slc_sec)) / dtype_op(ma_slc_ref)
 
         # count number of pixels that exceed threshold
-        n_diff_gt_threshold = np.count_non_zero(diff > pixel_diff_threshold)
+        n_diff_gt_threshold = np.count_nonzero(diff > pixel_diff_threshold)
 
         # compute percentage of pixels that fail
         percent_fail = n_diff_gt_threshold / tot_pixels_ref
@@ -148,9 +148,9 @@ def compare_cslc_products(file_ref, file_sec):
             dtype_fails.append(dtype_str)
 
     # check no fails occurred by check of
-    err_str = f'Percentage of pixels in the difference between reference and '
-              f'secondary products parts above the threshold {pixel_diff_threshold} '
-              f'is above {percent_fail_threshold*100}% for: '
+    err_str = f'Percentage of pixels in the difference between reference ' \
+              f'and secondary products parts above the threshold ' \
+              f'{pixel_diff_threshold} is above {percent_fail_threshold*100}% for: '
     assert len(dtype_fails) == 0, err_str + ','.join(dtype_fails)
 
 

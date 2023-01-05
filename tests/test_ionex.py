@@ -2,7 +2,6 @@
 Test IONEX functionalities: file reading and interpolation
 '''
 
-import os
 import numpy as np
 
 from compass.utils import iono
@@ -10,6 +9,11 @@ from compass.utils import iono
 def test_read_ionex(ionex_params):
     '''
     Test the reader for IONEX data
+
+    Parameters
+    ----------
+    ionex_params: types.SimpleNamespace
+        Variable containing IONEX parameters
     '''
 
     time_ind = 1
@@ -32,6 +36,11 @@ def test_read_ionex(ionex_params):
 def test_get_ionex_value(ionex_params):
     '''
     Test IONEX TEC data interpolation
+
+    Parameters
+    ----------
+    ionex_params: types.SimpleNamespace
+        Variable containing IONEX parameters
     '''
 
     # Lat/Lon coordinates over Chile
@@ -45,11 +54,6 @@ def test_get_ionex_value(ionex_params):
     rotates = [False, False, False, True]
     values = [60.8, 58.90687978, 64.96605174, 65.15525905]
 
-    # Get Ionex files
-    tec_file = iono.get_ionex_filename(ionex_params.date_str,
-                                       tec_dir=ionex_params.tec_dir,
-                                       sol_code=ionex_params.sol_code,
-                                       )
     # Perform comparison
     for method, rotate, value in zip(methods, rotates, values):
         tec_val = iono.get_ionex_value(ionex_params.tec_file,

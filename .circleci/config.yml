@@ -10,7 +10,14 @@ jobs:
       - run:
           name: "Build COMPASS docker image"
           command: |
-            docker build . -f docker/Dockerfile
+            docker build . -f docker/Dockerfile -t test_image
+      - run:
+          name: "Run tests"
+          command: |
+            docker run --entrypoint "cd ~/OPERA/COMPASS &&\
+                                    conda init bash &&\
+                                    conda activate COMPASS &&\
+                                    python -m pytest"
 
 workflows:
   build-workflow:

@@ -30,12 +30,10 @@ def _gdal_nfo_retrieve(path_h5):
     """
     Extract polarization, geotransform array, projection, and SLC from
     given HDF5
-
     Parameters
     ----------
     path_h5: str
         File path to CSLC HDF5 product
-
     Returns
     -------
     pol: str
@@ -69,7 +67,6 @@ def compare_cslc_products(file_ref, file_sec):
     '''
     Compare a reference and a newly generated
     (i.e., secondary) CSLC product
-
     Parameters
     ----------
     file_ref: str
@@ -110,12 +107,9 @@ def compare_cslc_products(file_ref, file_sec):
         return
 
     # Compare amplitude of reference and generated CSLC products
-    nan_ref = np.isnan(slc_ref)
-    nan_sec = np.isnan(slc_sec)
-    np.testing.assert_array_equal(nan_ref, nan_sec)
-
-    ma_slc_ref = np.ma.masked_array(slc_ref, mask=~nan_ref)
-    ma_slc_sec = np.ma.masked_array(slc_sec, mask=~nan_sec)
+    np.seterr(invalid='ignore')
+    diff_real = np.abs((slc_ref.real - slc_sec.real) / slc_sec.real)
+    diff_imag =  np.abs((slc_ref.imag - slc_sec.imag) / slc_sec.imag)
 
     # Compute total number of pixels different from nan from ref and sec
     tot_pixels_ref = np.count_nonzero(~np.isnan(np.abs(slc_ref)))
@@ -124,45 +118,31 @@ def compare_cslc_products(file_ref, file_sec):
     # Check that total number of pixel is the same
     assert tot_pixels_ref == tot_pixels_sec
 
-    # Compute percentage of pixels in real/imaginary part above threshold
-    pixel_diff_threshold = 1e-5
-    percent_fail_threshold = 0.001
+    # Compute the number of pixels in real part above threshold
+    failed_pixels_real = np.count_nonzero(diff_real > 1.0e-5)
+    failed_pixels_imag = np.count_nonzero(diff_imag > 1.0e-5)
 
-    # container to capture all possible dtype failures
-    # tests passes if empty i.e. no failures were captured
-    dtype_fails = []
+    # Compute percentage of pixels in real and imaginary part above threshold
+    percentage_real = failed_pixels_real / tot_pixels_ref
+    percentage_imag = failed_pixels_imag / tot_pixels_ref
 
-    for dtype_op, dtype_str in zip([np.real, np.imag],
-                                   ['real', 'imag']):
-        # compute difference pixel by pixel
-        diff = (dtype_op(ma_slc_ref) - dtype_op(ma_slc_sec)) / dtype_op(ma_slc_ref)
+    # Check that percentage of pixels above threshold is lower than 0.1 %
+    print('Check that the percentage of pixels in the difference between reference'
+          'and secondary products real parts above the threshold 1.0e-5 is below 0.1 %')
+    assert percentage_real < 0.001
 
-        # count number of pixels that exceed threshold
-        n_diff_gt_threshold = np.count_nonzero(diff > pixel_diff_threshold)
-
-        # compute percentage of pixels that fail
-        percent_fail = n_diff_gt_threshold / tot_pixels_ref
-
-        # Check that percentage of pixels above percent_fail_threshold
-        if percent_fail > percent_fail_threshold:
-            dtype_fails.append(dtype_str)
-
-    # check no fails occurred by check of
-    err_str = f'Percentage of pixels in the difference between reference ' \
-              f'and secondary products parts above the threshold ' \
-              f'{pixel_diff_threshold} is above {percent_fail_threshold*100}% for: '
-    assert len(dtype_fails) == 0, err_str + ','.join(dtype_fails)
+    print('Check that the percentage of pixels in the difference between reference'
+          'and secondary products imaginary parts above the threshold 1.0e-5 is below 0.1 %')
+    assert percentage_imag < 0.001
 
 
 def _get_group_item_paths(h5py_group):
     '''
     Get paths for all datasets and groups nested within a h5py.Group
-
     Parameters
     ----------
     h5py_group: h5py.Group
         Group object where paths to objects within are to be retrieved.
-
     Returns
     -------
     paths: list[str]
@@ -184,7 +164,6 @@ def _get_group_item_paths(h5py_group):
 def compare_cslc_metadata(file_ref, file_sec):
     '''
     Compare reference and generated CSLC metadata
-
     Parameters
     ----------
     file_ref: str

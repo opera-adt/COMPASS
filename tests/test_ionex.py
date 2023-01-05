@@ -7,50 +7,7 @@ import numpy as np
 
 from compass.utils import iono
 
-# Set the path to fetch data for the test
-tec_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "tests/data")
-date_str = '20151115'
-sol_code = 'jpl'
-
-
-def prep_test_data(download_data=True):
-    '''
-    Prepare IONEX data for unit test
-
-    Parameters
-    ----------
-    download_data: bool
-        Boolean flag allow to download TEC data
-        for unit test if set to True
-
-    Returns
-    -------
-    tec_file: str
-        Path to local or downloaded TEC file to
-        use in the unit test
-    '''
-
-    # Create TEC directory
-    os.makedirs(tec_dir, exist_ok=True)
-
-    # Generate the TEC filename
-    tec_file = iono.get_ionex_filename(
-        date_str,
-        tec_dir=tec_dir,
-        sol_code=sol_code
-    )
-
-    # If prep_mode=True, download data
-    if download_data:
-        if not os.path.isfile(tec_file):
-            print(f'Download IONEX file at {date_str} from {sol_code} to {tec_dir}')
-            tec_file = iono.download_ionex(date_str,
-                                           tec_dir,
-                                           sol_code=sol_code)
-    return tec_file
-
-
-def test_read_ionex():
+def test_read_ionex(ionex_params):
     '''
     Test the reader for IONEX data
     '''
@@ -67,19 +24,12 @@ def test_read_ionex():
          [71.9, 74.5, 76.5, 76.2, 73.1, 67.3]],
     )
 
-    # Get IONEX file path
-    tec_file = iono.get_ionex_filename(
-        date_str,
-        tec_dir=tec_dir,
-        sol_code=sol_code,
-    )
-
-    # Read IONEX data
-    mins, lats, lons, tec_maps = iono.read_ionex(tec_file)[:4]
+    # Read IONEX tec_maps data - ignore mins, lats, and lons
+    _, _, _, tec_maps = iono.read_ionex(ionex_params.tec_file)[:4]
     assert np.allclose(tec_maps[time_ind, y0:y1, x0:x1], tec_aoi)
 
 
-def test_get_ionex_value():
+def test_get_ionex_value(ionex_params):
     '''
     Test IONEX TEC data interpolation
     '''
@@ -96,15 +46,14 @@ def test_get_ionex_value():
     values = [60.8, 58.90687978, 64.96605174, 65.15525905]
 
     # Get Ionex files
-    tec_file = iono.get_ionex_filename(date_str,
-                                       tec_dir=tec_dir,
-                                       sol_code=sol_code,
+    tec_file = iono.get_ionex_filename(ionex_params.date_str,
+                                       tec_dir=ionex_params.tec_dir,
+                                       sol_code=ionex_params.sol_code,
                                        )
     # Perform comparison
     for method, rotate, value in zip(methods, rotates, values):
-        tec_val = iono.get_ionex_value(tec_file,
-                                       utc_sec,
-                                       lat, lon,
+        tec_val = iono.get_ionex_value(ionex_params.tec_file,
+                                       utc_sec, lat, lon,
                                        interp_method=method,
                                        rotate_tec_map=rotate,
                                        )

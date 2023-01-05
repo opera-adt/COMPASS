@@ -16,7 +16,7 @@ def compute_geocoding_correction_luts(burst, dem_path,
     dem_path: str
         Path to the DEM required for azimuth FM rate mismatch.
     xstep: int
-        LUT spacing (in pixels) along x/slant range in meters
+        LUT spacing along x/slant range in meters
     ystep: int
         LUT spacing along y/azimuth in seconds
 

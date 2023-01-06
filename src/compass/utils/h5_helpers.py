@@ -60,7 +60,10 @@ def add_dataset_and_attrs(group, meta_item):
     # Convert data to written if necessary
     val = _as_np_string_if_needed(meta_item.value)
     try:
-        group[meta_item.name] = val
+        if val is None:
+            group[meta_item.name] = np.nan
+        else:
+            group[meta_item.name] = val
     except TypeError:
         raise TypeError(f'unable to write {meta_item.name}')
 
@@ -680,13 +683,13 @@ def corrections_to_h5group(parent_group, burst, cfg):
             Meta('range_pixel', noise.range_pixel, 'Range array in pixel for LUT'),
             Meta('range_lut', noise.range_lut, 'Range noise lookup table data'),
             Meta('azimuth_first_azimuth_line', noise.azimuth_first_azimuth_line,
-                 'First line of the burst in subswath. None if not available in annotation.'),
+                 'First line of the burst in subswath. NaN if not available in annotation.'),
             Meta('azimuth_first_range_sample', noise.azimuth_first_range_sample,
-                 'First range sample of the burst. None if not available in annotation.'),
+                 'First range sample of the burst. NaN if not available in annotation.'),
             Meta('azimuth_last_azimuth_line', noise.azimuth_last_azimuth_line,
-                 'Last line of the burst in subswatn. None if not available in annotation.'),
+                 'Last line of the burst in subswatn. NaN if not available in annotation.'),
             Meta('azimuth_last_range_sample', noise.azimuth_last_range_sample,
-                 'Last range of the burst. None if not available in annotation.'),
+                 'Last range of the burst. NaN if not available in annotation.'),
             Meta('azimuth_line', noise.azimuth_line, 'azimuth line index for noise LUT'),
             Meta('azimuth_lut', noise.azimuth_lut, 'azimuth noise lookup table data')
         ]

@@ -1,85 +1,98 @@
-import datetime
+'''
+Placeholder for model-based correction LUT
+'''
+
+import os
 import isce3
 import pysolid
-import os
 import numpy as np
-from osgeo import gdal
 from compass.utils.geo_grid import transform_coordinates
 from scipy.interpolate import RegularGridInterpolator as RGI
 from skimage.transform import resize
 
 
-def compute_geocoding_correction_luts(burst, cfg, geogrid,
-                                      rg_step=200, az_step=0.25):
+def compute_geocoding_correction_luts(burst, geogrid, dem_path,
+                                      rg_step=200, az_step=0.25,
+                                      scratch_path=None):
     '''
     Compute slant range and azimuth LUTs corrections
     to be applied during burst geocoding
-
     Parameters
     ----------
     burst: Sentinel1BurstSlc
         S1-A/B burst object
-    cfg: dict
-        Dictionary containing user processing parameters
-    geogrid: isce3.product.geogrid
-        ISCE3 geogrid object with user-defined inputs
+    dem_path: str
+        Path to the DEM required for azimuth FM rate mismatch.
     xstep: int
-        LUT spacing (in pixels) along x/slant range in meters
+        LUT spacing along x/slant range in meters
     ystep: int
-        LUT spacing (in pixels) along x/azimuth in seconds
+        LUT spacing along y/azimuth in seconds
+
+    scratch_path: str
+        Path to the scratch directory.
+        If `None`, `burst.az_fm_rate_mismatch_mitigation()` will
+        create temporary directory internally.
 
     Returns
     -------
-    rg_lut: isce3.core.LUT2d
-        Sum of range corrections in meters
-    az_lut: isce3.core.LUT2d
-        Sum of azimuth corrections in meters
+    geometrical_steering_doppler: isce3.core.LUT2d:
+        LUT2D object of total doppler (geometrical doppler +  steering doppler)
+        in seconds as the function of the azimuth time and slant range,
+        or range and azimuth indices.
+        This correction needs to be added to the SLC tagged azimuth time to
+        get the corrected azimuth times.
+
+    bistatic_delay: isce3.core.LUT2d:
+        LUT2D object of bistatic delay correction in seconds as a function
+        of the azimuth time and slant range, or range and azimuth indices.
+        This correction needs to be added to the SLC tagged range time to
+        get the corrected range times.
+
+    az_fm_mismatch: isce3.core.LUT2d:
+        LUT2D object of azimuth FM rate mismatch mitigation,
+        in seconds as the function of the azimuth time and slant range,
+        or range and azimuth indices.
+        This correction needs to be added to the SLC tagged azimuth time to
+        get the corrected azimuth times.
     '''
 
-    # Get some ancillary parameters
-    dem_raster = isce3.io.Raster(cfg.dem)
-    date_str = burst.sensing_start.strftime("%Y%m%d")
-    scratch_path = f'{cfg.scratch_path}/{burst.burst_id}/{date_str}'
+    bistatic_delay = burst.bistatic_delay(range_step=rg_step, az_step=az_step)
+    geometrical_steering_doppler= burst.geometrical_and_steering_doppler(range_step=rg_step,
+                                                                         az_step=az_step)
+    if not os.path.exists(dem_path):
+        raise FileNotFoundError(f'Cannot find the dem file: {dem_path}')
 
-    # Compute azimuth bistatic delay correction
-    az_bistatic = burst.bistatic_delay(range_step=rg_step,
-                                       az_step=az_step)
+    az_fm_mismatch = burst.az_fm_rate_mismatch_mitigation(dem_path,
+                                                          scratch_path,
+                                                          range_step=rg_step,
+                                                          az_step=az_step)
 
-    # Compute Doppler shift correction (range contribution)
-    rg_doppler = burst.geometrical_and_steering_doppler(range_step=rg_step,
-                                                        az_step=az_step)
-
-    # Compute Solid Earth tides (using pySolid)
-    rg_set, az_set = solid_earth_tides(burst, geogrid,
-                                       dem_raster, scratch_path)
+    # Compute Solid Earth Tides
+    rg_set, az_set = solid_earth_tides(burst, geogrid, dem_path,
+                                       scratch_path)
 
     # Resize SET to the size of the correction grid
-    out_shape = rg_doppler.data.shape
+    out_shape = bistatic_delay.data.shape
     kwargs = dict(order=1, mode='edge', anti_aliasing=True,
                   preserve_range=True)
     new_rg_set = resize(rg_set, out_shape, **kwargs)
     new_az_set = resize(az_set, out_shape, **kwargs)
 
-    # Sum corrections in range and azimuth respectively
-    rg_lut = rg_doppler
-    az_lut = az_bistatic
-
-    return rg_lut, az_lut
+    return geometrical_steering_doppler, bistatic_delay, az_fm_mismatch, [new_rg_set, new_az_set]
 
 
-def solid_earth_tides(burst, geogrid, dem_raster, scratchdir):
+def solid_earth_tides(burst, geogrid, dem_path, scratchdir):
     '''
     Compute displacement due to Solid Earth Tides (SET)
     in slant range and azimuth directions
-
     Parameters
     ---------
     burst: Sentinel1Slc
         S1-A/B burst object
     geogrid: isce3.product.geogrid
         Geogrid of the output CSLC product
-    dem_raster: isce3.io.Raster
-        ISCE3 object containing DEM
+    dem_path: str
+        File path to available DEM
     scratchdir: str
         Path to scratch directory
     Returns
@@ -91,6 +104,7 @@ def solid_earth_tides(burst, geogrid, dem_raster, scratchdir):
     '''
 
     # Get ellipsoid
+    dem_raster = isce3.io.Raster(dem_path)
     epsg = dem_raster.get_epsg()
     proj = isce3.core.make_projection(epsg)
     ellipsoid = proj.ellipsoid
@@ -164,7 +178,6 @@ def compute_rdr2geo_rasters(burst, ellipsoid, dem_raster, output_path):
     '''
     Get latitude, longitude, incidence and
     azimuth angle on multi-looked radar grid
-
     Parameters
     ----------
     burst: Sentinel1Slc
@@ -253,7 +266,6 @@ def resample_tide(geo_tide, pts_src, pts_dest):
 def heading2azimuth_angle(head_angle, look_direction='right'):
     '''
     Convert satellite orbit heading angle into azimuth angle
-
     Parameters
     ----------
     head_angle: np.ndarray
@@ -261,7 +273,6 @@ def heading2azimuth_angle(head_angle, look_direction='right'):
         measured from the East with anti-clockwise direction as positive (degrees)
     look_direction: str
         Sensor look-direction (left or right)
-
     Returns
     -------
     az_angle: np.ndarray
@@ -280,7 +291,6 @@ def enu2los(x_e, x_n, x_u, inc_angle, head_angle=None, az_angle=None):
     '''
     Project east/north/up motion into the line-of-sight (LOS)
     direction defined by incidence/azimuth angle
-
     Parameters
     ----------
     x_e: np.ndarray or float
@@ -297,7 +307,6 @@ def enu2los(x_e, x_n, x_u, inc_angle, head_angle=None, az_angle=None):
     az_angle: np.ndarray or float
         Azimuth angle of the LOS vector from the ground to the SAR platform
         measured from the north with anti-clockwise direction as positive,  degrees
-
     Returns
     -------
     x_los: np.ndarray or float
@@ -321,7 +330,6 @@ def enu2los(x_e, x_n, x_u, inc_angle, head_angle=None, az_angle=None):
 def en2az(x_e, x_n, head_angle):
     '''
     Project east/north motion into the radar azimuth direction
-
     Parameters
     ----------
     x_e: np.ndarray or float
@@ -331,7 +339,6 @@ def en2az(x_e, x_n, head_angle):
     head_angle: np.ndarray or float
         Azimuth angle of the SAR platform along track direction
         measured from East with anti-clockwise direction as positive, degrees
-
     Returns
     -------
     x_az: np.ndarray or float

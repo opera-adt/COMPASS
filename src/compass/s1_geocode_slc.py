@@ -60,14 +60,21 @@ def run(cfg: GeoRunConfig):
         pol = burst.polarization
         geo_grid = cfg.geogrids[burst_id]
 
+        # Get output paths for current burst
+        burst_id_date_key = (burst_id, date_str)
+        out_paths = cfg.output_paths[burst_id_date_key]
+
+        # Create scratch as needed
+        scratch_path = out_paths.scratch_directory
+
         # Get range and azimuth LUTs
         geometrical_steer_doppler, bistatic_delay, az_fm_mismatch, set =\
             compute_geocoding_correction_luts(burst,
                                               geo_grid,
-                                               cfg.dem,
-                                               rg_step=cfg.lut_params.range_spacing,
-                                               az_step=cfg.lut_params.azimuth_spacing,
-                                               scratch_path=scratch_path)
+                                              cfg.dem,
+                                              rg_step=cfg.lut_params.range_spacing,
+                                              az_step=cfg.lut_params.azimuth_spacing,
+                                              scratch_path=scratch_path)
         radar_grid = burst.as_isce3_radargrid()
         native_doppler = burst.doppler.lut2d
         orbit = burst.orbit
@@ -80,13 +87,6 @@ def run(cfg: GeoRunConfig):
             s1_rdr2geo.run(cfg, save_in_scratch=True)
             if cfg.rdr2geo_params.geocode_metadata_layers:
                 s1_geocode_metadata.run(cfg, burst, fetch_from_scratch=True)
-
-        # Get output paths for current burst
-        burst_id_date_key = (burst_id, date_str)
-        out_paths = cfg.output_paths[burst_id_date_key]
-
-        # Create scratch as needed
-        scratch_path = out_paths.scratch_directory
 
         # Load the input burst SLC
         temp_slc_path = f'{scratch_path}/{out_paths.file_name_stem}_temp.vrt'

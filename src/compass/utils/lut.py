@@ -7,6 +7,7 @@ import os
 import isce3
 import pysolid
 import numpy as np
+from osgeo import gdal
 from compass.utils.geo_grid import transform_coordinates
 from scipy.interpolate import RegularGridInterpolator as RGI
 from skimage.transform import resize

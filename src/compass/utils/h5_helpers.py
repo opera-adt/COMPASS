@@ -565,8 +565,9 @@ def corrections_to_h5group(parent_group, burst, cfg):
     correction_group = parent_group.require_group('corrections')
 
     # Get range and azimuth LUTs
-    geometrical_steering_doppler, bistatic_delay_lut, az_fm_mismatch = \
+    geometrical_steering_doppler, bistatic_delay_lut, az_fm_mismatch, set = \
         compute_geocoding_correction_luts(burst,
+                                          cfg.geogrids[str(burst.burst_id)],
                                           dem_path=cfg.dem,
                                           rg_step=cfg.lut_params.range_spacing,
                                           az_step=cfg.lut_params.azimuth_spacing)

@@ -20,7 +20,7 @@ from compass.utils.h5_helpers import (corrections_to_h5group,
                                       init_geocoded_dataset,
                                       metadata_to_h5group)
 from compass.utils.helpers import get_module_name
-from compass.utils.lut import compute_geocoding_correction_luts
+from compass.utils.lut import cumulative_correction_luts
 from compass.utils.range_split_spectrum import range_split_spectrum
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -62,23 +62,10 @@ def run(cfg: GeoRunConfig):
 
         # If enabled, get range and azimuth LUTs
         if cfg.lut_params.enabled:
-            geometrical_steer_doppler, bistatic_delay, az_fm_mismatch =\
-                compute_geocoding_correction_luts(burst,
-                                                  dem_path=cfg.dem,
-                                                  rg_step=cfg.lut_params.range_spacing,
-                                                  az_step=cfg.lut_params.azimuth_spacing)
-            rg_lut_data = geometrical_steer_doppler.data
-            az_lut_data = bistatic_delay.data + az_fm_mismatch.data
-            rg_lut = isce3.core.LUT2d(bistatic_delay.x_start,
-                                      bistatic_delay.y_start,
-                                      bistatic_delay.x_spacing,
-                                      bistatic_delay.y_spacing,
-                                      rg_lut_data)
-            az_lut = isce3.core.LUT2d(bistatic_delay.x_start,
-                                      bistatic_delay.y_start,
-                                      bistatic_delay.x_spacing,
-                                      bistatic_delay.y_spacing,
-                                      az_lut_data)
+            rg_lut, az_lut = cumulative_correction_luts(burst,
+                                                        dem_path=cfg.dem,
+                                                        rg_step=cfg.lut_params.range_spacing,
+                                                        az_step=cfg.lut_params.azimuth_spacing)
         else:
             rg_lut = isce3.core.LUT2d()
             az_lut = isce3.core.LUT2d()

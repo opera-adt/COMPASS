@@ -14,10 +14,8 @@ jobs:
       - run:
           name: "Run tests"
           command: |
-            docker run --entrypoint "cd ~/OPERA/COMPASS &&\
-                                    conda init bash &&\
-                                    conda activate COMPASS &&\
-                                    python -m pytest"
+            docker run --rm test_image -m pip install pytest && ls
+            /home/compass_user/OPERA/COMPASS
 
 workflows:
   build-workflow:

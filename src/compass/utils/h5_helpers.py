@@ -578,7 +578,7 @@ def corrections_to_h5group(parent_group, burst, cfg):
                               bistatic_delay_lut.length, dtype=np.float64)
 
         # correction LUTs axis and doppler correction LUTs
-        desc = ' correction as a function of slant range and azimuth time'
+        desc = 'correction as a function of slant range and azimuth time'
         correction_items = [
             Meta('slant_range', slant_range, 'slant range of LUT data',
                 {'units': 'meters'}),

@@ -20,7 +20,7 @@ from compass.utils.h5_helpers import (corrections_to_h5group,
                                       init_geocoded_dataset,
                                       metadata_to_h5group)
 from compass.utils.helpers import get_module_name
-from compass.utils.lut import compute_geocoding_correction_luts
+from compass.utils.lut import cumulative_correction_luts
 from compass.utils.range_split_spectrum import range_split_spectrum
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -76,12 +76,15 @@ def run(cfg: GeoRunConfig):
         date_str = burst.sensing_start.strftime("%Y%m%d")
         geo_grid = cfg.geogrids[burst_id]
 
-        # Get range and azimuth LUTs
-        geometrical_steer_doppler, bistatic_delay, az_fm_mismatch =\
-             compute_geocoding_correction_luts(burst,
-                                               dem_path=cfg.dem,
-                                               rg_step=cfg.lut_params.range_spacing,
-                                               az_step=cfg.lut_params.azimuth_spacing)
+        # If enabled, get range and azimuth LUTs
+        if cfg.lut_params.enabled:
+            rg_lut, az_lut = cumulative_correction_luts(burst,
+                                                        dem_path=cfg.dem,
+                                                        rg_step=cfg.lut_params.range_spacing,
+                                                        az_step=cfg.lut_params.azimuth_spacing)
+        else:
+            rg_lut = isce3.core.LUT2d()
+            az_lut = isce3.core.LUT2d()
 
         radar_grid = burst.as_isce3_radargrid()
         native_doppler = burst.doppler.lut2d

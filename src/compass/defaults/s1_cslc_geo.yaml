@@ -57,6 +57,9 @@ runconfig:
               high_band_bandwidth: 1e7
 
           correction_luts:
+              # Boolean flag to activate/deactivate model-based
+              # corrections while geocoding the burst
+              enabled: True
               # LUT spacing in range direction in meters
               range_spacing: 120
               # LUT spacing in azimuth direction in seconds

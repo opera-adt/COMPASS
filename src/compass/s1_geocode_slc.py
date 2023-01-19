@@ -3,6 +3,7 @@
 '''wrapper for geocoded CSLC'''
 
 from datetime import timedelta
+import itertools
 import time
 
 import h5py
@@ -28,16 +29,10 @@ from compass.utils.yaml_argparse import YamlArgparse
 def _bursts_grouping_generator(bursts):
     # Dict to group bursts with the same burst ID but different polarizations
     # key: burst ID, value: list[S1BurstSlc]
-    x = {}
-    for b in bursts:
-        burst_id_str = str(b.burst_id)
-        if burst_id_str not in x:
-            x[burst_id_str] = burst
-        else:
-            x[burst_id_str].append(burst)
+    grouped_bursts = itertools.groupby(bursts, key=lambda b: str(b.burst_id))
 
-    for k, v in x.items():
-        yield k, v
+    for k, v in grouped_bursts:
+        yield k, list(v)
 
 
 def run(cfg: GeoRunConfig):

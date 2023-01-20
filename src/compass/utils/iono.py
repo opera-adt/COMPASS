@@ -165,7 +165,7 @@ def get_ionex_value(tec_file, utc_sec, lat, lon,
             # option 1: interpolate between consecutive TEC maps
             # testings shows better agreement with SAR obs than option 2.
             tec_val = interpolate.interpn(
-                points=(mins, np.flip(lats), lons),
+                points=(mins, np.ascontiguousarray(np.flip(lats)), lons),
                 values=np.flip(tec_maps, axis=1),
                 xi=(utc_min, lat, lon),
                 method='linear',

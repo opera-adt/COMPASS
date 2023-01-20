@@ -5,7 +5,7 @@ import types
 from compass.utils import iono
 
 @pytest.fixture(scope='session')
-def ionex_params():
+def ionex_params(download_data=True):
     '''
     Prepare IONEX data for unit test
 
@@ -37,13 +37,14 @@ def ionex_params():
                                           sol_code=test_params.sol_code)
 
     # TODO figure out how to toggle download
-    '''
+
     # If prep_mode=True, download data
     if download_data:
-        if not os.path.isfile(tec_file):
-            print(f'Download IONEX file at {date_str} from {sol_code} to {tec_dir}')
-            tec_file = iono.download_ionex(date_str,
-                                           tec_dir,
-                                           sol_code=sol_code)
-    '''
+        if not os.path.isfile(test_params.tec_file):
+            print(f'Download IONEX file at {test_params.date_str} from '
+                  f'{test_params.sol_code} to {test_params.tec_dir}')
+            test_params.tec_file = iono.download_ionex(test_params.date_str,
+                                                       test_params.tec_dir,
+                                                       sol_code=test_params.sol_code)
+
     return test_params

@@ -13,7 +13,7 @@ COPY . /home/compass_user/OPERA/COMPASS
 RUN chown -R compass_user:compass_user /home/compass_user/OPERA &&\
     chmod -R 755 /home/compass_user
 
-USER compass_user 
+USER compass_user
 
 ENV CONDA_PREFIX=/home/compass_user/miniconda3
 

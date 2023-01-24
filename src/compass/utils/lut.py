@@ -2,6 +2,59 @@
 Placeholder for model-based correction LUT
 '''
 import os
+import isce3
+
+
+def cumulative_correction_luts(burst, dem_path,
+                               rg_step=200, az_step=0.25,
+                               scratch_path=None):
+    '''
+    Sum correction LUTs and returns cumulative correction LUT
+    in slant range and azimuth directions
+
+    Parameters
+    ----------
+    burst: Sentinel1BurstSlc
+        Sentinel-1 A/B burst SLC object
+    dem_path: str
+        Path to the DEM file
+    rg_step: float
+        LUT spacing along slant range direction
+    az_step: float
+        LUT spacing along azimuth direction
+    scratch_path: str
+        Path to the scratch directory
+
+    Returns
+    -------
+    rg_lut: isce3.core.LUT2d
+        Sum of correction LUTs along slant range
+    az_lut: isce3.core.LUT2d
+        Sum of correction LUTs along azimuth
+    '''
+
+    # Get individual LUTs
+    geometrical_steer_doppler, bistatic_delay, az_fm_mismatch = \
+        compute_geocoding_correction_luts(burst,
+                                          dem_path=dem_path,
+                                          rg_step=rg_step,
+                                          az_step=az_step)
+
+    rg_lut_data = geometrical_steer_doppler.data
+    az_lut_data = bistatic_delay.data + az_fm_mismatch.data
+    rg_lut = isce3.core.LUT2d(bistatic_delay.x_start,
+                              bistatic_delay.y_start,
+                              bistatic_delay.x_spacing,
+                              bistatic_delay.y_spacing,
+                              rg_lut_data)
+    az_lut = isce3.core.LUT2d(bistatic_delay.x_start,
+                              bistatic_delay.y_start,
+                              bistatic_delay.x_spacing,
+                              bistatic_delay.y_spacing,
+                              az_lut_data)
+
+    return rg_lut, az_lut
+
 
 def compute_geocoding_correction_luts(burst, dem_path,
                                       rg_step=200, az_step=0.25,

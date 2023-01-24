@@ -8,13 +8,13 @@ import isce3
 import journal
 import yamale
 from ruamel.yaml import YAML
+from s1reader.s1_burst_slc import Sentinel1BurstSlc
+from s1reader.s1_orbit import get_orbit_file_from_dir
+from s1reader.s1_reader import load_bursts
 
 from compass.utils import helpers
 from compass.utils.radar_grid import file_to_rdr_grid
 from compass.utils.wrap_namespace import wrap_namespace, unwrap_to_dict
-from s1reader.s1_burst_slc import Sentinel1BurstSlc
-from s1reader.s1_orbit import get_orbit_file_from_dir
-from s1reader.s1_reader import load_bursts
 
 
 def load_validate_yaml(yaml_path: str, workflow_name: str) -> dict:
@@ -140,7 +140,7 @@ def validate_group_dict(group_cfg: dict, workflow_name) -> None:
     helpers.check_write_dir(product_path_group['sas_output_file'])
 
 
-def runconfig_to_bursts(cfg: SimpleNamespace, auto_download: bool = False) -> list[Sentinel1BurstSlc]:
+def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
     '''Return bursts based on parameters in given runconfig
 
     Parameters
@@ -201,10 +201,12 @@ def runconfig_to_bursts(cfg: SimpleNamespace, auto_download: bool = False) -> li
             # loop over burst objs extracted from SAFE zip
             for burst in load_bursts(safe_file, orbit_path, i_subswath, pol):
                 # get burst ID
-                burst_id = burst.burst_id
+                burst_id = str(burst.burst_id)
 
+                # include ALL bursts if no burst IDs given
                 # is burst_id wanted? skip if not given in config
-                if burst_id != cfg.input_file_group.burst_id:
+                if (cfg.input_file_group.burst_id is not None and
+                        burst_id not in cfg.input_file_group.burst_id):
                     continue
 
                 # get polarization and save as tuple with burst ID
@@ -240,15 +242,13 @@ def runconfig_to_bursts(cfg: SimpleNamespace, auto_download: bool = False) -> li
     return bursts
 
 
-def get_ref_radar_grid_info(ref_path, burst_id):
+def get_ref_radar_grid_info(ref_path):
     ''' Find all reference radar grids info
 
     Parameters
     ----------
     ref_path: str
         Path where reference radar grids processing is stored
-    burst_id: str
-        Burst IDs for reference radar grids
 
     Returns
     -------
@@ -273,6 +273,35 @@ class ReferenceRadarInfo:
     grid: isce3.product.RadarGridParameters
 
 
+def create_output_paths(sns, bursts):
+    # Generate scratch and output paths
+    output_paths = {}
+    product_paths = sns.product_path_group
+    for burst in bursts:
+        # Get burst ID and check if it already
+        burst_id = str(burst.burst_id)
+        date_str = burst.sensing_start.strftime("%Y%m%d")
+
+        # Key for current burst ID + date combo
+        path_key = (burst_id, date_str)
+
+        # Save output dir, output hdf5 and scratch dir to dict as
+        # SimpleNamespace
+        out_dir = f'{product_paths.product_path}/{burst_id}/{date_str}'
+        os.makedirs(out_dir, exist_ok=True)
+
+        fname_stem = f"{burst_id}_{date_str}_{burst.polarization}"
+        h5_path = f"{out_dir}/{fname_stem}.h5"
+
+        scratch_path = f'{product_paths.scratch_path}/{burst_id}/{date_str}'
+        os.makedirs(scratch_path, exist_ok=True)
+
+        output_paths[path_key] = SimpleNamespace(output_directory=out_dir,
+                                                 file_name_stem=fname_stem,
+                                                 hdf5_path=h5_path,
+                                                 scratch_directory=scratch_path)
+    return output_paths
+
 @dataclass(frozen=True)
 class RunConfig:
     '''dataclass containing CSLC runconfig'''
@@ -285,6 +314,12 @@ class RunConfig:
     # dict of reference radar paths and grids values keyed on burst ID
     # (empty/unused if rdr2geo)
     reference_radar_info: ReferenceRadarInfo
+    # entirety of yaml as string
+    yaml_string: str
+    # output paths:
+    # key = tuple[burst ID, date str]
+    # val = SimpleNamespace output directory path, HDF5 name, scratch directory path
+    output_paths: dict[tuple[str, str], SimpleNamespace]
 
     @classmethod
     def load_from_yaml(cls, yaml_path: str, workflow_name: str) -> RunConfig:
@@ -311,7 +346,15 @@ class RunConfig:
                 sns.input_file_group.reference_burst.file_path,
                 sns.input_file_group.burst_id)
 
-        return cls(cfg['runconfig']['name'], sns, bursts, ref_rdr_grid_info)
+        # For saving entire file as string to metadata. Stop gap for writing
+        # dict to individual elements to HDF5 metadata
+        with open(yaml_path, 'r') as f_yaml:
+            entire_yaml = f_yaml.read()
+
+        output_paths = create_output_paths(sns, bursts)
+
+        return cls(cfg['runconfig']['name'], sns, bursts, ref_rdr_grid_info,
+                   entire_yaml, output_paths)
 
     @property
     def burst_id(self) -> list[str]:
@@ -358,6 +401,10 @@ class RunConfig:
         return self.groups.processing.resample
 
     @property
+    def lut_params(self) -> dict:
+        return self.groups.processing.correction_luts
+
+    @property
     def safe_files(self) -> list[str]:
         return self.groups.input_file_group.safe_file_path
 
@@ -378,28 +425,33 @@ class RunConfig:
         return self.groups.worker.gpu_id
 
     def as_dict(self):
-        ''' Convert self to dict for write to YAML/JSON
+        '''Convert self to dict for write to YAML/JSON
 
         Unable to dataclasses.asdict() because isce3 objects can not be pickled
         '''
+        # Convenience functions
+        def date_str(burst):
+            '''Burst datetime sensing_start to str conversion
+            '''
+            return burst.sensing_start.date().strftime('%Y%m%d')
+
+        def burst_as_key(burst):
+            '''Create an unique key of burst ID, date string, and polarization
+            '''
+            return '_'.join([str(burst.burst_id), date_str(burst), burst.polarization])
+
         self_as_dict = {}
         for key, val in self.__dict__.items():
             if key == 'groups':
                 val = unwrap_to_dict(val)
             elif key == 'bursts':
-                # just date in datetime obj as string
-                date_str = lambda b : b.sensing_start.date().strftime('%Y%m%d')
-
-                # create an unique burst key
-                burst_as_key = lambda b : '_'.join([b.burst_id,
-                                                    date_str(b),
-                                                    b.polarization])
-
                 val = {burst_as_key(burst): burst.as_dict() for burst in val}
             self_as_dict[key] = val
         return self_as_dict
 
     def to_yaml(self):
+        '''Dump runconfig as string to sys.stdout
+        '''
         self_as_dict = self.as_dict()
         yaml = YAML(typ='safe')
-        yaml.dump(self_as_dict, sys.stdout, indent=4)
+        yaml.dump(self_as_dict, sys.stdout)

@@ -106,34 +106,42 @@ def compare_cslc_products(file_ref, file_sec):
               f'from secondary CSLC geo transform array {geotransform_sec}')
         return
 
-    # Compare amplitude of reference and generated CSLC products
-    np.seterr(invalid='ignore')
-    diff_real = np.abs((slc_ref.real - slc_sec.real) / slc_sec.real)
-    diff_imag =  np.abs((slc_ref.imag - slc_sec.imag) / slc_sec.imag)
-
     # Compute total number of pixels different from nan from ref and sec
-    tot_pixels_ref = np.count_nonzero(~np.isnan(np.abs(slc_ref)))
-    tot_pixels_sec = np.count_nonzero(~np.isnan(np.abs(slc_ref)))
+    ref_nan = np.isnan(slc_ref)
+    sec_nan = np.isnan(slc_sec)
 
-    # Check that total number of pixel is the same
-    assert tot_pixels_ref == tot_pixels_sec
+    # Check that the pixels is the same
+    np.testing.assert_array_equal(ref_nan, sec_nan)
 
-    # Compute the number of pixels in real part above threshold
-    failed_pixels_real = np.count_nonzero(diff_real > 1.0e-5)
-    failed_pixels_imag = np.count_nonzero(diff_imag > 1.0e-5)
+    # Compute absolute difference between real and imaginary
+    ma_slc_ref = np.ma.masked_array(slc_ref, mask=ref_nan)
+    ma_slc_sec = np.ma.masked_array(slc_sec, mask=sec_nan)
+    diff_real = np.abs((ma_slc_ref.real - ma_slc_sec.real) / ma_slc_sec.real)
+    diff_imag = np.abs((ma_slc_ref.imag - ma_slc_sec.imag) / ma_slc_sec.imag)
+
+    # Count the number of pixels in real and imaginary part above threshold
+    pixel_diff_threshold = 1e-5
+    failed_pixels_real = np.count_nonzero(diff_real > pixel_diff_threshold)
+    failed_pixels_imag = np.count_nonzero(diff_imag > pixel_diff_threshold)
 
     # Compute percentage of pixels in real and imaginary part above threshold
+    tot_pixels_ref = np.count_nonzero(ref_nan)
     percentage_real = failed_pixels_real / tot_pixels_ref
     percentage_imag = failed_pixels_imag / tot_pixels_ref
 
     # Check that percentage of pixels above threshold is lower than 0.1 %
-    print('Check that the percentage of pixels in the difference between reference'
-          'and secondary products real parts above the threshold 1.0e-5 is below 0.1 %')
-    assert percentage_real < 0.001
+    total_fail_threshold = 0.001
+    fails = []
+    if percentage_real >= total_fail_threshold:
+        fails.append('real')
+    if percentage_imag >= total_fail_threshold:
+        fails.append('imaginary')
 
-    print('Check that the percentage of pixels in the difference between reference'
-          'and secondary products imaginary parts above the threshold 1.0e-5 is below 0.1 %')
-    assert percentage_imag < 0.001
+    # Format fails. join() doesn't affect emtpy lists
+    fails = ', '.join(fails)
+    assert len(fails) == 0, f'{fails} exceeded {total_fail_threshold * 100} ' \
+        '% of pixels where reference and secondary differed by more than ' \
+        f'{pixel_diff_threshold}.'
 
 
 def _get_group_item_paths(h5py_group):

@@ -41,7 +41,7 @@ def cumulative_correction_luts(burst, dem_path,
                                           az_step=az_step)
 
     rg_lut_data = geometrical_steer_doppler.data * isce3.core.speed_of_light / 2.0
-    az_lut_data = bistatic_delay.data + az_fm_mismatch.data
+    az_lut_data = -(bistatic_delay.data + az_fm_mismatch.data)
     rg_lut = isce3.core.LUT2d(bistatic_delay.x_start,
                               bistatic_delay.y_start,
                               bistatic_delay.x_spacing,

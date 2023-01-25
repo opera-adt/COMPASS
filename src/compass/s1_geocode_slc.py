@@ -129,7 +129,7 @@ def run(cfg: GeoRunConfig):
                 pol = b.polarization
 
                 # Load the input burst SLC
-                temp_slc_path = f'{scratch_path}/{out_paths.file_name_stem}_{pol}_temp.vrt'
+                temp_slc_path = f'{scratch_path}/{out_paths.file_name_pol}_temp.vrt'
                 burst.slc_to_vrt_file(temp_slc_path)
 
                 # Apply EAP correction if necessary
@@ -173,7 +173,9 @@ def run(cfg: GeoRunConfig):
                                           native_doppler,
                                           image_grid_doppler, ellipsoid, threshold,
                                           iters, blocksize, flatten,
-                                          azimuth_carrier=az_carrier_poly2d)
+                                          azimuth_carrier=az_carrier_poly2d,
+                                          az_time_correction=az_lut,
+                                          srange_correction=rg_lut)
 
             # Set geo transformation
             geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,

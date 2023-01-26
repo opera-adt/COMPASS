@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import os
 from types import SimpleNamespace
 import sys
+import yaml
 
 import isce3
 import journal
@@ -26,6 +27,11 @@ def load_validate_yaml(yaml_path: str, workflow_name: str) -> dict:
         Path to yaml file containing the options to load
     workflow_name: str
         Name of the workflow for which uploading default options
+
+    Returns
+    -------
+    dict
+        Validated user runconfig dict with defaults inserted
     """
     error_channel = journal.error('runconfig.load_validate_yaml')
 
@@ -346,15 +352,14 @@ class RunConfig:
                 sns.input_file_group.reference_burst.file_path,
                 sns.input_file_group.burst_id)
 
-        # For saving entire file as string to metadata. Stop gap for writing
-        # dict to individual elements to HDF5 metadata
-        with open(yaml_path, 'r') as f_yaml:
-            entire_yaml = f_yaml.read()
+        # For saving entire file with default fill-in as string to metadata.
+        # Stop gap for writing dict to individual elements to HDF5 metadata
+        user_plus_default_yaml_str = yaml.dump(cfg_dict)
 
         output_paths = create_output_paths(sns, bursts)
 
         return cls(cfg['runconfig']['name'], sns, bursts, ref_rdr_grid_info,
-                   entire_yaml, output_paths)
+                   user_plus_default_yaml_str, output_paths)
 
     @property
     def burst_id(self) -> list[str]:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import json
+import yaml
 
 import isce3
 from isce3.product import GeoGridParameters
@@ -81,14 +82,15 @@ class GeoRunConfig(RunConfig):
         # Empty reference dict for base runconfig class constructor
         empty_ref_dict = {}
 
-        with open(yaml_path, 'r') as f_yaml:
-            entire_yaml = f_yaml.read()
+        # For saving entire file with default fill-in as string to metadata.
+        # Stop gap for writing dict to individual elements to HDF5 metadata
+        user_plus_default_yaml_str = yaml.dump(cfg_dict)
 
         # Get scratch and output paths
         output_paths = create_output_paths(sns, bursts)
 
         return cls(cfg['runconfig']['name'], sns, bursts, empty_ref_dict,
-                   entire_yaml, output_paths, geogrids)
+                   user_plus_default_yaml_str, output_paths, geogrids)
 
     @property
     def geocoding_params(self) -> dict:

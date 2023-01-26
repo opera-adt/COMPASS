@@ -354,7 +354,7 @@ class RunConfig:
 
         # For saving entire file with default fill-in as string to metadata.
         # Stop gap for writing dict to individual elements to HDF5 metadata
-        user_plus_default_yaml_str = yaml.dump(cfg_dict)
+        user_plus_default_yaml_str = yaml.dump(cfg)
 
         output_paths = create_output_paths(sns, bursts)
 
@@ -458,5 +458,5 @@ class RunConfig:
         '''Dump runconfig as string to sys.stdout
         '''
         self_as_dict = self.as_dict()
-        yaml = YAML(typ='safe')
-        yaml.dump(self_as_dict, sys.stdout)
+        yaml_obj = YAML(typ='safe')
+        yaml_obj.dump(self_as_dict, sys.stdout)

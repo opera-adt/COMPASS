@@ -14,8 +14,7 @@ jobs:
       - run:
           name: "Run tests"
           command: |
-            docker run test_image sh -c "cd ~/OPERA/COMPASS &&\
-                                    python -m pytest"
+            docker run test_image sh -c "cd ~/OPERA/COMPASS && pytest"
 
 workflows:
   build-workflow:

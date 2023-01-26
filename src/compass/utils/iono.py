@@ -15,7 +15,6 @@ import re
 
 import numpy as np
 from scipy import interpolate
-from compass.utils.helpers import get_module_name
 
 
 def read_ionex(tec_file):
@@ -205,7 +204,7 @@ def get_ionex_value(tec_file, utc_sec, lat, lon,
     else:
         msg = f'Un-recognized interp_method input: {interp_method}!'
         msg += '\nSupported inputs: nearest, linear2d, linear3d.'
-        error_channel.log(msg)
+        logging.error(msg)
         raise ValueError(msg)
 
     return tec_val

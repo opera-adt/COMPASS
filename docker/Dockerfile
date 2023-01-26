@@ -34,8 +34,9 @@ RUN conda create --name "COMPASS" --file /home/compass_user/OPERA/COMPASS/docker
 
 SHELL ["conda", "run", "-n", "COMPASS", "/bin/bash", "-c"]
 
+WORKDIR /home/compass_user/OPERA
+
 RUN echo "Installing OPERA s1-reader" &&\
-    cd ${HOME}/OPERA &&\
     curl -sSL https://github.com/opera-adt/s1-reader/archive/refs/tags/v0.1.5.tar.gz -o s1_reader_src.tar.gz &&\
     tar -xvf s1_reader_src.tar.gz &&\
     ln -s s1-reader-0.1.5 s1-reader &&\
@@ -43,7 +44,6 @@ RUN echo "Installing OPERA s1-reader" &&\
     python -m pip install ./s1-reader
 
 RUN echo "Installing OPERA COMPASS" &&\
-    cd ${HOME}/OPERA &&\
     python -m pip install ./COMPASS &&\
     echo "conda activate COMPASS" >> /home/compass_user/.bashrc
 

@@ -63,7 +63,3 @@ def test_get_ionex_value(ionex_params):
                                        )
         assert np.allclose(tec_val, value, atol=1e-05, rtol=1e-05)
 
-
-if __name__ == '__main__':
-    test_read_ionex()
-    test_get_ionex_value()

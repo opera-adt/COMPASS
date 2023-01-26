@@ -42,7 +42,7 @@ def check_geocode_dict(geocode_cfg: dict) -> None:
 
 @dataclass(frozen=True)
 class GeoRunConfig(RunConfig):
-    '''dataclass containing GCSLC runconfig'''
+    '''dataclass containing GSLC runconfig'''
     # dict of geogrids associated to burst IDs
     geogrids: dict[str, GeoGridParameters]
 

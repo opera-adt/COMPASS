@@ -352,7 +352,7 @@ class RunConfig:
                 sns.input_file_group.reference_burst.file_path,
                 sns.input_file_group.burst_id)
 
-        # For saving entire file with default fill-in as string to metadata.
+        # For saving entire file with defaults filled-in as string to metadata.
         # Stop gap for writing dict to individual elements to HDF5 metadata
         user_plus_default_yaml_str = yaml.dump(cfg)
 

@@ -9,8 +9,8 @@ def cumulative_correction_luts(burst, dem_path,
                                rg_step=200, az_step=0.25,
                                scratch_path=None):
     '''
-    Sum correction LUTs and returns cumulative correction LUT
-    in slant range and azimuth directions
+    Sum correction LUTs and returns cumulative correction LUT in slant range
+    and azimuth directions
 
     Parameters
     ----------
@@ -28,11 +28,12 @@ def cumulative_correction_luts(burst, dem_path,
     Returns
     -------
     rg_lut: isce3.core.LUT2d
-        Sum of correction LUTs along slant range
+        Sum of slant range correction LUTs in meters as a function of azimuth
+        time and slant range
     az_lut: isce3.core.LUT2d
-        Sum of correction LUTs along azimuth
+        Sum of azimuth correction LUTs in seconds as a function of azimuth time
+        and slant range
     '''
-
     # Get individual LUTs
     geometrical_steer_doppler, bistatic_delay, az_fm_mismatch = \
         compute_geocoding_correction_luts(burst,
@@ -40,8 +41,13 @@ def cumulative_correction_luts(burst, dem_path,
                                           rg_step=rg_step,
                                           az_step=az_step)
 
-    rg_lut_data = geometrical_steer_doppler.data * isce3.core.speed_of_light / 2.0
+    # Convert to geometrical doppler from range time (seconds) to range (m)
+    rg_lut_data = \
+        geometrical_steer_doppler.data * isce3.core.speed_of_light / 2.0
+
+    # Invert signs to correct for convention
     az_lut_data = -(bistatic_delay.data + az_fm_mismatch.data)
+
     rg_lut = isce3.core.LUT2d(bistatic_delay.x_start,
                               bistatic_delay.y_start,
                               bistatic_delay.x_spacing,
@@ -82,28 +88,27 @@ def compute_geocoding_correction_luts(burst, dem_path,
     -------
     geometrical_steering_doppler: isce3.core.LUT2d:
         LUT2D object of total doppler (geometrical doppler +  steering doppler)
-        in seconds as the function of the azimuth time and slant range,
-        or range and azimuth indices.
-        This correction needs to be added to the SLC tagged azimuth time to
-        get the corrected azimuth times.
-
-    bistatic_delay: isce3.core.LUT2d:
-        LUT2D object of bistatic delay correction in seconds as a function
-        of the azimuth time and slant range, or range and azimuth indices.
+        in seconds as the function of the azimuth time and slant range.
         This correction needs to be added to the SLC tagged range time to
         get the corrected range times.
 
+    bistatic_delay: isce3.core.LUT2d:
+        LUT2D object of bistatic delay correction in seconds as a function
+        of the azimuth time and slant range.
+        This correction needs to be added to the SLC tagged azimuth time to
+        get the corrected azimuth times.
+
     az_fm_mismatch: isce3.core.LUT2d:
         LUT2D object of azimuth FM rate mismatch mitigation,
-        in seconds as the function of the azimuth time and slant range,
-        or range and azimuth indices.
+        in seconds as the function of the azimuth time and slant range.
         This correction needs to be added to the SLC tagged azimuth time to
         get the corrected azimuth times.
     '''
+    geometrical_steering_doppler = \
+        burst.doppler_induced_range_shift(range_step=rg_step, az_step=az_step)
 
     bistatic_delay = burst.bistatic_delay(range_step=rg_step, az_step=az_step)
-    geometrical_steering_doppler= burst.doppler_induced_range_shift(range_step=rg_step,
-                                                                    az_step=az_step)
+
     if not os.path.exists(dem_path):
         raise FileNotFoundError(f'Cannot find the dem file: {dem_path}')
 

@@ -6,5 +6,7 @@ gdal>=3
 lxml
 pandas
 pyproj
+pytest
 ruamel.yaml
+scipy
 yamale

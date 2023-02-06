@@ -6,16 +6,15 @@
 ############################################################
 # Links:
 #   IGS (NASA): https://cddis.nasa.gov/Data_and_Derived_Products/GNSS/atmospheric_products.html
-#   IMPC (DLR): https://impc.dlr.de/products/total-electron-content/near-real-time-tec/nrt-tec-global/
+#   IMPC (DLR): https://impc.dlr.de/products/total-electron-content/near-real-time-tec/near-real-time-tec-maps-global
 
 import datetime as dt
-import journal
+import logging
 import os
 import re
 
 import numpy as np
 from scipy import interpolate
-from compass.utils.helpers import get_module_name
 
 
 def read_ionex(tec_file):
@@ -115,9 +114,6 @@ def get_ionex_value(tec_file, utc_sec, lat, lon,
     tec_val: float or 1D np.ndarray
         Vertical TEC value in TECU
     '''
-    module_name = get_module_name(__file__)
-    error_channel = journal.error(f"{module_name}.get_ionex_value")
-
     def interp_3d_rotate(interpfs, mins, lats, lons, utc_min, lat, lon):
         ind0 = np.where((mins - utc_min) <= 0)[0][-1]
         ind1 = ind0 + 1
@@ -168,7 +164,7 @@ def get_ionex_value(tec_file, utc_sec, lat, lon,
             # option 1: interpolate between consecutive TEC maps
             # testings shows better agreement with SAR obs than option 2.
             tec_val = interpolate.interpn(
-                points=(mins, np.flip(lats), lons),
+                points=(mins, np.ascontiguousarray(np.flip(lats)), lons),
                 values=np.flip(tec_maps, axis=1),
                 xi=(utc_min, lat, lon),
                 method='linear',
@@ -208,7 +204,7 @@ def get_ionex_value(tec_file, utc_sec, lat, lon,
     else:
         msg = f'Un-recognized interp_method input: {interp_method}!'
         msg += '\nSupported inputs: nearest, linear2d, linear3d.'
-        error_channel.log(msg)
+        logging.error(msg)
         raise ValueError(msg)
 
     return tec_val
@@ -234,8 +230,6 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
     fname_dst_uncomp: str
         Path to local uncompressed IONEX file
     '''
-    module_name = get_module_name(__file__)
-    info_channel = journal.info(f"{module_name}.download_ionex")
     # get the source (remote) and destination (local) file path/url
     kwargs = dict(sol_code=sol_code, date_fmt=date_fmt)
     fname_src = get_ionex_filename(date_str, tec_dir=None, **kwargs)
@@ -248,7 +242,7 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
         cmd += ' --timestamping'
 
     # Record executed command line in logging file
-    info_channel.log(f'Execute command: {cmd}')
+    logging.info(f'Execute command: {cmd}')
 
     # download - run cmd in output dir
     pwd = os.getcwd()
@@ -263,7 +257,7 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
             or os.path.getmtime(fname_dst_uncomp) < os.path.getmtime(
                 fname_dst)):
         cmd = f"gzip --force --keep --decompress {fname_dst}"
-        info_channel.log(f'Execute command: {cmd}')
+        logging.info(f'Execute command: {cmd}')
         os.system(cmd)
 
     return fname_dst_uncomp

@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import json
+import yaml
 
 import isce3
 from isce3.product import GeoGridParameters
@@ -42,7 +43,7 @@ def check_geocode_dict(geocode_cfg: dict) -> None:
 
 @dataclass(frozen=True)
 class GeoRunConfig(RunConfig):
-    '''dataclass containing GCSLC runconfig'''
+    '''dataclass containing GSLC runconfig'''
     # dict of geogrids associated to burst IDs
     geogrids: dict[str, GeoGridParameters]
 
@@ -81,14 +82,15 @@ class GeoRunConfig(RunConfig):
         # Empty reference dict for base runconfig class constructor
         empty_ref_dict = {}
 
-        with open(yaml_path, 'r') as f_yaml:
-            entire_yaml = f_yaml.read()
+        # For saving entire file with default fill-in as string to metadata.
+        # Stop gap for writing dict to individual elements to HDF5 metadata
+        user_plus_default_yaml_str = yaml.dump(cfg)
 
         # Get scratch and output paths
         output_paths = create_output_paths(sns, bursts)
 
         return cls(cfg['runconfig']['name'], sns, bursts, empty_ref_dict,
-                   entire_yaml, output_paths, geogrids)
+                   user_plus_default_yaml_str, output_paths, geogrids)
 
     @property
     def geocoding_params(self) -> dict:
@@ -120,7 +122,7 @@ class GeoRunConfig(RunConfig):
         return self_as_dict
 
 
-    def to_file(self, dst, fmt:str, add_burst_boundary=True):
+    def to_file(self, dst, fmt:str):
         ''' Write self to file
 
         Parameter:
@@ -129,9 +131,6 @@ class GeoRunConfig(RunConfig):
             File object to write metadata to
         fmt: ['yaml', 'json']
             Format of output
-        add_burst_boundary: bool
-            If true add burst boundary string to each burst entry in dict.
-            Reads geocoded burst rasters; only viable after running s1_geocode_slc.
         '''
         self_as_dict = self.as_dict()
 
@@ -140,8 +139,8 @@ class GeoRunConfig(RunConfig):
         self_as_dict['isce3_version'] = isce3.__version__
 
         if fmt == 'yaml':
-            yaml = YAML(typ='safe')
-            yaml.dump(self_as_dict, dst)
+            yaml_obj = YAML(typ='safe')
+            yaml_obj.dump(self_as_dict, dst)
         elif fmt == 'json':
             json.dumps(self_as_dict, dst, indent=4)
         else:

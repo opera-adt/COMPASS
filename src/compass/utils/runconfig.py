@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import os
+from pathlib import Path
 from types import SimpleNamespace
 import sys
 import yaml
@@ -169,7 +170,7 @@ def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
         # get orbit file from directory of first orbit file
         orbit_path = get_orbit_file_from_dir(
             safe_file,
-            os.path.dirname(cfg.input_file_group.orbit_file_path[0]))
+            Path(cfg.input_file_group.orbit_file_path[0]).parent)
 
         if not orbit_path:
             err_str = f"No orbit file correlates to safe file: {os.path.basename(safe_file)}"

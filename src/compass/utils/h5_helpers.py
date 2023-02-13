@@ -599,8 +599,9 @@ def corrections_to_h5group(parent_group, burst, cfg):
             Meta('azimuth_fm_rate_mismatch', az_fm_mismatch.data,
                  f'azimuth FM rate mismatch mitigation (azimuth) {desc}',
                  {'units': 'seconds'}),
-            Meta('los_solid_earth_tides'), rg_set,
+            Meta('los_solid_earth_tides', rg_set,
                  f'solid Earth tides (range) {desc}',
+                 {'units': 'meters'}),
         ]
         for meta_item in correction_items:
             add_dataset_and_attrs(correction_group, meta_item)

@@ -42,7 +42,7 @@ def cumulative_correction_luts(burst, dem_path,
         and slant range
     '''
     # Get individual LUTs
-    geometrical_steer_doppler, bistatic_delay, az_fm_mismatch, rg_set = \
+    geometrical_steer_doppler, bistatic_delay, az_fm_mismatch, set = \
         compute_geocoding_correction_luts(burst,
                                           dem_path=dem_path,
                                           rg_step=rg_step,
@@ -51,10 +51,12 @@ def cumulative_correction_luts(burst, dem_path,
 
     # Convert to geometrical doppler from range time (seconds) to range (m)
     rg_lut_data = \
-        geometrical_steer_doppler.data * isce3.core.speed_of_light / 2.0 + rg_set
+        geometrical_steer_doppler.data * isce3.core.speed_of_light / 2.0 + set[0]
 
     # Invert signs to correct for convention
-    az_lut_data = -(bistatic_delay.data + az_fm_mismatch.data)
+    # Note azimuth SET are in meters, need to convert in seconds to form LUT
+    az_lut_data = -(bistatic_delay.data + az_fm_mismatch.data + set[
+        1] * isce3.core.speed_of_light)
 
     rg_lut = isce3.core.LUT2d(bistatic_delay.x_start,
                               bistatic_delay.y_start,
@@ -112,11 +114,10 @@ def compute_geocoding_correction_luts(burst, dem_path,
         This correction needs to be added to the SLC tagged azimuth time to
         get the corrected azimuth times.
 
-    rg_set: np.ndarray
-        numpy array containing the Solid Earth Tide displacement along the
-        slant range in meters. Solid Earth Tides are computed using pySolid
-        and the acquisition date of the burst. This correction needs to be
-        added to the SLC tagged range time to get the corrected range times
+    set: list, np.ndarray
+        List of numpy.ndarray containing SET in slant range and azimuth directions
+        in meters. These corrections need to be added to the slC tagged azimuth
+        and slant range times.
     '''
     geometrical_steering_doppler = \
         burst.doppler_induced_range_shift(range_step=rg_step, az_step=az_step)
@@ -139,12 +140,9 @@ def compute_geocoding_correction_luts(burst, dem_path,
     kwargs = dict(order=1, mode='edge', anti_aliasing=True,
                   preserve_range=True)
     rg_set = resize(rg_set_temp, out_shape, **kwargs)
-    #az_set = resize(az_set_temp, out_shape, **kwargs)
+    az_set = resize(az_set_temp, out_shape, **kwargs)
 
-    # TO DO, azimuth SET is in meter and it should be converted in seconds
-
-
-    return geometrical_steering_doppler, bistatic_delay, az_fm_mismatch, rg_set
+    return geometrical_steering_doppler, bistatic_delay, az_fm_mismatch, [rg_set, az_set]
 
 
 def solid_earth_tides(burst, dem_path, scratchdir):

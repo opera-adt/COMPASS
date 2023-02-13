@@ -114,7 +114,7 @@ def generate_burst_map(zip_files, orbit_dir, output_epsg=None, bbox=None,
     i_subswath = [1, 2, 3]
 
     for zip_file in zip_files:
-        orbit_path = get_orbit_file_from_dir(zip_file, orbit_dir)
+        orbit_path = get_orbit_file_from_dir(zip_file, orbit_dir, auto_download=True)
 
         for subswath in i_subswath:
             ref_bursts = load_bursts(zip_file, orbit_path, subswath)

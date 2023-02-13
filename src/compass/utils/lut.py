@@ -135,7 +135,7 @@ def compute_geocoding_correction_luts(burst, dem_path,
     rg_set = resize(rg_set_temp, out_shape, **kwargs)
     az_set = resize(az_set_temp, out_shape, **kwargs)
 
-    # Azimuth set is in meters and need to be converted in seconds
+    # TO DO, azimuth SET is in meter and it should be converted in seconds
 
 
     return geometrical_steering_doppler, bistatic_delay, az_fm_mismatch
@@ -143,24 +143,24 @@ def compute_geocoding_correction_luts(burst, dem_path,
 
 def solid_earth_tides(burst, dem_path, scratchdir):
     '''
-        Compute displacement due to Solid Earth Tides (SET)
-        in slant range and azimuth directions
+    Compute displacement due to Solid Earth Tides (SET)
+    in slant range and azimuth directions
 
-        Parameters
-        ---------
-        burst: Sentinel1Slc
-            S1-A/B burst object
-        dem_path: str
-            File path to available DEM
-        scratchdir: str
-            Path to scratch directory
+    Parameters
+    ---------
+    burst: Sentinel1Slc
+        S1-A/B burst object
+    dem_path: str
+        File path to available DEM
+    scratchdir: str
+        Path to scratch directory
 
-        Returns
-        ------
-        rg_set: np.ndarray
-            2D array with SET displacement along LOS
-        az_set: np.ndarray
-            2D array with SET displacement along azimuth
+    Returns
+    ------
+    rg_set: np.ndarray
+        2D array with SET displacement along LOS
+    az_set: np.ndarray
+        2D array with SET displacement along azimuth
     '''
     # Some ancillary inputs
     dem_raster = isce3.io.Raster(dem_path)
@@ -195,7 +195,8 @@ def solid_earth_tides(burst, dem_path, scratchdir):
      set_n,
      set_u) = pysolid.calc_solid_earth_tides_grid(burst.sensing_start, atr,
                                                   display=False, verbose=True)
-    # # Compute topo layers to convert SET from ENU to radar coordinates
+
+    # Compute topo layers (necessary for ENU to radar geometry conversion)
     compute_rdr2geo_rasters(burst, ellipsoid, dem_raster, output_path)
 
     # Resample SET from geographical grid to radar grid
@@ -231,7 +232,7 @@ def solid_earth_tides(burst, dem_path, scratchdir):
     head_angle = open_raster(f'{output_path}/heading_angle.rdr')
     set_rg = enu2los(rdr_set_e, rdr_set_n, rdr_set_u, inc_angle,
                      az_angle=head_angle + 90.0)
-    set_az = en2az(rdr_set_e, rdr_set_n, head_angle+ 90.0)
+    set_az = en2az(rdr_set_e, rdr_set_n, head_angle + 90.0)
 
     return set_rg, set_az
 
@@ -240,6 +241,7 @@ def compute_rdr2geo_rasters(burst, ellipsoid, dem_raster, output_path):
     '''
     Get latitude, longitude, incidence and
     azimuth angle on multi-looked radar grid
+
     Parameters
     ----------
     burst: Sentinel1Slc
@@ -304,6 +306,7 @@ def resample_set(geo_tide, pts_src, pts_dest):
     '''
     Use scipy RegularGridInterpolator to resample geo_tide
     from a geographical to a radar grid
+
     Parameters
     ----------
     geo_tide: np.ndarray
@@ -317,6 +320,7 @@ def resample_set(geo_tide, pts_src, pts_dest):
     rdr_tide: np.ndarray
         Tide displacement component resampled on radar grid
     '''
+
     # Flip tide displacement component to be consistent with flipped latitudes
     geo_tide = np.flipud(geo_tide)
     rgi_func = RGI(pts_src, geo_tide, method='nearest',

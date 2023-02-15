@@ -7,6 +7,7 @@ import numpy as np
 import pysolid
 
 from compass.utils.geometry_utils import enu2los, en2az
+from compass.utils.helpers import open_raster
 from scipy.interpolate import RegularGridInterpolator as RGI
 from osgeo import gdal
 from skimage.transform import resize
@@ -284,26 +285,6 @@ def compute_rdr2geo_rasters(burst, ellipsoid, dem_raster, output_path):
     rdr2geo_obj.topo(dem_raster, x_raster, y_raster,
                      incidence_angle_raster=incidence_raster,
                      heading_angle_raster=heading_raster)
-
-
-def open_raster(filename, band=1):
-    '''
-    Return band as numpy array from gdal-friendly raster
-    Parameters
-    ----------
-    filename: str
-        Path where is stored GDAL raster to open
-    band: int
-        Band number to open
-    Returns
-    -------
-    raster: np.ndarray
-        Numpy array containing the raster band to open
-    '''
-
-    ds = gdal.Open(filename, gdal.GA_ReadOnly)
-    raster = ds.GetRasterBand(band).ReadAsArray()
-    return raster
 
 
 def resample_set(geo_tide, pts_src, pts_dest):

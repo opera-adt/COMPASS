@@ -318,3 +318,27 @@ def burst_bboxes_from_db(burst_ids, burst_db_file=None, burst_db_conn=None):
 
     # TODO add warning if not all burst bounding boxes found
     return dict(zip(burst_ids, zip(epsgs, bboxes)))
+
+
+def open_raster(filename, band=1):
+    '''
+    Return band as numpy array from gdal-friendly raster
+    Parameters
+    ----------
+    filename: str
+        Path where is stored GDAL raster to open
+    band: int
+        Band number to open
+
+    Returns
+    -------
+    raster: np.ndarray
+        Numpy array containing the raster band to open
+    data_type: str
+        Band data type
+    '''
+
+    ds = gdal.Open(filename, gdal.GA_ReadOnly)
+    raster = ds.GetRasterBand(band).ReadAsArray()
+    data_type = ds.GetRasterBand(band).DataType
+    return raster, data_type

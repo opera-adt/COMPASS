@@ -101,10 +101,6 @@ class GeoRunConfig(RunConfig):
         return self.groups.processing.rdr2geo
 
     @property
-    def split_spectrum_params(self) -> dict:
-        return self.groups.processing.range_split_spectrum
-
-    @property
     def lut_params(self) -> dict:
         return self.groups.processing.correction_luts
 

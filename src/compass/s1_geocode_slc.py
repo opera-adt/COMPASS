@@ -71,12 +71,20 @@ def run(cfg: GeoRunConfig):
         date_str = burst.sensing_start.strftime("%Y%m%d")
         geo_grid = cfg.geogrids[burst_id]
 
+        # Get output paths for current burst
+        burst_id_date_key = (burst_id, date_str)
+        out_paths = cfg.output_paths[burst_id_date_key]
+
+        # Create scratch as needed
+        scratch_path = out_paths.scratch_directory
+
         # If enabled, get range and azimuth LUTs
         if cfg.lut_params.enabled:
             rg_lut, az_lut = cumulative_correction_luts(burst,
                                                         dem_path=cfg.dem,
                                                         rg_step=cfg.lut_params.range_spacing,
-                                                        az_step=cfg.lut_params.azimuth_spacing)
+                                                        az_step=cfg.lut_params.azimuth_spacing,
+                                                        scratch_path=scratch_path)
         else:
             rg_lut = isce3.core.LUT2d()
             az_lut = isce3.core.LUT2d()
@@ -93,13 +101,6 @@ def run(cfg: GeoRunConfig):
             s1_rdr2geo.run(cfg, save_in_scratch=True)
             if cfg.rdr2geo_params.geocode_metadata_layers:
                 s1_geocode_metadata.run(cfg, burst, fetch_from_scratch=True)
-
-        # Get output paths for current burst
-        burst_id_date_key = (burst_id, date_str)
-        out_paths = cfg.output_paths[burst_id_date_key]
-
-        # Create scratch as needed
-        scratch_path = out_paths.scratch_directory
 
         # Extract burst boundaries
         b_bounds = np.s_[burst.first_valid_line:burst.last_valid_line,

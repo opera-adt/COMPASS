@@ -49,8 +49,6 @@ processing_options:
    geocoding: include('geocoding_options', required=False)
    # Options to run geo2rdr
    geo2rdr: include('geo2rdr_options', required=False)
-   # Range split-spectrum options
-   range_split_spectrum: include('range_split_spectrum_options', required=False)
    # Options to generate model-based slant range and azimuth correction LUTs
    correction_luts: include('lut_options', required=False)
    # Computation of topo layers
@@ -79,16 +77,6 @@ geo2rdr_options:
   numiter: int(min=1, required=False)
   # Lines per block to process in batch
   lines_per_block: int(min=1, required=False)
-
-range_split_spectrum_options:
-  # Boolean flag to enable/disable split-spectrum
-  enabled: bool(required=False)
-  # Lines per block to process in batch
-  lines_per_block: int(min=1, required=False)
-  # Bandwidth of the low-band sub-image
-  low_band_bandwidth: num(min=0, required=False)
-  # Bandwidth of the high-band sub-image
-  high_band_bandwidth: num(min=0, required=False)
 
 lut_options:
   # Boolean flag to activate/deactivate model-based

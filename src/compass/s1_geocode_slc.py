@@ -22,7 +22,6 @@ from compass.utils.h5_helpers import (corrections_to_h5group,
                                       metadata_to_h5group)
 from compass.utils.helpers import get_module_name
 from compass.utils.lut import cumulative_correction_luts
-from compass.utils.range_split_spectrum import range_split_spectrum
 from compass.utils.yaml_argparse import YamlArgparse
 
 
@@ -146,14 +145,7 @@ def run(cfg: GeoRunConfig):
                     temp_slc_path = temp_slc_path_corrected
 
 
-                # Split the range bandwidth of the burst, if required
-                if cfg.split_spectrum_params.enabled:
-                    rdr_burst_raster = range_split_spectrum(b,
-                                                            temp_slc_path,
-                                                            cfg.split_spectrum_params,
-                                                            scratch_path)
-                else:
-                    rdr_burst_raster = isce3.io.Raster(temp_slc_path)
+                rdr_burst_raster = isce3.io.Raster(temp_slc_path)
 
                 init_geocoded_dataset(grid_group, pol, geo_grid, 'complex64',
                                       f'{pol} geocoded CSLC image')

@@ -67,13 +67,6 @@ def create_parser():
                           help='Sqlite3 database file with burst bounding boxes.')
     optional.add_argument('-nf', '--no-flatten', action='store_true',
                           help='If flag is set, disables topographic phase flattening.')
-    optional.add_argument('-ss', '--range-split-spectrum',
-                          dest='is_split_spectrum', action='store_true',
-                          help='If flag is set, enables split-spectrum processing.')
-    optional.add_argument('-lb', '--low-band', type=float, default=0.0,
-                          help='For -ss, low sub-band bandwidth in Hz (default: 0.0)')
-    optional.add_argument('-hb', '--high-band', type=float, default=0.0,
-                          help='For -ss, high sub-band bandwidth in Hz (default: 0.0')
     optional.add_argument('-m', '--metadata', action='store_true',
                           help='If flat is set, generates radar metadata layers for each'
                                ' burst stack (see rdr2geo processing options)')
@@ -227,9 +220,8 @@ def get_common_burst_ids(data):
     return common_id
 
 
-def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
-                     low_band, high_band, pol, x_spac, y_spac, enable_metadata,
-                     burst_db_file):
+def create_runconfig(burst_map_row, dem_file, work_dir, flatten, pol, x_spac,
+                     y_spac, enable_metadata, burst_db_file):
     """
     Create runconfig to process geocoded bursts
 
@@ -243,12 +235,6 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
         Path to working directory for temp and final results
     flatten: bool
         Flag to enable/disable flattening
-    enable_rss: bool
-        Flag to enable range split-spectrum
-    low-band: float
-        Low sub-image bandwidth (in Hz) for split-spectrum
-    high-band: float
-        High sub-image bandwidth (in Hz) for split-spectrum
     pol: str
         Polarizations to process: co-pol, dual-pol, cross-pol
     x_spac: float
@@ -273,7 +259,6 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
     product = groups['product_path_group']
     process = groups['processing']
     geocode = process['geocoding']
-    rss = process['range_split_spectrum']
 
     # Allocate Inputs
     burst = burst_map_row.burst
@@ -293,11 +278,6 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
     geocode['flatten'] = flatten
     geocode['x_posting'] = x_spac
     geocode['y_posting'] = y_spac
-
-    # Range split spectrum
-    rss['enabled'] = enable_rss
-    rss['low_band_bandwidth'] = low_band
-    rss['high_band_bandwidth'] = high_band
 
     # Metadata generation
     # TODO: Need to somehow do this only once per stack
@@ -362,7 +342,7 @@ def run(slc_dir, dem_file, burst_id, common_bursts_only=False, start_date=None,
         end_date=None, exclude_dates=None, orbit_dir=None, work_dir='stack',
         pol='dual-pol', x_spac=5, y_spac=10, bbox=None, bbox_epsg=4326,
         output_epsg=None, burst_db_file=DEFAULT_BURST_DB_FILE, flatten=True,
-        is_split_spectrum=False, low_band=0.0, high_band=0.0, enable_metadata=False):
+        enable_metadata=False):
     """Create runconfigs and runfiles generating geocoded bursts for a static
     stack of Sentinel-1 A/B SAFE files.
 
@@ -404,12 +384,6 @@ def run(slc_dir, dem_file, burst_id, common_bursts_only=False, start_date=None,
         File path to burst database containing EPSG/extent information.
     flatten: bool
         Enable/disable flattening of geocoded burst
-    is_split_spectrum: bool
-        Enable/disable range split spectrum
-    low_band: float
-        Low sub-band bandwidth for split-spectrum in Hz
-    high_band: float
-        High sub-band bandwidth for split-spectrum in Hz
     enable_metadata: bool
         Enable/disable generation of metadata files for each burst stack.
     """
@@ -471,9 +445,6 @@ def run(slc_dir, dem_file, burst_id, common_bursts_only=False, start_date=None,
             dem_file,
             work_dir,
             flatten,
-            is_split_spectrum,
-            low_band,
-            high_band,
             pol,
             x_spac,
             y_spac,
@@ -500,7 +471,7 @@ def main():
         args.start_date, args.end_date, args.exclude_dates, args.orbit_dir,
         args.work_dir, args.pol, args.x_spac, args.y_spac, args.bbox,
         args.bbox_epsg, args.output_epsg, args.burst_db_file, not args.no_flatten,
-        args.is_split_spectrum, args.low_band, args.high_band, args.metadata)
+        args.metadata)
 
 
 if __name__ == '__main__':

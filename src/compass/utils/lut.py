@@ -120,45 +120,21 @@ def compute_geocoding_correction_luts(burst, dem_path,
         in meters. These corrections need to be added to the slC tagged azimuth
         and slant range times.
     '''
-    if not os.path.exists(dem_path):
-        raise FileNotFoundError(f'Cannot find the dem file: {dem_path}')
-
-    # Some ancillary inputs
-    dem_raster = isce3.io.Raster(dem_path)
-    epsg = dem_raster.get_epsg()
-    proj = isce3.core.make_projection(epsg)
-    ellipsoid = proj.ellipsoid
-
-    # Create output directory to store temporary results
-    output_path = f'{scratch_path}/corrections'
-    os.makedirs(output_path, exist_ok=True)
-
-    # Compute geometrical steering doppler
     geometrical_steering_doppler = \
         burst.doppler_induced_range_shift(range_step=rg_step, az_step=az_step)
 
-    # Bistatic delay
     bistatic_delay = burst.bistatic_delay(range_step=rg_step, az_step=az_step)
 
-    # Compute azimuth FM-rate mismatch
+    if not os.path.exists(dem_path):
+        raise FileNotFoundError(f'Cannot find the dem file: {dem_path}')
+
     az_fm_mismatch = burst.az_fm_rate_mismatch_mitigation(dem_path,
                                                           scratch_path,
                                                           range_step=rg_step,
                                                           az_step=az_step)
 
-    # Compute Solid Earth Tides (using pySolid)
-    # 1. Run rdr2geo on a coarse radar grid
-    compute_rdr2geo_rasters(burst, ellipsoid, dem_raster, output_path,
-                            azimuth_looks=64, range_looks=429)
-
-    # Open individual arrays and pass them to SET
-    lat_radar, _ = open_raster(f'{output_path}/y.rdr')
-    lon_radar, _ = open_raster(f'{output_path}/x.rdr')
-    inc_angle, _ = open_raster(f'{output_path}/incidence_angle.rdr')
-    head_angle, _ = open_raster(f'{output_path}/heading_angle.rdr')
-
-    rg_set_temp, az_set_temp = solid_earth_tides(burst, lat_radar, lon_radar,
-                                                 inc_angle, head_angle)
+    # compute Solid Earth Tides (using pySolid)
+    rg_set_temp, az_set_temp = solid_earth_tides(burst, dem_path, scratch_path)
 
     # Resize SET to the size of the correction grid
     out_shape = bistatic_delay.data.shape
@@ -170,8 +146,7 @@ def compute_geocoding_correction_luts(burst, dem_path,
     return geometrical_steering_doppler, bistatic_delay, az_fm_mismatch, [rg_set, az_set]
 
 
-def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid,
-                      inc_angle, head_angle):
+def solid_earth_tides(burst, dem_path, scratchdir):
     '''
     Compute displacement due to Solid Earth Tides (SET)
     in slant range and azimuth directions
@@ -180,8 +155,8 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid,
     ---------
     burst: Sentinel1Slc
         S1-A/B burst object
-    lat_radar_grid: np.ndarray
-        numpy
+    dem_path: str
+        File path to available DEM
     scratchdir: str
         Path to scratch directory
 
@@ -192,8 +167,15 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid,
     az_set: np.ndarray
         2D array with SET displacement along azimuth
     '''
+    # Some ancillary inputs
+    dem_raster = isce3.io.Raster(dem_path)
+    epsg = dem_raster.get_epsg()
+    proj = isce3.core.make_projection(epsg)
+    ellipsoid = proj.ellipsoid
 
-
+    # Create directory to store SET temp results
+    output_path = f'{scratchdir}/solid_earth_tides'
+    os.makedirs(output_path, exist_ok=True)
 
     # Extract top-left coordinates from burst polygon
     lon_min, lat_min, _, _ = burst.border[0].bounds
@@ -219,6 +201,9 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid,
      set_u) = pysolid.calc_solid_earth_tides_grid(burst.sensing_start, atr,
                                                   display=False, verbose=True)
 
+    # Compute topo layers (necessary for ENU to radar geometry conversion)
+    compute_rdr2geo_rasters(burst, ellipsoid, dem_raster, output_path)
+
     # Resample SET from geographical grid to radar grid
     # Generate the lat/lon arrays for the SET geogrid
     lat_geo_array = np.linspace(atr['Y_FIRST'],
@@ -227,6 +212,10 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid,
     lon_geo_array = np.linspace(atr['X_FIRST'],
                                 lon_start + atr['X_STEP'] * atr['WIDTH'],
                                 num=atr['WIDTH'])
+
+    # Get lat/lon grid for grids for radar coordinates (from rdr2geo)
+    lat_radar_grid = open_raster(f'{output_path}/y.rdr')
+    lon_radar_grid = open_raster(f'{output_path}/x.rdr')
 
     # Use scipy RGI to resample SET from geocoded to radar coordinates
     pts_src = (np.flipud(lat_geo_array), lon_geo_array)
@@ -244,6 +233,8 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid,
     # anti-clockwise. To convert ENU to LOS, we need the azimuth angle which is
     # measured from the north and positive anti-clockwise
     # azimuth_angle = heading + 90
+    inc_angle = open_raster(f'{output_path}/incidence_angle.rdr')
+    head_angle = open_raster(f'{output_path}/heading_angle.rdr')
     set_rg = enu2los(rdr_set_e, rdr_set_n, rdr_set_u, inc_angle,
                      az_angle=head_angle + 90.0)
     set_az = en2az(rdr_set_e, rdr_set_n, head_angle + 90.0)
@@ -251,8 +242,7 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid,
     return set_rg, set_az
 
 
-def compute_rdr2geo_rasters(burst, ellipsoid, dem_raster, output_path,
-                            range_looks, azimuth_looks):
+def compute_rdr2geo_rasters(burst, ellipsoid, dem_raster, output_path):
     '''
     Get latitude, longitude, incidence and
     azimuth angle on multi-looked radar grid
@@ -267,15 +257,11 @@ def compute_rdr2geo_rasters(burst, ellipsoid, dem_raster, output_path,
         ISCE3 object including DEM raster
     output_path: str
         Path where to save output rasters
-    range_looks: int
-        Number of range looks to multilook radar grid
-    azimuth_looks: int
-        Number of azimuth looks to multilook radar grid
     '''
 
     # Get radar and doppler grid
     rdr_grid = burst.as_isce3_radargrid()
-    coarse_rdr_grid = rdr_grid.multilook(azimuth_looks, range_looks)
+    coarse_rdr_grid = rdr_grid.multilook(64, 429)
     grid_doppler = isce3.core.LUT2d()
 
     # Initialize the rdr2geo object

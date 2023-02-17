@@ -17,8 +17,10 @@ runconfig:
       dynamic_ancillary_file_group:
           # Digital elevation model
           dem_file:
-           # burst database sqlite file
-           burst_database_file:
+
+      static_ancillary_file_group:
+          # burst database sqlite file
+          burst_database_file:
 
       product_path_group:
           # Directory where PGE will place results
@@ -55,6 +57,9 @@ runconfig:
               high_band_bandwidth: 1e7
 
           correction_luts:
+              # Boolean flag to activate/deactivate model-based
+              # corrections while geocoding the burst
+              enabled: True
               # LUT spacing in range direction in meters
               range_spacing: 120
               # LUT spacing in azimuth direction in seconds

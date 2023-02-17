@@ -12,12 +12,9 @@ jobs:
           command: |
             docker build . -f docker/Dockerfile -t test_image
       - run:
-          name: "Run integration tests"
+          name: "Run tests"
           command: |
-            docker run test_image bash -ci "cd ~/OPERA/COMPASS &&\
-                                            conda init bash &&\
-                                            conda activate COMPASS &&\
-                                            python -m pytest"
+            docker run test_image sh -c "cd ~/OPERA/COMPASS && pytest"
 
 workflows:
   build-workflow:

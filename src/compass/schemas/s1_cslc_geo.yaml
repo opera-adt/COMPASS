@@ -17,6 +17,8 @@ runconfig:
         dynamic_ancillary_file_group:
            # Digital Elevation Model.
            dem_file: str(required=False)
+
+        static_ancillary_file_group:
            # burst database sqlite file
            burst_database_file: str(required=False)
 
@@ -89,6 +91,9 @@ range_split_spectrum_options:
   high_band_bandwidth: num(min=0, required=False)
 
 lut_options:
+  # Boolean flag to activate/deactivate model-based
+  # corrections while geocoding the burst
+  enabled: bool(required=False)
   # LUT spacing in range direction in meters
   range_spacing: num(min=0, required=False)
   # LUT spacing in azimuth direction in seconds

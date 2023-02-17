@@ -41,7 +41,10 @@ def create_parser():
     optional.add_argument('-ed', '--end-date', help='End date of the stack to process')
     optional.add_argument('-b', '--burst-id', nargs='+', default=None,
                           help='List of burst IDs to process. If None, burst IDs '
-                             'common to all dates are processed.')
+                               'common to all dates are processed.')
+    optional.add_argument('--common-bursts-only', action='store_true',
+                          help='If flag is set, only bursts present in all dates'
+                               ' are processed.')
     optional.add_argument('-exd', '--exclude-dates', nargs='+',
                           help='Date to be excluded from stack processing (format: YYYYMMDD)')
     optional.add_argument('-p', '--pol', dest='pol', nargs='+', default='co-pol',
@@ -111,7 +114,7 @@ def generate_burst_map(zip_files, orbit_dir, output_epsg=None, bbox=None,
     i_subswath = [1, 2, 3]
 
     for zip_file in zip_files:
-        orbit_path = get_orbit_file_from_dir(zip_file, orbit_dir)
+        orbit_path = get_orbit_file_from_dir(zip_file, orbit_dir, auto_download=True)
 
         for subswath in i_subswath:
             ref_bursts = load_bursts(zip_file, orbit_path, subswath)
@@ -122,17 +125,10 @@ def generate_burst_map(zip_files, orbit_dir, output_epsg=None, bbox=None,
                 if epsg is None:  # Flag for skipping burst
                     continue
 
-                burst_map['burst_id'].append(burst.burst_id)
+                burst_map['burst_id'].append(str(burst.burst_id))
                 # keep the burst object so we don't have to re-parse
                 burst_map['burst'].append(burst)
 
-                left, bottom, right, top = bbox_utm
-                burst_map['x_top_left'].append(left)
-                burst_map['y_top_left'].append(top)
-                burst_map['x_bottom_right'].append(right)
-                burst_map['y_bottom_right'].append(bottom)
-
-                burst_map['epsg'].append(epsg)
                 burst_map['date'].append(burst.sensing_start.strftime("%Y%m%d"))
                 # Save the file paths for creating the runconfig
                 burst_map['orbit_path'].append(orbit_path)
@@ -151,7 +147,7 @@ def _get_burst_epsg_and_bbox(burst, output_epsg, bbox, bbox_epsg, burst_db_file)
     if output_epsg is None:
         if os.path.exists(burst_db_file):
             epsg, _ = helpers.burst_bbox_from_db(
-                burst.burst_id, burst_db_file
+                str(burst.burst_id), burst_db_file
             )
         else:
             # Fallback: ust the burst center UTM zone
@@ -172,10 +168,10 @@ def _get_burst_epsg_and_bbox(burst, output_epsg, bbox, bbox_epsg, burst_db_file)
             return None, None
     else:
         epsg_db, bbox_utm = helpers.burst_bbox_from_db(
-            burst.burst_id, burst_db_file
+            str(burst.burst_id), burst_db_file
         )
         if epsg_db != epsg:
-            bbox_utm = helpers.transform_bbox(
+            bbox_utm = helpers.bbox_to_utm(
                 bbox_utm, epsg_src=epsg_db, epsg_dst=epsg
             )
     return epsg, bbox_utm
@@ -232,7 +228,8 @@ def get_common_burst_ids(data):
 
 
 def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
-                     low_band, high_band, pol, x_spac, y_spac, enable_metadata):
+                     low_band, high_band, pol, x_spac, y_spac, enable_metadata,
+                     burst_db_file):
     """
     Create runconfig to process geocoded bursts
 
@@ -282,8 +279,9 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
     burst = burst_map_row.burst
     inputs['safe_file_path'] = [burst_map_row.zip_file]
     inputs['orbit_file_path'] = [burst_map_row.orbit_path]
-    inputs['burst_id'] = burst.burst_id
+    inputs['burst_id'] = [str(burst.burst_id)]
     groups['dynamic_ancillary_file_group']['dem_file'] = dem_file
+    groups['static_ancillary_file_group']['burst_database_file'] = burst_db_file
 
     # Product path
     product['product_path'] = work_dir
@@ -296,14 +294,6 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
     geocode['x_posting'] = x_spac
     geocode['y_posting'] = y_spac
 
-    geocode['top_left']['x'] = burst_map_row.x_top_left
-    geocode['top_left']['y'] = burst_map_row.y_top_left
-    geocode['bottom_right']['x'] = burst_map_row.x_bottom_right
-    geocode['bottom_right']['y'] = burst_map_row.y_bottom_right
-    # geocode['x_snap'] = None
-    # geocode['y_snap'] = None
-    geocode['output_epsg'] = burst_map_row.epsg
-
     # Range split spectrum
     rss['enabled'] = enable_rss
     rss['low_band_bandwidth'] = low_band
@@ -315,7 +305,7 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, enable_rss,
 
     date_str = burst.sensing_start.strftime("%Y%m%d")
     os.makedirs(f'{work_dir}/runconfigs', exist_ok=True)
-    runconfig_path = f'{work_dir}/runconfigs/geo_runconfig_{date_str}_{burst.burst_id}.yaml'
+    runconfig_path = f'{work_dir}/runconfigs/geo_runconfig_{date_str}_{str(burst.burst_id)}.yaml'
     with open(runconfig_path, 'w') as yaml_file:
         yaml.dump(yaml_cfg, yaml_file, default_flow_style=False)
     return runconfig_path
@@ -368,9 +358,10 @@ def _filter_by_date(zip_file_list, start_date, end_date, exclude_dates):
     return zip_file_list
 
 
-def run(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dates=None,
-        orbit_dir=None, work_dir='stack', pol='dual-pol', x_spac=5, y_spac=10, bbox=None,
-        bbox_epsg=4326, output_epsg=None, burst_db_file=DEFAULT_BURST_DB_FILE, flatten=True,
+def run(slc_dir, dem_file, burst_id, common_bursts_only=False, start_date=None,
+        end_date=None, exclude_dates=None, orbit_dir=None, work_dir='stack',
+        pol='dual-pol', x_spac=5, y_spac=10, bbox=None, bbox_epsg=4326,
+        output_epsg=None, burst_db_file=DEFAULT_BURST_DB_FILE, flatten=True,
         is_split_spectrum=False, low_band=0.0, high_band=0.0, enable_metadata=False):
     """Create runconfigs and runfiles generating geocoded bursts for a static
     stack of Sentinel-1 A/B SAFE files.
@@ -383,6 +374,8 @@ def run(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dat
         File path to DEM to use for processing
     burst_id: list
         List of burst IDs to process (default: None)
+    common_bursts_only: bool
+        Flag to only process bursts common to all SAFE files (default: False)
     start_date: int
         Date of the start acquisition of the stack (format: YYYYMMDD)
     end_date: int
@@ -458,8 +451,9 @@ def run(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dat
 
     # Identify burst IDs common across the stack and remove from the dataframe
     # burst IDs that are not in common
-    common_ids = get_common_burst_ids(burst_map)
-    burst_map = prune_dataframe(burst_map, 'burst_id', common_ids)
+    if common_bursts_only:
+        common_ids = get_common_burst_ids(burst_map)
+        burst_map = prune_dataframe(burst_map, 'burst_id', common_ids)
 
     # If user selects burst IDs to process, prune unnecessary bursts
     if burst_id is not None:
@@ -484,6 +478,7 @@ def run(slc_dir, dem_file, burst_id, start_date=None, end_date=None, exclude_dat
             x_spac,
             y_spac,
             do_metadata,
+            burst_db_file=burst_db_file,
         )
         date_str = row.burst.sensing_start.strftime("%Y%m%d")
         runfile_name = f'{run_dir}/run_{date_str}_{row.burst.burst_id}.sh'
@@ -501,8 +496,8 @@ def main():
     # Run main script
     args = create_parser()
 
-    run(args.slc_dir, args.dem_file, args.burst_id, args.start_date,
-        args.end_date, args.exclude_dates, args.orbit_dir,
+    run(args.slc_dir, args.dem_file, args.burst_id, args.common_bursts_only,
+        args.start_date, args.end_date, args.exclude_dates, args.orbit_dir,
         args.work_dir, args.pol, args.x_spac, args.y_spac, args.bbox,
         args.bbox_epsg, args.output_epsg, args.burst_db_file, not args.no_flatten,
         args.is_split_spectrum, args.low_band, args.high_band, args.metadata)

@@ -387,7 +387,7 @@ def generate_geogrids(bursts, geo_dict, dem):
 
     geo_grids = {}
     for burst in bursts:
-        burst_id = burst.burst_id
+        burst_id = str(burst.burst_id)
 
         if burst_id in geo_grids:
             continue

@@ -318,3 +318,59 @@ def burst_bboxes_from_db(burst_ids, burst_db_file=None, burst_db_conn=None):
 
     # TODO add warning if not all burst bounding boxes found
     return dict(zip(burst_ids, zip(epsgs, bboxes)))
+
+
+def write_raster(filename, data_list, descriptions,
+                 data_type=gdal.GDT_Float32, format='ENVI'):
+    '''
+    Write a multiband GDAL-friendly raster to disk.
+    Each dataset allocated in the output file contains
+    a description of the dataset allocated for that band
+
+    Parameters
+    ----------
+    filename: str
+        Filepath where to store output dataset
+    data_list: list, np.ndarray
+        List of numpy.ndarray to allocate for each
+        raster band. All datasets within the list
+        are assumed to have the same shape
+    descriptions: list, str
+        List of strings containing a description
+        for the bands to allocate
+    data_type: gdal.dtype
+        GDAL dataset type
+    format: gdal.Format
+        Format for GDAL output file
+    '''
+
+    error_channel = journal.error('helpers.write_raster')
+
+    # Check number of datasets match number of descriptions
+    if len(data_list) != len(descriptions):
+        err_str = f'Number of datasets to write does not match' \
+                  f'the number of descriptions ' \
+                  f'{len(data_list)} != {len(descriptions)}'
+        error_channel.log(err_str)
+        raise ValueError(err_str)
+
+    # Get the shape of a dataset within the list. All the datasets
+    # are assumed to have the same shape
+    length, width = data_list[0].shape
+    nbands = len(data_list)
+
+    driver = gdal.GetDriverByName(format)
+    out_ds = driver.Create(filename, width, length, nbands, data_type)
+
+    band = 0
+    for data, description in zip(data_list, descriptions):
+        band += 1
+        raster_band = out_ds.GetRasterBand(band)
+        raster_band.SetDescription(description)
+        raster_band.WriteArray(data)
+
+    out_ds.FlushCache()
+    out_ds = None
+
+
+

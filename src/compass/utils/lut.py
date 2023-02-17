@@ -43,7 +43,7 @@ def cumulative_correction_luts(burst, dem_path,
         and slant range
     '''
     # Get individual LUTs
-    geometrical_steer_doppler, bistatic_delay, az_fm_mismatch, set = \
+    geometrical_steer_doppler, bistatic_delay, az_fm_mismatch, tides = \
         compute_geocoding_correction_luts(burst,
                                           dem_path=dem_path,
                                           rg_step=rg_step,
@@ -52,12 +52,11 @@ def cumulative_correction_luts(burst, dem_path,
 
     # Convert to geometrical doppler from range time (seconds) to range (m)
     rg_lut_data = \
-        geometrical_steer_doppler.data * isce3.core.speed_of_light / 2.0 + set[0]
+        geometrical_steer_doppler.data * isce3.core.speed_of_light / 2.0 + tides[0]
 
     # Invert signs to correct for convention
-    # Note azimuth SET are in meters, need to convert in seconds to form LUT
-    az_lut_data = -(bistatic_delay.data + az_fm_mismatch.data + set[
-        1] * isce3.core.speed_of_light)
+    # TO DO: add azimuth SET to LUT
+    az_lut_data = -(bistatic_delay.data + az_fm_mismatch.data)
 
     rg_lut = isce3.core.LUT2d(bistatic_delay.x_start,
                               bistatic_delay.y_start,
@@ -214,8 +213,8 @@ def solid_earth_tides(burst, dem_path, scratchdir):
                                 num=atr['WIDTH'])
 
     # Get lat/lon grid for grids for radar coordinates (from rdr2geo)
-    lat_radar_grid = open_raster(f'{output_path}/y.rdr')
-    lon_radar_grid = open_raster(f'{output_path}/x.rdr')
+    lat_radar_grid, _ = open_raster(f'{output_path}/y.rdr')
+    lon_radar_grid, _ = open_raster(f'{output_path}/x.rdr')
 
     # Use scipy RGI to resample SET from geocoded to radar coordinates
     pts_src = (np.flipud(lat_geo_array), lon_geo_array)
@@ -233,8 +232,8 @@ def solid_earth_tides(burst, dem_path, scratchdir):
     # anti-clockwise. To convert ENU to LOS, we need the azimuth angle which is
     # measured from the north and positive anti-clockwise
     # azimuth_angle = heading + 90
-    inc_angle = open_raster(f'{output_path}/incidence_angle.rdr')
-    head_angle = open_raster(f'{output_path}/heading_angle.rdr')
+    inc_angle, _ = open_raster(f'{output_path}/incidence_angle.rdr')
+    head_angle, _ = open_raster(f'{output_path}/heading_angle.rdr')
     set_rg = enu2los(rdr_set_e, rdr_set_n, rdr_set_u, inc_angle,
                      az_angle=head_angle + 90.0)
     set_az = en2az(rdr_set_e, rdr_set_n, head_angle + 90.0)

@@ -52,7 +52,8 @@ def cumulative_correction_luts(burst, dem_path,
 
     # Convert to geometrical doppler from range time (seconds) to range (m)
     rg_lut_data = \
-        geometrical_steer_doppler.data * isce3.core.speed_of_light / 2.0 + tides[0]
+        geometrical_steer_doppler.data * isce3.core.speed_of_light / 2.0 + \
+        tides[0]
 
     # Invert signs to correct for convention
     # TO DO: add azimuth SET to LUT
@@ -114,7 +115,7 @@ def compute_geocoding_correction_luts(burst, dem_path,
         This correction needs to be added to the SLC tagged azimuth time to
         get the corrected azimuth times.
 
-    set: list, np.ndarray
+    [rg_set, az_se]: list, np.ndarray
         List of numpy.ndarray containing SET in slant range and azimuth directions
         in meters. These corrections need to be added to the slC tagged azimuth
         and slant range times.
@@ -146,7 +147,7 @@ def compute_geocoding_correction_luts(burst, dem_path,
     # Get solid Earth tides on a very coarse grid
     # Run rdr2geo on a very coarse grid
     compute_rdr2geo_rasters(burst, ellipsoid, dem_raster, output_path,
-                            rg_step*10, az_step*10)
+                            rg_step * 10, az_step * 10)
 
     # Open rdr2geo layers and feed them to SET computation
     lat, _ = open_raster(f'{output_path}/y.rdr')
@@ -165,10 +166,12 @@ def compute_geocoding_correction_luts(burst, dem_path,
     rg_set = resize(rg_set_temp, out_shape, **kwargs)
     az_set = resize(az_set_temp, out_shape, **kwargs)
 
-    return geometrical_steering_doppler, bistatic_delay, az_fm_mismatch, [rg_set, az_set]
+    return geometrical_steering_doppler, bistatic_delay, az_fm_mismatch, [
+        rg_set, az_set]
 
 
-def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, inc_angle, head_angle):
+def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, inc_angle,
+                      head_angle):
     '''
     Compute displacement due to Solid Earth Tides (SET)
     in slant range and azimuth directions
@@ -177,10 +180,14 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, inc_angle, head_ang
     ---------
     burst: Sentinel1Slc
         S1-A/B burst object
-    dem_path: str
-        File path to available DEM
-    scratchdir: str
-        Path to scratch directory
+    lat_radar_grid: np.ndarray
+        Latitude array on burst radargrid
+    lon_radar_grid: np.ndarray
+        Longitude array on burst radargrid
+    inc_angle: np.ndarray
+        Incident angle raster
+    head_angle: np.ndaaray
+        Heading angle raster
 
     Returns
     ------
@@ -262,10 +269,15 @@ def compute_rdr2geo_rasters(burst, ellipsoid, dem_raster, output_path,
         ISCE3 object including DEM raster
     output_path: str
         Path where to save output rasters
+    rg_step: float
+        Spacing of radar grid along slant range
+    az_step: float
+        Spacing of the radar grid along azimuth
     '''
 
     # Get radar and doppler grid
-    width_rdr_grid, length_rdr_grid = [vec.size for vec in burst._steps_to_vecs(rg_step, az_step)]
+    width_rdr_grid, length_rdr_grid = [vec.size for vec in
+                                       burst._steps_to_vecs(rg_step, az_step)]
 
     rdr_grid = isce3.product.RadarGridParameters(
         burst.as_isce3_radargrid().sensing_start,

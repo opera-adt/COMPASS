@@ -149,7 +149,7 @@ def compute_geocoding_correction_luts(burst, dem_path,
     # Compute Solid Earth Tides (using pySolid)
     # 1. Run rdr2geo on a coarse radar grid
     compute_rdr2geo_rasters(burst, ellipsoid, dem_raster, output_path,
-                            azimuth_looks=64, range_looks=429)
+                            rg_step, az_step)
 
     # Open individual arrays and pass them to SET
     lat_radar, _ = open_raster(f'{output_path}/y.rdr')
@@ -192,8 +192,6 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid,
     az_set: np.ndarray
         2D array with SET displacement along azimuth
     '''
-
-
 
     # Extract top-left coordinates from burst polygon
     lon_min, lat_min, _, _ = burst.border[0].bounds
@@ -252,7 +250,7 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid,
 
 
 def compute_rdr2geo_rasters(burst, ellipsoid, dem_raster, output_path,
-                            range_looks, azimuth_looks):
+                            rg_step, az_step):
     '''
     Get latitude, longitude, incidence and
     azimuth angle on multi-looked radar grid
@@ -267,19 +265,30 @@ def compute_rdr2geo_rasters(burst, ellipsoid, dem_raster, output_path,
         ISCE3 object including DEM raster
     output_path: str
         Path where to save output rasters
-    range_looks: int
-        Number of range looks to multilook radar grid
-    azimuth_looks: int
-        Number of azimuth looks to multilook radar grid
+    rg_step: float
+        Slant range spacing of the radar grid
+    az_step: float
+        Along track spacing of the radar grid
     '''
-
-    # Get radar and doppler grid
-    rdr_grid = burst.as_isce3_radargrid()
-    coarse_rdr_grid = rdr_grid.multilook(azimuth_looks, range_looks)
     grid_doppler = isce3.core.LUT2d()
 
+    # Get radar and doppler grid
+    width_radargrid, length_radargrid = \
+        [vec.size for vec in burst._steps_to_vecs(rg_step, az_step)]
+
+    rdr_grid = isce3.product.RadarGridParameters(
+        burst.as_isce3_radargrid().sensing_start,
+        burst.wavelength,
+        1.0/az_step,
+        burst.starting_range,
+        rg_step,
+        isce3.core.LookSide.Right,
+        length_radargrid,
+        width_radargrid,
+    )
+
     # Initialize the rdr2geo object
-    rdr2geo_obj = isce3.geometry.Rdr2Geo(coarse_rdr_grid, burst.orbit,
+    rdr2geo_obj = isce3.geometry.Rdr2Geo(rdr_grid, burst.orbit,
                                          ellipsoid, grid_doppler,
                                          threshold=1.0e8)
 
@@ -289,8 +298,8 @@ def compute_rdr2geo_rasters(burst, ellipsoid, dem_raster, output_path,
                    'incidence_angle': (True, gdal.GDT_Float32),
                    'heading_angle': (True, gdal.GDT_Float32)}
     raster_list = [
-        isce3.io.Raster(f'{output_path}/{fname}.rdr', coarse_rdr_grid.width,
-                        coarse_rdr_grid.length, 1, dtype, 'ENVI')
+        isce3.io.Raster(f'{output_path}/{fname}.rdr', rdr_grid.width,
+                        rdr_grid.length, 1, dtype, 'ENVI')
         if enabled else None
         for fname, (enabled, dtype) in topo_output.items()]
     x_raster, y_raster, incidence_raster, heading_raster = raster_list

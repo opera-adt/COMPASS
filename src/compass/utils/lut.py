@@ -52,7 +52,7 @@ def cumulative_correction_luts(burst, dem_path,
 
     # Convert to geometrical doppler from range time (seconds) to range (m)
     rg_lut_data = \
-        geometrical_steer_doppler.data * isce3.core.speed_of_light / 2.0 + \
+        geometrical_steer_doppler.data * isce3.core.speed_of_light * 0.5 + \
         tides[0]
 
     # Invert signs to correct for convention
@@ -185,9 +185,9 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, inc_angle,
     lon_radar_grid: np.ndarray
         Longitude array on burst radargrid
     inc_angle: np.ndarray
-        Incident angle raster
+        Incident angle raster in unit of degrees
     head_angle: np.ndaaray
-        Heading angle raster
+        Heading angle raster in unit of degrees
 
     Returns
     ------

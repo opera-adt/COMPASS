@@ -70,6 +70,9 @@ def create_parser():
     optional.add_argument('-m', '--metadata', action='store_true',
                           help='If flat is set, generates radar metadata layers for each'
                                ' burst stack (see rdr2geo processing options)')
+    optional.add_argument('--unzipped', action='store_true',
+                          help='If flag is set, assumes that the SLCs are unzipped, '
+                               'and only the SAFE directory is provided.')
     return parser.parse_args()
 
 
@@ -342,7 +345,7 @@ def run(slc_dir, dem_file, burst_id=None, common_bursts_only=False, start_date=N
         end_date=None, exclude_dates=None, orbit_dir=None, work_dir='stack',
         pol='dual-pol', x_spac=5, y_spac=10, bbox=None, bbox_epsg=4326,
         output_epsg=None, burst_db_file=DEFAULT_BURST_DB_FILE, flatten=True,
-        enable_metadata=False):
+        enable_metadata=False, using_zipped=True):
     """Create runconfigs and runfiles generating geocoded bursts for a static
     stack of Sentinel-1 A/B SAFE files.
 
@@ -386,6 +389,9 @@ def run(slc_dir, dem_file, burst_id=None, common_bursts_only=False, start_date=N
         Enable/disable flattening of geocoded burst
     enable_metadata: bool
         Enable/disable generation of metadata files for each burst stack.
+    using_zipped: bool
+        Flag to indicate if SAFE files are zipped or not (default: True).
+        Will search for .zip files if True, and .SAFE directories if False.
     """
     start_time = time.time()
     error = journal.error('s1_geo_stack_processor.main')
@@ -414,7 +420,8 @@ def run(slc_dir, dem_file, burst_id=None, common_bursts_only=False, start_date=N
         # Note: Specific files will be downloaded as needed during `generate_burst_map`
 
     # Generate burst map and prune it if a list of burst ID is provided
-    zip_file_list = sorted(glob.glob(f'{slc_dir}/S1*zip'))
+    search_ext = 'zip' if using_zipped else 'SAFE'
+    zip_file_list = sorted(glob.glob(f'{slc_dir}/S1[AB]_*/*.{search_ext}'))
     # Remove zip files that are not in the date range before generating burst map
     zip_file_list = _filter_by_date(zip_file_list, start_date, end_date, exclude_dates)
 
@@ -471,7 +478,7 @@ def main():
         args.start_date, args.end_date, args.exclude_dates, args.orbit_dir,
         args.work_dir, args.pol, args.x_spac, args.y_spac, args.bbox,
         args.bbox_epsg, args.output_epsg, args.burst_db_file, not args.no_flatten,
-        args.metadata)
+        args.metadata, not args.unzipped)
 
 
 if __name__ == '__main__':

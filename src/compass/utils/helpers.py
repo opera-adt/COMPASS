@@ -1,7 +1,11 @@
 '''collection of useful functions used across workflows'''
 
+import functools
+import gzip
+import json
 import os
-import sqlite3
+from pathlib import Path
+from typing import List, Tuple, Union
 
 import isce3
 import journal
@@ -219,7 +223,19 @@ def _convert_to_utm(points_xy, epsg_src, epsg_dst):
     return list(zip(xt, yt))
 
 
-def burst_bbox_from_db(burst_id, burst_db_file=None, burst_db_conn=None):
+@functools.lru_cache(maxsize=2)
+def _read_burst_json(burst_db_file: Union[str, Path]) -> dict:
+    """Read a pre-downloaded burst-dict file into memory."""
+    if str(burst_db_file).endswith(".gz"):
+        with gzip.open(burst_db_file, "r") as f:
+            return json.loads(f.read().decode("utf-8"))
+    else:
+        with open(burst_db_file) as f:
+            return json.load(f)
+
+
+@functools.lru_cache(maxsize=1000)
+def burst_bbox_from_db(burst_id, burst_db_file) -> Tuple[int, List[float]]:
     """Find the bounding box of a burst in the database.
 
     Parameters
@@ -227,11 +243,7 @@ def burst_bbox_from_db(burst_id, burst_db_file=None, burst_db_conn=None):
     burst_id : str
         JPL burst ID
     burst_db_file : str
-        Location of burst database sqlite file, by default None
-    burst_db_conn : sqlite3.Connection
-        Connection object to burst database (If already connected)
-        Alternative to providing burst_db_file, will be faster
-        for multiply queries.
+        Location of burst database sqlite file
 
     Returns
     -------
@@ -244,77 +256,17 @@ def burst_bbox_from_db(burst_id, burst_db_file=None, burst_db_conn=None):
     Raises
     ------
     ValueError
-        If burst_id is not found in burst database
+        If burst_id is not found in burst database,
+        or if `burst_db_file` is not provided and cannot be found.
     """
-    # example burst db:
-    # /home/staniewi/dev/burst_map_IW_000001_375887.OPERA-JPL.sqlite3
-    if burst_db_conn is None:
-        burst_db_conn = sqlite3.connect(burst_db_file)
-    burst_db_conn.row_factory = sqlite3.Row  # return rows as dicts
+    # TODO: add an autodownload option to grab from the repo
+    if not Path(burst_db_file).exists():
+        raise FileNotFoundError(f"Failed to find {burst_db_file}")
+    burst_db_dict = _read_burst_json(burst_db_file)
 
-    query = "SELECT epsg, xmin, ymin, xmax, ymax FROM burst_id_map WHERE burst_id_jpl = ?"
-    cur = burst_db_conn.execute(query, (burst_id,))
-    result = cur.fetchone()
-
-    if not result:
+    try:
+        epsg, *bbox = burst_db_dict[burst_id]
+    except KeyError:
         raise ValueError(f"Failed to find {burst_id} in {burst_db_file}")
 
-    epsg = result["epsg"]
-    bbox = (result["xmin"], result["ymin"], result["xmax"], result["ymax"])
-
-    return epsg, bbox
-
-
-def burst_bboxes_from_db(burst_ids, burst_db_file=None, burst_db_conn=None):
-    """Find the bounding box of bursts in the database.
-
-    Parameters
-    ----------
-    burst_id : list[str]
-        list of JPL burst IDs.
-    burst_db_file : str
-        Location of burst database sqlite file, by default None
-    burst_db_conn : sqlite3.Connection
-        Connection object to burst database (If already connected)
-        Alternative to providing burst_db_file, will be faster
-        for multiply queries.
-
-    Returns
-    -------
-    bboxes : dict
-        Burst bounding boxes as a dict with burst IDs as key and tuples of
-        EPSG and bounding boxes (tuple[float]) as values. Bounding box given as
-        tuple(xmin, ymin, xmax, ymax)
-
-    Raises
-    ------
-    ValueError
-        If no burst_ids are found in burst database
-    """
-    # example burst db:
-    # /home/staniewi/dev/burst_map_IW_000001_375887.OPERA-JPL.sqlite3
-    if burst_db_conn is None:
-        burst_db_conn = sqlite3.connect(burst_db_file)
-    burst_db_conn.row_factory = sqlite3.Row  # return rows as dicts
-
-    # concatenate '?, ' with for each burst ID for IN query
-    qs_in_query = ', '.join('?' for _ in burst_ids)
-    query = f"SELECT * FROM burst_id_map WHERE burst_id_jpl IN ({qs_in_query})"
-    cur = burst_db_conn.execute(query, burst_ids)
-    results = cur.fetchall()
-
-    if not results:
-        raise ValueError(f"Failed to find {burst_ids} in {burst_db_file}")
-
-    n_results = len(results)
-    epsgs = [[]] * n_results
-    bboxes = [[]] * n_results
-    burst_ids = [[]] * n_results
-    for i_result, result in enumerate(results):
-        epsgs[i_result] = result["epsg"]
-        bboxes[i_result] = (result["xmin"], result["ymin"],
-                           result["xmax"], result["ymax"])
-        burst_ids[i_result] = result["burst_id_jpl"]
-
-    # TODO add warning if not all burst bounding boxes found
-    return dict(zip(burst_ids, zip(epsgs, bboxes)))
+    return int(epsg), [float(b) for b in bbox]

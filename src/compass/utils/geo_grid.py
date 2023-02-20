@@ -313,9 +313,6 @@ def generate_geogrids_from_db(bursts, geo_dict, dem, burst_db_file):
     geo_grids = {}
 
     # get all burst IDs and their EPSGs + bounding boxes
-    burst_ids = [str(b.burst_id) for b in bursts]
-    epsg_bbox_dict = helpers.burst_bboxes_from_db(burst_ids, burst_db_file)
-
     for burst in bursts:
         burst_id = str(burst.burst_id)
 
@@ -325,7 +322,8 @@ def generate_geogrids_from_db(bursts, geo_dict, dem, burst_db_file):
 
         # extract EPSG and bbox for current burst from dict
         # bottom right = (xmax, ymin) and top left = (xmin, ymax)
-        epsg, (xmin, ymin, xmax, ymax) = epsg_bbox_dict[burst_id]
+        epsg, (xmin, ymin, xmax, ymax) = helpers.burst_bbox_from_db(burst_id,
+                                                                    burst_db_file)
 
         radar_grid = burst.as_isce3_radargrid()
         orbit = burst.orbit

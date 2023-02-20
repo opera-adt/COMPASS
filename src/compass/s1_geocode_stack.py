@@ -48,8 +48,8 @@ def create_parser():
     optional.add_argument('-exd', '--exclude-dates', nargs='+',
                           help='Date to be excluded from stack processing (format: YYYYMMDD)')
     optional.add_argument('-p', '--pol', dest='pol', nargs='+', default='co-pol',
-                          help='Polarization to process: dual-pol, co-pol, cross-pol '
-                               ' (default: co-pol).')
+                          choices=['co-pol', 'cross-pol', 'dual-pol'],
+                          help='Polarization to process: %(choices)s ')
     optional.add_argument('-dx', '--x-spac', type=float, default=5,
                           help='Spacing in meters of geocoded CSLC along X-direction.')
     optional.add_argument('-dy', '--y-spac', type=float, default=10,
@@ -338,7 +338,7 @@ def _filter_by_date(zip_file_list, start_date, end_date, exclude_dates):
     return zip_file_list
 
 
-def run(slc_dir, dem_file, burst_id, common_bursts_only=False, start_date=None,
+def run(slc_dir, dem_file, burst_id=None, common_bursts_only=False, start_date=None,
         end_date=None, exclude_dates=None, orbit_dir=None, work_dir='stack',
         pol='dual-pol', x_spac=5, y_spac=10, bbox=None, bbox_epsg=4326,
         output_epsg=None, burst_db_file=DEFAULT_BURST_DB_FILE, flatten=True,

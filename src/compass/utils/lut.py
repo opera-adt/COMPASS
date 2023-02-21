@@ -142,14 +142,15 @@ def compute_geocoding_correction_luts(burst, dem_path,
 
     # Get solid Earth tides on a very coarse grid
     # Run rdr2geo on a very coarse grid
-    compute_rdr2geo_rasters(burst, dem_raster, output_path,
-                            rg_step * 10, az_step * 10)
+    lon_path, lat_path, inc_path, head_path = \
+        compute_rdr2geo_rasters(burst, dem_raster, output_path,
+                                rg_step * 10, az_step * 10)
 
     # Open rdr2geo layers and feed them to SET computation
-    lat = open_raster(f'{output_path}/y.rdr')
-    lon = open_raster(f'{output_path}/x.rdr')
-    inc_angle = open_raster(f'{output_path}/incidence_angle.rdr')
-    head_angle = open_raster(f'{output_path}/heading_angle.rdr')
+    lat = open_raster(lat_path)
+    lon = open_raster(lon_path)
+    inc_angle = open_raster(inc_path)
+    head_angle = open_raster(head_path)
 
     # compute Solid Earth Tides (using pySolid)
     rg_set_temp, az_set_temp = solid_earth_tides(burst, lat, lon,
@@ -267,6 +268,17 @@ def compute_rdr2geo_rasters(burst, dem_raster, output_path,
         Spacing of radar grid along slant range
     az_step: float
         Spacing of the radar grid along azimuth
+
+    Returns
+    -------
+    x_path: str
+        Path to longitude raster
+    y_path: str
+        Path to latitude raster
+    inc_path: str
+        Path to incidence angle raster
+    head_path: str
+        Path to heading angle raster
     '''
 
     # Some ancillary inputs
@@ -313,6 +325,11 @@ def compute_rdr2geo_rasters(burst, dem_raster, output_path,
     rdr2geo_obj.topo(dem_raster, x_raster, y_raster,
                      incidence_angle_raster=incidence_raster,
                      heading_angle_raster=heading_raster)
+
+    # Return file path to rdr2geo layers
+    paths = [f'{output_path}/{fname}.rdr' for fname in topo_output.keys()]
+
+    return paths[0], paths[1], paths[2], paths[3]
 
 
 def resample_set(geo_tide, pts_src, pts_dest):

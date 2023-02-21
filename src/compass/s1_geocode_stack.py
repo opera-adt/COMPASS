@@ -421,7 +421,7 @@ def run(slc_dir, dem_file, burst_id=None, common_bursts_only=False, start_date=N
 
     # Generate burst map and prune it if a list of burst ID is provided
     search_ext = 'zip' if using_zipped else 'SAFE'
-    zip_file_list = sorted(glob.glob(f'{slc_dir}/S1[AB]_*/*.{search_ext}'))
+    zip_file_list = sorted(glob.glob(f'{slc_dir}/S1[AB]_*.{search_ext}'))
     # Remove zip files that are not in the date range before generating burst map
     zip_file_list = _filter_by_date(zip_file_list, start_date, end_date, exclude_dates)
 

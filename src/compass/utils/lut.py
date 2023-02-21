@@ -115,7 +115,7 @@ def compute_geocoding_correction_luts(burst, dem_path,
         This correction needs to be added to the SLC tagged azimuth time to
         get the corrected azimuth times.
 
-    [rg_set, az_se]: list, np.ndarray
+    [rg_set, az_set]: list, np.ndarray
         List of numpy.ndarray containing SET in slant range and azimuth directions
         in meters. These corrections need to be added to the slC tagged azimuth
         and slant range times.
@@ -248,7 +248,7 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, inc_angle,
     # azimuth_angle = heading + 90
     set_rg = enu2los(rdr_set_e, rdr_set_n, rdr_set_u, inc_angle,
                      az_angle=head_angle + 90.0)
-    set_az = en2az(rdr_set_e, rdr_set_n, head_angle + 90.0)
+    set_az = en2az(rdr_set_e, rdr_set_n, head_angle - 90.0)
 
     return set_rg, set_az
 

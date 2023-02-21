@@ -334,11 +334,9 @@ def open_raster(filename, band=1):
     -------
     raster: np.ndarray
         Numpy array containing the raster band to open
-    data_type: str
-        Band data type
     '''
 
     ds = gdal.Open(filename, gdal.GA_ReadOnly)
     raster = ds.GetRasterBand(band).ReadAsArray()
-    data_type = ds.GetRasterBand(band).DataType
-    return raster, data_type
+
+    return raster

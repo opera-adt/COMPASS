@@ -150,10 +150,10 @@ def compute_geocoding_correction_luts(burst, dem_path,
                             rg_step * 10, az_step * 10)
 
     # Open rdr2geo layers and feed them to SET computation
-    lat, _ = open_raster(f'{output_path}/y.rdr')
-    lon, _ = open_raster(f'{output_path}/x.rdr')
-    inc_angle, _ = open_raster(f'{output_path}/incidence_angle.rdr')
-    head_angle, _ = open_raster(f'{output_path}/heading_angle.rdr')
+    lat = open_raster(f'{output_path}/y.rdr')
+    lon = open_raster(f'{output_path}/x.rdr')
+    inc_angle = open_raster(f'{output_path}/incidence_angle.rdr')
+    head_angle = open_raster(f'{output_path}/heading_angle.rdr')
 
     # compute Solid Earth Tides (using pySolid)
     rg_set_temp, az_set_temp = solid_earth_tides(burst, lat, lon,

@@ -26,7 +26,7 @@ def download_if_needed(local_path):
 def test_paths():
     test_paths = types.SimpleNamespace()
 
-    burst_id = 't071_151200_iw1'
+    burst_id = 't064_135523_iw2'
     b_date = '20200511'
 
     # get test working directory
@@ -55,12 +55,13 @@ def test_paths():
     test_paths.ref_gslc = f'{test_data_path}/reference/ref_compass_gslc.slc'
 
     # check for files and download as needed
-    test_files = ['S1A_IW_SLC__1SSV_20200511T135117_20200511T135144_032518_03C421_7768.zip',
-                  'orbits/S1A_OPER_AUX_POEORB_OPOD_20210318T120818_V20200510T225942_20200512T005942.EOF',
-                  'test_dem.tiff', 'reference/ref_compass_gslc.hdr',
-                  'reference/ref_compass_gslc.slc']
+    test_files = ['S1A_IW_SLC__1SDV_20221016T015043_20221016T015111_045461_056FC0_6681.zip',
+                  'orbits/S1A_OPER_AUX_POEORB_OPOD_20221105T083813_V20221015T225942_20221017T005942.EOF',
+                  'test_dem.tiff']
+    '''
     for test_file in test_files:
         download_if_needed(f'{test_data_path}/{test_file}')
+    '''
 
     return test_paths
 

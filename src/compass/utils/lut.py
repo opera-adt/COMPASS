@@ -135,6 +135,8 @@ def compute_geocoding_correction_luts(burst, dem_path,
     bistatic_delay = burst.bistatic_delay(range_step=rg_step, az_step=az_step)
 
     # Compute azimuth FM-rate mismatch
+    if not os.path.isfile(dem_path):
+        raise FileNotFoundError(f'Cannot find the dem file: {dem_path}')
     az_fm_mismatch = burst.az_fm_rate_mismatch_mitigation(dem_path,
                                                           scratch_path,
                                                           range_step=rg_step,
@@ -310,15 +312,14 @@ def compute_rdr2geo_rasters(burst, dem_raster, output_path,
                                          threshold=1.0e8)
 
     # Get the rdr2geo raster needed for SET computation
-    topo_output = {'x': (True, gdal.GDT_Float64),
-                   'y': (True, gdal.GDT_Float64),
-                   'incidence_angle': (True, gdal.GDT_Float32),
-                   'heading_angle': (True, gdal.GDT_Float32)}
+    topo_output = {f'{output_path}/x.rdr': gdal.GDT_Float64,
+                   f'{output_path}/y.rdr': gdal.GDT_Float64,
+                   f'{output_path}/incidence_angle.rdr': gdal.GDT_Float32,
+                   f'{output_path}/heading_angle.rdr': gdal.GDT_Float32}
     raster_list = [
-        isce3.io.Raster(f'{output_path}/{fname}.rdr', rdr_grid.width,
+        isce3.io.Raster(fname, rdr_grid.width,
                         rdr_grid.length, 1, dtype, 'ENVI')
-        if enabled else None
-        for fname, (enabled, dtype) in topo_output.items()]
+        for fname, dtype in topo_output.items()]
     x_raster, y_raster, incidence_raster, heading_raster = raster_list
 
     # Run rdr2geo on coarse radar grid
@@ -327,8 +328,7 @@ def compute_rdr2geo_rasters(burst, dem_raster, output_path,
                      heading_angle_raster=heading_raster)
 
     # Return file path to rdr2geo layers
-    paths = [f'{output_path}/{fname}.rdr' for fname in topo_output.keys()]
-
+    paths = list(topo_output.keys())
     return paths[0], paths[1], paths[2], paths[3]
 
 

@@ -120,12 +120,8 @@ def compute_geocoding_correction_luts(burst, dem_path,
         in meters. These corrections need to be added to the slC tagged azimuth
         and slant range times.
     '''
-
-    # Some ancillary inputs
+    # Get DEM raster
     dem_raster = isce3.io.Raster(dem_path)
-    epsg = dem_raster.get_epsg()
-    proj = isce3.core.make_projection(epsg)
-    ellipsoid = proj.ellipsoid
 
     # Create directory to store SET temp results
     output_path = f'{scratch_path}/corrections'
@@ -146,7 +142,7 @@ def compute_geocoding_correction_luts(burst, dem_path,
 
     # Get solid Earth tides on a very coarse grid
     # Run rdr2geo on a very coarse grid
-    compute_rdr2geo_rasters(burst, ellipsoid, dem_raster, output_path,
+    compute_rdr2geo_rasters(burst, dem_raster, output_path,
                             rg_step * 10, az_step * 10)
 
     # Open rdr2geo layers and feed them to SET computation
@@ -253,7 +249,7 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, inc_angle,
     return set_rg, set_az
 
 
-def compute_rdr2geo_rasters(burst, ellipsoid, dem_raster, output_path,
+def compute_rdr2geo_rasters(burst, dem_raster, output_path,
                             rg_step, az_step):
     '''
     Get latitude, longitude, incidence and
@@ -263,8 +259,6 @@ def compute_rdr2geo_rasters(burst, ellipsoid, dem_raster, output_path,
     ----------
     burst: Sentinel1Slc
         S1-A/B burst object
-    ellipsoid: isce3.ext.isce3.core
-        ISCE3 Ellipsoid object
     dem_raster: isce3.io.Raster
         ISCE3 object including DEM raster
     output_path: str
@@ -274,6 +268,11 @@ def compute_rdr2geo_rasters(burst, ellipsoid, dem_raster, output_path,
     az_step: float
         Spacing of the radar grid along azimuth
     '''
+
+    # Some ancillary inputs
+    epsg = dem_raster.get_epsg()
+    proj = isce3.core.make_projection(epsg)
+    ellipsoid = proj.ellipsoid
 
     # Get radar and doppler grid
     width_rdr_grid, length_rdr_grid = [vec.size for vec in

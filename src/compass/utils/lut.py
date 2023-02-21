@@ -4,13 +4,13 @@ Placeholder for model-based correction LUT
 import os
 import isce3
 import numpy as np
+from osgeo import gdal
 import pysolid
+from scipy.interpolate import RegularGridInterpolator as RGI
+from skimage.transform import resize
 
 from compass.utils.geometry_utils import enu2los, en2az
 from compass.utils.helpers import open_raster
-from scipy.interpolate import RegularGridInterpolator as RGI
-from osgeo import gdal
-from skimage.transform import resize
 
 
 def cumulative_correction_luts(burst, dem_path,

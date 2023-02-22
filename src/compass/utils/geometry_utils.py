@@ -1,9 +1,18 @@
+############################################################################
+# Suite of geometry utilities for SAR processing                           #
+# This was adapted from MintPy on 02-22-2023                               #
+# Source code is available at:                                             #
+# https://github.com/insarlab/MintPy/blob/main/src/mintpy/utils/utils0.py  #
+############################################################################
+
+
 import numpy as np
 
 
 def los2orbit_azimuth_angle(los_az_angle, look_direction='right'):
     """
     Convert the azimuth angle of the LOS vector to the one of the orbit flight vector.
+    The conversion done for this function only works for zero-Doppler geometry.
 
     Parameters
     ----------

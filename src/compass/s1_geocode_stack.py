@@ -134,7 +134,8 @@ def generate_burst_map(zip_files, orbit_dir, output_epsg=None, bbox=None,
     return burst_map
 
 
-def _get_burst_epsg_and_bbox(burst, output_epsg, bbox, bbox_epsg, burst_db_file):
+def _get_burst_epsg_and_bbox(burst, output_epsg, bbox, bbox_epsg, burst_db_file,
+                             min_intersect=0.05):
     """Returns the EPSG code and bounding box for a burst.
 
     Uses specified `bbox` if provided; otherwise, uses burst database (if available).
@@ -159,8 +160,11 @@ def _get_burst_epsg_and_bbox(burst, output_epsg, bbox, bbox_epsg, burst_db_file)
         burst_border_utm = helpers.polygon_to_utm(
             burst.border[0], epsg_src=4326, epsg_dst=epsg
         )
-        # Skip this burst if it doesn't intersect the specified bbox
-        if not geometry.box(*bbox_utm).intersects(burst_border_utm):
+        bbox_utm_geom = geometry.box(*bbox_utm)
+        burst_intersection = burst_border_utm.intersection(bbox_utm_geom)
+        # Skip this burst if it doesn't overlap enough with specified bbox
+        intersect_pct = burst_intersection.area / burst_border_utm.area
+        if intersect_pct < min_intersect:
             return None, None
     else:
         epsg_db, bbox_utm = helpers.burst_bbox_from_db(

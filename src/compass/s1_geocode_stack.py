@@ -77,7 +77,8 @@ def create_parser():
 
 
 def generate_burst_map(zip_files, orbit_dir, output_epsg=None, bbox=None,
-                       bbox_epsg=4326, burst_db_file=DEFAULT_BURST_DB_FILE):
+                       bbox_epsg=4326, burst_db_file=DEFAULT_BURST_DB_FILE,
+                       min_bbox_intersect=0.01):
     """Generates a dataframe of geogrid infos for each burst ID in `zip_files`.
 
     Parameters
@@ -116,7 +117,7 @@ def generate_burst_map(zip_files, orbit_dir, output_epsg=None, bbox=None,
             ref_bursts = load_bursts(zip_file, orbit_path, subswath)
             for burst in ref_bursts:
                 epsg, bbox_utm = _get_burst_epsg_and_bbox(
-                    burst, output_epsg, bbox, bbox_epsg, burst_db_file
+                    burst, output_epsg, bbox, bbox_epsg, burst_db_file, min_intersect=min_bbox_intersect
                 )
                 if epsg is None:  # Flag for skipping burst
                     continue
@@ -135,7 +136,7 @@ def generate_burst_map(zip_files, orbit_dir, output_epsg=None, bbox=None,
 
 
 def _get_burst_epsg_and_bbox(burst, output_epsg, bbox, bbox_epsg, burst_db_file,
-                             min_intersect=0.05):
+                             min_intersect=0.01):
     """Returns the EPSG code and bounding box for a burst.
 
     Uses specified `bbox` if provided; otherwise, uses burst database (if available).
@@ -163,7 +164,8 @@ def _get_burst_epsg_and_bbox(burst, output_epsg, bbox, bbox_epsg, burst_db_file,
         bbox_utm_geom = geometry.box(*bbox_utm)
         burst_intersection = burst_border_utm.intersection(bbox_utm_geom)
         # Skip this burst if it doesn't overlap enough with specified bbox
-        intersect_pct = burst_intersection.area / burst_border_utm.area
+        total_area = min(bbox_utm_geom.area, burst_border_utm.area)
+        intersect_pct = burst_intersection.area / total_area
         if intersect_pct < min_intersect:
             return None, None
     else:

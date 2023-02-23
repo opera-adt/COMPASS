@@ -8,27 +8,55 @@ from compass import s1_geocode_slc
 from compass.utils.geo_runconfig import GeoRunConfig
 
 
-def test_geocode_slc_run(unit_test_paths):
+def test_geocode_slc_run(geocode_slc_params):
     '''
-    run s1_geocode_slc to ensure it does not crash
+    Run s1_geocode_slc to ensure it does not crash
+
+    Parameters
+    ----------
+    geocode_slc_params: SimpleNamespace
+        SimpleNamespace containing geocode SLC unit test parameters
     '''
     # load yaml to cfg
-    cfg = GeoRunConfig.load_from_yaml(unit_test_paths.gslc_cfg_path,
+    cfg = GeoRunConfig.load_from_yaml(geocode_slc_params.gslc_cfg_path,
                                       workflow_name='s1_cslc_geo')
 
     # pass cfg to s1_geocode_slc
     s1_geocode_slc.run(cfg)
 
-def get_nearest_index(arr, val):
+
+def _get_nearest_index(arr, val):
+    '''
+    Find index of element in given array closest to given value
+
+    Parameters
+    ----------
+    arr: np.ndarray
+        1D array to be searched
+    val: float
+        Number to be searched for
+
+    Returns
+    -------
+    _: int
+        Index of element in arr where val is closest
+    '''
     return np.abs(arr - val).argmin()
 
-def get_reflectors_extents_slice(unit_test_paths, margin=50):
+
+def _get_reflectors_bounding_slice(geocode_slc_params):
     '''
-    get max and min lat, lon
+    Get latitude, longitude slice that contains all the corner reflectors in
+    CSV list of corner reflectors
+
+    Parameters
+    ----------
+    geocode_slc_params: SimpleNamespace
+        SimpleNamespace containing geocode SLC unit test parameters
     '''
     # extract from HDF5
-    with h5py.File(unit_test_paths.output_hdf5, 'r') as h5_obj:
-        grid_group = h5_obj[unit_test_paths.grid_group_path]
+    with h5py.File(geocode_slc_params.output_hdf5, 'r') as h5_obj:
+        grid_group = h5_obj[geocode_slc_params.grid_group_path]
 
         # create projection to covert from UTM to LLH
         epsg = int(grid_group['projection'][()])
@@ -43,33 +71,50 @@ def get_reflectors_extents_slice(unit_test_paths, margin=50):
         lats = np.array([np.degrees(proj.inverse([x_coords_utm[0], y, 0])[1])
                          for y in y_coords_utm])
 
+        # get array shape for later check of slice with margins applied
+        height, width = h5_obj[geocode_slc_params.raster_path].shape
+
     # extract all lat/lon corner reflector coordinates
     corner_lats = []
     corner_lons = []
-    with open(unit_test_paths.corner_coord_csv_path, 'r') as csvfile:
+    with open(geocode_slc_params.corner_coord_csv_path, 'r') as csvfile:
         corner_reader = csv.DictReader(csvfile)
         for row in corner_reader:
             corner_lats.append(float(row['Latitude (deg)']))
             corner_lons.append(float(row['Longitude (deg)']))
 
-    i_max_lat = get_nearest_index(lats, np.max(corner_lats))
-    i_min_lat = get_nearest_index(lats, np.min(corner_lats))
-    i_max_lon = get_nearest_index(lons, np.max(corner_lons))
-    i_min_lon = get_nearest_index(lons, np.min(corner_lons))
+    # find nearest index for min/max of lats/lons and apply margin
+    # apply margin to bounding box and ensure raster bounds are not exceeded
+    # application of margin y indices reversed due descending order lats vector
+    margin = 50
+    i_max_y = max(_get_nearest_index(lats, np.max(corner_lats)) - margin, 0)
+    i_min_y = min(_get_nearest_index(lats, np.min(corner_lats)) + margin,
+                  height - 1)
+    i_max_x = min(_get_nearest_index(lons, np.max(corner_lons)) + margin,
+                  width - 1)
+    i_min_x = max(_get_nearest_index(lons, np.min(corner_lons)) - margin, 0)
 
-    return np.s_[i_max_lat - margin:i_min_lat + margin,
-                 i_min_lon - margin:i_max_lon + margin]
+    # return as slice
+    # y indices reversed to account for descending order lats vector
+    return np.s_[i_max_y:i_min_y, i_min_x:i_max_x]
 
-def test_geocode_slc_validate(unit_test_paths):
+
+def test_geocode_slc_validate(geocode_slc_params):
     '''
-    check for reflectors in geocoded output
+    Check for reflectors in geocoded output
+
+    Parameters
+    ----------
+    geocode_slc_params: SimpleNamespace
+        SimpleNamespace containing geocode SLC unit test parameters
     '''
-    s_ = get_reflectors_extents_slice(unit_test_paths)
+    # get slice where corner reflectors should be
+    s_ = _get_reflectors_bounding_slice(geocode_slc_params)
 
-    with h5py.File(unit_test_paths.output_hdf5, 'r') as h5_obj:
-        src_path = f'{unit_test_paths.grid_group_path}/VV'
-        arr = h5_obj[src_path][()][s_]
-        print(arr.shape, s_)
+    # slice raster array
+    with h5py.File(geocode_slc_params.output_hdf5, 'r') as h5_obj:
+        arr = h5_obj[geocode_slc_params.raster_path][()][s_]
 
+    # check for bright spots in sliced array
     corner_reflector_threshold = 3e3
     assert np.any(arr > corner_reflector_threshold)

@@ -9,25 +9,48 @@ from s1reader.s1_orbit import check_internet_connection
 
 from compass.utils import iono
 
+
 def download_if_needed(local_path):
-    # check if test inputs and reference files exists; download if not found.
+    '''
+    Check if given path to file exists. Download if it from zenodo does not.
+
+    Parameters
+    ----------
+    local_path: str
+        Path to file
+    '''
+    # return if file is found
     if os.path.isfile(local_path):
         return
 
     check_internet_connection()
 
-    dataset_url = 'https://zenodo.org/record/7668411/files/'
     dst_dir, file_name = os.path.split(local_path)
+
+    # create destination directory if it does not exist
     if dst_dir:
         os.makedirs(dst_dir, exist_ok=True)
+
+    # download data
+    dataset_url = 'https://zenodo.org/record/7668411/files/'
     target_url = f'{dataset_url}/{file_name}'
     with open(local_path, 'wb') as f:
         f.write(requests.get(target_url).content)
 
-@pytest.fixture(scope="session")
-def unit_test_paths():
-    test_paths = types.SimpleNamespace()
 
+@pytest.fixture(scope="session")
+def geocode_slc_params():
+    '''
+    Parameters to be used by geocode SLC unit test
+
+    Returns
+    -------
+    test_params: SimpleNamespace
+        SimpleNamespace containing geocode SLC unit test parameters
+    '''
+    test_params = types.SimpleNamespace()
+
+    # burst ID and date of burst
     burst_id = 't064_135523_iw2'
     b_date = '20221016'
 
@@ -39,34 +62,40 @@ def unit_test_paths():
 
     # paths for template and actual runconfig
     gslc_template_path = f'{test_data_path}/geo_cslc_s1_template.yaml'
-    test_paths.gslc_cfg_path = f'{test_data_path}/geo_cslc_s1.yaml'
+    test_params.gslc_cfg_path = f'{test_data_path}/geo_cslc_s1.yaml'
 
     # read runconfig template, replace pieces, write to runconfig
     with open(gslc_template_path, 'r') as f_template, \
-            open(test_paths.gslc_cfg_path, 'w') as f_cfg:
+            open(test_params.gslc_cfg_path, 'w') as f_cfg:
         cfg = f_template.read().replace('@TEST_PATH@', str(test_path)).\
             replace('@DATA_PATH@', test_data_path).\
             replace('@BURST_ID@', burst_id)
         f_cfg.write(cfg)
 
-    # check for files and download as needed
+    # files needed for geocode SLC unit test
     test_files = ['S1A_IW_SLC__1SDV_20221016T015043_20221016T015111_045461_056FC0_6681.zip',
                   'orbits/S1A_OPER_AUX_POEORB_OPOD_20221105T083813_V20221015T225942_20221017T005942.EOF',
                   'test_dem.tiff', 'test_burst_map.sqlite3',
                   '2022-10-16_0000_Rosamond-corner-reflectors.csv']
     test_files = [f'{test_data_path}/{test_file}' for test_file in test_files]
 
-    # parallel download of test files
+    # parallel download of test files (if necessary)
     pool = mp.Pool(len(test_files))
     _ = pool.map(download_if_needed, test_files)
     pool.close()
     pool.join()
 
-    test_paths.corner_coord_csv_path = test_files[-1]
-    test_paths.output_hdf5 = f'{test_path}/product/{burst_id}/{b_date}/{burst_id}_{b_date}.h5'
-    test_paths.grid_group_path = '/science/SENTINEL1/CSLC/grids'
+    # path to file containing corner reflectors
+    test_params.corner_coord_csv_path = test_files[-1]
 
-    return test_paths
+    # path the output HDF5
+    test_params.output_hdf5 = f'{test_path}/product/{burst_id}/{b_date}/{burst_id}_{b_date}.h5'
+
+    # path to groups and datasets in output HDF5
+    test_params.grid_group_path = '/science/SENTINEL1/CSLC/grids'
+    test_params.raster_path = f'{test_params.grid_group_path}/VV'
+
+    return test_params
 
 @pytest.fixture(scope='session')
 def ionex_params(download_data=True):
@@ -81,9 +110,8 @@ def ionex_params(download_data=True):
 
     Returns
     -------
-    tec_file: str
-        Path to local or downloaded TEC file to
-        use in the unit test
+    tec_file: SimpleNamespace
+        SimpleNamespace containing parameters needed for ionex unit test
     '''
     test_params = types.SimpleNamespace()
 

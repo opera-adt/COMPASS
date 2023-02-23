@@ -206,8 +206,7 @@ def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
         for pol, i_subswath in pol_subswath_index_pairs:
 
             # loop over burst objs extracted from SAFE zip
-            loaded_bursts =  load_bursts(safe_file, orbit_path, i_subswath, pol)
-            for burst in loaded_bursts:
+            for burst in load_bursts(safe_file, orbit_path, i_subswath, pol):
                 # get burst ID
                 burst_id = str(burst.burst_id)
 
@@ -215,7 +214,6 @@ def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
                 # is burst_id wanted? skip if not given in config
                 if (cfg.input_file_group.burst_id is not None and
                         burst_id not in cfg.input_file_group.burst_id):
-                    print(burst_id, cfg.input_file_group.burst_id, burst_id in cfg.input_file_group.burst_id)
                     continue
 
                 # get polarization and save as tuple with burst ID
@@ -239,7 +237,6 @@ def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
                 # if reference burst, ok to add if id+pol combo does not exist
                 # no duplicate id+pol combos for reference bursts
                 if not_ref or not burst_id_pol_exist:
-                    print(f'{burst_id} found')
                     burst_ids_found.append(burst_id)
                     bursts.append(burst)
 

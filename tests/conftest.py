@@ -17,7 +17,7 @@ def download_if_needed(local_path):
 
     check_internet_connection()
 
-    dataset_url = 'https://zenodo.org/record/7668410/files/'
+    dataset_url = 'https://zenodo.org/record/7668411/files/'
     dst_dir, file_name = os.path.split(local_path)
     if dst_dir:
         os.makedirs(dst_dir, exist_ok=True)
@@ -55,14 +55,15 @@ def unit_test_paths():
                   'orbits/S1A_OPER_AUX_POEORB_OPOD_20221105T083813_V20221015T225942_20221017T005942.EOF',
                   'test_dem.tiff', 'test_burst_map.sqlite3',
                   '2022-10-16_0000_Rosamond-corner-reflectors.csv']
-    #for test_file in test_files:
-    #    download_if_needed(f'{test_data_path}/{test_file}')
+    test_files = [f'{test_data_path}/{test_file}' for test_file in test_files]
+
+    # parallel download of test files
     pool = mp.Pool(len(test_files))
     _ = pool.map(download_if_needed, test_files)
     pool.close()
     pool.join()
 
-    test_paths.corner_coord_csv_path = f'{test_data_path}/{test_files[-1]}'
+    test_paths.corner_coord_csv_path = test_files[-1]
     test_paths.output_hdf5 = f'{test_path}/product/{burst_id}/{b_date}/{burst_id}_{b_date}.h5'
     test_paths.grid_group_path = '/science/SENTINEL1/CSLC/grids'
 

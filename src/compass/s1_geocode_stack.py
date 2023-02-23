@@ -161,12 +161,7 @@ def _get_burst_epsg_and_bbox(burst, output_epsg, bbox, bbox_epsg, burst_db_file,
         burst_border_utm = helpers.polygon_to_utm(
             burst.border[0], epsg_src=4326, epsg_dst=epsg
         )
-        bbox_utm_geom = geometry.box(*bbox_utm)
-        burst_intersection = burst_border_utm.intersection(bbox_utm_geom)
-        # Skip this burst if it doesn't overlap enough with specified bbox
-        total_area = min(bbox_utm_geom.area, burst_border_utm.area)
-        intersect_pct = burst_intersection.area / total_area
-        if intersect_pct < min_intersect:
+        if not geometry.box(*bbox_utm).intersects(burst_border_utm):
             return None, None
     else:
         epsg_db, bbox_utm = helpers.burst_bbox_from_db(

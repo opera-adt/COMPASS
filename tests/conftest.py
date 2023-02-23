@@ -1,4 +1,3 @@
-from functools import partial
 import multiprocessing as mp
 import os
 import pathlib

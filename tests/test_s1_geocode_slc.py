@@ -3,7 +3,6 @@ import csv
 import h5py
 import isce3
 import numpy as np
-from osgeo import gdal
 
 from compass import s1_geocode_slc
 from compass.utils.geo_runconfig import GeoRunConfig

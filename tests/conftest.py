@@ -1,11 +1,14 @@
+from functools import partial
+import multiprocessing as mp
 import os
 import pathlib
-import requests
 import types
 
-from compass.utils import iono
 import pytest
+import requests
 from s1reader.s1_orbit import check_internet_connection
+
+from compass.utils import iono
 
 def download_if_needed(local_path):
     # check if test inputs and reference files exists; download if not found.
@@ -14,27 +17,26 @@ def download_if_needed(local_path):
 
     check_internet_connection()
 
-    dataset_url = 'https://zenodo.org/record/6954753/files/'
+    dataset_url = 'https://zenodo.org/record/7668410/files/'
     dst_dir, file_name = os.path.split(local_path)
-    print(dst_dir, file_name)
-    os.makedirs(dst_dir, exist_ok=True)
+    if dst_dir:
+        os.makedirs(dst_dir, exist_ok=True)
     target_url = f'{dataset_url}/{file_name}'
     with open(local_path, 'wb') as f:
         f.write(requests.get(target_url).content)
 
 @pytest.fixture(scope="session")
-def test_paths():
+def unit_test_paths():
     test_paths = types.SimpleNamespace()
 
     burst_id = 't064_135523_iw2'
-    b_date = '20200511'
+    b_date = '20221016'
 
     # get test working directory
     test_path = pathlib.Path(__file__).parent.resolve()
 
     # set other paths relative to working directory
     test_data_path = f'{test_path}/data'
-    out_path = f'{test_path}/product'
 
     # paths for template and actual runconfig
     gslc_template_path = f'{test_data_path}/geo_cslc_s1_template.yaml'
@@ -48,20 +50,21 @@ def test_paths():
             replace('@BURST_ID@', burst_id)
         f_cfg.write(cfg)
 
-    # output geocoded SLC paths
-    test_paths.test_gslc = f'{out_path}/{burst_id}/{b_date}/{burst_id}_VV.slc'
-
-    # reference geocoded SLC paths
-    test_paths.ref_gslc = f'{test_data_path}/reference/ref_compass_gslc.slc'
-
     # check for files and download as needed
     test_files = ['S1A_IW_SLC__1SDV_20221016T015043_20221016T015111_045461_056FC0_6681.zip',
                   'orbits/S1A_OPER_AUX_POEORB_OPOD_20221105T083813_V20221015T225942_20221017T005942.EOF',
-                  'test_dem.tiff']
-    '''
-    for test_file in test_files:
-        download_if_needed(f'{test_data_path}/{test_file}')
-    '''
+                  'test_dem.tiff', 'test_burst_map.sqlite3',
+                  '2022-10-16_0000_Rosamond-corner-reflectors.csv']
+    #for test_file in test_files:
+    #    download_if_needed(f'{test_data_path}/{test_file}')
+    pool = mp.Pool(len(test_files))
+    _ = pool.map(download_if_needed, test_files)
+    pool.close()
+    pool.join()
+
+    test_paths.corner_coord_csv_path = f'{test_data_path}/{test_files[-1]}'
+    test_paths.output_hdf5 = f'{test_path}/product/{burst_id}/{b_date}/{burst_id}_{b_date}.h5'
+    test_paths.grid_group_path = '/science/SENTINEL1/CSLC/grids'
 
     return test_paths
 

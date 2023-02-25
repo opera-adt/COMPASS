@@ -108,7 +108,7 @@ def ionex_params(download_data=True):
 
     Returns
     -------
-    tec_file: SimpleNamespace
+    test_params : SimpleNamespace
         SimpleNamespace containing parameters needed for ionex unit test
     '''
     test_params = types.SimpleNamespace()

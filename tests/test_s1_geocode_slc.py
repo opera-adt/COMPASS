@@ -113,7 +113,7 @@ def test_geocode_slc_validate(geocode_slc_params):
 
     # slice raster array
     with h5py.File(geocode_slc_params.output_hdf5, 'r') as h5_obj:
-        arr = h5_obj[geocode_slc_params.raster_path][()][s_]
+        arr = h5_obj[geocode_slc_params.raster_path][s_]
 
     # check for bright spots in sliced array
     corner_reflector_threshold = 3e3

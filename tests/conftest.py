@@ -80,10 +80,8 @@ def geocode_slc_params():
     test_files = [f'{test_data_path}/{test_file}' for test_file in test_files]
 
     # parallel download of test files (if necessary)
-    pool = mp.Pool(len(test_files))
-    _ = pool.map(download_if_needed, test_files)
-    pool.close()
-    pool.join()
+    with mp.Pool(len(test_files)) as pool:
+        pool.map(download_if_needed, test_files)
 
     # path to file containing corner reflectors
     test_params.corner_coord_csv_path = test_files[-1]

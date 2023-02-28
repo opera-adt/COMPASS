@@ -330,12 +330,12 @@ def write_raster(filename, data_list, descriptions,
     Parameters
     ----------
     filename: str
-        Filepath where to store output dataset
-    data_list: list, np.ndarray
+        File path where to store output dataset
+    data_list: list[np.ndarray]
         List of numpy.ndarray to allocate for each
         raster band. All datasets within the list
         are assumed to have the same shape
-    descriptions: list, str
+    descriptions: list[str]
         List of strings containing a description
         for the bands to allocate
     data_type: gdal.dtype
@@ -371,6 +371,3 @@ def write_raster(filename, data_list, descriptions,
 
     out_ds.FlushCache()
     out_ds = None
-
-
-

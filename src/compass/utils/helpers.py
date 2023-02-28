@@ -321,7 +321,7 @@ def burst_bboxes_from_db(burst_ids, burst_db_file=None, burst_db_conn=None):
 
 
 def write_raster(filename, data_list, descriptions,
-                 data_type=gdal.GDT_Float32, format='ENVI'):
+                 data_type=gdal.GDT_Float32, data_format='ENVI'):
     '''
     Write a multiband GDAL-friendly raster to disk.
     Each dataset allocated in the output file contains
@@ -359,7 +359,7 @@ def write_raster(filename, data_list, descriptions,
     length, width = data_list[0].shape
     nbands = len(data_list)
 
-    driver = gdal.GetDriverByName(format)
+    driver = gdal.GetDriverByName(data_format)
     out_ds = driver.Create(filename, width, length, nbands, data_type)
 
     band = 0
@@ -370,4 +370,3 @@ def write_raster(filename, data_list, descriptions,
         raster_band.WriteArray(data)
 
     out_ds.FlushCache()
-    out_ds = None

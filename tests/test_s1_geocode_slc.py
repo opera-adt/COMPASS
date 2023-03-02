@@ -55,7 +55,7 @@ def _get_reflectors_bounding_slice(geocode_slc_params):
         SimpleNamespace containing geocode SLC unit test parameters
     '''
     # extract from HDF5
-    with h5py.File(geocode_slc_params.output_hdf5, 'r') as h5_obj:
+    with h5py.File(geocode_slc_params.output_hdf5_path, 'r') as h5_obj:
         grid_group = h5_obj[geocode_slc_params.grid_group_path]
 
         # create projection to covert from UTM to LLH
@@ -101,7 +101,7 @@ def _get_reflectors_bounding_slice(geocode_slc_params):
 
 def test_geocode_slc_validate(geocode_slc_params):
     '''
-    Check for reflectors in geocoded output
+    Check for presence of any reflectors in geocoded output
 
     Parameters
     ----------
@@ -112,7 +112,7 @@ def test_geocode_slc_validate(geocode_slc_params):
     s_ = _get_reflectors_bounding_slice(geocode_slc_params)
 
     # slice raster array
-    with h5py.File(geocode_slc_params.output_hdf5, 'r') as h5_obj:
+    with h5py.File(geocode_slc_params.output_hdf5_path, 'r') as h5_obj:
         arr = h5_obj[geocode_slc_params.raster_path][s_]
 
     # check for bright spots in sliced array

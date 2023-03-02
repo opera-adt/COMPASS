@@ -52,7 +52,7 @@ def geocode_slc_params():
 
     # burst ID and date of burst
     burst_id = 't064_135523_iw2'
-    b_date = '20221016'
+    burst_date = '20221016'
 
     # get test working directory
     test_path = pathlib.Path(__file__).parent.resolve()
@@ -87,7 +87,9 @@ def geocode_slc_params():
     test_params.corner_coord_csv_path = test_files[-1]
 
     # path the output HDF5
-    test_params.output_hdf5 = f'{test_path}/product/{burst_id}/{b_date}/{burst_id}_{b_date}.h5'
+    output_path = f'{test_path}/product/{burst_id}/{burst_date}'
+    output_file_name = f'{burst_id}_{burst_date}.h5'
+    test_params.output_hdf5_path = f'{output_path}/{output_file_name}.h5'
 
     # path to groups and datasets in output HDF5
     test_params.grid_group_path = '/science/SENTINEL1/CSLC/grids'

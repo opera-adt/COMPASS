@@ -48,8 +48,8 @@ def create_parser():
     optional.add_argument('-exd', '--exclude-dates', nargs='+',
                           help='Date to be excluded from stack processing (format: YYYYMMDD)')
     optional.add_argument('-p', '--pol', dest='pol', nargs='+', default='co-pol',
-                          help='Polarization to process: dual-pol, co-pol, cross-pol '
-                               ' (default: co-pol).')
+                          choices=['co-pol', 'cross-pol', 'dual-pol'],
+                          help='Polarization to process: %(choices)s ')
     optional.add_argument('-dx', '--x-spac', type=float, default=5,
                           help='Spacing in meters of geocoded CSLC along X-direction.')
     optional.add_argument('-dy', '--y-spac', type=float, default=10,
@@ -70,6 +70,9 @@ def create_parser():
     optional.add_argument('-m', '--metadata', action='store_true',
                           help='If flat is set, generates radar metadata layers for each'
                                ' burst stack (see rdr2geo processing options)')
+    optional.add_argument('--unzipped', action='store_true',
+                          help='If flag is set, assumes that the SLCs are unzipped, '
+                               'and only the SAFE directory is provided.')
     return parser.parse_args()
 
 
@@ -236,13 +239,15 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, pol, x_spac,
     flatten: bool
         Flag to enable/disable flattening
     pol: str
-        Polarizations to process: co-pol, dual-pol, cross-pol
+        Polarizations to process. Choices: co-pol, cross-pol, dual-pol
     x_spac: float
         Spacing of geocoded burst along X-direction
     y_spac: float
         Spacing of geocoded burst along Y-direction
     enable_metadata: bool
         Flag to enable/disable metadata generation for each burst stack.
+    burst_db_file: str
+        Path to burst database file to use for burst bounding boxes.
 
     Returns
     -------
@@ -338,11 +343,11 @@ def _filter_by_date(zip_file_list, start_date, end_date, exclude_dates):
     return zip_file_list
 
 
-def run(slc_dir, dem_file, burst_id, common_bursts_only=False, start_date=None,
+def run(slc_dir, dem_file, burst_id=None, common_bursts_only=False, start_date=None,
         end_date=None, exclude_dates=None, orbit_dir=None, work_dir='stack',
-        pol='dual-pol', x_spac=5, y_spac=10, bbox=None, bbox_epsg=4326,
+        pol='co-pol', x_spac=5, y_spac=10, bbox=None, bbox_epsg=4326,
         output_epsg=None, burst_db_file=DEFAULT_BURST_DB_FILE, flatten=True,
-        enable_metadata=False):
+        enable_metadata=False, using_zipped=True):
     """Create runconfigs and runfiles generating geocoded bursts for a static
     stack of Sentinel-1 A/B SAFE files.
 
@@ -352,27 +357,29 @@ def run(slc_dir, dem_file, burst_id, common_bursts_only=False, start_date=None,
         Directory containing S1-A/B SAFE files
     dem_file: str
         File path to DEM to use for processing
-    burst_id: list
+    burst_id: Optional[list]
         List of burst IDs to process (default: None)
     common_bursts_only: bool
         Flag to only process bursts common to all SAFE files (default: False)
-    start_date: int
+    start_date: str
         Date of the start acquisition of the stack (format: YYYYMMDD)
-    end_date: int
+    end_date: str
         Date of the end acquisition of the stack (format: YYYYMMDD)
-    exclude_dates: list
+    exclude_dates: list[str]
         List of dates to exclude from the stack (format: YYYYMMDD)
     orbit_dir: str
         Directory containing orbit files
     work_dir: str
         Working directory to store temp and final files
+    pol: str, choices=['co-pol', 'dual-pol', 'cross-pol']
+        Polarization to process (default: co-pol).
     x_spac: float
-        Spacing of geocoded burst along X-direction
+        Spacing of geocoded burst along X-direction. Default: 5 (meters)
     y_spac: float
-        Spacing of geocoded burst along Y-direction
+        Spacing of geocoded burst along Y-direction. Default: 10 (meters)
     bbox: tuple[float], optional
         Bounding box of the area to geocode: (xmin, ymin, xmax, ymax) in degrees.
-        If not provided, will use the bounding box of the stack.
+        Used to filter bursts which do not overlap.
     bbox_epsg: int
         EPSG code of the bounding box coordinates (default: 4326)
         If using EPSG:4326, the bounding box coordinates are in degrees.
@@ -383,9 +390,12 @@ def run(slc_dir, dem_file, burst_id, common_bursts_only=False, start_date=None,
     burst_db_file : str
         File path to burst database containing EPSG/extent information.
     flatten: bool
-        Enable/disable flattening of geocoded burst
+        Enable/disable flattening (removal of the DEM phase) of geocoded burst.
     enable_metadata: bool
         Enable/disable generation of metadata files for each burst stack.
+    using_zipped: bool
+        Flag to indicate if SAFE files are zipped or not (default: True).
+        Will search for .zip files if True, and .SAFE directories if False.
     """
     start_time = time.time()
     error = journal.error('s1_geo_stack_processor.main')
@@ -414,7 +424,8 @@ def run(slc_dir, dem_file, burst_id, common_bursts_only=False, start_date=None,
         # Note: Specific files will be downloaded as needed during `generate_burst_map`
 
     # Generate burst map and prune it if a list of burst ID is provided
-    zip_file_list = sorted(glob.glob(f'{slc_dir}/S1*zip'))
+    search_ext = 'zip' if using_zipped else 'SAFE'
+    zip_file_list = sorted(glob.glob(f'{slc_dir}/S1[AB]_*.{search_ext}'))
     # Remove zip files that are not in the date range before generating burst map
     zip_file_list = _filter_by_date(zip_file_list, start_date, end_date, exclude_dates)
 
@@ -471,7 +482,7 @@ def main():
         args.start_date, args.end_date, args.exclude_dates, args.orbit_dir,
         args.work_dir, args.pol, args.x_spac, args.y_spac, args.bbox,
         args.bbox_epsg, args.output_epsg, args.burst_db_file, not args.no_flatten,
-        args.metadata)
+        args.metadata, not args.unzipped)
 
 
 if __name__ == '__main__':

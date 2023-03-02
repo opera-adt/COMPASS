@@ -89,7 +89,7 @@ def geocode_slc_params():
     # path the output HDF5
     output_path = f'{test_path}/product/{burst_id}/{burst_date}'
     output_file_name = f'{burst_id}_{burst_date}.h5'
-    test_params.output_hdf5_path = f'{output_path}/{output_file_name}.h5'
+    test_params.output_hdf5_path = f'{output_path}/{output_file_name}'
 
     # path to groups and datasets in output HDF5
     test_params.grid_group_path = '/science/SENTINEL1/CSLC/grids'

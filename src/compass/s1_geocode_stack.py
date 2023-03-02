@@ -68,8 +68,10 @@ def create_parser():
     optional.add_argument('-nf', '--no-flatten', action='store_true',
                           help='If flag is set, disables topographic phase flattening.')
     optional.add_argument('-m', '--metadata', action='store_true',
-                          help='If flat is set, generates radar metadata layers for each'
+                          help='If flag is set, generates radar metadata layers for each'
                                ' burst stack (see rdr2geo processing options)')
+    optional.add_argument('-nc', '--no-corrections', action='store_true',
+                          help='If flag is set, skip the geocoding LUT corrections.')
     optional.add_argument('--unzipped', action='store_true',
                           help='If flag is set, assumes that the SLCs are unzipped, '
                                'and only the SAFE directory is provided.')
@@ -224,7 +226,7 @@ def get_common_burst_ids(data):
 
 
 def create_runconfig(burst_map_row, dem_file, work_dir, flatten, pol, x_spac,
-                     y_spac, enable_metadata, burst_db_file):
+                     y_spac, enable_metadata, enable_corrections, burst_db_file):
     """
     Create runconfig to process geocoded bursts
 
@@ -248,6 +250,8 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, pol, x_spac,
         Flag to enable/disable metadata generation for each burst stack.
     burst_db_file: str
         Path to burst database file to use for burst bounding boxes.
+    enable_corrections: bool
+        Flag to enable/disable applying corrections to burst stacks.
 
     Returns
     -------
@@ -280,12 +284,12 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, pol, x_spac,
 
     # Geocoding
     process['polarization'] = pol
+    process['correction_luts']['enabled'] = enable_corrections
     geocode['flatten'] = flatten
     geocode['x_posting'] = x_spac
     geocode['y_posting'] = y_spac
 
     # Metadata generation
-    # TODO: Need to somehow do this only once per stack
     process['rdr2geo']['enabled'] = enable_metadata
 
     date_str = burst.sensing_start.strftime("%Y%m%d")
@@ -347,7 +351,7 @@ def run(slc_dir, dem_file, burst_id=None, common_bursts_only=False, start_date=N
         end_date=None, exclude_dates=None, orbit_dir=None, work_dir='stack',
         pol='co-pol', x_spac=5, y_spac=10, bbox=None, bbox_epsg=4326,
         output_epsg=None, burst_db_file=DEFAULT_BURST_DB_FILE, flatten=True,
-        enable_metadata=False, using_zipped=True):
+        enable_metadata=False, enable_corrections=True, using_zipped=True):
     """Create runconfigs and runfiles generating geocoded bursts for a static
     stack of Sentinel-1 A/B SAFE files.
 
@@ -393,6 +397,8 @@ def run(slc_dir, dem_file, burst_id=None, common_bursts_only=False, start_date=N
         Enable/disable flattening (removal of the DEM phase) of geocoded burst.
     enable_metadata: bool
         Enable/disable generation of metadata files for each burst stack.
+    enable_corrections: bool
+        Enable/disable generation/usage of correction LUTs during geocoding.
     using_zipped: bool
         Flag to indicate if SAFE files are zipped or not (default: True).
         Will search for .zip files if True, and .SAFE directories if False.
@@ -460,6 +466,7 @@ def run(slc_dir, dem_file, burst_id=None, common_bursts_only=False, start_date=N
             x_spac,
             y_spac,
             do_metadata,
+            enable_corrections=enable_corrections,
             burst_db_file=burst_db_file,
         )
         date_str = row.burst.sensing_start.strftime("%Y%m%d")
@@ -482,7 +489,7 @@ def main():
         args.start_date, args.end_date, args.exclude_dates, args.orbit_dir,
         args.work_dir, args.pol, args.x_spac, args.y_spac, args.bbox,
         args.bbox_epsg, args.output_epsg, args.burst_db_file, not args.no_flatten,
-        args.metadata, not args.unzipped)
+        args.metadata, not args.no_corrections, not args.unzipped)
 
 
 if __name__ == '__main__':

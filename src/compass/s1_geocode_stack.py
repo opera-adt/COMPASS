@@ -459,13 +459,13 @@ def run(slc_dir, dem_file, burst_id=None, common_bursts_only=False, start_date=N
         do_metadata = enable_metadata and (row.Index in first_rows)
         runconfig_path = create_runconfig(
             row,
-            dem_file,
-            work_dir,
-            flatten,
-            pol,
-            x_spac,
-            y_spac,
-            do_metadata,
+            dem_file=dem_file,
+            work_dir=work_dir,
+            flatten=flatten,
+            pol=pol,
+            x_spac=x_spac,
+            y_spac=y_spac,
+            enable_metadata=do_metadata,
             enable_corrections=enable_corrections,
             burst_db_file=burst_db_file,
         )
@@ -485,11 +485,29 @@ def main():
     # Run main script
     args = create_parser()
 
-    run(args.slc_dir, args.dem_file, args.burst_id, args.common_bursts_only,
-        args.start_date, args.end_date, args.exclude_dates, args.orbit_dir,
-        args.work_dir, args.pol, args.x_spac, args.y_spac, args.bbox,
-        args.bbox_epsg, args.output_epsg, args.burst_db_file, not args.no_flatten,
-        args.metadata, not args.no_corrections, not args.unzipped)
+    run(
+        slc_dir=args.slc_dir,
+        dem_file=args.dem_file,
+        burst_id=args.burst_id,
+        common_bursts_only=args.common_bursts_only,
+        start_date=args.start_date,
+        end_date=args.end_date,
+        exclude_dates=args.exclude_dates,
+        orbit_dir=args.orbit_dir,
+        work_dir=args.work_dir,
+        pol=args.pol,
+        x_spac=args.x_spac,
+        y_spac=args.y_spac,
+        bbox=args.bbox,
+        bbox_epsg=args.bbox_epsg,
+        output_epsg=args.output_epsg,
+        burst_db_file=args.burst_db_file,
+        flatten=not args.no_flatten,
+        enable_metadata=args.metadata,
+        enable_corrections=not args.no_corrections,
+        using_zipped=not args.unzipped,
+    )
+    
 
 
 if __name__ == '__main__':

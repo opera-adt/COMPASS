@@ -122,6 +122,9 @@ def compute_geocoding_correction_luts(burst, dem_path,
     '''
     # Get DEM raster
     dem_raster = isce3.io.Raster(dem_path)
+    epsg = dem_raster.get_epsg()
+    proj = isce3.core.make_projection(epsg)
+    ellipsoid = proj.ellipsoid
 
     # Create directory to store SET temp results
     output_path = f'{scratch_path}/corrections'
@@ -134,25 +137,25 @@ def compute_geocoding_correction_luts(burst, dem_path,
     # Compute bistatic delay
     bistatic_delay = burst.bistatic_delay(range_step=rg_step, az_step=az_step)
 
-    # Compute azimuth FM-rate mismatch
-    if not os.path.isfile(dem_path):
-        raise FileNotFoundError(f'Cannot find the dem file: {dem_path}')
-    az_fm_mismatch = burst.az_fm_rate_mismatch_mitigation(dem_path,
-                                                          scratch_path,
-                                                          range_step=rg_step,
-                                                          az_step=az_step)
-
-    # Get solid Earth tides on a very coarse grid
-    # Run rdr2geo on a very coarse grid
-    lon_path, lat_path, inc_path, head_path = \
+    # Run rdr2geo to obtain the required layers
+    lon_path, lat_path, height_path, inc_path, head_path = \
         compute_rdr2geo_rasters(burst, dem_raster, output_path,
-                                rg_step * 10, az_step * 10)
+                                rg_step, az_step)
 
-    # Open rdr2geo layers and feed them to SET computation
+    # Open rdr2geo layers
     lat = open_raster(lat_path)
     lon = open_raster(lon_path)
+    height = open_raster(height_path)
     inc_angle = open_raster(inc_path)
     head_angle = open_raster(head_path)
+
+    # Compute azimuth FM-rate mismatch
+    az_fm_mismatch = burst.az_fm_rate_mismatch_from_llh(lat, lon, height,
+                                                        ellipsoid,
+                                                        burst.as_isce3_radargrid(
+                                                            az_step=az_step,
+                                                            rg_step=rg_step)
+                                                        )
 
     # compute Solid Earth Tides (using pySolid)
     rg_set_temp, az_set_temp = solid_earth_tides(burst, lat, lon,
@@ -288,21 +291,9 @@ def compute_rdr2geo_rasters(burst, dem_raster, output_path,
     proj = isce3.core.make_projection(epsg)
     ellipsoid = proj.ellipsoid
 
-    # Get radar and doppler grid
-    width_rdr_grid, length_rdr_grid = [vec.size for vec in
-                                       burst._steps_to_vecs(rg_step, az_step)]
-
-    rdr_grid = isce3.product.RadarGridParameters(
-        burst.as_isce3_radargrid().sensing_start,
-        burst.wavelength,
-        1.0 / az_step,
-        burst.starting_range,
-        rg_step,
-        isce3.core.LookSide.Right,
-        length_rdr_grid,
-        width_rdr_grid,
-        burst.as_isce3_radargrid().ref_epoch
-    )
+    # Get radar grid for the correction grid
+    rdr_grid = burst.as_isce3_radargrid(az_step=az_step,
+                                        rg_step=rg_step)
 
     grid_doppler = isce3.core.LUT2d()
 
@@ -314,22 +305,24 @@ def compute_rdr2geo_rasters(burst, dem_raster, output_path,
     # Get the rdr2geo raster needed for SET computation
     topo_output = {f'{output_path}/x.rdr': gdal.GDT_Float64,
                    f'{output_path}/y.rdr': gdal.GDT_Float64,
+                   f'{output_path}/height.rdr': gdal.GDT_Float64,
                    f'{output_path}/incidence_angle.rdr': gdal.GDT_Float32,
                    f'{output_path}/heading_angle.rdr': gdal.GDT_Float32}
     raster_list = [
         isce3.io.Raster(fname, rdr_grid.width,
                         rdr_grid.length, 1, dtype, 'ENVI')
         for fname, dtype in topo_output.items()]
-    x_raster, y_raster, incidence_raster, heading_raster = raster_list
+    x_raster, y_raster, height_raster, incidence_raster, heading_raster = raster_list
 
     # Run rdr2geo on coarse radar grid
     rdr2geo_obj.topo(dem_raster, x_raster, y_raster,
+                     height_raster=height_raster,
                      incidence_angle_raster=incidence_raster,
                      heading_angle_raster=heading_raster)
 
     # Return file path to rdr2geo layers
     paths = list(topo_output.keys())
-    return paths[0], paths[1], paths[2], paths[3]
+    return paths[0], paths[1], paths[2], paths[3], paths[4]
 
 
 def resample_set(geo_tide, pts_src, pts_dest):

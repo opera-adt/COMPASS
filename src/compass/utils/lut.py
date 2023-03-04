@@ -3,8 +3,9 @@ Placeholder for model-based correction LUT
 '''
 import os
 import isce3
-
-
+from compass.utils.iono import get_ionex_value
+from osgeo import gdal
+import numpy as np
 def cumulative_correction_luts(burst, dem_path,
                                rg_step=200, az_step=0.25,
                                scratch_path=None):
@@ -39,7 +40,8 @@ def cumulative_correction_luts(burst, dem_path,
         compute_geocoding_correction_luts(burst,
                                           dem_path=dem_path,
                                           rg_step=rg_step,
-                                          az_step=az_step)
+                                          az_step=az_step,
+                                          scratch_path=scratch_path)
 
     # Convert to geometrical doppler from range time (seconds) to range (m)
     rg_lut_data = \
@@ -115,6 +117,63 @@ def compute_geocoding_correction_luts(burst, dem_path,
     az_fm_mismatch = burst.az_fm_rate_mismatch_mitigation(dem_path,
                                                           scratch_path,
                                                           range_step=rg_step,
-                                                          az_step=az_step)
+                                                          az_step=az_step,
+                                                          incidence_angle=True)
 
     return geometrical_steering_doppler, bistatic_delay, az_fm_mismatch
+
+
+def ionosphere(burst,
+               path_lon, path_lat, path_inc, path_ionex,
+               scratch_path=None):
+    '''
+    Calculate ionosphere delay for geolocation 
+    '''
+
+    # Load the array
+    arr_lon = gdal.Open(path_lon).ReadAsArray()
+    arr_lat = gdal.Open(path_lat).ReadAsArray()
+    arr_inc = gdal.Open(path_inc).ReadAsArray()
+
+    utc_tod_sec = (burst.sensing_mid.hour * 3600.0 
+                   + burst.sensing_mid.minute * 60.0
+                   + burst.sensing_mid.second)
+    
+
+    ionex_val = get_ionex_value(path_ionex,
+                                utc_tod_sec,
+                                arr_lat.flatten(),
+                                arr_lon.flatten())
+
+    ionex_val = ionex_val.reshape(arr_lon.shape)
+
+    freq_sensor = isce3.core.speed_of_light / burst.wavelength
+    electron_per_sqm = ionex_val * 1e16
+    K=40.31
+
+    slant_range_delay = K * electron_per_sqm / freq_sensor**2 / np.cos(np.deg2rad(arr_inc))
+
+    return slant_range_delay
+
+
+# test code. Remove before commit
+if __name__=='__main__':
+    '''
+    # test code. Remove before commit
+    '''
+    import s1reader
+
+    os.chdir('/Users/jeong/Documents/OPERA_SCRATCH/CSLC/IONOSPHERE_TEST_SITE')
+    filename_lon = '/Users/jeong/Documents/OPERA_SCRATCH/CSLC/SET_TEST/scratch_s1_cslc_set_on/t064_135523_iw2/20221016/lon_20230304_112753451171.rdr'
+    filename_lat = '/Users/jeong/Documents/OPERA_SCRATCH/CSLC/SET_TEST/scratch_s1_cslc_set_on/t064_135523_iw2/20221016/lat_20230304_112753451171.rdr'
+    filename_inc = '/Users/jeong/Documents/OPERA_SCRATCH/CSLC/SET_TEST/scratch_s1_cslc_set_on/t064_135523_iw2/20221016/inc_20230304_112753451171.rdr'
+
+    filename_ionex = '/Users/jeong/Documents/OPERA_SCRATCH/CSLC/IONOSPHERE_TEST_SITE/jplg2890.22i'
+
+    path_safe = '/Users/jeong/Documents/OPERA_SCRATCH/CSLC/IONOSPHERE_TEST_SITE/input/S1A_IW_SLC__1SDV_20221016T015043_20221016T015111_045461_056FC0_6681.zip'
+    path_orbit = '/Users/jeong/Documents/OPERA_SCRATCH/CSLC/IONOSPHERE_TEST_SITE/input/S1A_OPER_AUX_POEORB_OPOD_20221105T083813_V20221015T225942_20221017T005942.EOF'
+
+    bursts = s1reader.load_bursts(path_safe, path_orbit, 2, 'VV')
+    burst_cr = bursts[5]
+
+    ionosphere(burst_cr, filename_lon, filename_lat, filename_inc, filename_ionex)

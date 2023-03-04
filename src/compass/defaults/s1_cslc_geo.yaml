@@ -48,13 +48,6 @@ runconfig:
               lines_per_block: 1000
               threshold: 1.0e-8
               numiter: 25
-          range_split_spectrum:
-              enabled: False
-              lines_per_block: 1000
-              # Low-band bandwidth in Hz
-              low_band_bandwidth: 1e7
-              # High-band bandwidth in Hz
-              high_band_bandwidth: 1e7
 
           correction_luts:
               # Boolean flag to activate/deactivate model-based

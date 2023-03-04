@@ -401,10 +401,6 @@ class RunConfig:
         return self.groups.processing.geo2rdr
 
     @property
-    def split_spectrum_params(self) -> dict:
-        return self.groups.processing.range_split_spectrum
-
-    @property
     def resample_params(self) -> dict:
         return self.groups.processing.resample
 

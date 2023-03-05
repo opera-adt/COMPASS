@@ -3,6 +3,7 @@ Placeholder for model-based correction LUT
 '''
 import os
 import isce3
+from compass.utils.helpers import write_raster
 
 
 def cumulative_correction_luts(burst, dem_path,
@@ -39,11 +40,12 @@ def cumulative_correction_luts(burst, dem_path,
         compute_geocoding_correction_luts(burst,
                                           dem_path=dem_path,
                                           rg_step=rg_step,
-                                          az_step=az_step)
+                                          az_step=az_step,
+                                          scratch_path=scratch_path)
 
     # Convert to geometrical doppler from range time (seconds) to range (m)
-    rg_lut_data = \
-        geometrical_steer_doppler.data * isce3.core.speed_of_light / 2.0
+    geometry_doppler = geometrical_steer_doppler.data * isce3.core.speed_of_light / 2.0
+    rg_lut_data = geometry_doppler
 
     # Invert signs to correct for convention
     az_lut_data = -(bistatic_delay.data + az_fm_mismatch.data)
@@ -58,6 +60,16 @@ def cumulative_correction_luts(burst, dem_path,
                               bistatic_delay.x_spacing,
                               bistatic_delay.y_spacing,
                               az_lut_data)
+
+    # Save corrections on disk. In this way, we should avoid running
+    # the corrections again when allocating data inside the HDF5 product
+    # Create a directory in the scratch path to save corrections
+    output_path = f'{scratch_path}/corrections'
+    os.makedirs(output_path, exist_ok=True)
+    data_list = [geometry_doppler, bistatic_delay.data, az_fm_mismatch.data]
+    descr = ['geometrical doppler', 'bistatic delay', 'azimuth FM rate mismatch']
+
+    write_raster(f'{output_path}/corrections', data_list, descr)
 
     return rg_lut, az_lut
 

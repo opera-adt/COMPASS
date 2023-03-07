@@ -371,6 +371,10 @@ class RunConfig:
     @property
     def dem(self) -> str:
         return self.groups.dynamic_ancillary_file_group.dem_file
+    
+    @property
+    def ionex(self) -> str:
+        return self.groups.dynamic_ancillary_file_group.ionex_file
 
     @property
     def is_reference(self) -> bool:

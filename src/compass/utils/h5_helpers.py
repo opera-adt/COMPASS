@@ -569,7 +569,7 @@ def corrections_to_h5group(parent_group, burst, cfg, scratch_path):
         geometrical_steering_doppler, bistatic_delay_lut, az_fm_mismatch, iono, dry_tropo = \
             compute_geocoding_correction_luts(burst,
                                               dem_path=cfg.dem,
-                                              ionex_path=cfg.groups.dynamic_ancillary_file_group.ionex_file,
+                                              ionex_path=cfg.ionex,
                                               rg_step=cfg.lut_params.range_spacing,
                                               az_step=cfg.lut_params.azimuth_spacing,
                                               scratch_path=scratch_path)

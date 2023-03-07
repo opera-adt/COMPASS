@@ -324,6 +324,7 @@ def burst_bboxes_from_db(burst_ids, burst_db_file=None, burst_db_conn=None):
 def open_raster(filename, band=1):
     '''
     Return band as numpy array from gdal-friendly raster
+    
     Parameters
     ----------
     filename: str

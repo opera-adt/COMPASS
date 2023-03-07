@@ -6,7 +6,7 @@ import isce3
 from compass.utils.iono import get_ionex_value
 from osgeo import gdal
 import numpy as np
-def cumulative_correction_luts(burst, dem_path,
+def cumulative_correction_luts(burst, dem_path, ionex_path,
                                rg_step=200, az_step=0.25,
                                scratch_path=None):
     '''
@@ -36,16 +36,17 @@ def cumulative_correction_luts(burst, dem_path,
         and slant range
     '''
     # Get individual LUTs
-    geometrical_steer_doppler, bistatic_delay, az_fm_mismatch = \
+    geometrical_steer_doppler, bistatic_delay, az_fm_mismatch, ionosphere, dry_tropo = \
         compute_geocoding_correction_luts(burst,
                                           dem_path=dem_path,
+                                          ionex_path=ionex_path,
                                           rg_step=rg_step,
                                           az_step=az_step,
                                           scratch_path=scratch_path)
 
     # Convert to geometrical doppler from range time (seconds) to range (m)
     rg_lut_data = \
-        geometrical_steer_doppler.data * isce3.core.speed_of_light / 2.0
+        geometrical_steer_doppler.data * isce3.core.speed_of_light / 2.0 + dry_tropo + ionosphere
 
     # Invert signs to correct for convention
     az_lut_data = -(bistatic_delay.data + az_fm_mismatch.data)
@@ -64,7 +65,7 @@ def cumulative_correction_luts(burst, dem_path,
     return rg_lut, az_lut
 
 
-def compute_geocoding_correction_luts(burst, dem_path,
+def compute_geocoding_correction_luts(burst, dem_path, ionex_path,
                                       rg_step=200, az_step=0.25,
                                       scratch_path=None):
     '''
@@ -120,60 +121,96 @@ def compute_geocoding_correction_luts(burst, dem_path,
                                                           az_step=az_step,
                                                           incidence_angle=True)
 
-    return geometrical_steering_doppler, bistatic_delay, az_fm_mismatch
+    lon_path = os.path.join(scratch_path, 'lon.rdr')
+    lat_path = os.path.join(scratch_path, 'lat.rdr')
+    hgt_path = os.path.join(scratch_path, 'hgt.rdr')
+    inc_path = os.path.join(scratch_path, 'inc.rdr')
+
+    ionosphere = ionosphere_delay(burst.sensing_mid, burst.wavelength,
+                                  ionex_path, lon_path, lat_path, inc_path)
+    
+    dry_tropo = dry_tropo_delay(inc_path, hgt_path)
+
+    return geometrical_steering_doppler, bistatic_delay, az_fm_mismatch, ionosphere, dry_tropo
 
 
-def ionosphere(burst,
-               path_lon, path_lat, path_inc, path_ionex,
-               scratch_path=None):
+def ionosphere_delay(sensing_time, wavelength,
+                     ionex_path, lon_path, lat_path, inc_path):
     '''
-    Calculate ionosphere delay for geolocation 
+    Calculate ionosphere delay for geolocation
+
+    Parameters
+    ----------
+    time_sensing: datetime.datetime
+        Sensing time of burst
+    wavelength: float
+        Wavelength of the signal
+    lon_path: str
+        Path to the longitude raster in radar grid
+    lat_path: str
+        Path to the latitude raster in radar grid
+    inc_path: str
+        Path to the incidence angle raster in radar grid
+    
+    Returns
+    -------
+    slant_range_delay: np.ndarray
+        Ionospheric delay in slant range
     '''
 
     # Load the array
-    arr_lon = gdal.Open(path_lon).ReadAsArray()
-    arr_lat = gdal.Open(path_lat).ReadAsArray()
-    arr_inc = gdal.Open(path_inc).ReadAsArray()
+    arr_lon = gdal.Open(lon_path).ReadAsArray()
+    arr_lat = gdal.Open(lat_path).ReadAsArray()
+    arr_inc = gdal.Open(inc_path).ReadAsArray()
 
-    utc_tod_sec = (burst.sensing_mid.hour * 3600.0 
-                   + burst.sensing_mid.minute * 60.0
-                   + burst.sensing_mid.second)
+    if not ionex_path:
+        raise RuntimeError('LUT correction was enabled, '
+                           'but IONEX file was not provided in runconfig.')
     
+    if not os.path.exists(ionex_path):
+        raise RuntimeError(f'IONEX file was not found: {ionex_path}')
 
-    ionex_val = get_ionex_value(path_ionex,
+    utc_tod_sec = (sensing_time.hour * 3600.0 
+                   + sensing_time.minute * 60.0
+                   + sensing_time.second)
+
+    ionex_val = get_ionex_value(ionex_path,
                                 utc_tod_sec,
                                 arr_lat.flatten(),
                                 arr_lon.flatten())
 
     ionex_val = ionex_val.reshape(arr_lon.shape)
 
-    freq_sensor = isce3.core.speed_of_light / burst.wavelength
+    freq_sensor = isce3.core.speed_of_light / wavelength
     electron_per_sqm = ionex_val * 1e16
-    K=40.31
+    K = 40.31
 
-    slant_range_delay = K * electron_per_sqm / freq_sensor**2 / np.cos(np.deg2rad(arr_inc))
+    slant_range_delay = (K * electron_per_sqm / freq_sensor**2
+                           / np.cos(np.deg2rad(arr_inc)))
 
     return slant_range_delay
 
 
-# test code. Remove before commit
-if __name__=='__main__':
+def dry_tropo_delay(inc_path, hgt_path):
     '''
-    # test code. Remove before commit
+    Compute troposphere delay using static model
+
+    Parameters:
+    -----------
+    inc_path: str
+        Path to incidence angle raster in radar grid
+    hgt_path: str
+    Path to surface heightraster in radar grid
+
+    Return:
+    -------
+    tropo: np.ndarray
+        Troposphere delay in slant range
     '''
-    import s1reader
+    ZPD = 2.3
+    H = 6000.0
+    arr_inc = gdal.Open(inc_path).ReadAsArray()
+    arr_hgt = gdal.Open(hgt_path).ReadAsArray()
 
-    os.chdir('/Users/jeong/Documents/OPERA_SCRATCH/CSLC/IONOSPHERE_TEST_SITE')
-    filename_lon = '/Users/jeong/Documents/OPERA_SCRATCH/CSLC/SET_TEST/scratch_s1_cslc_set_on/t064_135523_iw2/20221016/lon_20230304_112753451171.rdr'
-    filename_lat = '/Users/jeong/Documents/OPERA_SCRATCH/CSLC/SET_TEST/scratch_s1_cslc_set_on/t064_135523_iw2/20221016/lat_20230304_112753451171.rdr'
-    filename_inc = '/Users/jeong/Documents/OPERA_SCRATCH/CSLC/SET_TEST/scratch_s1_cslc_set_on/t064_135523_iw2/20221016/inc_20230304_112753451171.rdr'
-
-    filename_ionex = '/Users/jeong/Documents/OPERA_SCRATCH/CSLC/IONOSPHERE_TEST_SITE/jplg2890.22i'
-
-    path_safe = '/Users/jeong/Documents/OPERA_SCRATCH/CSLC/IONOSPHERE_TEST_SITE/input/S1A_IW_SLC__1SDV_20221016T015043_20221016T015111_045461_056FC0_6681.zip'
-    path_orbit = '/Users/jeong/Documents/OPERA_SCRATCH/CSLC/IONOSPHERE_TEST_SITE/input/S1A_OPER_AUX_POEORB_OPOD_20221105T083813_V20221015T225942_20221017T005942.EOF'
-
-    bursts = s1reader.load_bursts(path_safe, path_orbit, 2, 'VV')
-    burst_cr = bursts[5]
-
-    ionosphere(burst_cr, filename_lon, filename_lat, filename_inc, filename_ionex)
+    tropo = ZPD / np.cos(np.deg2rad(arr_inc)) * np.exp(-1 * arr_hgt / H)
+    return tropo

@@ -150,12 +150,13 @@ def compute_geocoding_correction_luts(burst, dem_path,
     bistatic_delay = burst.bistatic_delay(range_step=rg_step, az_step=az_step)
 
     # Run rdr2geo to obtain the required layers
+    # return contents: lon_path, lat_path, height_path, inc_path, head_path
     rdr2geo_raster_paths = compute_rdr2geo_rasters(burst, dem_raster,
                                                    output_path, rg_step,
                                                    az_step)
 
     # Open rdr2geo layers
-    lat, lon, height, inc_angle, head_angle = \
+    lon, lat, height, inc_angle, head_angle = \
         [open_raster(raster_path) for raster_path in rdr2geo_raster_paths]
 
     # Compute azimuth FM-rate mismatch

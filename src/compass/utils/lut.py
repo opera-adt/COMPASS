@@ -44,7 +44,7 @@ def cumulative_correction_luts(burst, dem_path,
         and slant range
     '''
     # Get individual LUTs
-    geometrical_steer_doppler, bistatic_delay, az_fm_mismatch, tides = \
+    geometrical_steer_doppler, bistatic_delay, az_fm_mismatch, [tide_rg, _]= \
         compute_geocoding_correction_luts(burst,
                                           dem_path=dem_path,
                                           rg_step=rg_step,
@@ -53,7 +53,7 @@ def cumulative_correction_luts(burst, dem_path,
 
     # Convert to geometrical doppler from range time (seconds) to range (m)
     geometry_doppler = geometrical_steer_doppler.data * isce3.core.speed_of_light * 0.5
-    rg_lut_data = geometry_doppler + tides[0]
+    rg_lut_data = geometry_doppler + tide_rg
 
     # Invert signs to correct for convention
     # TO DO: add azimuth SET to LUT
@@ -76,7 +76,7 @@ def cumulative_correction_luts(burst, dem_path,
     output_path = f'{scratch_path}/corrections'
     os.makedirs(output_path, exist_ok=True)
     data_list = [geometry_doppler, bistatic_delay.data, az_fm_mismatch.data,
-                 tides[0]]
+                 tide_rg]
     descr = ['geometrical doppler', 'bistatic delay', 'azimuth FM rate mismatch',
              'slant range Solid Earth tides']
 

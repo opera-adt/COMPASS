@@ -250,12 +250,9 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, inc_angle,
     pts_src = (np.flipud(lat_geo_array), lon_geo_array)
     pts_dst = (lat_radar_grid.flatten(), lon_radar_grid.flatten())
 
-    rdr_set_e = resample_set(set_e, pts_src, pts_dst).reshape(
-        lat_radar_grid.shape)
-    rdr_set_n = resample_set(set_n, pts_src, pts_dst).reshape(
-        lat_radar_grid.shape)
-    rdr_set_u = resample_set(set_u, pts_src, pts_dst).reshape(
-        lat_radar_grid.shape)
+    rdr_set_e, rdr_set_n, rdr_set_u = \
+        [resample_set(set_enu, pts_src, pts_dst).reshape(lat_radar_grid.shape)
+         for set_enu in [set_e, set_n, set_u]]
 
     # Convert SET from ENU to range/azimuth coordinates
     # Note: rdr2geo heading angle is measured wrt to the East and it is positive

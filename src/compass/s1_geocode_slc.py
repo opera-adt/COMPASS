@@ -80,11 +80,13 @@ def run(cfg: GeoRunConfig):
 
         # If enabled, get range and azimuth LUTs
         if cfg.lut_params.enabled:
-            rg_lut, az_lut = cumulative_correction_luts(burst,
-                                                        dem_path=cfg.dem,
-                                                        rg_step=cfg.lut_params.range_spacing,
-                                                        az_step=cfg.lut_params.azimuth_spacing,
-                                                        scratch_path=scratch_path)
+            rg_lut, az_lut = \
+                cumulative_correction_luts(burst,
+                                           dem_path=cfg.dem,
+                                           ionex_path=cfg.groups.dynamic_ancillary_file_group.ionex_file,
+                                           rg_step=cfg.lut_params.range_spacing,
+                                           az_step=cfg.lut_params.azimuth_spacing,
+                                           scratch_path=scratch_path)
         else:
             rg_lut = isce3.core.LUT2d()
             az_lut = isce3.core.LUT2d()
@@ -188,7 +190,7 @@ def run(cfg: GeoRunConfig):
 
             cslc_group = geo_burst_h5.require_group(f'{root_path}/CSLC')
             metadata_to_h5group(cslc_group, burst, cfg)
-            corrections_to_h5group(cslc_group, burst, cfg)
+            corrections_to_h5group(cslc_group, burst, cfg, scratch_path)
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")

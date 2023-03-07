@@ -549,7 +549,7 @@ def metadata_to_h5group(parent_group, burst, cfg):
     poly1d_to_h5(burst_meta_group, 'doppler', burst.doppler.poly1d)
 
 
-def corrections_to_h5group(parent_group, burst, cfg):
+def corrections_to_h5group(parent_group, burst, cfg, scratch_path):
     '''
     Write azimuth, slant range, and EAP (if needed) correction LUT2ds to HDF5
 
@@ -566,11 +566,13 @@ def corrections_to_h5group(parent_group, burst, cfg):
 
     # If enabled, save the correction LUTs
     if cfg.lut_params.enabled:
-        geometrical_steering_doppler, bistatic_delay_lut, az_fm_mismatch = \
+        geometrical_steering_doppler, bistatic_delay_lut, az_fm_mismatch, iono, dry_tropo = \
             compute_geocoding_correction_luts(burst,
                                               dem_path=cfg.dem,
+                                              ionex_path=cfg.groups.dynamic_ancillary_file_group.ionex_file,
                                               rg_step=cfg.lut_params.range_spacing,
-                                              az_step=cfg.lut_params.azimuth_spacing)
+                                              az_step=cfg.lut_params.azimuth_spacing,
+                                              scratch_path=scratch_path)
 
         # create slant range and azimuth vectors shared by the LUTs
         x_end = bistatic_delay_lut.x_start + bistatic_delay_lut.width * bistatic_delay_lut.x_spacing

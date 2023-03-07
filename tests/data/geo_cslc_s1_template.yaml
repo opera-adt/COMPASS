@@ -30,8 +30,6 @@ runconfig:
         y_posting: 10
         y_snap: null
       polarization: co-pol
-      range_split_spectrum:
-        enabled: False
     product_path_group:
       product_path: @TEST_PATH@/product
       sas_output_file: @TEST_PATH@/product

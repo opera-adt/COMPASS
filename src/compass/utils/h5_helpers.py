@@ -570,13 +570,13 @@ def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,
         Path to the scratch directory
     '''
 
-    # Open GDAL dataset to fetch corrections
-    ds = gdal.Open(f'{scratch_path}/corrections/corrections',
-                   gdal.GA_ReadOnly)
-    correction_group = parent_group.require_group('corrections')
-
     # If enabled, save the correction LUTs
     if cfg.lut_params.enabled:
+        # Open GDAL dataset to fetch corrections
+        ds = gdal.Open(f'{scratch_path}/corrections/corrections',
+                       gdal.GA_ReadOnly)
+        correction_group = parent_group.require_group('corrections')
+
 
         # create slant range and azimuth vectors shared by the LUTs
         x_end = rg_lut.x_start + rg_lut.width * rg_lut.x_spacing
@@ -605,6 +605,9 @@ def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,
             Meta('azimuth_fm_rate_mismatch', ds.GetRasterBand(3).ReadAsArray(),
                  f'azimuth FM rate mismatch mitigation (azimuth) {desc}',
                  {'units': 'seconds'}),
+            Meta('los_solid_earth_tides', ds.GetRasterBand(4).ReadAsArray(),
+                 f'Solid Earth tides (range) {desc}',
+                 {'units': 'meters'}),
         ]
         for meta_item in correction_items:
             add_dataset_and_attrs(correction_group, meta_item)

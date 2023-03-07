@@ -49,6 +49,7 @@ def check_directory(file_path: str) -> None:
         error_channel.log(err_str)
         raise FileNotFoundError(err_str)
 
+
 def get_file_polarization_mode(file_path: str) -> str:
     '''Check polarization mode from file name
 
@@ -318,6 +319,29 @@ def burst_bboxes_from_db(burst_ids, burst_db_file=None, burst_db_conn=None):
 
     # TODO add warning if not all burst bounding boxes found
     return dict(zip(burst_ids, zip(epsgs, bboxes)))
+
+
+def open_raster(filename, band=1):
+    '''
+    Return band as numpy array from gdal-friendly raster
+    
+    Parameters
+    ----------
+    filename: str
+        Path where is stored GDAL raster to open
+    band: int
+        Band number to open
+
+    Returns
+    -------
+    raster: np.ndarray
+        Numpy array containing the raster band to open
+    '''
+
+    ds = gdal.Open(filename, gdal.GA_ReadOnly)
+    raster = ds.GetRasterBand(band).ReadAsArray()
+
+    return raster
 
 
 def write_raster(filename, data_list, descriptions,

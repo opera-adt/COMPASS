@@ -44,7 +44,7 @@ def cumulative_correction_luts(burst, dem_path,
         and slant range
     '''
     # Get individual LUTs
-    geometrical_steer_doppler, bistatic_delay, az_fm_mismatch, tides = \
+    geometrical_steer_doppler, bistatic_delay, az_fm_mismatch, [tide_rg, _]= \
         compute_geocoding_correction_luts(burst,
                                           dem_path=dem_path,
                                           rg_step=rg_step,
@@ -53,7 +53,7 @@ def cumulative_correction_luts(burst, dem_path,
 
     # Convert to geometrical doppler from range time (seconds) to range (m)
     geometry_doppler = geometrical_steer_doppler.data * isce3.core.speed_of_light * 0.5
-    rg_lut_data = geometry_doppler + tides[0]
+    rg_lut_data = geometry_doppler + tide_rg
 
     # Invert signs to correct for convention
     # TO DO: add azimuth SET to LUT
@@ -76,7 +76,7 @@ def cumulative_correction_luts(burst, dem_path,
     output_path = f'{scratch_path}/corrections'
     os.makedirs(output_path, exist_ok=True)
     data_list = [geometry_doppler, bistatic_delay.data, az_fm_mismatch.data,
-                 tides[0]]
+                 tide_rg]
     descr = ['geometrical doppler', 'bistatic delay', 'azimuth FM rate mismatch',
              'slant range Solid Earth tides']
 
@@ -150,16 +150,14 @@ def compute_geocoding_correction_luts(burst, dem_path,
     bistatic_delay = burst.bistatic_delay(range_step=rg_step, az_step=az_step)
 
     # Run rdr2geo to obtain the required layers
-    lon_path, lat_path, height_path, inc_path, head_path = \
-        compute_rdr2geo_rasters(burst, dem_raster, output_path,
-                                rg_step, az_step)
+    # return contents: lon_path, lat_path, height_path, inc_path, head_path
+    rdr2geo_raster_paths = compute_rdr2geo_rasters(burst, dem_raster,
+                                                   output_path, rg_step,
+                                                   az_step)
 
     # Open rdr2geo layers
-    lat = open_raster(lat_path)
-    lon = open_raster(lon_path)
-    height = open_raster(height_path)
-    inc_angle = open_raster(inc_path)
-    head_angle = open_raster(head_path)
+    lon, lat, height, inc_angle, head_angle = \
+        [open_raster(raster_path) for raster_path in rdr2geo_raster_paths]
 
     # Compute azimuth FM-rate mismatch
     az_fm_mismatch = burst.az_fm_rate_mismatch_from_llh(lat, lon, height,
@@ -172,10 +170,11 @@ def compute_geocoding_correction_luts(burst, dem_path,
     # compute Solid Earth Tides using pySolid. Decimate the rdr2geo layers.
     # compute decimation factor assuming a 5 km spacing along slant range
     dec_factor = int(np.round(5000.0 / rg_step))
-    rg_set_temp, az_set_temp = solid_earth_tides(burst, lat[::dec_factor],
-                                                 lon[::dec_factor],
-                                                 inc_angle[::dec_factor],
-                                                 head_angle[::dec_factor])
+    dec_slice = np.s_[::dec_factor]
+    rg_set_temp, az_set_temp = solid_earth_tides(burst, lat[dec_slice],
+                                                 lon[dec_slice],
+                                                 inc_angle[dec_slice],
+                                                 head_angle[dec_slice])
 
     # Resize SET to the size of the correction grid
     out_shape = bistatic_delay.data.shape
@@ -252,12 +251,9 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, inc_angle,
     pts_src = (np.flipud(lat_geo_array), lon_geo_array)
     pts_dst = (lat_radar_grid.flatten(), lon_radar_grid.flatten())
 
-    rdr_set_e = resample_set(set_e, pts_src, pts_dst).reshape(
-        lat_radar_grid.shape)
-    rdr_set_n = resample_set(set_n, pts_src, pts_dst).reshape(
-        lat_radar_grid.shape)
-    rdr_set_u = resample_set(set_u, pts_src, pts_dst).reshape(
-        lat_radar_grid.shape)
+    rdr_set_e, rdr_set_n, rdr_set_u = \
+        [resample_set(set_enu, pts_src, pts_dst).reshape(lat_radar_grid.shape)
+         for set_enu in [set_e, set_n, set_u]]
 
     # Convert SET from ENU to range/azimuth coordinates
     # Note: rdr2geo heading angle is measured wrt to the East and it is positive

@@ -169,7 +169,7 @@ def compute_geocoding_correction_luts(burst, dem_path,
     # compute Solid Earth Tides using pySolid. Decimate the rdr2geo layers.
     # compute decimation factor assuming a 5 km spacing along slant range
     dec_factor = int(np.round(5000.0 / rg_step))
-    dec_slice = ns.s_[::dec_factor]
+    dec_slice = np.s_[::dec_factor]
     rg_set_temp, az_set_temp = solid_earth_tides(burst, lat[dec_slice],
                                                  lon[dec_slice],
                                                  inc_angle[dec_slice],

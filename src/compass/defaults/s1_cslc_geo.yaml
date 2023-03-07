@@ -17,6 +17,8 @@ runconfig:
       dynamic_ancillary_file_group:
           # Digital elevation model
           dem_file:
+          # IONEX file for ionosphere correction
+          ionex_file:
 
       static_ancillary_file_group:
           # burst database sqlite file

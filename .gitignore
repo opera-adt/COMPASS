@@ -151,4 +151,12 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-
+# unit test files/directories
+tests/data/geo_cslc_s1.yaml
+tests/data/2022-10-16_0000_Rosamond-corner-reflectors.csv
+tests/data/S1A_IW_SLC__1SDV_20221016T015043_20221016T015111_045461_056FC0_6681.zip
+tests/data/orbits
+tests/data/test_dem.tiff
+tests/data/test_burst_map.sqlite3
+tests/product
+tests/scratch

@@ -11,6 +11,7 @@ from skimage.transform import resize
 
 from compass.utils.geometry_utils import enu2los, en2az
 from compass.utils.helpers import open_raster
+from compass.utils.helpers import write_raster
 
 
 def cumulative_correction_luts(burst, dem_path,
@@ -51,9 +52,8 @@ def cumulative_correction_luts(burst, dem_path,
                                           scratch_path=scratch_path)
 
     # Convert to geometrical doppler from range time (seconds) to range (m)
-    rg_lut_data = \
-        geometrical_steer_doppler.data * isce3.core.speed_of_light * 0.5 + \
-        tides[0]
+    geometry_doppler = geometrical_steer_doppler.data * isce3.core.speed_of_light * 0.5
+    rg_lut_data = geometry_doppler + tides[0]
 
     # Invert signs to correct for convention
     # TO DO: add azimuth SET to LUT
@@ -69,6 +69,18 @@ def cumulative_correction_luts(burst, dem_path,
                               bistatic_delay.x_spacing,
                               bistatic_delay.y_spacing,
                               az_lut_data)
+
+    # Save corrections on disk. In this way, we should avoid running
+    # the corrections again when allocating data inside the HDF5 product
+    # Create a directory in the scratch path to save corrections
+    output_path = f'{scratch_path}/corrections'
+    os.makedirs(output_path, exist_ok=True)
+    data_list = [geometry_doppler, bistatic_delay.data, az_fm_mismatch.data,
+                 tides[0]]
+    descr = ['geometrical doppler', 'bistatic delay', 'azimuth FM rate mismatch',
+             'slant range Solid Earth tides']
+
+    write_raster(f'{output_path}/corrections', data_list, descr)
 
     return rg_lut, az_lut
 

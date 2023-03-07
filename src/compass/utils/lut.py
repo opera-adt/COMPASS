@@ -150,16 +150,13 @@ def compute_geocoding_correction_luts(burst, dem_path,
     bistatic_delay = burst.bistatic_delay(range_step=rg_step, az_step=az_step)
 
     # Run rdr2geo to obtain the required layers
-    lon_path, lat_path, height_path, inc_path, head_path = \
-        compute_rdr2geo_rasters(burst, dem_raster, output_path,
-                                rg_step, az_step)
+    rdr2geo_raster_paths = compute_rdr2geo_rasters(burst, dem_raster,
+                                                   output_path, rg_step,
+                                                   az_step)
 
     # Open rdr2geo layers
-    lat = open_raster(lat_path)
-    lon = open_raster(lon_path)
-    height = open_raster(height_path)
-    inc_angle = open_raster(inc_path)
-    head_angle = open_raster(head_path)
+    lat, lon, height, inc_angle, head_angle = \
+        [open_raster(raster_path) for raster_path in rdr2geo_raster_paths]
 
     # Compute azimuth FM-rate mismatch
     az_fm_mismatch = burst.az_fm_rate_mismatch_from_llh(lat, lon, height,
@@ -172,10 +169,11 @@ def compute_geocoding_correction_luts(burst, dem_path,
     # compute Solid Earth Tides using pySolid. Decimate the rdr2geo layers.
     # compute decimation factor assuming a 5 km spacing along slant range
     dec_factor = int(np.round(5000.0 / rg_step))
-    rg_set_temp, az_set_temp = solid_earth_tides(burst, lat[::dec_factor],
-                                                 lon[::dec_factor],
-                                                 inc_angle[::dec_factor],
-                                                 head_angle[::dec_factor])
+    dec_slice = ns.s_[::dec_factor]
+    rg_set_temp, az_set_temp = solid_earth_tides(burst, lat[dec_slice],
+                                                 lon[dec_slice],
+                                                 inc_angle[dec_slice],
+                                                 head_angle[dec_slice])
 
     # Resize SET to the size of the correction grid
     out_shape = bistatic_delay.data.shape

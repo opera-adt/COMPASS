@@ -31,7 +31,7 @@ def stats(path_h5, bursts):
         dst_paths.append(correction)
 
     # compute stats and write to hdf5
-    stat_names = ['mean', 'min', 'max']
+    stat_names = ['mean', 'min', 'max', 'std']
     with h5py.File(path_h5, 'a') as h5_obj:
         qa_group = h5_obj.require_group(f'{root_path}/quality_assurance')
         for src_path, dst_path in zip(src_paths, dst_paths):
@@ -47,7 +47,7 @@ def stats(path_h5, bursts):
                 vals = []
                 for cstat_member in [stat_obj.real, stat_obj.imag]:
                     vals.extend([cstat_member.mean, cstat_member.min,
-                                 cstat_member.max])
+                                 cstat_member.max, cstat_member.sample_stddev])
                 cstat_names = stat_names * 2
                 for ds_name, val in zip(stat_names * 2, vals):
                     desc = f'{ds_name} of {dst_path}'
@@ -110,6 +110,62 @@ def pixel_validity_check(path_h5, bursts):
                 desc = f'{ds_name} of {dst_path}'
                 add_dataset_and_attrs(qa_group, Meta(ds_name, val, desc))
 
+
+def browse_image(path_h5, bursts):
+    root_path = '/science/SENTINEL1/CSLC'
+
+    # init containers source and destination paths in hdf5
+    src_paths = []
+    dst_paths = []
+
+    # add CSLCs requiring stats
+    grid_path = f'{root_path}/grids'
+
+    with h5py.File(path_h5, 'r') as h5_obj:
+        grid_group = h5_obj[grid_path]
+
+        # extract axis coords and epsg
+        x_coords_utm = grid_group['x_coordinates'][()]
+        y_coords_utm = grid_group['y_coordinates'][()]
+        epsg = grid_group['projection'][()]
+
+        # create projection to convert axis to lat lon for plot extent
+        proj = isce3.core.UTM(epsg)
+        lons = np.array([np.degrees(proj.inverse([x, y_coords_utm[0], 0])[0])
+                         for x in x_coords_utm])
+        lats = np.array([np.degrees(proj.inverse([x_coords_utm[0], y, 0])[1])
+                         for y in y_coords_utm])
+        extent = [lons[0], lons[-1], lats[0], lats[-1]]
+
+        qa_group = h5_obj[f'{root_path}/quality_assurance']
+
+        for b in bursts:
+            # get polarization to extract geocoded raster
+            pol = b.polarization
+            arr = np.abs(grid_group[pol][()])
+            arr_nan_masked = np.ma.masked_array(arr, mask=np.isnan(arr))
+
+            # prepare file output
+            date = b.sensing_start.strftime('%Y-%m-%d')
+            fname = f'{b.burst_id}_{pol}_{date}.png'
+
+            # get stats needed to set max value of plot
+            mean = np.mean(np.abs(arr_nan_masked))
+            std = np.std(np.abs(arr_nan_masked))
+            vmax = mean + 4 * std
+
+            # plot and save to disk
+            plt.close('all')
+            plt.figure(figsize=(20,10))
+            plt.imshow(np.abs(arr_nan_masked), vmax=vmax, extent=extent)
+            plt.colorbar(orientation='horizontal')
+            plt.xlabel('longitude (deg)')
+            plt.ylabel('latitude (deg)')
+            plt.title(f'CSLC {b.burst_id} {pol} {b.sensing_start}')
+            plt.tight_layout()
+            plt.savefig(fname, facecolor='white', edgecolor='none')
+
+
 if __name__ == "__main__":
     import os
     import sys
@@ -120,4 +176,5 @@ if __name__ == "__main__":
 
     h5_path = sys.argv[2]
     #stats(h5_path, cfg.bursts)
-    pixel_validity_check(h5_path, cfg.bursts)
+    #pixel_validity_check(h5_path, cfg.bursts)
+    browse_image(h5_path, cfg.bursts)

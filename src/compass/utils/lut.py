@@ -118,8 +118,7 @@ def compute_geocoding_correction_luts(burst, dem_path, ionex_path,
     az_fm_mismatch = burst.az_fm_rate_mismatch_mitigation(dem_path,
                                                           scratch_path,
                                                           range_step=rg_step,
-                                                          az_step=az_step,
-                                                          incidence_angle=True)
+                                                          az_step=az_step)
 
     lon_path = os.path.join(scratch_path, 'lon.rdr')
     lat_path = os.path.join(scratch_path, 'lat.rdr')

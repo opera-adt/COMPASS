@@ -386,7 +386,7 @@ def ionosphere_delay(sensing_time, wavelength,
         array of latitude in radar grid
     inc_arr: numpy.ndarray
         array of incidence angle in radar grid
-    
+
     Returns
     -------
     slant_range_delay: np.ndarray
@@ -400,7 +400,7 @@ def ionosphere_delay(sensing_time, wavelength,
     if not os.path.exists(ionex_path):
         raise RuntimeError(f'IONEX file was not found: {ionex_path}')
 
-    utc_tod_sec = (sensing_time.hour * 3600.0 
+    utc_tod_sec = (sensing_time.hour * 3600.0
                    + sensing_time.minute * 60.0
                    + sensing_time.second)
 

@@ -2,6 +2,7 @@ runconfig:
   groups:
     dynamic_ancillary_file_group:
       dem_file: @DATA_PATH@/test_dem.tiff
+      ionex_file: @DATA_PATH@/jplg3190.15i
     static_ancillary_file_group:
       burst_database_file: @DATA_PATH@/test_burst_map.sqlite3
     input_file_group:

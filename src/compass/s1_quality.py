@@ -111,12 +111,21 @@ def pixel_validity_check(path_h5, bursts):
                 add_dataset_and_attrs(qa_group, Meta(ds_name, val, desc))
 
 
-def browse_image(path_h5, bursts):
+def browse_image(path_h5, bursts, image_scale='linear'):
     root_path = '/science/SENTINEL1/CSLC'
+
+    # determine how to represent magnitude complex imagery
+    if image_scale == 'linear':
+        array_op = np.abs
+        std_multiplier = 4
+    elif image_scale == 'log':
+        def log_abs(x):
+            return np.log(np.abs(x))
+        array_op = log_abs
+        std_multiplier = 2
 
     # init containers source and destination paths in hdf5
     src_paths = []
-    dst_paths = []
 
     # add CSLCs requiring stats
     grid_path = f'{root_path}/grids'
@@ -142,26 +151,32 @@ def browse_image(path_h5, bursts):
         for b in bursts:
             # get polarization to extract geocoded raster
             pol = b.polarization
-            arr = np.abs(grid_group[pol][()])
+            arr = array_op(grid_group[pol][()])
             arr_nan_masked = np.ma.masked_array(arr, mask=np.isnan(arr))
 
             # prepare file output
             date = b.sensing_start.strftime('%Y-%m-%d')
-            fname = f'{b.burst_id}_{pol}_{date}.png'
+            fname = f'{b.burst_id}_{image_scale}_{pol}_{date}.png'
 
             # get stats needed to set max value of plot
-            mean = np.mean(np.abs(arr_nan_masked))
-            std = np.std(np.abs(arr_nan_masked))
-            vmax = mean + 4 * std
+            mean = np.mean(arr_nan_masked)
+            std = np.std(arr_nan_masked)
+            print(mean, std)
+            optional_params = {}
+            if image_scale == 'linear':
+                optional_params['vmax'] = mean + std_multiplier * std
+            elif image_scale == 'log':
+                optional_params['vmax'] = mean + std_multiplier * std
+                optional_params['vmin'] = mean - std_multiplier * std
 
             # plot and save to disk
             plt.close('all')
             plt.figure(figsize=(20,10))
-            plt.imshow(np.abs(arr_nan_masked), vmax=vmax, extent=extent)
+            plt.imshow(np.abs(arr_nan_masked), extent=extent, cmap='gray', **optional_params)
             plt.colorbar(orientation='horizontal')
             plt.xlabel('longitude (deg)')
             plt.ylabel('latitude (deg)')
-            plt.title(f'CSLC {b.burst_id} {pol} {b.sensing_start}')
+            plt.title(f'CSLC {b.burst_id} {image_scale} {pol} {b.sensing_start}')
             plt.tight_layout()
             plt.savefig(fname, facecolor='white', edgecolor='none')
 
@@ -177,4 +192,5 @@ if __name__ == "__main__":
     h5_path = sys.argv[2]
     #stats(h5_path, cfg.bursts)
     #pixel_validity_check(h5_path, cfg.bursts)
-    browse_image(h5_path, cfg.bursts)
+    #browse_image(h5_path, cfg.bursts)
+    browse_image(h5_path, cfg.bursts, 'log')

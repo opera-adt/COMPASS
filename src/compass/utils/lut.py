@@ -163,12 +163,12 @@ def compute_geocoding_correction_luts(burst, dem_path,
         This correction needs to be added to the SLC tagged azimuth time to
         get the corrected azimuth times.
 
-    [rg_set, az_set]: list, np.ndarray
+    [rg_set, az_set]: list[np.ndarray]
         List of numpy.ndarray containing SET in slant range and azimuth directions
         in meters. These corrections need to be added to the slC tagged azimuth
         and slant range times.
 
-    [wet_los_tropo, dry_los_tropo]: list, np.ndarray
+    [wet_los_tropo, dry_los_tropo]: list[np.ndarray]
         List of numpy.ndarray containing the LOS wet and dry troposphere delays
         computed from the file specified under 'weather_model_path'. These delays
         need to be added to the slant range correction LUT2D.
@@ -226,7 +226,7 @@ def compute_geocoding_correction_luts(burst, dem_path,
     az_set = resize(az_set_temp, out_shape, **kwargs)
 
     # Compute wet and dry troposphere delays using RAiDER
-    wet_los_tropo, dry_los_tropo = np.zeros(out_shape), np.zeros(out_shape)
+    wet_los_tropo, dry_los_tropo = [np.zeros(out_shape) for _ in range(2)]
 
     if weather_model_path is not None:
         # Instantiate an "aoi" object to read lat/lon/height files

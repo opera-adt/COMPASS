@@ -30,7 +30,7 @@ RUN ${CONDA_PREFIX}/bin/conda init bash
 COPY --chown=compass_user:compass_user . /home/compass_user/OPERA/COMPASS
 
 # create CONDA environment
-RUN conda create --name "COMPASS" --file /home/compass_user/OPERA/COMPASS/docker/specifile.txt
+RUN conda create --name "COMPASS" --file /home/compass_user/OPERA/COMPASS/docker/specifile.txt --no-override
 
 SHELL ["conda", "run", "-n", "COMPASS", "/bin/bash", "-c"]
 

@@ -72,11 +72,9 @@ def cumulative_correction_luts(burst, dem_path,
     rg_lut_data = geometry_doppler + tide_rg
 
     # Add troposphere delay to range LUT
-    if delay_type == 'wet_dry':
-        rg_lut_data += wet_los_tropo + dry_los_tropo
-    elif delay_type == 'wet':
+    if 'wet' in delay_type:
         rg_lut_data += wet_los_tropo
-    else:
+    if 'dry' in delay_type:
         rg_lut_data += dry_los_tropo
 
     # Invert signs to correct for convention
@@ -104,13 +102,10 @@ def cumulative_correction_luts(burst, dem_path,
     descr = ['geometrical doppler', 'bistatic delay', 'azimuth FM rate mismatch',
              'slant range Solid Earth tides']
 
-    if delay_type == 'wet_dry':
-        data_list.extend([wet_los_tropo, dry_los_tropo])
-        descr.extend(['wet LOS troposphere', 'dry_los_troposphere'])
-    elif delay_type == 'wet':
+    if 'wet' in delay_type:
         data_list.append(wet_los_tropo)
         descr.append('wet LOS troposphere')
-    else:
+    if 'dry' in delay_type:
         data_list.append(dry_los_tropo)
         descr.append('dry LOS troposphere')
 

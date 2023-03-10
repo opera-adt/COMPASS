@@ -67,11 +67,11 @@ class GeoRunConfig(RunConfig):
 
         # Check troposphere weather model file if not None. This
         # troposphere correction is applied only if this file is not None
-        weather_model = groups_cfg['dynamic_ancillary_file_group'][
+        weather_model_path = groups_cfg['dynamic_ancillary_file_group'][
             'weather_model_file'
         ]
-        if weather_model is not None:
-            check_file_path(weather_model)
+        if weather_model_path is not None:
+            check_file_path(weather_model_path)
 
         # Convert runconfig dict to SimpleNamespace
         sns = wrap_namespace(groups_cfg)

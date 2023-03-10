@@ -104,7 +104,6 @@ def run(cfg: GeoRunConfig):
             if cfg.rdr2geo_params.geocode_metadata_layers:
                 s1_geocode_metadata.run(cfg, burst, fetch_from_scratch=True)
 
-        
         # Extract burst boundaries
         b_bounds = np.s_[burst.first_valid_line:burst.last_valid_line,
                          burst.first_valid_sample:burst.last_valid_sample]
@@ -190,7 +189,7 @@ def run(cfg: GeoRunConfig):
 
             cslc_group = geo_burst_h5.require_group(f'{root_path}/CSLC')
             metadata_to_h5group(cslc_group, burst, cfg)
-            corrections_to_h5group(cslc_group, burst, cfg, scratch_path)
+            corrections_to_h5group(cslc_group, burst, cfg, rg_lut, az_lut, scratch_path)
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")

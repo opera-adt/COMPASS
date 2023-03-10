@@ -7,7 +7,7 @@ import os
 
 import isce3
 import numpy as np
-from osgeo import osr
+from osgeo import osr, gdal
 import s1reader
 from s1reader.s1_burst_slc import Sentinel1BurstSlc
 import shapely
@@ -549,7 +549,8 @@ def metadata_to_h5group(parent_group, burst, cfg):
     poly1d_to_h5(burst_meta_group, 'doppler', burst.doppler.poly1d)
 
 
-def corrections_to_h5group(parent_group, burst, cfg, scratch_path):
+def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,
+                           scratch_path):
     '''
     Write azimuth, slant range, and EAP (if needed) correction LUT2ds to HDF5
 
@@ -561,46 +562,55 @@ def corrections_to_h5group(parent_group, burst, cfg, scratch_path):
         Burst containing corrections
     cfg: types.SimpleNamespace
         SimpleNamespace containing run configuration
+    rg_lut: isce3.core.LUT2d()
+        LUT2d along slant direction
+    az_lut: isce3.core.LUT2d()
+        LUT2d along azimuth direction
+    scratch_path: str
+        Path to the scratch directory
     '''
-    correction_group = parent_group.require_group('corrections')
 
     # If enabled, save the correction LUTs
     if cfg.lut_params.enabled:
-        geometrical_steering_doppler, bistatic_delay_lut, az_fm_mismatch, iono, dry_tropo = \
-            compute_geocoding_correction_luts(burst,
-                                              dem_path=cfg.dem,
-                                              ionex_path=cfg.ionex,
-                                              rg_step=cfg.lut_params.range_spacing,
-                                              az_step=cfg.lut_params.azimuth_spacing,
-                                              scratch_path=scratch_path)
+        # Open GDAL dataset to fetch corrections
+        ds = gdal.Open(f'{scratch_path}/corrections/corrections',
+                       gdal.GA_ReadOnly)
+        correction_group = parent_group.require_group('corrections')
+
 
         # create slant range and azimuth vectors shared by the LUTs
-        x_end = bistatic_delay_lut.x_start + bistatic_delay_lut.width * bistatic_delay_lut.x_spacing
-        slant_range = np.linspace(bistatic_delay_lut.x_start, x_end,
-                                  bistatic_delay_lut.width, dtype=np.float64)
-        y_end = bistatic_delay_lut.y_start + bistatic_delay_lut.length * bistatic_delay_lut.y_spacing
-        azimuth = np.linspace(bistatic_delay_lut.y_start, y_end,
-                              bistatic_delay_lut.length, dtype=np.float64)
+        x_end = rg_lut.x_start + rg_lut.width * rg_lut.x_spacing
+        slant_range = np.linspace(rg_lut.x_start, x_end,
+                                  rg_lut.width, dtype=np.float64)
+        y_end = az_lut.y_start + az_lut.length * az_lut.y_spacing
+        azimuth = np.linspace(az_lut.y_start, y_end,
+                              az_lut.length, dtype=np.float64)
 
         # correction LUTs axis and doppler correction LUTs
         desc = 'correction as a function of slant range and azimuth time'
         correction_items = [
             Meta('slant_range', slant_range, 'slant range of LUT data',
                 {'units': 'meters'}),
-            Meta('slant_range_spacing', bistatic_delay_lut.x_spacing,
+            Meta('slant_range_spacing', rg_lut.x_spacing,
                  'spacing of slant range of LUT data', {'units': 'meters'}),
             Meta('zero_doppler_time', azimuth, 'azimuth time of LUT data',
                  {'units': 'seconds'}),
-            Meta('zero_doppler_time_spacing', bistatic_delay_lut.y_spacing,
+            Meta('zero_doppler_time_spacing',rg_lut.y_spacing,
                  'spacing of azimuth time of LUT data', {'units': 'seconds'}),
-            Meta('bistatic_delay', bistatic_delay_lut.data,
+            Meta('bistatic_delay', ds.GetRasterBand(2).ReadAsArray(),
                  f'bistatic delay (azimuth) {desc}', {'units': 'seconds'}),
-            Meta('geometry_steering_doppler', geometrical_steering_doppler.data,
+            Meta('geometry_steering_doppler', ds.GetRasterBand(1).ReadAsArray(),
                  f'geometry steering doppler (range) {desc}',
                  {'units': 'meters'}),
-            Meta('azimuth_fm_rate_mismatch', az_fm_mismatch.data,
+            Meta('azimuth_fm_rate_mismatch', ds.GetRasterBand(3).ReadAsArray(),
                  f'azimuth FM rate mismatch mitigation (azimuth) {desc}',
                  {'units': 'seconds'}),
+            Meta('los_solid_earth_tides', ds.GetRasterBand(4).ReadAsArray(),
+                 f'Solid Earth tides (range) {desc}',
+                 {'units': 'meters'}),
+            Meta('los_solid_earth_tides', ds.GetRasterBand(5).ReadAsArray(),
+                 f'Ionospheric delay {desc}',
+                 {'units': 'meters'}),
         ]
         for meta_item in correction_items:
             add_dataset_and_attrs(correction_group, meta_item)

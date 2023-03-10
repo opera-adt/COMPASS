@@ -393,11 +393,6 @@ def ionosphere_delay(sensing_time, wavelength,
         Ionospheric delay in slant range
     '''
 
-    # Load the array
-    #arr_lon = gdal.Open(lon_path).ReadAsArray()
-    #arr_lat = gdal.Open(lat_path).ReadAsArray()
-    #arr_inc = gdal.Open(inc_path).ReadAsArray()
-
     if not ionex_path:
         raise RuntimeError('LUT correction was enabled, '
                            'but IONEX file was not provided in runconfig.')

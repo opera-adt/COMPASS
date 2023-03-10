@@ -396,7 +396,7 @@ def ionosphere_delay(sensing_time, wavelength,
     if not ionex_path:
         raise RuntimeError('LUT correction was enabled, '
                            'but IONEX file was not provided in runconfig.')
-    
+
     if not os.path.exists(ionex_path):
         raise RuntimeError(f'IONEX file was not found: {ionex_path}')
 
@@ -419,4 +419,3 @@ def ionosphere_delay(sensing_time, wavelength,
                            / np.cos(np.deg2rad(inc_arr)))
 
     return slant_range_delay
-

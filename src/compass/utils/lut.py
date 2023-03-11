@@ -244,8 +244,8 @@ def compute_geocoding_correction_luts(burst, dem_path,
 
         # RaiDER delay is one-way only. Get the LOS delay my multiplying
         # by the incidence angle
-        wet_los_tropo = 2.0 * zen_wet * np.cos(np.deg2rad(inc_angle))
-        dry_los_tropo = 2.0 * zen_dry * np.cos(np.deg2rad(inc_angle))
+        wet_los_tropo = 2.0 * zen_wet / np.cos(np.deg2rad(inc_angle))
+        dry_los_tropo = 2.0 * zen_dry / np.cos(np.deg2rad(inc_angle))
 
     return geometrical_steering_doppler, bistatic_delay, az_fm_mismatch, [
         rg_set, az_set], [wet_los_tropo, dry_los_tropo]

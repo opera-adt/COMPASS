@@ -608,8 +608,8 @@ def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,
             Meta('los_solid_earth_tides', ds.GetRasterBand(4).ReadAsArray(),
                  f'Solid Earth tides (range) {desc}',
                  {'units': 'meters'}),
-            Meta('ionospheric_delay', ds.GetRasterBand(5).ReadAsArray(),
-                 f'Ionospheric delay {desc}',
+            Meta('los_ionospheric_delay', ds.GetRasterBand(5).ReadAsArray(),
+                 f'Ionospheric delay (range) {desc}',
                  {'units': 'meters'}),
         ]
         for meta_item in correction_items:

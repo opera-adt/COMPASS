@@ -3,7 +3,6 @@ Placeholder for model-based correction LUT
 '''
 import os
 import isce3
-from compass.utils.iono import get_ionex_value
 import numpy as np
 from osgeo import gdal
 import pysolid
@@ -12,9 +11,10 @@ from skimage.transform import resize
 
 from compass.utils.geometry_utils import enu2los, en2az
 from compass.utils.helpers import open_raster, write_raster
+from compass.utils.iono import ionosphere_delay
 
 
-def cumulative_correction_luts(burst, dem_path, ionex_path,
+def cumulative_correction_luts(burst, dem_path, tec_path,
                                rg_step=200, az_step=0.25,
                                scratch_path=None):
     '''
@@ -47,7 +47,7 @@ def cumulative_correction_luts(burst, dem_path, ionex_path,
     geometrical_steer_doppler, bistatic_delay, az_fm_mismatch, [tide_rg, _], ionosphere = \
         compute_geocoding_correction_luts(burst,
                                           dem_path=dem_path,
-                                          ionex_path=ionex_path,
+                                          tec_path=tec_path,
                                           rg_step=rg_step,
                                           az_step=az_step,
                                           scratch_path=scratch_path)
@@ -79,14 +79,14 @@ def cumulative_correction_luts(burst, dem_path, ionex_path,
     data_list = [geometry_doppler, bistatic_delay.data, az_fm_mismatch.data,
                  tide_rg, ionosphere]
     descr = ['geometrical doppler', 'bistatic delay', 'azimuth FM rate mismatch',
-             'slant range Solid Earth tides', 'ionospheric delay']
+             'slant range Solid Earth tides', 'line-of-sight ionospheric delay']
 
     write_raster(f'{output_path}/corrections', data_list, descr)
 
     return rg_lut, az_lut
 
 
-def compute_geocoding_correction_luts(burst, dem_path, ionex_path,
+def compute_geocoding_correction_luts(burst, dem_path, tec_path,
                                       rg_step=200, az_step=0.25,
                                       scratch_path=None):
     '''
@@ -186,7 +186,7 @@ def compute_geocoding_correction_luts(burst, dem_path, ionex_path,
 
     ionosphere = ionosphere_delay(burst.sensing_mid,
                                   burst.wavelength,
-                                  ionex_path, lon, lat, inc_angle)
+                                  tec_path, lon, lat, inc_angle)
 
     return geometrical_steering_doppler, bistatic_delay, az_fm_mismatch, [
         rg_set, az_set], ionosphere
@@ -367,55 +367,3 @@ def resample_set(geo_tide, pts_src, pts_dest):
                    bounds_error=False, fill_value=0)
     rdr_tide = rgi_func(pts_dest)
     return rdr_tide
-
-
-def ionosphere_delay(sensing_time, wavelength,
-                     ionex_path, lon_arr, lat_arr, inc_arr):
-    '''
-    Calculate ionosphere delay for geolocation
-
-    Parameters
-    ----------
-    time_sensing: datetime.datetime
-        Sensing time of burst
-    wavelength: float
-        Wavelength of the signal
-    lon_arr: numpy.ndarray
-        array of longitude in radar grid
-    lat_arr: numpy.ndarray
-        array of latitude in radar grid
-    inc_arr: numpy.ndarray
-        array of incidence angle in radar grid
-
-    Returns
-    -------
-    slant_range_delay: np.ndarray
-        Ionospheric delay in slant range
-    '''
-
-    if not ionex_path:
-        raise RuntimeError('LUT correction was enabled, '
-                           'but IONEX file was not provided in runconfig.')
-
-    if not os.path.exists(ionex_path):
-        raise RuntimeError(f'IONEX file was not found: {ionex_path}')
-
-    utc_tod_sec = (sensing_time.hour * 3600.0
-                   + sensing_time.minute * 60.0
-                   + sensing_time.second)
-
-    ionex_val = get_ionex_value(ionex_path,
-                                utc_tod_sec,
-                                lat_arr.flatten(),
-                                lon_arr.flatten())
-
-    ionex_val = ionex_val.reshape(lon_arr.shape)
-
-    freq_sensor = isce3.core.speed_of_light / wavelength
-    electron_per_sqm = ionex_val * 1e16
-    K = 40.31
-
-    slant_range_delay = (K * electron_per_sqm / freq_sensor**2
-                           / np.cos(np.deg2rad(inc_arr)))
-
-    return slant_range_delay

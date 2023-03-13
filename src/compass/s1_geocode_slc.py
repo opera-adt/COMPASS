@@ -83,7 +83,7 @@ def run(cfg: GeoRunConfig):
             rg_lut, az_lut = \
                 cumulative_correction_luts(burst,
                                            dem_path=cfg.dem,
-                                           ionex_path=cfg.ionex,
+                                           tec_path=cfg.tec_file,
                                            rg_step=cfg.lut_params.range_spacing,
                                            az_step=cfg.lut_params.azimuth_spacing,
                                            scratch_path=scratch_path)

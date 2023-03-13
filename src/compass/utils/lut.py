@@ -80,7 +80,7 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
     os.makedirs(output_path, exist_ok=True)
     data_list = [geometry_doppler, bistatic_delay.data, az_fm_mismatch.data,
                  tide_rg, ionosphere]
-    descr = ['geometrical doppler', 'bistatic delay', 'azimuth FM rate mismatch',
+    descr = ['slant range geometrical doppler', 'azimuth bistatic delay', 'azimuth FM rate mismatch',
              'slant range Solid Earth tides', 'line-of-sight ionospheric delay']
 
     write_raster(f'{output_path}/corrections', data_list, descr)

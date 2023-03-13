@@ -226,10 +226,24 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
     # compute decimation factor assuming a 5 km spacing along slant range
     dec_factor = int(np.round(5000.0 / rg_step))
     dec_slice = np.s_[::dec_factor]
-    rg_set_temp, az_set_temp = solid_earth_tides(burst, lat[dec_slice],
-                                                 lon[dec_slice],
-                                                 inc_angle[dec_slice],
-                                                 head_angle[dec_slice])
+    rg_set_temp, az_set_temp = solid_earth_tides(burst,
+                                                 lat[dec_slice, dec_slice],
+                                                 lon[dec_slice, dec_slice],
+                                                 height[dec_slice, dec_slice],
+                                                 ellipsoid)
+    
+    rg_set_temp_2, az_set_temp_2 = solid_earth_tides_original(burst,
+                                                 lat[dec_slice, dec_slice],
+                                                 lon[dec_slice, dec_slice],
+                                                 inc_angle[dec_slice, dec_slice],
+                                                 head_angle[dec_slice, dec_slice])
+
+    rg_set_temp_3, az_set_temp_3  = solid_earth_tides_2(burst,
+                                                        lat[dec_slice, dec_slice],
+                                                        lon[dec_slice, dec_slice],
+                                                        height[dec_slice, dec_slice],
+                                                        ellipsoid)
+
 
     # Resize SET to the size of the correction grid
     out_shape = bistatic_delay.data.shape
@@ -270,8 +284,9 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
         wet_los_tropo = 2.0 * zen_wet / np.cos(np.deg2rad(inc_angle))
         dry_los_tropo = 2.0 * zen_dry / np.cos(np.deg2rad(inc_angle))
 
-    return geometrical_steering_doppler, bistatic_delay, az_fm_mismatch, [
-        rg_set, az_set], los_ionosphere, [wet_los_tropo, dry_los_tropo], los_static_tropo
+    return geometrical_steering_doppler, bistatic_delay, az_fm_mismatch,\
+           [rg_set, az_set], los_ionosphere,\
+            [wet_los_tropo, dry_los_tropo], los_static_tropo
 
 
 
@@ -647,3 +662,196 @@ def get_enu_vector_ecef(lon, lat, in_degree=True):
     vec_e = np.cross(vec_n, vec_u)
 
     return vec_e, vec_n, vec_u
+
+
+def solid_earth_tides_2(burst, lat_radar_grid, lon_radar_grid, hgt_radar_grid, ellipsoid):
+    '''
+    Compute displacement due to Solid Earth Tides (SET)
+    in slant range (meters) and azimuth directions (seconds)
+    Parameters
+    ---------
+    burst: Sentinel1Slc
+        S1-A/B burst object
+    lat_radar_grid: np.ndarray
+        Latitude array on burst radargrid
+    lon_radar_grid: np.ndarray
+        Longitude array on burst radargrid
+    hgt_radar_grid: np.ndarray
+        Height array on burst radargrid
+    inc_angle: np.ndarray
+        Incident angle raster in unit of degrees
+    ellipsoid: isce3.core.Ellipsoid
+        Ellipsoid definition from the projection of the source DEM
+    Returns
+    ------
+    rg_set: np.ndarray
+        2D array with SET displacement along LOS in meters
+    az_set: np.ndarray
+        2D array with SET displacement along azimuth in seconds
+    '''
+
+    # Extract top-left coordinates from burst polygon
+    lon_min, lat_min, _, _ = burst.border[0].bounds
+
+    # Generate the atr object to run pySolid. We compute SET on a
+    # 2.5 km x 2.5 km coarse grid
+    margin = 0.1
+    lat_start = lat_min - margin
+    lon_start = lon_min - margin
+
+    atr = {
+        'LENGTH': 25,
+        'WIDTH': 100,
+        'X_FIRST': lon_start,
+        'Y_FIRST': lat_start,
+        'X_STEP': 0.023,
+        'Y_STEP': 0.023
+    }
+
+    # Run pySolid and get SET in ENU coordinate system
+    (set_e,
+     set_n,
+     set_u) = pysolid.calc_solid_earth_tides_grid(burst.sensing_start, atr,
+                                                  display=False, verbose=True)
+
+    # Resample SET from geographical grid to radar grid
+    # Generate the lat/lon arrays for the SET geogrid
+    lat_geo_array = np.linspace(atr['Y_FIRST'],
+                                lat_start + atr['Y_STEP'] * atr['LENGTH'],
+                                num=atr['LENGTH'])
+    lon_geo_array = np.linspace(atr['X_FIRST'],
+                                lon_start + atr['X_STEP'] * atr['WIDTH'],
+                                num=atr['WIDTH'])
+
+    # Use scipy RGI to resample SET from geocoded to radar coordinates
+    pts_src = (np.flipud(lat_geo_array), lon_geo_array)
+    pts_dst = (lat_radar_grid.flatten(), lon_radar_grid.flatten())
+
+    rdr_set_e = resample_set(set_e, pts_src, pts_dst).reshape(
+        lat_radar_grid.shape)
+    rdr_set_n = resample_set(set_n, pts_src, pts_dst).reshape(
+        lat_radar_grid.shape)
+    rdr_set_u = resample_set(set_u, pts_src, pts_dst).reshape(
+        lat_radar_grid.shape)
+
+    # Convert enu in radar grid into rg and az
+    set_rg, set_az = enu_to_rgaz(burst.as_isce3_radargrid(),
+                                 burst.orbit,
+                                 isce3.core.LUT2d(),
+                                 np.array([lon_radar_grid, lat_radar_grid, hgt_radar_grid]),
+                                 np.array([rdr_set_e, rdr_set_n, rdr_set_u]),
+                                 ellipsoid)
+
+    return set_rg, set_az
+
+
+def enu_to_rgaz(radargrid_ref, orbit, doppler, 
+                arr_llh,
+                arr_enu,
+                ellipsoid):
+    '''
+    Convert ENU displacement into range / azimuth
+    Parameters
+    ----------
+    radargrid_ref:
+        Radargrid of the burst
+    orbit: isce3.core.Orbit
+        Orbit of the burst
+    doppler: isce3.core.LUT2d
+        Doppler to be used for geo2rdr
+    arr_llh: numpy.ndarray
+        3 * N * M array, with order of lon, lat, hgt
+    arr_enu: numpy.ndarray
+        3 * N * M array, with order of easting, northing, up
+    ellipsoid: isce3.core.Ellipsoid
+        Ellipsoid definition to retrieve the radius of the ellipsoid
+    
+    Returns
+    -------
+    arr_rg: np.ndarray
+        N * M array as the displacements in range direction in meters
+    arr_az: np.ndarray
+        N * M array as the displacements in azimut direction in seconds
+    '''
+    
+    arr_az = np.zeros(arr_llh.shape[1:])
+    arr_rg = np.zeros(arr_llh.shape[1:])
+
+    arr_llh_displaced = llh_displaced_enu(arr_llh, arr_enu, ellipsoid)
+
+    for i in range(arr_llh.shape[1]):
+        for j in range(arr_llh.shape[2]):
+            lon_deg = arr_llh[0, i, j]
+            lat_deg = arr_llh[1, i, j]
+            hgt_m = arr_llh[2, i, j]
+            llh_ref = np.array([np.deg2rad(lon_deg),
+                                np.deg2rad(lat_deg),
+                                hgt_m])
+
+            aztime_ref, slant_range_ref =\
+                isce3.geometry.geo2rdr(llh_ref,
+                                       ellipsoid,
+                                       orbit,
+                                       doppler,
+                                       radargrid_ref.wavelength,
+                                       radargrid_ref.lookside,
+                                       threshold=1.0e-10, maxiter=50, delta_range=10.0)
+
+            lon_deg_displaced = arr_llh_displaced[0, i, j]
+            lat_deg_displaced = arr_llh_displaced[1, i, j]
+            hgt_m_displaced = arr_llh_displaced[2, i, j]
+            llh_displaced = np.array([np.deg2rad(lon_deg_displaced),
+                                      np.deg2rad(lat_deg_displaced),
+                                      hgt_m_displaced])
+            
+            aztime_displaced, slant_range_displaced =\
+                isce3.geometry.geo2rdr(llh_displaced,
+                                       ellipsoid,
+                                       orbit,
+                                       doppler,
+                                       radargrid_ref.wavelength,
+                                       radargrid_ref.lookside,
+                                       threshold=1.0e-10, maxiter=50, delta_range=10.0)
+
+            arr_az[i, j] = aztime_displaced - aztime_ref
+            arr_rg[i, j] = slant_range_displaced - slant_range_ref
+
+    return arr_rg, arr_az
+
+
+def llh_displaced_enu(llh_ref, enu, ellipsoid):
+    '''
+    returns lon / lat / hgt that east / north / up is added to `llh_ref`
+    Parameters
+    ----------
+    llh: np.ndarray
+        3 * N * M array, with order of lon, lat, hgt
+    enu: numpy.ndarray
+        3 * N * M array, with order of easting, northing, up
+    ellipsoid: isce3.core.Ellipsoid
+        Ellipsoid definition to retrieve the radius of the ellipsoid
+    Returns:
+    --------
+    llh_displaced: np.ndarray
+        3 * N * M array, with order of lon, lat, hgt,
+        of the grids in `llf_ref` displaced by `enu`
+    
+    '''
+
+    llh_displaced = np.zeros(llh_ref.shape)
+
+    for i in range(llh_ref.shape[1]):
+        for j in range(llh_ref.shape[2]):
+            llh_ref_rad = np.array([np.deg2rad(llh_ref[0,i,j]),
+                                    np.deg2rad(llh_ref[1,i,j]),
+                                    llh_ref[2,i,j]])
+            
+                                   
+            radian_north = enu[0, i, j] / ellipsoid.r_north(llh_ref_rad[0])
+            radian_east = enu[1, i, j] / ellipsoid.r_east(llh_ref_rad[0]) # TODO discuss. I might be using the incorrect one
+
+            llh_displaced[0, i, j] = llh_ref[0, i, j] + np.rad2deg(radian_north)
+            llh_displaced[1, i, j] = llh_ref[1, i, j] + np.rad2deg(radian_east)
+            llh_displaced[2, i, j] = llh_ref[2, i, j] + enu[2, i, j]
+    
+    return llh_displaced

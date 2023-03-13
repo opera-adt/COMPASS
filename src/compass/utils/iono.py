@@ -341,8 +341,8 @@ def ionosphere_delay(utc_time, wavelength,
         UTC time to calculate the ionosphere delay
     wavelength: float
         Wavelength of the signal
-    ionex_path: str
-        Path to the IONEX file for TEC input
+    tec_file: str
+        Path to the TEC file
     lon_arr: numpy.ndarray
         array of longitude in radar grid. unit: degrees
     lat_arr: numpy.ndarray

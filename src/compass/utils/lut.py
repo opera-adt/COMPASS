@@ -27,6 +27,8 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
         Sentinel-1 A/B burst SLC object
     dem_path: str
         Path to the DEM file
+    tec_path: str
+        Path to the TEC file for ionosphere correction
     rg_step: float
         LUT spacing along slant range direction
     az_step: float
@@ -98,9 +100,11 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
         S1-A/B burst object
     dem_path: str
         Path to the DEM required for azimuth FM rate mismatch.
-    xstep: int
+    tec_path: str
+        Path to the TEC file for ionosphere correction
+    rg_step: int
         LUT spacing along x/slant range in meters
-    ystep: int
+    az_ystep: float
         LUT spacing along y/azimuth in seconds
 
     scratch_path: str
@@ -132,6 +136,11 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
         List of numpy.ndarray containing SET in slant range and azimuth directions
         in meters. These corrections need to be added to the slC tagged azimuth
         and slant range times.
+    
+    ionosphere: np.ndarray
+        numpy.ndarray for ionosphere delay in line-of-sight direction in meters.
+        This correction needs to be added to the SLC tagged range time to
+        get the corrected range times.
     '''
     # Get DEM raster
     dem_raster = isce3.io.Raster(dem_path)

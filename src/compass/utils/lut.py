@@ -44,7 +44,7 @@ def cumulative_correction_luts(burst, dem_path,
         and slant range
     '''
     # Get individual LUTs
-    geometrical_steer_doppler, bistatic_delay, az_fm_mismatch, [tide_rg, _]= \
+    geometrical_steer_doppler, bistatic_delay, az_fm_mismatch, [tide_rg, tide_az]= \
         compute_geocoding_correction_luts(burst,
                                           dem_path=dem_path,
                                           rg_step=rg_step,
@@ -57,7 +57,7 @@ def cumulative_correction_luts(burst, dem_path,
 
     # Invert signs to correct for convention
     # TO DO: add azimuth SET to LUT
-    az_lut_data = -(bistatic_delay.data + az_fm_mismatch.data)
+    az_lut_data = -(bistatic_delay.data + az_fm_mismatch.data) + tide_az
 
     rg_lut = isce3.core.LUT2d(bistatic_delay.x_start,
                               bistatic_delay.y_start,
@@ -76,9 +76,9 @@ def cumulative_correction_luts(burst, dem_path,
     output_path = f'{scratch_path}/corrections'
     os.makedirs(output_path, exist_ok=True)
     data_list = [geometry_doppler, bistatic_delay.data, az_fm_mismatch.data,
-                 tide_rg]
+                 tide_rg, tide_az]
     descr = ['geometrical doppler', 'bistatic delay', 'azimuth FM rate mismatch',
-             'slant range Solid Earth tides']
+             'slant range Solid Earth tides', 'Azimuth time Solid Earth tides']
 
     write_raster(f'{output_path}/corrections', data_list, descr)
 
@@ -172,10 +172,8 @@ def compute_geocoding_correction_luts(burst, dem_path,
     dec_factor = int(np.round(5000.0 / rg_step))
     dec_slice = np.s_[::dec_factor]
     rg_set_temp, az_set_temp = solid_earth_tides(burst, lat[dec_slice],
-                                                 lon[dec_slice],
-                                                 inc_angle[dec_slice],
-                                                 head_angle[dec_slice])
-
+                                                 lon[dec_slice], height[dec_slice],
+                                                 ellipsoid)
     # Resize SET to the size of the correction grid
     out_shape = bistatic_delay.data.shape
     kwargs = dict(order=1, mode='edge', anti_aliasing=True,
@@ -187,7 +185,7 @@ def compute_geocoding_correction_luts(burst, dem_path,
         rg_set, az_set]
 
 
-def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, inc_angle,
+def solid_earth_tides_original(burst, lat_radar_grid, lon_radar_grid, inc_angle,
                       head_angle):
     '''
     Compute displacement due to Solid Earth Tides (SET)
@@ -265,6 +263,83 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, inc_angle,
     set_az = en2az(rdr_set_e, rdr_set_n, head_angle - 90.0)
 
     return set_rg, set_az
+
+
+
+
+def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, hgt_radar_grid, ellipsoid):
+    '''
+    Compute displacement due to Solid Earth Tides (SET)
+    in slant range and azimuth directions
+
+    Parameters
+    ---------
+    burst: Sentinel1Slc
+        S1-A/B burst object
+    lat_radar_grid: np.ndarray
+        Latitude array on burst radargrid
+    lon_radar_grid: np.ndarray
+        Longitude array on burst radargrid
+    inc_angle: np.ndarray
+        Incident angle raster in unit of degrees
+    head_angle: np.ndaaray
+        Heading angle raster in unit of degrees
+
+    Returns
+    ------
+    rg_set: np.ndarray
+        2D array with SET displacement along LOS
+    az_set: np.ndarray
+        2D array with SET displacement along azimuth
+    '''
+
+    # Extract top-left coordinates from burst polygon
+    lon_min, lat_min, _, _ = burst.border[0].bounds
+
+    # Generate the atr object to run pySolid. We compute SET on a
+    # 2.5 km x 2.5 km coarse grid
+    margin = 0.1
+    lat_start = lat_min - margin
+    lon_start = lon_min - margin
+
+    atr = {
+        'LENGTH': 25,
+        'WIDTH': 100,
+        'X_FIRST': lon_start,
+        'Y_FIRST': lat_start,
+        'X_STEP': 0.023,
+        'Y_STEP': 0.023
+    }
+
+    # Run pySolid and get SET in ENU coordinate system
+    (set_e,
+     set_n,
+     set_u) = pysolid.calc_solid_earth_tides_grid(burst.sensing_start, atr,
+                                                  display=False, verbose=True)
+
+    # Resample SET from geographical grid to radar grid
+    # Generate the lat/lon arrays for the SET geogrid
+    lat_geo_array = np.linspace(atr['Y_FIRST'],
+                                lat_start + atr['Y_STEP'] * atr['LENGTH'],
+                                num=atr['LENGTH'])
+    lon_geo_array = np.linspace(atr['X_FIRST'],
+                                lon_start + atr['X_STEP'] * atr['WIDTH'],
+                                num=atr['WIDTH'])
+
+    # Use scipy RGI to resample SET from geocoded to radar coordinates
+    pts_src = (np.flipud(lat_geo_array), lon_geo_array)
+    pts_dst = (lat_radar_grid.flatten(), lon_radar_grid.flatten())
+
+    rdr_set_e, rdr_set_n, rdr_set_u = \
+        [resample_set(set_enu, pts_src, pts_dst).reshape(lat_radar_grid.shape)
+         for set_enu in [set_e, set_n, set_u]]
+
+    rg_set, az_set = enu2rgaz(burst.as_isce3_radargrid(), burst.orbit, ellipsoid,
+             lon_radar_grid, lat_radar_grid, hgt_radar_grid,
+             rdr_set_e, rdr_set_n, rdr_set_u)
+
+    return rg_set, az_set
+
 
 
 def compute_rdr2geo_rasters(burst, dem_raster, output_path,
@@ -362,3 +437,99 @@ def resample_set(geo_tide, pts_src, pts_dest):
                    bounds_error=False, fill_value=0)
     rdr_tide = rgi_func(pts_dest)
     return rdr_tide
+
+
+def enu2rgaz(radargrid_ref, orbit, ellipsoid,
+             lon_arr, lat_arr, hgt_arr,
+             e_arr, n_arr, u_arr):
+    '''
+    Convert ENU displacement into range / azimuth displacement
+
+    Parameters
+    ----------
+    radargrid_ref: isce3.product.RadarGridParameters
+        Radargrid of the burst
+    orbit: isce3.core.Orbit
+        Orbit of the burst
+    ellipsoid: isce3.core.Ellipsoid
+        Ellipsoid definition
+
+    lon_arr, lat_arr, hgt_arr: np.nadrray
+        Arrays for lonfigute, latitude, and height.
+        Units for longitude and latitude are degree; unit for height is meters.
+    
+    e_arr, n_arr, u_arr: np.ndarray
+        Displacement in east, north, and up direction in meters
+
+    Returns
+    -------
+    rg_arr: np.ndarray
+        Displacement in range direction in meters.
+    az_arr: np.ndarray
+        Displacement in azimuth direction in seconds.
+    '''
+    shape_arr = lon_arr.shape
+    rg_arr = np.zeros(shape_arr)
+    az_arr = np.zeros(shape_arr)
+
+    # Calculate the ENU vector in ECEF
+    for i in range(shape_arr[0]):
+        for j in range(shape_arr[1]):
+            lon_deg = lon_arr[i,j]
+            lat_deg = lat_arr[i,j]
+            hgt = hgt_arr[i,j]
+
+            llh_before = np.array([np.deg2rad(lon_deg),
+                                   np.deg2rad(lat_deg),
+                                   hgt])
+
+            hgt= hgt_arr[i,j]
+            vec_e, vec_n, vec_u = get_enu_vector_ecef(lon_deg, lat_deg)
+            xyz_before = ellipsoid.lon_lat_to_xyz(llh_before)
+            xyz_after = (xyz_before + vec_e * e_arr[i,j]
+                                    + vec_n * n_arr[i,j]
+                                    + vec_u * u_arr[i,j])
+            llh_after = ellipsoid.xyz_to_lon_lat(xyz_after)
+
+            aztime_ref, slant_range_ref =\
+                isce3.geometry.geo2rdr(llh_before,
+                                       ellipsoid,
+                                       orbit,
+                                       isce3.core.LUT2d(),
+                                       radargrid_ref.wavelength,
+                                       radargrid_ref.lookside,
+                                       threshold=1.0e-10, maxiter=50, delta_range=10.0)
+
+            aztime_displaced, slant_range_displaced =\
+                isce3.geometry.geo2rdr(llh_after,
+                                       ellipsoid,
+                                       orbit,
+                                       isce3.core.LUT2d(),
+                                       radargrid_ref.wavelength,
+                                       radargrid_ref.lookside,
+                                       threshold=1.0e-10, maxiter=50, delta_range=10.0)
+
+            rg_arr[i, j] = aztime_displaced - aztime_ref
+            az_arr[i, j] = slant_range_displaced - slant_range_ref
+    return rg_arr, az_arr
+
+
+def get_enu_vector_ecef(lon, lat, in_degree=True):
+    if in_degree:
+        lon_rad = np.deg2rad(lon)
+        lat_rad = np.deg2rad(lat)
+    else:
+        lon_rad = lon
+        lat_rad = lat
+
+    vec_u = np.array([np.cos(lon_rad) * np.cos(lat_rad),
+                       np.sin(lon_rad) * np.cos(lat_rad),
+                       np.sin(lat_rad)])
+
+    vec_n = np.array([-np.cos(lon_rad) * np.sin(lat_rad),
+                      -np.sin(lon_rad) * np.sin(lat_rad),
+                      np.cos(lat_rad)])
+
+    vec_e = np.cross(vec_n, vec_u)
+
+    return vec_e, vec_n, vec_u

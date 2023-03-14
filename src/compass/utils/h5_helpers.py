@@ -337,7 +337,7 @@ def get_polygon_wkt(burst: Sentinel1BurstSlc):
     return geometry_polygon.wkt
 
 
-def identity_to_h5group(dst_group, burst):
+def identity_to_h5group(dst_group, burst, cfg):
     '''
     Write burst metadata to HDF5
 
@@ -347,12 +347,13 @@ def identity_to_h5group(dst_group, burst):
         HDF5 group metadata will be written to
     burst: Sentinel1BurstSlc
         Burst whose metadata is to written to HDF5
-    dataset_path: str
-        Path to CSLC data in HDF5
+    cfg: dict[Namespace]
+        Name space dictionary with runconfig parameters
     '''
     # identification datasets
     id_meta_items = [
-        Meta('product_version', '?', 'CSLC product version'),
+        Meta('product_version', f'{cfg.product_path.product_version}', 'CSLC-S1 product version'),
+        Meta('processing_type', f'{cfg.product_path.processing_type}', 'CSLC-S1 processing type'),
         Meta('absolute_orbit_number', burst.abs_orbit_number, 'Absolute orbit number'),
         Meta('track_number', burst.burst_id.track_number, 'Track number'),
         Meta('burst_id', str(burst.burst_id), 'Burst identification (burst ID)'),

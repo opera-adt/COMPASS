@@ -10,6 +10,7 @@ from ruamel.yaml import YAML
 
 from compass.utils.geo_grid import (generate_geogrids_from_db,
                                     generate_geogrids, geogrid_as_dict)
+from compass.utils.helpers import check_file_path
 from compass.utils.runconfig import (
     create_output_paths,
     runconfig_to_bursts,
@@ -63,6 +64,13 @@ class GeoRunConfig(RunConfig):
 
         geocoding_dict = groups_cfg['processing']['geocoding']
         check_geocode_dict(geocoding_dict)
+
+        # Check TEC file if not None.
+        # The ionosphere correction will be applied only if
+        # the TEC file is not None.
+        tec_file_path = groups_cfg['dynamic_ancillary_file_group']['tec_file']
+        if tec_file_path is not None:
+            check_file_path(tec_file_path)
 
         # Convert runconfig dict to SimpleNamespace
         sns = wrap_namespace(groups_cfg)

@@ -357,7 +357,9 @@ def ionosphere_delay(utc_time, wavelength,
     '''
 
     if not tec_file:
-        raise RuntimeError('IONEX file for ionosphere correction was not provided.')
+        print('"tec_file" was not provided. '
+              'Ionosphere correction will not be applied.')
+        return np.zeros(lon_arr.shape)
 
     if not os.path.exists(tec_file):
         raise RuntimeError(f'IONEX file was not found: {tec_file}')

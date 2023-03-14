@@ -28,7 +28,7 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
     dem_path: str
         Path to the DEM file
     tec_path: str
-        Path to the TEC file for ionosphere correction
+        Path to the TEC file in IONEX format
     rg_step: float
         LUT spacing along slant range direction
     az_step: float
@@ -46,7 +46,7 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
         and slant range
     '''
     # Get individual LUTs
-    geometrical_steer_doppler, bistatic_delay, az_fm_mismatch, [tide_rg, _], ionosphere = \
+    geometrical_steer_doppler, bistatic_delay, az_fm_mismatch, [tide_rg, _], los_ionosphere = \
         compute_geocoding_correction_luts(burst,
                                           dem_path=dem_path,
                                           tec_path=tec_path,
@@ -56,7 +56,7 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
 
     # Convert to geometrical doppler from range time (seconds) to range (m)
     geometry_doppler = geometrical_steer_doppler.data * isce3.core.speed_of_light * 0.5
-    rg_lut_data = geometry_doppler + tide_rg + ionosphere
+    rg_lut_data = geometry_doppler + tide_rg + los_ionosphere
 
     # Invert signs to correct for convention
     # TO DO: add azimuth SET to LUT
@@ -79,7 +79,7 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
     output_path = f'{scratch_path}/corrections'
     os.makedirs(output_path, exist_ok=True)
     data_list = [geometry_doppler, bistatic_delay.data, az_fm_mismatch.data,
-                 tide_rg, ionosphere]
+                 tide_rg, los_ionosphere]
     descr = ['slant range geometrical doppler', 'azimuth bistatic delay', 'azimuth FM rate mismatch',
              'slant range Solid Earth tides', 'line-of-sight ionospheric delay']
 
@@ -104,7 +104,7 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
         Path to the TEC file for ionosphere correction
     rg_step: int
         LUT spacing along x/slant range in meters
-    az_ystep: float
+    az_step: float
         LUT spacing along y/azimuth in seconds
 
     scratch_path: str
@@ -193,12 +193,12 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
     rg_set = resize(rg_set_temp, out_shape, **kwargs)
     az_set = resize(az_set_temp, out_shape, **kwargs)
 
-    ionosphere = ionosphere_delay(burst.sensing_mid,
-                                  burst.wavelength,
-                                  tec_path, lon, lat, inc_angle)
+    los_ionosphere = ionosphere_delay(burst.sensing_mid,
+                                      burst.wavelength,
+                                      tec_path, lon, lat, inc_angle)
 
     return geometrical_steering_doppler, bistatic_delay, az_fm_mismatch, [
-        rg_set, az_set], ionosphere
+        rg_set, az_set], los_ionosphere
 
 
 def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, inc_angle,

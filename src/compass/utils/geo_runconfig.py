@@ -93,7 +93,7 @@ class GeoRunConfig(RunConfig):
                    user_plus_default_yaml_str, output_paths, geogrids)
 
     @property
-    def product_path(self) -> dict:
+    def product_group(self) -> dict:
         return self.groups.product_path_group
 
     @property

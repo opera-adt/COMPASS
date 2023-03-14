@@ -136,7 +136,7 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
         List of numpy.ndarray containing SET in slant range and azimuth directions
         in meters. These corrections need to be added to the slC tagged azimuth
         and slant range times.
-    
+
     ionosphere: np.ndarray
         numpy.ndarray for ionosphere delay in line-of-sight direction in meters.
         This correction needs to be added to the SLC tagged range time to

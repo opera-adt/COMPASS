@@ -376,10 +376,10 @@ def ionosphere_delay(utc_time, wavelength,
     ionex_val = ionex_val.reshape(lon_arr.shape)
 
     freq_sensor = isce3.core.speed_of_light / wavelength
-    
+
     # Constant to convert the TEC product to electrons / m2
     ELECTRON_PER_SQM = ionex_val * 1e16
-    
+
     # Constant in m3/s2
     K = 40.31
 

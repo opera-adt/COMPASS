@@ -30,6 +30,10 @@ runconfig:
           # Intermediate file name. SAS writes the output to this file.
           # PGE may rename the product according to file naming convention
           sas_output_file:
+          # Product version
+          product_version: 0.2
+          # Processing type
+          processing_type: UNDEFINED
 
       primary_executable:
           product_type: CSLC_S1

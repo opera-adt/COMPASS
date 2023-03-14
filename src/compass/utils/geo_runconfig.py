@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import json
+import os
 import yaml
 
 import isce3
@@ -19,7 +20,7 @@ from compass.utils.wrap_namespace import wrap_namespace
 
 
 def check_geocode_dict(geocode_cfg: dict) -> None:
-    error_channel = journal.error('runconfig.check_and_prepare_geocode_params')
+    error_channel = journal.error('runconfig.check_geocode_dict')
 
     for xy in 'xy':
         # check posting value in current axis
@@ -58,8 +59,16 @@ class GeoRunConfig(RunConfig):
         workflow_name: str
             Name of the workflow for which uploading default options
         """
+        error_channel = journal.error('runconfig.load_from_yaml')
+
         cfg = load_validate_yaml(yaml_path, workflow_name)
         groups_cfg = cfg['runconfig']['groups']
+
+        burst_database_file = groups_cfg['static_ancillary_file_group']['burst_database_file']
+        if not os.path.isfile(burst_database_file):
+            err_str = '{burst_database_file} not found'
+            error_channel.log(err_str)
+            raise FileNotFoundError(err_str)
 
         geocoding_dict = groups_cfg['processing']['geocoding']
         check_geocode_dict(geocoding_dict)
@@ -72,7 +81,6 @@ class GeoRunConfig(RunConfig):
 
         # Load geogrids
         dem_file = groups_cfg['dynamic_ancillary_file_group']['dem_file']
-        burst_database_file = groups_cfg['static_ancillary_file_group']['burst_database_file']
         if burst_database_file is None:
             geogrids = generate_geogrids(bursts, geocoding_dict, dem_file)
         else:

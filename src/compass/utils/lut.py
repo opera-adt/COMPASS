@@ -10,8 +10,8 @@ from scipy.interpolate import RegularGridInterpolator as RGI
 from skimage.transform import resize
 
 from compass.utils.geometry_utils import enu2rgaz
-from compass.utils.geometry_utils import enu2los, en2az
 from compass.utils.iono import ionosphere_delay
+from compass.utils.geometry_utils import enu2rgaz
 from compass.utils.helpers import open_raster
 from compass.utils.helpers import write_raster
 from RAiDER.delay import tropo_delay

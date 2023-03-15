@@ -285,7 +285,7 @@ def enu2rgaz(radargrid_ref, orbit, ellipsoid,
     lon_arr, lat_arr, hgt_arr: np.nadrray
         Arrays for lonfigute, latitude, and height.
         Units for longitude and latitude are degree; unit for height is meters.
-
+    
     e_arr, n_arr, u_arr: np.ndarray
         Displacement in east, north, and up direction in meters
 
@@ -344,7 +344,7 @@ def enu2rgaz(radargrid_ref, orbit, ellipsoid,
 
 def get_enu_vector_ecef(lon, lat, unit='degree'):
     '''
-    Calculate the east, north, and up vectors in ECEF for lon / lat provided
+    Calculate the east, north, and up vectors in ECEF for lon / lat provided 
 
     Parameters
     ----------

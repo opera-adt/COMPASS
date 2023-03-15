@@ -70,7 +70,7 @@ def run(cfg, burst, fetch_from_scratch=False):
     geo.doppler = image_grid_doppler
     geo.threshold_geo2rdr = threshold
     geo.numiter_geo2rdr = iters
-    elements_in_block = lines_per_block * geogrid.width
+    elements_in_block = lines_per_block * geo_grid.width
     geo.geogrid(geo_grid.start_x, geo_grid.start_y,
                 geo_grid.spacing_x, geo_grid.spacing_y,
                 geo_grid.width, geo_grid.length, geo_grid.epsg)

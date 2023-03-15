@@ -80,6 +80,25 @@ def resize_to_browse(arr, max_dim=2048):
             arr_browse[i, j] = np.mean(arr[i_s_, j_s_])
     return arr_browse
 
+def get_georaster_bounds(path_h5, grid_path, pol):
+    nfo = gdal.Info(f'NETCDF:{path_h5}:/{grid_path}/{pol}', format='json')
+
+    # set extreme initial values for min/max x/y
+    min_x = 999999
+    max_x = -999999
+    min_y = 999999
+    max_y = -999999
+
+    # extract wgs84 extent and find min/max x/y
+    wgs84_coords = nfo['wgs84Extent']['coordinates'][0]
+    for x, y in wgs84_coords:
+        min_x = min(min_x, x)
+        max_x = max(max_x, x)
+        min_y = min(min_y, y)
+        max_y = max(max_y, y)
+
+    return (min_x, max_x, min_y, max_y)
+
 def browse_image(path_h5, bursts, image_scale='linear', percent_lo=None,
                  percent_hi=None, gamma=1.0):
     root_path = '/science/SENTINEL1/CSLC'
@@ -116,6 +135,9 @@ def browse_image(path_h5, bursts, image_scale='linear', percent_lo=None,
             browse_h, browse_w = scale_to_max_pixel_dimension(full_shape)
 
             # create in memory GDAL raster for GSLC as real value array
+            '''
+            src_raster = f'NETCDF:{path_h5}:/{grid_path}/{pol}'
+            '''
             driver = gdal.GetDriverByName('MEM')
             src_raster = driver.Create('mem_raster', full_w, full_h, 1,
                                        gdal.GDT_Float32)
@@ -128,12 +150,18 @@ def browse_image(path_h5, bursts, image_scale='linear', percent_lo=None,
             srs.ImportFromEPSG(epsg)
             src_raster.SetProjection(srs.ExportToWkt())
 
+            min_x, max_x, min_y, max_y = get_georaster_bounds(path_h5,
+                                                              grid_path, pol)
             # gdal wrap to right shape and EPSG
             ds_wgs84 = gdal.Warp('', src_raster, format='MEM',
-                                 srcSRS=f'EPSG:{epsg}', dstSRS='EPSG:4326',
+                                 dstSRS='EPSG:4326',
                                  width=browse_w, height=browse_h,
                                  resampleAlg = gdal.GRIORA_Bilinear,
-                                 transformerOptions=['DST_METHOD=NO_GEOTRANSFORM'])
+                                 #resampleAlg = gdal.GRIORA_Lanczos,
+                                 outputBounds=(min_x, min_y, max_x, max_y),
+                                 #transformerOptions=['DST_METHOD=NO_GEOTRANSFORM']
+                                 )
+            print(ds_wgs84.GetGeoTransform())
             '''
             transformerOptions=['SRC_METHOD=NO_GEOTRANSFORM',
                                 'DST_METHOD=NO_GEOTRANSFORM'])

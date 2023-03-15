@@ -9,7 +9,7 @@ import pysolid
 from scipy.interpolate import RegularGridInterpolator as RGI
 from skimage.transform import resize
 
-from compass.utils.geometry_utils import enu2los, en2az
+from compass.utils.geometry_utils import enu2rgaz
 from compass.utils.iono import ionosphere_delay
 from compass.utils.helpers import open_raster
 from compass.utils.helpers import write_raster
@@ -473,99 +473,3 @@ def compute_static_troposphere_delay(incidence_angle_arr, hgt_arr):
     tropo = ZPD / np.cos(np.deg2rad(incidence_angle_arr)) * np.exp(-1 * hgt_arr / H)
 
     return tropo
-
-
-def enu2rgaz(radargrid_ref, orbit, ellipsoid,
-             lon_arr, lat_arr, hgt_arr,
-             e_arr, n_arr, u_arr):
-    '''
-    Convert ENU displacement into range / azimuth displacement
-
-    Parameters
-    ----------
-    radargrid_ref: isce3.product.RadarGridParameters
-        Radargrid of the burst
-    orbit: isce3.core.Orbit
-        Orbit of the burst
-    ellipsoid: isce3.core.Ellipsoid
-        Ellipsoid definition
-
-    lon_arr, lat_arr, hgt_arr: np.nadrray
-        Arrays for lonfigute, latitude, and height.
-        Units for longitude and latitude are degree; unit for height is meters.
-    
-    e_arr, n_arr, u_arr: np.ndarray
-        Displacement in east, north, and up direction in meters
-
-    Returns
-    -------
-    rg_arr: np.ndarray
-        Displacement in range direction in meters.
-    az_arr: np.ndarray
-        Displacement in azimuth direction in seconds.
-    '''
-    shape_arr = lon_arr.shape
-    rg_arr = np.zeros(shape_arr)
-    az_arr = np.zeros(shape_arr)
-
-    # Calculate the ENU vector in ECEF
-    for i in range(shape_arr[0]):
-        for j in range(shape_arr[1]):
-            lon_deg = lon_arr[i,j]
-            lat_deg = lat_arr[i,j]
-            hgt = hgt_arr[i,j]
-
-            llh_before = np.array([np.deg2rad(lon_deg),
-                                   np.deg2rad(lat_deg),
-                                   hgt])
-
-            hgt= hgt_arr[i,j]
-            vec_e, vec_n, vec_u = get_enu_vector_ecef(lon_deg, lat_deg)
-            xyz_before = ellipsoid.lon_lat_to_xyz(llh_before)
-            xyz_after = (xyz_before + vec_e * e_arr[i,j]
-                                    + vec_n * n_arr[i,j]
-                                    + vec_u * u_arr[i,j])
-            llh_after = ellipsoid.xyz_to_lon_lat(xyz_after)
-
-            aztime_ref, slant_range_ref =\
-                isce3.geometry.geo2rdr(llh_before,
-                                       ellipsoid,
-                                       orbit,
-                                       isce3.core.LUT2d(),
-                                       radargrid_ref.wavelength,
-                                       radargrid_ref.lookside,
-                                       threshold=1.0e-10, maxiter=50, delta_range=10.0)
-
-            aztime_displaced, slant_range_displaced =\
-                isce3.geometry.geo2rdr(llh_after,
-                                       ellipsoid,
-                                       orbit,
-                                       isce3.core.LUT2d(),
-                                       radargrid_ref.wavelength,
-                                       radargrid_ref.lookside,
-                                       threshold=1.0e-10, maxiter=50, delta_range=10.0)
-
-            rg_arr[i, j] = aztime_displaced - aztime_ref
-            az_arr[i, j] = slant_range_displaced - slant_range_ref
-    return rg_arr, az_arr
-
-
-def get_enu_vector_ecef(lon, lat, in_degree=True):
-    if in_degree:
-        lon_rad = np.deg2rad(lon)
-        lat_rad = np.deg2rad(lat)
-    else:
-        lon_rad = lon
-        lat_rad = lat
-
-    vec_u = np.array([np.cos(lon_rad) * np.cos(lat_rad),
-                       np.sin(lon_rad) * np.cos(lat_rad),
-                       np.sin(lat_rad)])
-
-    vec_n = np.array([-np.cos(lon_rad) * np.sin(lat_rad),
-                      -np.sin(lon_rad) * np.sin(lat_rad),
-                      np.cos(lat_rad)])
-
-    vec_e = np.cross(vec_n, vec_u)
-
-    return vec_e, vec_n, vec_u

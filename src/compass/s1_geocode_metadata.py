@@ -80,11 +80,10 @@ def run(cfg, burst, fetch_from_scratch=False):
                     geo_grid.start_y, 0, geo_grid.spacing_y]
 
     # Get the metadata layers to compute
-    double_bytes = 8
     float_bytes = 4
-    meta_layers = {'x': (cfg.rdr2geo_params.compute_longitude, double_bytes),
-                   'y': (cfg.rdr2geo_params.compute_latitude, double_bytes),
-                   'z': (cfg.rdr2geo_params.compute_height, double_bytes),
+    meta_layers = {'x': (cfg.rdr2geo_params.compute_longitude, float_bytes),
+                   'y': (cfg.rdr2geo_params.compute_latitude, float_bytes),
+                   'z': (cfg.rdr2geo_params.compute_height, float_bytes),
                    'incidence': (cfg.rdr2geo_params.compute_incidence_angle,
                                  float_bytes),
                    'local_incidence': (cfg.rdr2geo_params.compute_local_incidence_angle,

@@ -550,7 +550,8 @@ def metadata_to_h5group(parent_group, burst, cfg):
 
 
 def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,
-                           scratch_path):
+                           scratch_path, weather_model_path=None,
+                           delay_type='dry'):
     '''
     Write azimuth, slant range, and EAP (if needed) correction LUT2ds to HDF5
 
@@ -568,6 +569,14 @@ def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,
         LUT2d along azimuth direction
     scratch_path: str
         Path to the scratch directory
+    weather_model_path: str
+        Path to troposphere weather model in NetCDF4 format.
+        This is the only format supported by RAiDER. If None,
+        no weather model-based troposphere correction is applied
+        (default: None).
+    delay_type: str
+        Type of troposphere delay. Any between 'dry', or 'wet', or
+        'wet_dry' for the sum of wet and dry troposphere delays.
     '''
 
     # If enabled, save the correction LUTs
@@ -609,6 +618,18 @@ def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,
                  f'Solid Earth tides (range) {desc}',
                  {'units': 'meters'}),
         ]
+        if weather_model_path is not None:
+            if 'wet' in delay_type:
+                correction_items.append(Meta('wet_los_troposphere_delay',
+                                             ds.GetRasterBand(5).ReadAsArray(),
+                                             f'Wet LOS troposphere delay {desc}',
+                                             {'units': 'meters'}))
+            if 'dry' in delay_type:
+                correction_items.append(Meta('dry_los_troposphere_delay',
+                                             ds.GetRasterBand(6).ReadAsArray(),
+                                             f'Dry LOS troposphere delay {desc}',
+                                             {'units': 'meters'}))
+
         for meta_item in correction_items:
             add_dataset_and_attrs(correction_group, meta_item)
 

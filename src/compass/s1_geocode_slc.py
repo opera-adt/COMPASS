@@ -81,9 +81,11 @@ def run(cfg: GeoRunConfig):
         if cfg.lut_params.enabled:
             rg_lut, az_lut = cumulative_correction_luts(burst,
                                                         dem_path=cfg.dem,
+                                                        scratch_path=scratch_path,
+                                                        weather_model_path=cfg.weather_model_file,
                                                         rg_step=cfg.lut_params.range_spacing,
                                                         az_step=cfg.lut_params.azimuth_spacing,
-                                                        scratch_path=scratch_path)
+                                                        delay_type=cfg.tropo_params.delay_type)
         else:
             rg_lut = isce3.core.LUT2d()
             az_lut = isce3.core.LUT2d()
@@ -186,7 +188,9 @@ def run(cfg: GeoRunConfig):
 
             cslc_group = geo_burst_h5.require_group(f'{root_path}/CSLC')
             metadata_to_h5group(cslc_group, burst, cfg)
-            corrections_to_h5group(cslc_group, burst, cfg, rg_lut, az_lut, scratch_path)
+            corrections_to_h5group(cslc_group, burst, cfg, rg_lut, az_lut, scratch_path,
+                                   weather_model_path=cfg.weather_model_file,
+                                   delay_type=cfg.tropo_params.delay_type)
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")

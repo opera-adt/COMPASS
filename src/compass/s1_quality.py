@@ -2,65 +2,15 @@ import h5py
 import isce3
 import matplotlib.pyplot as plt
 import numpy as np
+from PIL import Image
 import s1reader
 from shapely.geometry import Point
+from skimage.transform import resize
 
 from compass.utils.geo_runconfig import GeoRunConfig
+from utils.calc import stats
 from utils.h5_helpers import Meta, add_dataset_and_attrs
 from utils.raster_polygon import get_boundary_polygon
-
-def stats(path_h5, bursts):
-    root_path = '/science/SENTINEL1/CSLC'
-
-    # init containers source and destination paths in hdf5
-    src_paths = []
-    dst_paths = []
-
-    # add CSLCs requiring stats
-    grid_path = f'{root_path}/grids'
-    for b in bursts:
-        pol = b.polarization
-        src_paths.append(f'{grid_path}/{pol}')
-        dst_paths.append(f'grid/{pol}')
-
-    # add corrections requiring stats
-    corrections = ['bistatic_delay', 'geometry_steering_doppler',
-                   'azimuth_fm_rate_mismatch']
-    for correction in corrections:
-        src_paths.append(f'{root_path}/corrections/{correction}')
-        dst_paths.append(correction)
-
-    # compute stats and write to hdf5
-    stat_names = ['mean', 'min', 'max', 'std']
-    with h5py.File(path_h5, 'a') as h5_obj:
-        qa_group = h5_obj.require_group(f'{root_path}/quality_assurance')
-        for src_path, dst_path in zip(src_paths, dst_paths):
-            # get data path and compute stats according to dtype
-            ds = h5_obj[src_path]
-            if ds.dtype == 'complex64':
-                stat_obj = isce3.math.StatsRealImagFloat32(ds[()])
-                arr = ds[()]
-                for typ, np_op in zip(['real', 'imag'], [np.real, np.imag]):
-                    typ_arr = np_op(arr)
-
-                # write stats to HDF5
-                vals = []
-                for cstat_member in [stat_obj.real, stat_obj.imag]:
-                    vals.extend([cstat_member.mean, cstat_member.min,
-                                 cstat_member.max, cstat_member.sample_stddev])
-                cstat_names = stat_names * 2
-                for ds_name, val in zip(stat_names * 2, vals):
-                    desc = f'{ds_name} of {dst_path}'
-                    add_dataset_and_attrs(qa_group, Meta(ds_name, val, desc))
-            else:
-                stat_obj = isce3.math.StatsFloat32(ds[()].astype(np.float32))
-
-                # write stats to HDF5
-                vals = [stat_obj.mean, stat_obj.min, stat_obj.max]
-                for ds_name, val in zip(stat_names, vals):
-                    desc = f'{ds_name} of {dst_path}'
-                    add_dataset_and_attrs(qa_group, Meta(ds_name, val, desc))
-
 
 def pixel_validity_check(path_h5, bursts):
     root_path = '/science/SENTINEL1/CSLC'
@@ -111,7 +61,25 @@ def pixel_validity_check(path_h5, bursts):
                 add_dataset_and_attrs(qa_group, Meta(ds_name, val, desc))
 
 
-def browse_image(path_h5, bursts, image_scale='linear'):
+def scale_to_max_pixel_dimension(orig_shape, max_dim=2048):
+    scaled_max = max([xy / max_dim for xy in orig_shape])
+    scaled_shape = [int(np.ceil(xy / scaled_max)) for xy in orig_shape]
+    return scaled_shape
+
+def resize_to_browse(arr, max_dim=2048):
+    browse_shape = scale_to_max_pixel_dimension(arr.shape, max_dim)
+    arr_browse = np.zeros(browse_shape)
+    for i in range(browse_shape[0]):
+        i_start = i * scale_max_int
+        i_s_ = np.s_[i_start:i_start + scale_max_int]
+        for j in range(browse_shape[1]):
+            j_start = j * scale_max_int
+            j_s_ = np.s_[j_start:j_start + scale_max_int]
+            arr_browse[i, j] = np.mean(arr[i_s_, j_s_])
+    return arr_browse
+
+def browse_image(path_h5, bursts, image_scale='linear', percent_lo=None,
+                 percent_hi=None, gamma=None):
     root_path = '/science/SENTINEL1/CSLC'
 
     # determine how to represent magnitude complex imagery
@@ -138,47 +106,47 @@ def browse_image(path_h5, bursts, image_scale='linear'):
         y_coords_utm = grid_group['y_coordinates'][()]
         epsg = grid_group['projection'][()]
 
-        # create projection to convert axis to lat lon for plot extent
-        proj = isce3.core.UTM(epsg)
-        lons = np.array([np.degrees(proj.inverse([x, y_coords_utm[0], 0])[0])
-                         for x in x_coords_utm])
-        lats = np.array([np.degrees(proj.inverse([x_coords_utm[0], y, 0])[1])
-                         for y in y_coords_utm])
-        extent = [lons[0], lons[-1], lats[0], lats[-1]]
-
-        qa_group = h5_obj[f'{root_path}/quality_assurance']
-
         for b in bursts:
             # get polarization to extract geocoded raster
             pol = b.polarization
             arr = array_op(grid_group[pol][()])
-            arr_nan_masked = np.ma.masked_array(arr, mask=np.isnan(arr))
+
+            # resize
+            browse_shape = scale_to_max_pixel_dimension(arr.shape)
+            arr = resize(arr, browse_shape)
+            print('done resizing', arr.shape)
 
             # prepare file output
             date = b.sensing_start.strftime('%Y-%m-%d')
             fname = f'{b.burst_id}_{image_scale}_{pol}_{date}.png'
 
-            # get stats needed to set max value of plot
-            mean = np.mean(arr_nan_masked)
-            std = np.std(arr_nan_masked)
-            print(mean, std)
-            optional_params = {}
-            if image_scale == 'linear':
-                optional_params['vmax'] = mean + std_multiplier * std
-            elif image_scale == 'log':
-                optional_params['vmax'] = mean + std_multiplier * std
-                optional_params['vmin'] = mean - std_multiplier * std
+            # get hi/lo values by percentile
+            if percent_hi is None:
+                percent_hi = 100
+            vmax = np.nanpercentile(arr, percent_hi)
 
-            # plot and save to disk
-            plt.close('all')
-            plt.figure(figsize=(20,10))
-            plt.imshow(np.abs(arr_nan_masked), extent=extent, cmap='gray', **optional_params)
-            plt.colorbar(orientation='horizontal')
-            plt.xlabel('longitude (deg)')
-            plt.ylabel('latitude (deg)')
-            plt.title(f'CSLC {b.burst_id} {image_scale} {pol} {b.sensing_start}')
-            plt.tight_layout()
-            plt.savefig(fname, facecolor='white', edgecolor='none')
+            if percent_lo is None:
+                percent_lo = 0
+            vmin = np.nanpercentile(arr, percent_lo)
+
+            # clip based on hi/lo percentiles
+            arr = np.clip(arr, a_min=vmin, a_max=vmax)
+            print('done clipping')
+
+            # scale to 0-1 for gray scale
+            arr = (arr - vmin) / (vmax - vmin)
+
+            # scale to 1-255
+            nan_mask = np.isnan(arr)
+            arr = np.uint8(arr * (254)) + 1
+            print('done scaling to 255')
+
+            # set NaNs to 0
+            arr[nan_mask] = 0
+
+            # save to disk
+            img = Image.fromarray(arr, mode='L')
+            img.save(fname, transparency=0)
 
 
 if __name__ == "__main__":

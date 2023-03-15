@@ -699,12 +699,6 @@ def corrections_to_h5group(parent_group, burst, cfg):
         for meta_item in noise_items:
             add_dataset_and_attrs(noise_group, meta_item)
 
-def get_cslc_geo_transform(path_hdf5, pol='VV'):
-    with h5py.File(path_hdf5, 'r', swmr=True) as h5_obj:
-        grid_path = '/science/SENTINEL1/CSLC/grids'
-        grid_group = h5_obj[grid_path]
-        x_coord = grid_group['x_coordinates'][()][0]
-        y_coord = grid_group['y_coordinates'][()][0]
-        x_spacing = grid_group['x_spacing'][()]
-        y_spacing = grid_group['y_spacing'][()]
-        return [x_coord, x_spacing, 0, y_coord, 0, y_spacing]
+def get_cslc_geotransform(filename, pol: str = "VV"):
+    gdal_str = f"NETCDF:{filename}://science/SENTINEL1/CSLC/grids/{pol}"
+    return gdal.Info(gdal_str, format='json')['geoTransform']

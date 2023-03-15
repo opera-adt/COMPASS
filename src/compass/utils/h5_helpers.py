@@ -368,13 +368,9 @@ def identity_to_h5group(dst_group, burst):
              'Azimuth start time of product'),
         Meta('zero_doppler_end_time', burst.sensing_stop.strftime(TIME_STR_FMT),
             'Azimuth stop time of product'),
-        Meta('list_of_frequencies', ['A'],
-             'List of frequency layers available in the product'),  # T)C
         Meta('is_geocoded', 'True', 'Flag to indicate radar geometry or geocoded product'),
         Meta('is_urgent_observation', 'False',
              'List of booleans indicating if datatakes are nominal or urgent'),
-        Meta('diagnostic_mode_flag', 'False',
-             'Indicates if the radar mode is a diagnostic mode or not: True or False'),
         ]
     id_group = dst_group.require_group('identification')
     for meta_item in id_meta_items:

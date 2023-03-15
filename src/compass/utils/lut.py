@@ -12,11 +12,16 @@ from skimage.transform import resize
 from compass.utils.geometry_utils import enu2rgaz
 from compass.utils.helpers import open_raster
 from compass.utils.helpers import write_raster
+from RAiDER.delay import tropo_delay
+from RAiDER.llreader import RasterRDR
+from RAiDER.losreader import Zenith
 
 
 def cumulative_correction_luts(burst, dem_path,
+                               scratch_path=None,
+                               weather_model_path=None,
                                rg_step=200, az_step=0.25,
-                               scratch_path=None):
+                               delay_type='dry'):
     '''
     Sum correction LUTs and returns cumulative correction LUT in slant range
     and azimuth directions
@@ -27,12 +32,20 @@ def cumulative_correction_luts(burst, dem_path,
         Sentinel-1 A/B burst SLC object
     dem_path: str
         Path to the DEM file
+    scratch_path: str
+        Path to the scratch directory
+    weather_model_path: str
+        Path to the weather model file in NetCDF4 format.
+        This file has been preprocessed by RAiDER and it is
+        the only file format supported by the package. If None,
+        no troposphere correction is performed.
     rg_step: float
         LUT spacing along slant range direction
     az_step: float
         LUT spacing along azimuth direction
-    scratch_path: str
-        Path to the scratch directory
+    delay_type: str
+        Type of troposphere delay. Any between 'dry', or 'wet', or
+        'wet_dry' for the sum of wet and dry troposphere delays.
 
     Returns
     -------
@@ -44,16 +57,25 @@ def cumulative_correction_luts(burst, dem_path,
         and slant range
     '''
     # Get individual LUTs
-    geometrical_steer_doppler, bistatic_delay, az_fm_mismatch, [tide_rg, tide_az]= \
+    geometrical_steer_doppler, bistatic_delay, az_fm_mismatch, [tide_rg, tide_az], \
+        [wet_los_tropo, dry_los_tropo] = \
         compute_geocoding_correction_luts(burst,
                                           dem_path=dem_path,
+                                          scratch_path=scratch_path,
+                                          weather_model_path=weather_model_path,
                                           rg_step=rg_step,
                                           az_step=az_step,
-                                          scratch_path=scratch_path)
+                                          )
 
     # Convert to geometrical doppler from range time (seconds) to range (m)
     geometry_doppler = geometrical_steer_doppler.data * isce3.core.speed_of_light * 0.5
     rg_lut_data = geometry_doppler + tide_rg
+
+    # Add troposphere delay to range LUT
+    if 'wet' in delay_type:
+        rg_lut_data += wet_los_tropo
+    if 'dry' in delay_type:
+        rg_lut_data += dry_los_tropo
 
     # Invert signs to correct for convention
     # TO DO: add azimuth SET to LUT
@@ -80,32 +102,46 @@ def cumulative_correction_luts(burst, dem_path,
     descr = ['geometrical doppler', 'bistatic delay', 'azimuth FM rate mismatch',
              'slant range Solid Earth tides', 'azimuth time Solid Earth tides']
 
+    if 'wet' in delay_type:
+        data_list.append(wet_los_tropo)
+        descr.append('wet LOS troposphere')
+    if 'dry' in delay_type:
+        data_list.append(dry_los_tropo)
+        descr.append('dry LOS troposphere')
+
     write_raster(f'{output_path}/corrections', data_list, descr)
 
     return rg_lut, az_lut
 
 
 def compute_geocoding_correction_luts(burst, dem_path,
+                                      scratch_path=None,
+                                      weather_model_path=None,
                                       rg_step=200, az_step=0.25,
-                                      scratch_path=None):
+                                      ):
     '''
     Compute slant range and azimuth LUTs corrections
     to be applied during burst geocoding
+
     Parameters
     ----------
     burst: Sentinel1BurstSlc
         S1-A/B burst object
     dem_path: str
         Path to the DEM required for azimuth FM rate mismatch.
-    xstep: int
-        LUT spacing along x/slant range in meters
-    ystep: int
-        LUT spacing along y/azimuth in seconds
-
     scratch_path: str
         Path to the scratch directory.
         If `None`, `burst.az_fm_rate_mismatch_mitigation()` will
         create temporary directory internally.
+    weather_model_path: str
+        Path to troposphere weather model in NetCDF4 format.
+        This is the only format supported by RAiDER. If None,
+        no weather model-based troposphere correction is applied
+        (default: None).
+    rg_step: int
+        LUT spacing along slant range in meters
+    az_step: int
+        LUT spacing along azimuth in seconds
 
     Returns
     -------
@@ -127,11 +163,17 @@ def compute_geocoding_correction_luts(burst, dem_path,
         This correction needs to be added to the SLC tagged azimuth time to
         get the corrected azimuth times.
 
-    [rg_set, az_set]: list, np.ndarray
+    [rg_set, az_set]: list[np.ndarray]
         List of numpy.ndarray containing SET in slant range and azimuth directions
         in meters. These corrections need to be added to the slC tagged azimuth
         and slant range times.
+
+    [wet_los_tropo, dry_los_tropo]: list[np.ndarray]
+        List of numpy.ndarray containing the LOS wet and dry troposphere delays
+        computed from the file specified under 'weather_model_path'. These delays
+        need to be added to the slant range correction LUT2D.
     '''
+
     # Get DEM raster
     dem_raster = isce3.io.Raster(dem_path)
     epsg = dem_raster.get_epsg()
@@ -184,8 +226,30 @@ def compute_geocoding_correction_luts(burst, dem_path,
     rg_set = resize(rg_set_temp, out_shape, **kwargs)
     az_set = resize(az_set_temp, out_shape, **kwargs)
 
+    # Compute wet and dry troposphere delays using RAiDER
+    wet_los_tropo, dry_los_tropo = [np.zeros(out_shape) for _ in range(2)]
+
+    if weather_model_path is not None:
+        # Instantiate an "aoi" object to read lat/lon/height files
+        aoi = RasterRDR(rdr2geo_raster_paths[1], rdr2geo_raster_paths[0],
+                        rdr2geo_raster_paths[2])
+
+        # Instantiate the Zenith object. Note RAiDER LOS object requires
+        # the orbit files.
+        los = Zenith()
+
+        # Compute the troposphere delay along the Zenith
+        zen_wet, zen_dry = tropo_delay(burst.sensing_start,
+                                       weather_model_path,
+                                       aoi, los)
+
+        # RaiDER delay is one-way only. Get the LOS delay my multiplying
+        # by the incidence angle
+        wet_los_tropo = 2.0 * zen_wet / np.cos(np.deg2rad(inc_angle))
+        dry_los_tropo = 2.0 * zen_dry / np.cos(np.deg2rad(inc_angle))
+
     return geometrical_steering_doppler, bistatic_delay, az_fm_mismatch, [
-        rg_set, az_set]
+        rg_set, az_set], [wet_los_tropo, dry_los_tropo]
 
 
 def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, hgt_radar_grid, ellipsoid):

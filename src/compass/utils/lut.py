@@ -188,88 +188,6 @@ def compute_geocoding_correction_luts(burst, dem_path,
         rg_set, az_set]
 
 
-def solid_earth_tides_original(burst, lat_radar_grid, lon_radar_grid, inc_angle,
-                      head_angle):
-    '''
-    Compute displacement due to Solid Earth Tides (SET)
-    in slant range and azimuth directions
-
-    Parameters
-    ---------
-    burst: Sentinel1Slc
-        S1-A/B burst object
-    lat_radar_grid: np.ndarray
-        Latitude array on burst radargrid
-    lon_radar_grid: np.ndarray
-        Longitude array on burst radargrid
-    inc_angle: np.ndarray
-        Incident angle raster in unit of degrees
-    head_angle: np.ndaaray
-        Heading angle raster in unit of degrees
-
-    Returns
-    ------
-    rg_set: np.ndarray
-        2D array with SET displacement along LOS
-    az_set: np.ndarray
-        2D array with SET displacement along azimuth
-    '''
-
-    # Extract top-left coordinates from burst polygon
-    lon_min, lat_min, _, _ = burst.border[0].bounds
-
-    # Generate the atr object to run pySolid. We compute SET on a
-    # 2.5 km x 2.5 km coarse grid
-    margin = 0.1
-    lat_start = lat_min - margin
-    lon_start = lon_min - margin
-
-    atr = {
-        'LENGTH': 25,
-        'WIDTH': 100,
-        'X_FIRST': lon_start,
-        'Y_FIRST': lat_start,
-        'X_STEP': 0.023,
-        'Y_STEP': 0.023
-    }
-
-    # Run pySolid and get SET in ENU coordinate system
-    (set_e,
-     set_n,
-     set_u) = pysolid.calc_solid_earth_tides_grid(burst.sensing_start, atr,
-                                                  display=False, verbose=True)
-
-    # Resample SET from geographical grid to radar grid
-    # Generate the lat/lon arrays for the SET geogrid
-    lat_geo_array = np.linspace(atr['Y_FIRST'],
-                                lat_start + atr['Y_STEP'] * atr['LENGTH'],
-                                num=atr['LENGTH'])
-    lon_geo_array = np.linspace(atr['X_FIRST'],
-                                lon_start + atr['X_STEP'] * atr['WIDTH'],
-                                num=atr['WIDTH'])
-
-    # Use scipy RGI to resample SET from geocoded to radar coordinates
-    pts_src = (np.flipud(lat_geo_array), lon_geo_array)
-    pts_dst = (lat_radar_grid.flatten(), lon_radar_grid.flatten())
-
-    rdr_set_e, rdr_set_n, rdr_set_u = \
-        [resample_set(set_enu, pts_src, pts_dst).reshape(lat_radar_grid.shape)
-         for set_enu in [set_e, set_n, set_u]]
-
-    # Convert SET from ENU to range/azimuth coordinates
-    # Note: rdr2geo heading angle is measured wrt to the East and it is positive
-    # anti-clockwise. To convert ENU to LOS, we need the azimuth angle which is
-    # measured from the north and positive anti-clockwise
-    # azimuth_angle = heading + 90
-    set_rg = enu2los(rdr_set_e, rdr_set_n, rdr_set_u, inc_angle,
-                     az_angle=head_angle + 90.0)
-    set_az = en2az(rdr_set_e, rdr_set_n, head_angle - 90.0)
-
-    return set_rg, set_az
-
-
-
-
 def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, hgt_radar_grid, ellipsoid):
     '''
     Compute displacement due to Solid Earth Tides (SET)
@@ -337,9 +255,9 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, hgt_radar_grid, ell
         [resample_set(set_enu, pts_src, pts_dst).reshape(lat_radar_grid.shape)
          for set_enu in [set_e, set_n, set_u]]
 
-    rg_set, az_set = enu2rgaz(burst.as_isce3_radargrid(), burst.orbit, ellipsoid,
-             lon_radar_grid, lat_radar_grid, hgt_radar_grid,
-             rdr_set_e, rdr_set_n, rdr_set_u)
+    rg_set, az_set = enu2rgaz(burst.as_isce3_radargrid(),burst.orbit,ellipsoid,
+                              lon_radar_grid, lat_radar_grid, hgt_radar_grid,
+                              rdr_set_e, rdr_set_n, rdr_set_u)
 
     return rg_set, az_set
 

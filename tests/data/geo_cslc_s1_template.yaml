@@ -18,6 +18,7 @@ runconfig:
     processing:
       rdr2geo:
         enabled: true
+        compute_layover_shadow_mask: False
       geo2rdr:
         lines_per_block: 1000
         numiter: 25

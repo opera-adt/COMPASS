@@ -2,6 +2,7 @@ import h5py
 import isce3
 import matplotlib.pyplot as plt
 import numpy as np
+from osgeo import gdal, osr
 from PIL import Image
 import s1reader
 from shapely.geometry import Point
@@ -9,7 +10,8 @@ from skimage.transform import resize
 
 from compass.utils.geo_runconfig import GeoRunConfig
 from utils.calc import stats
-from utils.h5_helpers import Meta, add_dataset_and_attrs
+from utils.h5_helpers import (Meta, add_dataset_and_attrs,
+                              get_cslc_geo_transform)
 from utils.raster_polygon import get_boundary_polygon
 
 def pixel_validity_check(path_h5, bursts):
@@ -79,17 +81,17 @@ def resize_to_browse(arr, max_dim=2048):
     return arr_browse
 
 def browse_image(path_h5, bursts, image_scale='linear', percent_lo=None,
-                 percent_hi=None, gamma=None):
+                 percent_hi=None, gamma=1.0):
     root_path = '/science/SENTINEL1/CSLC'
 
     # determine how to represent magnitude complex imagery
     if image_scale == 'linear':
-        array_op = np.abs
+        complex_to_real = np.abs
         std_multiplier = 4
     elif image_scale == 'log':
         def log_abs(x):
             return np.log(np.abs(x))
-        array_op = log_abs
+        complex_to_real = log_abs
         std_multiplier = 2
 
     # init containers source and destination paths in hdf5
@@ -98,23 +100,45 @@ def browse_image(path_h5, bursts, image_scale='linear', percent_lo=None,
     # add CSLCs requiring stats
     grid_path = f'{root_path}/grids'
 
-    with h5py.File(path_h5, 'r') as h5_obj:
+    with h5py.File(path_h5, 'r', swmr=True) as h5_obj:
         grid_group = h5_obj[grid_path]
 
-        # extract axis coords and epsg
-        x_coords_utm = grid_group['x_coordinates'][()]
-        y_coords_utm = grid_group['y_coordinates'][()]
-        epsg = grid_group['projection'][()]
+        # extract epsg
+        epsg = int(grid_group['projection'][()])
 
         for b in bursts:
             # get polarization to extract geocoded raster
             pol = b.polarization
-            arr = array_op(grid_group[pol][()])
 
-            # resize
-            browse_shape = scale_to_max_pixel_dimension(arr.shape)
-            arr = resize(arr, browse_shape)
-            print('done resizing', arr.shape)
+            # compute browse shape
+            full_shape = grid_group[pol].shape
+            full_h, full_w = full_shape
+            browse_h, browse_w = scale_to_max_pixel_dimension(full_shape)
+
+            # create in memory GDAL raster for GSLC as real value array
+            driver = gdal.GetDriverByName('MEM')
+            src_raster = driver.Create('mem_raster', full_w, full_h, 1,
+                                       gdal.GDT_Float32)
+            arr = complex_to_real(grid_group[pol][()])
+            src_raster.WriteArray(arr)
+
+            # set geotransform and epsg of source
+            src_raster.SetGeoTransform(get_cslc_geo_transform(path_h5, pol))
+            srs = osr.SpatialReference()
+            srs.ImportFromEPSG(epsg)
+            src_raster.SetProjection(srs.ExportToWkt())
+
+            # gdal wrap to right shape and EPSG
+            ds_wgs84 = gdal.Warp('', src_raster, format='MEM',
+                                 srcSRS=f'EPSG:{epsg}', dstSRS='EPSG:4326',
+                                 width=browse_w, height=browse_h,
+                                 resampleAlg = gdal.GRIORA_Bilinear,
+                                 transformerOptions=['DST_METHOD=NO_GEOTRANSFORM'])
+            '''
+            transformerOptions=['SRC_METHOD=NO_GEOTRANSFORM',
+                                'DST_METHOD=NO_GEOTRANSFORM'])
+            '''
+            arr = np.power(complex_to_real(ds_wgs84.ReadAsArray()), gamma)
 
             # prepare file output
             date = b.sensing_start.strftime('%Y-%m-%d')
@@ -131,7 +155,6 @@ def browse_image(path_h5, bursts, image_scale='linear', percent_lo=None,
 
             # clip based on hi/lo percentiles
             arr = np.clip(arr, a_min=vmin, a_max=vmax)
-            print('done clipping')
 
             # scale to 0-1 for gray scale
             arr = (arr - vmin) / (vmax - vmin)
@@ -139,7 +162,6 @@ def browse_image(path_h5, bursts, image_scale='linear', percent_lo=None,
             # scale to 1-255
             nan_mask = np.isnan(arr)
             arr = np.uint8(arr * (254)) + 1
-            print('done scaling to 255')
 
             # set NaNs to 0
             arr[nan_mask] = 0
@@ -161,4 +183,4 @@ if __name__ == "__main__":
     #stats(h5_path, cfg.bursts)
     #pixel_validity_check(h5_path, cfg.bursts)
     #browse_image(h5_path, cfg.bursts)
-    browse_image(h5_path, cfg.bursts, 'log')
+    browse_image(h5_path, cfg.bursts, 'linear', gamma=0.2)

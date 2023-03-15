@@ -5,6 +5,7 @@ Collection of functions to help write HDF5 datasets and metadata
 from dataclasses import dataclass, field
 import os
 
+import h5py
 import isce3
 import numpy as np
 from osgeo import osr
@@ -697,3 +698,13 @@ def corrections_to_h5group(parent_group, burst, cfg):
         noise_group = correction_group.require_group('noise')
         for meta_item in noise_items:
             add_dataset_and_attrs(noise_group, meta_item)
+
+def get_cslc_geo_transform(path_hdf5, pol='VV'):
+    with h5py.File(path_hdf5, 'r', swmr=True) as h5_obj:
+        grid_path = '/science/SENTINEL1/CSLC/grids'
+        grid_group = h5_obj[grid_path]
+        x_coord = grid_group['x_coordinates'][()][0]
+        y_coord = grid_group['y_coordinates'][()][0]
+        x_spacing = grid_group['x_spacing'][()]
+        y_spacing = grid_group['y_spacing'][()]
+        return [x_coord, x_spacing, 0, y_coord, 0, y_spacing]

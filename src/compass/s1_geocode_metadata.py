@@ -43,7 +43,7 @@ def run(cfg, burst, fetch_from_scratch=False):
     image_grid_doppler = isce3.core.LUT2d()
     threshold = cfg.geo2rdr_params.threshold
     iters = cfg.geo2rdr_params.numiter
-    blocksize = cfg.geo2rdr_params.lines_per_block
+    lines_per_block = cfg.geo2rdr_params.lines_per_block
     output_format = cfg.geocoding_params.output_format
 
     # process one burst only
@@ -70,7 +70,7 @@ def run(cfg, burst, fetch_from_scratch=False):
     geo.doppler = image_grid_doppler
     geo.threshold_geo2rdr = threshold
     geo.numiter_geo2rdr = iters
-    geo.lines_per_block = blocksize
+    elements_in_block = lines_per_block * geogrid.width
     geo.geogrid(geo_grid.start_x, geo_grid.start_y,
                 geo_grid.spacing_x, geo_grid.spacing_y,
                 geo_grid.width, geo_grid.length, geo_grid.epsg)
@@ -80,18 +80,24 @@ def run(cfg, burst, fetch_from_scratch=False):
                     geo_grid.start_y, 0, geo_grid.spacing_y]
 
     # Get the metadata layers to compute
-    meta_layers = {'x': cfg.rdr2geo_params.compute_longitude,
-                   'y': cfg.rdr2geo_params.compute_latitude,
-                   'z': cfg.rdr2geo_params.compute_height,
-                   'incidence': cfg.rdr2geo_params.compute_incidence_angle,
-                   'local_incidence': cfg.rdr2geo_params.compute_local_incidence_angle,
-                   'heading': cfg.rdr2geo_params.compute_azimuth_angle,
-                   'layover_shadow_mask': cfg.rdr2geo_params.compute_layover_shadow_mask}
+    double_bytes = 8
+    float_bytes = 4
+    meta_layers = {'x': (cfg.rdr2geo_params.compute_longitude, double_bytes),
+                   'y': (cfg.rdr2geo_params.compute_latitude, double_bytes),
+                   'z': (cfg.rdr2geo_params.compute_height, double_bytes),
+                   'incidence': (cfg.rdr2geo_params.compute_incidence_angle,
+                                 float_bytes),
+                   'local_incidence': (cfg.rdr2geo_params.compute_local_incidence_angle,
+                                       float_bytes),
+                   'heading': (cfg.rdr2geo_params.compute_azimuth_angle,
+                               float_bytes),
+                   'layover_shadow_mask': (cfg.rdr2geo_params.compute_layover_shadow_mask,
+                                           float_bytes)}
 
     out_h5 = f'{out_paths.output_directory}/topo.h5'
     shape = (geo_grid.length, geo_grid.width)
     with h5py.File(out_h5, 'w') as topo_h5:
-        for layer_name, enabled in meta_layers.items():
+        for layer_name, (enabled, type_bytes) in meta_layers.items():
             if not enabled:
                 continue
             dtype = np.single
@@ -109,9 +115,11 @@ def run(cfg, burst, fetch_from_scratch=False):
 
             input_raster = isce3.io.Raster(f'{input_path}/{layer_name}.rdr')
 
+            block_size = elements_in_block * type_bytes
             geo.geocode(radar_grid=radar_grid, input_raster=input_raster,
                         output_raster=output_raster, dem_raster=dem_raster,
-                        output_mode=isce3.geocode.GeocodeOutputMode.INTERP)
+                        output_mode=isce3.geocode.GeocodeOutputMode.INTERP,
+                        min_block_size=block_size, max_block_size=block_size)
             output_raster.set_geotransform(geotransform)
             output_raster.set_epsg(output_epsg)
             del input_raster

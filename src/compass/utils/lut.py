@@ -106,7 +106,7 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
                  tide_rg, tide_az, los_ionosphere]
     descr = ['slant range geometrical doppler', 'azimuth bistatic delay',
              'azimuth FM rate mismatch', 'slant range Solid Earth tides',
-             'Azimuth time Solid Earth tides', 'line-of-sight ionospheric delay']
+             'azimuth time Solid Earth tides', 'line-of-sight ionospheric delay']
 
     if weather_model_path is not None:
         if 'wet' in delay_type:
@@ -115,9 +115,6 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
         if 'dry' in delay_type:
             data_list.append(dry_los_tropo)
             descr.append('dry LOS troposphere')
-
-    descr = ['geometrical doppler', 'bistatic delay', 'azimuth FM rate mismatch',
-             'slant range Solid Earth tides', ]
 
     write_raster(f'{output_path}/corrections', data_list, descr)
 

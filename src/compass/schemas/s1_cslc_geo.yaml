@@ -40,98 +40,120 @@ runconfig:
         # Worker options (e.g. enable/disable GPU processing, select GPU device ID)
         worker: include('worker_options', required=False)
 
+        # Quality assurance options
+        quality_assurance: include('quality_assurance_options', required=False)
 ---
 # Group of processing options
 processing_options:
-   # Polarization to process. 3 modes below correspond to VV, VH, VV+VH
-   polarization: enum('co-pol', 'cross-pol', 'dual-pol', required=False)
-   # Options to run geocoding
-   geocoding: include('geocoding_options', required=False)
-   # Options to run geo2rdr
-   geo2rdr: include('geo2rdr_options', required=False)
-   # Range split-spectrum options
-   range_split_spectrum: include('range_split_spectrum_options', required=False)
-   # Options to generate model-based slant range and azimuth correction LUTs
-   correction_luts: include('lut_options', required=False)
-   # Computation of topo layers
-   rdr2geo: include('rdr2geo_options', required=False)
+    # Polarization to process. 3 modes below correspond to VV, VH, VV+VH
+    polarization: enum('co-pol', 'cross-pol', 'dual-pol', required=False)
+    # Options to run geocoding
+    geocoding: include('geocoding_options', required=False)
+    # Options to run geo2rdr
+    geo2rdr: include('geo2rdr_options', required=False)
+    # Range split-spectrum options
+    range_split_spectrum: include('range_split_spectrum_options', required=False)
+    # Options to generate model-based slant range and azimuth correction LUTs
+    correction_luts: include('lut_options', required=False)
+    # Computation of topo layers
+    rdr2geo: include('rdr2geo_options', required=False)
 
 geocoding_options:
-   # Format of output file
-   output_format: enum('ENVI', 'GTiff', 'COG', required=False)
-   # Boolean flag to enable/disable flattenin
-   flatten: bool(required=False)
-   # Number of lines to process in batch
-   lines_per_block: int(min=1, required=False)
-   # Product posting along X (same units as burst center EPSG)
-   x_posting: num(min=0, required=False)
-   # Product posting along Y (same units as burst center EPSG)
-   y_posting: num(min=0, required=False)
-   # Controls the product grid along X (same units as burst center EPSG)
-   x_snap: num(min=0, required=False)
-   # Controls the product grid along Y (same units as burst center EPSG)
-   y_snap: num(min=0, required=False)
+    # Format of output file
+    output_format: enum('ENVI', 'GTiff', 'COG', required=False)
+    # Boolean flag to enable/disable flattenin
+    flatten: bool(required=False)
+    # Number of lines to process in batch
+    lines_per_block: int(min=1, required=False)
+    # Product posting along X (same units as burst center EPSG)
+    x_posting: num(min=0, required=False)
+    # Product posting along Y (same units as burst center EPSG)
+    y_posting: num(min=0, required=False)
+    # Controls the product grid along X (same units as burst center EPSG)
+    x_snap: num(min=0, required=False)
+    # Controls the product grid along Y (same units as burst center EPSG)
+    y_snap: num(min=0, required=False)
 
 geo2rdr_options:
-  # Convergence threshold for geo2rdr algorithm
-  threshold: num(min=0, required=False)
-  # Maximum number of iterations
-  numiter: int(min=1, required=False)
-  # Lines per block to process in batch
-  lines_per_block: int(min=1, required=False)
+    # Convergence threshold for geo2rdr algorithm
+    threshold: num(min=0, required=False)
+    # Maximum number of iterations
+    numiter: int(min=1, required=False)
+    # Lines per block to process in batch
+    lines_per_block: int(min=1, required=False)
 
 range_split_spectrum_options:
-  # Boolean flag to enable/disable split-spectrum
-  enabled: bool(required=False)
-  # Lines per block to process in batch
-  lines_per_block: int(min=1, required=False)
-  # Bandwidth of the low-band sub-image
-  low_band_bandwidth: num(min=0, required=False)
-  # Bandwidth of the high-band sub-image
-  high_band_bandwidth: num(min=0, required=False)
+    # Boolean flag to enable/disable split-spectrum
+    enabled: bool(required=False)
+    # Lines per block to process in batch
+    lines_per_block: int(min=1, required=False)
+    # Bandwidth of the low-band sub-image
+    low_band_bandwidth: num(min=0, required=False)
+    # Bandwidth of the high-band sub-image
+    high_band_bandwidth: num(min=0, required=False)
 
 lut_options:
-  # Boolean flag to activate/deactivate model-based
-  # corrections while geocoding the burst
-  enabled: bool(required=False)
-  # LUT spacing in range direction in meters
-  range_spacing: num(min=0, required=False)
-  # LUT spacing in azimuth direction in seconds
-  azimuth_spacing: num(min=0, required=False)
+    # Boolean flag to activate/deactivate model-based
+    # corrections while geocoding the burst
+    enabled: bool(required=False)
+    # LUT spacing in range direction in meters
+    range_spacing: num(min=0, required=False)
+    # LUT spacing in azimuth direction in seconds
+    azimuth_spacing: num(min=0, required=False)
 
 rdr2geo_options:
-   # Enable/disable computation of topo layers
-   enabled: bool(required=False)
-   # Convergence threshold for rdr2geo algorithm
-   threshold: num(min=0, required=False)
-   # Maximum number of iterations
-   numiter: int(min=1, required=False)
-   # Lines per block to process in batch
-   lines_per_block: int(min=1, required=False)
-   # Secondary number of iterations
-   extraiter: int(min=1, required=False)
-   # Enable/disable computation of latitude raster
-   compute_latitude: bool(required=False)
-   # Enable/disable computation of longitude raster
-   compute_longitude: bool(required=False)
-   # Enable/disable computation of height raster
-   compute_height: bool(required=False)
-   # Enable/disable layover shadow mask output
-   compute_layover_shadow_mask: bool(required=False)
-   # Enable/disable incidence angle output
-   compute_incidence_angle: bool(required=False)
-   # Enable/disable local incidence output
-   compute_local_incidence_angle: bool(required=False)
-   # Enable/disable azimuth angle output
-   compute_azimuth_angle: bool(required=False)
-   # Enable/disable geocoding of the topo layers
-   geocode_metadata_layers: bool(required=False)
+    # Enable/disable computation of topo layers
+    enabled: bool(required=False)
+    # Convergence threshold for rdr2geo algorithm
+    threshold: num(min=0, required=False)
+    # Maximum number of iterations
+    numiter: int(min=1, required=False)
+    # Lines per block to process in batch
+    lines_per_block: int(min=1, required=False)
+    # Secondary number of iterations
+    extraiter: int(min=1, required=False)
+    # Enable/disable computation of latitude raster
+    compute_latitude: bool(required=False)
+    # Enable/disable computation of longitude raster
+    compute_longitude: bool(required=False)
+    # Enable/disable computation of height raster
+    compute_height: bool(required=False)
+    # Enable/disable layover shadow mask output
+    compute_layover_shadow_mask: bool(required=False)
+    # Enable/disable incidence angle output
+    compute_incidence_angle: bool(required=False)
+    # Enable/disable local incidence output
+    compute_local_incidence_angle: bool(required=False)
+    # Enable/disable azimuth angle output
+    compute_azimuth_angle: bool(required=False)
+    # Enable/disable geocoding of the topo layers
+    geocode_metadata_layers: bool(required=False)
 
 worker_options:
-  # To prevent downloading DEM / other data automatically. Default True
-  internet_access: bool(required=False)
-  # Enable/Disable GPU processing capabilities. Default False
-  gpu_enabled: bool(required=False)
-  # Index of the GPU to use for processing, optional. Defaults to the
-  # first available CUDA device. Ignored if *gpu_enabled* is False.
-  gpu_id: int(min=0, required=False)
+    # To prevent downloading DEM / other data automatically. Default True
+    internet_access: bool(required=False)
+    # Enable/Disable GPU processing capabilities. Default False
+    gpu_enabled: bool(required=False)
+    # Index of the GPU to use for processing, optional. Defaults to the
+    # first available CUDA device. Ignored if *gpu_enabled* is False.
+    gpu_id: int(min=0, required=False)
+
+quality_assurance_options:
+    # Options for generating browse images
+    browse_image: include('browse_image_options', required=False)
+    # Enable/disable computation of statistics of CSLC rasters and corrections
+    compute_stats: bool(required=False)
+
+browse_image_options:
+    # Enable/disable generation of CSLC browse image
+    enabled: bool(required=False)
+    # How to convert complex CSLC to real
+    complex_to_real: enum('amplitude', 'intensity', 'logamplitude', required=False)
+    # Lower percentile of non-nan pixels to clip
+    percent_lo: num(min=0, required=False)
+    # Higher percentile of non-nan pixels to clip
+    percent_hi: num(min=0, required=False)
+    # Gamma exponent applied to normalized image
+    gamma: num(min=0, required=False)
+    # Enable/disable histogram equalization
+    equalize: bool(required=False)

@@ -116,6 +116,10 @@ class GeoRunConfig(RunConfig):
     def lut_params(self) -> dict:
         return self.groups.processing.correction_luts
 
+    @property
+    def quality_assurance_params(self) -> dict:
+        return self.groups.quality_assurance
+
     def as_dict(self):
         ''' Convert self to dict for write to YAML/JSON
 

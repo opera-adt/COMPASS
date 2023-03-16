@@ -353,7 +353,6 @@ def identity_to_h5group(dst_group, burst, cfg):
     # identification datasets
     id_meta_items = [
         Meta('product_version', f'{cfg.product_group.product_version}', 'CSLC-S1 product version'),
-        Meta('processing_type', f'{cfg.product_group.processing_type}', 'CSLC-S1 processing type'),
         Meta('absolute_orbit_number', burst.abs_orbit_number, 'Absolute orbit number'),
         Meta('track_number', burst.burst_id.track_number, 'Track number'),
         Meta('burst_id', str(burst.burst_id), 'Burst identification (burst ID)'),

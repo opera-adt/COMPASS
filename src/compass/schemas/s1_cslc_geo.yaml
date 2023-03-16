@@ -32,8 +32,6 @@ runconfig:
            sas_output_file: str()
            # Product version
            product_version: num(required=False)
-           # Processing type
-           processing_type: enum('NOMINAL', 'URGENT', 'CUSTOM', 'UNDEFINED', required=False)
 
         primary_executable:
           product_type: enum('CSLC_S1')

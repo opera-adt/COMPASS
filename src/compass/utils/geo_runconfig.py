@@ -110,7 +110,7 @@ class GeoRunConfig(RunConfig):
     @property
     def product_group(self) -> dict:
         return self.groups.product_path_group
-        
+
     @property
     def weather_model_file(self) -> str:
         return self.groups.dynamic_ancillary_file_group.weather_model_file

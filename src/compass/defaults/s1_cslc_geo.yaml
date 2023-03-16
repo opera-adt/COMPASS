@@ -17,6 +17,8 @@ runconfig:
       dynamic_ancillary_file_group:
           # Digital elevation model
           dem_file:
+          # TEC file in IONEX format for ionosphere correction
+          tec_file:
           # Troposphere weather model file
           weather_model_file:
 

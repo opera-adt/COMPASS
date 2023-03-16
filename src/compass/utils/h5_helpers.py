@@ -368,13 +368,9 @@ def identity_to_h5group(dst_group, burst):
              'Azimuth start time of product'),
         Meta('zero_doppler_end_time', burst.sensing_stop.strftime(TIME_STR_FMT),
             'Azimuth stop time of product'),
-        Meta('list_of_frequencies', ['A'],
-             'List of frequency layers available in the product'),  # T)C
-        Meta('is_geocoded', True, 'Flag to indicate radar geometry or geocoded product'),
-        Meta('is_urgent_observation', False,
-             'List of booleans indicating if datatakes are nominal or urgent'),
-        Meta('diagnostic_mode_flag', False,
-             'Indicates if the radar mode is a diagnostic mode or not: True or False'),
+        Meta('is_geocoded', 'True', 'Boolean indicating if product is in radar geometry or geocoded'),
+        Meta('is_urgent_observation', 'False',
+             'Boolean indicating if data take is a urgent observation'),
         ]
     id_group = dst_group.require_group('identification')
     for meta_item in id_meta_items:
@@ -431,7 +427,7 @@ def metadata_to_h5group(parent_group, burst, cfg):
 
     vrt_items = [
         Meta('tiff_path', burst.tiff_path,
-             'Path to measurement tiff inside RSLC SAFE file'),
+             'Path to measurement tiff file inside the SAFE file'),
         Meta('burst_index', burst.i_burst,
              'Burst index relative other bursts in swath'),
         Meta('first_valid_sample', burst.first_valid_sample,
@@ -451,13 +447,13 @@ def metadata_to_h5group(parent_group, burst, cfg):
     algorithm_items = [
         Meta('dem_interpolation', 'biquintic', 'DEM interpolation method'),
         Meta('geocoding_interpolator', 'sinc interpolation',
-             'Geocoding algorithm'),
-        Meta('ISCE_version', isce3.__version__,
-             'ISCE version used for processing'),
+             'Geocoding interpolation method'),
+        Meta('ISCE3_version', isce3.__version__,
+             'ISCE3 version used for processing'),
         Meta('s1Reader_version', s1reader.__version__,
              'S1-Reader version used for processing'),
         Meta('COMPASS_version', compass.__version__,
-             'COMPASS version used for processing')
+             'COMPASS (CSLC-S1 processor) version used for processing')
     ]
     algorithm_group = processing_group.require_group('algorithms')
     for meta_item in algorithm_items:
@@ -466,7 +462,7 @@ def metadata_to_h5group(parent_group, burst, cfg):
     # burst items
     burst_meta_items = [
         Meta('ipf_version', str(burst.ipf_version),
-             'Image Processing Facility'),
+             'Image Processing Facility software version'),
         Meta('sensing_start', burst.sensing_start.strftime(TIME_STR_FMT),
              'Sensing start time of the burst',
              {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
@@ -498,7 +494,7 @@ def metadata_to_h5group(parent_group, burst, cfg):
         Meta('range_pixel_spacing', burst.range_pixel_spacing,
              'Pixel spacing between slant range samples in the input burst SLC',
              {'units':'meters'}),
-        Meta('shape', burst.shape, 'Shape of SLC (length, width)',
+        Meta('shape', burst.shape, 'Shape (length, width) of the burst in radar coordinates',
              {'units':'pixels'}),
         Meta('range_bandwidth', burst.range_bandwidth,
              'Slant range bandwidth of the signal', {'units':'Hz'}),
@@ -513,7 +509,7 @@ def metadata_to_h5group(parent_group, burst, cfg):
         Meta('range_window_coefficient', burst.range_window_coefficient,
              'Value of the weighting window coefficient used during processing'),
         Meta('rank', burst.rank,
-             "The number of PRI between transmitted pulse and return echo"),
+             "The number of Pulse Repetition Intervals (PRI) between transmitted pulse and return echo"),
         Meta('prf_raw_data', burst.prf_raw_data,
              'Pulse repetition frequency (PRF) of the raw data',
              {'units':'Hz'}),

@@ -18,6 +18,8 @@ from compass.utils.lut import compute_geocoding_correction_luts
 
 
 TIME_STR_FMT = '%Y-%m-%d %H:%M:%S.%f'
+ROOT_PATH = '/science/SENTINEL1/CSLC'
+GRID_PATH = f'{ROOT_PATH}/grids'
 
 
 @dataclass
@@ -699,6 +701,28 @@ def corrections_to_h5group(parent_group, burst, cfg):
         for meta_item in noise_items:
             add_dataset_and_attrs(noise_group, meta_item)
 
+
 def get_cslc_geotransform(filename, pol: str = "VV"):
-    gdal_str = f"NETCDF:{filename}://science/SENTINEL1/CSLC/grids/{pol}"
+    gdal_str = f'NETCDF:{filename}:/{GRID_PATH}/{pol}'
     return gdal.Info(gdal_str, format='json')['geoTransform']
+
+
+def get_georaster_bounds(filename, pol):
+    nfo = gdal.Info(f'NETCDF:{filename}:/{GRID_PATH}/{pol}', format='json')
+
+    # set extreme initial values for min/max x/y
+    min_x = 999999
+    max_x = -999999
+    min_y = 999999
+    max_y = -999999
+
+    # extract wgs84 extent and find min/max x/y
+    wgs84_coords = nfo['wgs84Extent']['coordinates'][0]
+    for x, y in wgs84_coords:
+        min_x = min(min_x, x)
+        max_x = max(max_x, x)
+        min_y = min(min_y, y)
+        max_y = max(max_y, y)
+
+    return (min_x, max_x, min_y, max_y)
+

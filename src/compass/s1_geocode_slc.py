@@ -14,6 +14,7 @@ from s1reader.s1_reader import is_eap_correction_necessary
 
 from compass import s1_rdr2geo
 from compass import s1_geocode_metadata
+from compass.utils.browse_image import make_browse_image
 from compass.utils.elevation_antenna_pattern import apply_eap_correction
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.h5_helpers import (corrections_to_h5group,
@@ -194,6 +195,15 @@ def run(cfg: GeoRunConfig):
             cslc_group = geo_burst_h5.require_group(f'{root_path}/CSLC')
             metadata_to_h5group(cslc_group, burst, cfg)
             corrections_to_h5group(cslc_group, burst, cfg)
+
+        # If needed, make browse image
+        browse_params = cfg.browse_image_params
+        if browse_params.enabled:
+            make_browse_image(outpaths.browse_path, output_hdf5, cfg.bursts,
+                              browse_params.complex_to_real,
+                              browse_params.percent_lo,
+                              browse_params.percent_hi,
+                              browse_params.gamma, browse_params.equalize)
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")

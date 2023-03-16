@@ -120,6 +120,10 @@ class GeoRunConfig(RunConfig):
     def quality_assurance_params(self) -> dict:
         return self.groups.quality_assurance
 
+    @property
+    def browse_image_params(self) -> dict:
+        return self.groups.quality_assurance.browse_iamge
+
     def as_dict(self):
         ''' Convert self to dict for write to YAML/JSON
 

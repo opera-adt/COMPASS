@@ -9,9 +9,9 @@ from shapely.geometry import Point
 from skimage.transform import resize
 
 from compass.utils.geo_runconfig import GeoRunConfig
+from utils.browse_image import make_browse_image
 from utils.calc import stats
-from utils.h5_helpers import (Meta, add_dataset_and_attrs,
-                              get_cslc_geo_transform)
+from utils.h5_helpers import (Meta, add_dataset_and_attrs)
 from utils.raster_polygon import get_boundary_polygon
 
 def pixel_validity_check(path_h5, bursts):
@@ -211,4 +211,4 @@ if __name__ == "__main__":
     #stats(h5_path, cfg.bursts)
     #pixel_validity_check(h5_path, cfg.bursts)
     #browse_image(h5_path, cfg.bursts)
-    browse_image(h5_path, cfg.bursts, 'linear', gamma=0.2)
+    make_browse_image(h5_path, cfg.bursts, 'amplitude', gamma=0.2)

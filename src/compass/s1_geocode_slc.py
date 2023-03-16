@@ -77,10 +77,13 @@ def run(cfg: GeoRunConfig):
         # Create scratch as needed
         scratch_path = out_paths.scratch_directory
 
+
         # If enabled, get range and azimuth LUTs
         if cfg.lut_params.enabled:
+
             rg_lut, az_lut = cumulative_correction_luts(burst,
                                                         dem_path=cfg.dem,
+                                                        tec_path=cfg.tec_file,
                                                         scratch_path=scratch_path,
                                                         weather_model_path=cfg.weather_model_file,
                                                         rg_step=cfg.lut_params.range_spacing,

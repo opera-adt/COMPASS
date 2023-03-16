@@ -188,9 +188,11 @@ def run(cfg: GeoRunConfig):
 
             cslc_group = geo_burst_h5.require_group(f'{root_path}/CSLC')
             metadata_to_h5group(cslc_group, burst, cfg)
-            corrections_to_h5group(cslc_group, burst, cfg, rg_lut, az_lut, scratch_path,
-                                   weather_model_path=cfg.weather_model_file,
-                                   delay_type=cfg.tropo_params.delay_type)
+            if cfg.lut_params.enabled:
+                corrections_to_h5group(cslc_group, burst, cfg, rg_lut, az_lut,
+                                       scratch_path,
+                                       weather_model_path=cfg.weather_model_file,
+                                       delay_type=cfg.tropo_params.delay_type)
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")

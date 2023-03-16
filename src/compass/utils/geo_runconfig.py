@@ -71,6 +71,13 @@ class GeoRunConfig(RunConfig):
         tec_file_path = groups_cfg['dynamic_ancillary_file_group']['tec_file']
         if tec_file_path is not None:
             check_file_path(tec_file_path)
+        # Check troposphere weather model file if not None. This
+        # troposphere correction is applied only if this file is not None
+        weather_model_path = groups_cfg['dynamic_ancillary_file_group'][
+            'weather_model_file'
+        ]
+        if weather_model_path is not None:
+            check_file_path(weather_model_path)
 
         # Convert runconfig dict to SimpleNamespace
         sns = wrap_namespace(groups_cfg)
@@ -101,6 +108,10 @@ class GeoRunConfig(RunConfig):
                    user_plus_default_yaml_str, output_paths, geogrids)
 
     @property
+    def weather_model_file(self) -> str:
+        return self.groups.dynamic_ancillary_file_group.weather_model_file
+
+    @property
     def geocoding_params(self) -> dict:
         return self.groups.processing.geocoding
 
@@ -111,6 +122,10 @@ class GeoRunConfig(RunConfig):
     @property
     def lut_params(self) -> dict:
         return self.groups.processing.correction_luts
+
+    @property
+    def tropo_params(self) -> dict:
+        return self.groups.processing.correction_luts.troposphere
 
     def as_dict(self):
         ''' Convert self to dict for write to YAML/JSON

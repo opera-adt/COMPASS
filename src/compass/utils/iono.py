@@ -13,6 +13,7 @@ import logging
 import os
 import re
 
+import isce3
 import numpy as np
 from scipy import interpolate
 
@@ -327,3 +328,62 @@ def get_ionex_height(tec_file):
                 ion_hgt = float(line.split()[0])
                 break
     return ion_hgt
+
+
+def ionosphere_delay(utc_time, wavelength,
+                     tec_file, lon_arr, lat_arr, inc_arr):
+    '''
+    Calculate ionosphere delay for geolocation
+
+    Parameters
+    ----------
+    utc_time: datetime.datetime
+        UTC time to calculate the ionosphere delay
+    wavelength: float
+        Wavelength of the signal
+    tec_file: str
+        Path to the TEC file
+    lon_arr: numpy.ndarray
+        array of longitude in radar grid. unit: degrees
+    lat_arr: numpy.ndarray
+        array of latitude in radar grid. unit: degrees
+    inc_arr: numpy.ndarray
+        array of incidence angle in radar grid. unit: degrees
+
+    Returns
+    -------
+    los_iono_delay: np.ndarray
+        Ionospheric delay in line of sight in meters
+    '''
+
+    if not tec_file:
+        print('"tec_file" was not provided. '
+              'Ionosphere correction will not be applied.')
+        return np.zeros(lon_arr.shape)
+
+    if not os.path.exists(tec_file):
+        raise RuntimeError(f'IONEX file was not found: {tec_file}')
+
+    utc_tod_sec = (utc_time.hour * 3600.0
+                   + utc_time.minute * 60.0
+                   + utc_time.second)
+
+    ionex_val = get_ionex_value(tec_file,
+                                utc_tod_sec,
+                                lat_arr.flatten(),
+                                lon_arr.flatten())
+
+    ionex_val = ionex_val.reshape(lon_arr.shape)
+
+    freq_sensor = isce3.core.speed_of_light / wavelength
+
+    # Constant to convert the TEC product to electrons / m2
+    ELECTRON_PER_SQM = ionex_val * 1e16
+
+    # Constant in m3/s2
+    K = 40.31
+
+    los_iono_delay = (K * ELECTRON_PER_SQM / freq_sensor**2
+                           / np.cos(np.deg2rad(inc_arr)))
+
+    return los_iono_delay

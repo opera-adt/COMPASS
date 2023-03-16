@@ -65,6 +65,12 @@ class GeoRunConfig(RunConfig):
         geocoding_dict = groups_cfg['processing']['geocoding']
         check_geocode_dict(geocoding_dict)
 
+        # Check TEC file if not None.
+        # The ionosphere correction will be applied only if
+        # the TEC file is not None.
+        tec_file_path = groups_cfg['dynamic_ancillary_file_group']['tec_file']
+        if tec_file_path is not None:
+            check_file_path(tec_file_path)
         # Check troposphere weather model file if not None. This
         # troposphere correction is applied only if this file is not None
         weather_model_path = groups_cfg['dynamic_ancillary_file_group'][

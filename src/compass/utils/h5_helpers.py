@@ -583,6 +583,11 @@ def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,
     if not cfg.lut_params.enabled:
         return
 
+    # Open GDAL dataset to fetch corrections
+    ds = gdal.Open(f'{scratch_path}/corrections/corrections',
+                   gdal.GA_ReadOnly)
+    correction_group = parent_group.require_group('corrections')
+
     # create slant range and azimuth vectors shared by the LUTs
     x_end = rg_lut.x_start + rg_lut.width * rg_lut.x_spacing
     slant_range = np.linspace(rg_lut.x_start, x_end,

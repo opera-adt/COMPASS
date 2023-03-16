@@ -17,6 +17,10 @@ runconfig:
         dynamic_ancillary_file_group:
            # Digital Elevation Model.
            dem_file: str(required=False)
+           # TEC file in IONEX format for ionosphere correction
+           tec_file: str(required=False)
+           # Troposphere weather model
+           weather_model_file: str(required=False)
 
         static_ancillary_file_group:
            # burst database sqlite file
@@ -88,6 +92,13 @@ lut_options:
   range_spacing: num(min=0, required=False)
   # LUT spacing in azimuth direction in seconds
   azimuth_spacing: num(min=0, required=False)
+  # Troposphere delay using weather model
+  troposphere: include('troposphere_options', required=False)
+
+troposphere_options:
+  # Type of troposphere delay. Any of 'dry', 'wet' or 'wet_dry' for
+  # the sum of wet and dry delays
+  delay_type: enum('dry', 'wet', 'wet_dry', required=False)
 
 rdr2geo_options:
    # Enable/disable computation of topo layers

@@ -576,61 +576,59 @@ def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,
     '''
 
     # If enabled, save the correction LUTs
-    if cfg.lut_params.enabled:
-        # Open GDAL dataset to fetch corrections
-        ds = gdal.Open(f'{scratch_path}/corrections/corrections',
-                       gdal.GA_ReadOnly)
-        correction_group = parent_group.require_group('corrections')
+    if not cfg.lut_params.enabled:
+        return
 
+    # Open GDAL dataset to fetch corrections
+    ds = gdal.Open(f'{scratch_path}/corrections/corrections',
+                   gdal.GA_ReadOnly)
+    correction_group = parent_group.require_group('corrections')
 
-        # create slant range and azimuth vectors shared by the LUTs
-        x_end = rg_lut.x_start + rg_lut.width * rg_lut.x_spacing
-        slant_range = np.linspace(rg_lut.x_start, x_end,
-                                  rg_lut.width, dtype=np.float64)
-        y_end = az_lut.y_start + az_lut.length * az_lut.y_spacing
-        azimuth = np.linspace(az_lut.y_start, y_end,
-                              az_lut.length, dtype=np.float64)
+    # create slant range and azimuth vectors shared by the LUTs
+    x_end = rg_lut.x_start + rg_lut.width * rg_lut.x_spacing
+    slant_range = np.linspace(rg_lut.x_start, x_end,
+                              rg_lut.width, dtype=np.float64)
+    y_end = az_lut.y_start + az_lut.length * az_lut.y_spacing
+    azimuth = np.linspace(az_lut.y_start, y_end,
+                          az_lut.length, dtype=np.float64)
 
-        # correction LUTs axis and doppler correction LUTs
-        desc = 'correction as a function of slant range and azimuth time'
-        correction_items = [
-            Meta('slant_range', slant_range, 'slant range of LUT data',
-                {'units': 'meters'}),
-            Meta('slant_range_spacing', rg_lut.x_spacing,
-                 'spacing of slant range of LUT data', {'units': 'meters'}),
-            Meta('zero_doppler_time', azimuth, 'azimuth time of LUT data',
-                 {'units': 'seconds'}),
-            Meta('zero_doppler_time_spacing',rg_lut.y_spacing,
-                 'spacing of azimuth time of LUT data', {'units': 'seconds'}),
-            Meta('bistatic_delay', ds.GetRasterBand(2).ReadAsArray(),
-                 f'bistatic delay (azimuth) {desc}', {'units': 'seconds'}),
-            Meta('geometry_steering_doppler', ds.GetRasterBand(1).ReadAsArray(),
-                 f'geometry steering doppler (range) {desc}',
-                 {'units': 'meters'}),
-            Meta('azimuth_fm_rate_mismatch', ds.GetRasterBand(3).ReadAsArray(),
-                 f'azimuth FM rate mismatch mitigation (azimuth) {desc}',
-                 {'units': 'seconds'}),
-            Meta('los_solid_earth_tides', ds.GetRasterBand(4).ReadAsArray(),
-                 f'Solid Earth tides (range) {desc}',
-                 {'units': 'meters'}),
-            Meta('los_ionospheric_delay', ds.GetRasterBand(5).ReadAsArray(),
-                 f'Ionospheric delay (range) {desc}',
-                 {'units': 'meters'}),
-        ]
-        if weather_model_path is not None:
-            if 'wet' in delay_type:
-                correction_items.append(Meta('wet_los_troposphere_delay',
-                                             ds.GetRasterBand(5).ReadAsArray(),
-                                             f'Wet LOS troposphere delay {desc}',
-                                             {'units': 'meters'}))
-            if 'dry' in delay_type:
-                correction_items.append(Meta('dry_los_troposphere_delay',
-                                             ds.GetRasterBand(6).ReadAsArray(),
-                                             f'Dry LOS troposphere delay {desc}',
-                                             {'units': 'meters'}))
+    # correction LUTs axis and doppler correction LUTs
+    desc = 'correction as a function of slant range and azimuth time'
+    correction_items = [
+        Meta('slant_range', slant_range, 'slant range of LUT data',
+            {'units': 'meters'}),
+        Meta('slant_range_spacing', rg_lut.x_spacing,
+             'spacing of slant range of LUT data', {'units': 'meters'}),
+        Meta('zero_doppler_time', azimuth, 'azimuth time of LUT data',
+             {'units': 'seconds'}),
+        Meta('zero_doppler_time_spacing',rg_lut.y_spacing,
+             'spacing of azimuth time of LUT data', {'units': 'seconds'}),
+        Meta('bistatic_delay', ds.GetRasterBand(2).ReadAsArray(),
+             f'bistatic delay (azimuth) {desc}', {'units': 'seconds'}),
+        Meta('geometry_steering_doppler', ds.GetRasterBand(1).ReadAsArray(),
+             f'geometry steering doppler (range) {desc}',
+             {'units': 'meters'}),
+        Meta('azimuth_fm_rate_mismatch', ds.GetRasterBand(3).ReadAsArray(),
+             f'azimuth FM rate mismatch mitigation (azimuth) {desc}',
+             {'units': 'seconds'}),
+        Meta('los_solid_earth_tides', ds.GetRasterBand(4).ReadAsArray(),
+             f'Solid Earth tides (range) {desc}',
+             {'units': 'meters'}),
+    ]
+    if weather_model_path is not None:
+        if 'wet' in delay_type:
+            correction_items.append(Meta('wet_los_troposphere_delay',
+                                         ds.GetRasterBand(5).ReadAsArray(),
+                                         f'Wet LOS troposphere delay {desc}',
+                                         {'units': 'meters'}))
+        if 'dry' in delay_type:
+            correction_items.append(Meta('dry_los_troposphere_delay',
+                                         ds.GetRasterBand(6).ReadAsArray(),
+                                         f'Dry LOS troposphere delay {desc}',
+                                         {'units': 'meters'}))
 
-        for meta_item in correction_items:
-            add_dataset_and_attrs(correction_group, meta_item)
+    for meta_item in correction_items:
+        add_dataset_and_attrs(correction_group, meta_item)
 
     # Extended FM rate and doppler centroid polynomial coefficients for azimuth
     # FM rate mismatch mitigation

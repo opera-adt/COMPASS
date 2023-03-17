@@ -17,6 +17,10 @@ runconfig:
         dynamic_ancillary_file_group:
            # Digital Elevation Model.
            dem_file: str(required=False)
+           # TEC file in IONEX format for ionosphere correction
+           tec_file: str(required=False)
+           # Troposphere weather model
+           weather_model_file: str(required=False)
 
         static_ancillary_file_group:
            # burst database sqlite file
@@ -45,18 +49,16 @@ runconfig:
 ---
 # Group of processing options
 processing_options:
-    # Polarization to process. 3 modes below correspond to VV, VH, VV+VH
-    polarization: enum('co-pol', 'cross-pol', 'dual-pol', required=False)
-    # Options to run geocoding
-    geocoding: include('geocoding_options', required=False)
-    # Options to run geo2rdr
-    geo2rdr: include('geo2rdr_options', required=False)
-    # Range split-spectrum options
-    range_split_spectrum: include('range_split_spectrum_options', required=False)
-    # Options to generate model-based slant range and azimuth correction LUTs
-    correction_luts: include('lut_options', required=False)
-    # Computation of topo layers
-    rdr2geo: include('rdr2geo_options', required=False)
+   # Polarization to process. 3 modes below correspond to VV, VH, VV+VH
+   polarization: enum('co-pol', 'cross-pol', 'dual-pol', required=False)
+   # Options to run geocoding
+   geocoding: include('geocoding_options', required=False)
+   # Options to run geo2rdr
+   geo2rdr: include('geo2rdr_options', required=False)
+   # Options to generate model-based slant range and azimuth correction LUTs
+   correction_luts: include('lut_options', required=False)
+   # Computation of topo layers
+   rdr2geo: include('rdr2geo_options', required=False)
 
 geocoding_options:
     # Format of output file
@@ -82,24 +84,21 @@ geo2rdr_options:
     # Lines per block to process in batch
     lines_per_block: int(min=1, required=False)
 
-range_split_spectrum_options:
-    # Boolean flag to enable/disable split-spectrum
-    enabled: bool(required=False)
-    # Lines per block to process in batch
-    lines_per_block: int(min=1, required=False)
-    # Bandwidth of the low-band sub-image
-    low_band_bandwidth: num(min=0, required=False)
-    # Bandwidth of the high-band sub-image
-    high_band_bandwidth: num(min=0, required=False)
-
 lut_options:
-    # Boolean flag to activate/deactivate model-based
-    # corrections while geocoding the burst
-    enabled: bool(required=False)
-    # LUT spacing in range direction in meters
-    range_spacing: num(min=0, required=False)
-    # LUT spacing in azimuth direction in seconds
-    azimuth_spacing: num(min=0, required=False)
+  # Boolean flag to activate/deactivate model-based
+  # corrections while geocoding the burst
+  enabled: bool(required=False)
+  # LUT spacing in range direction in meters
+  range_spacing: num(min=0, required=False)
+  # LUT spacing in azimuth direction in seconds
+  azimuth_spacing: num(min=0, required=False)
+  # Troposphere delay using weather model
+  troposphere: include('troposphere_options', required=False)
+
+troposphere_options:
+  # Type of troposphere delay. Any of 'dry', 'wet' or 'wet_dry' for
+  # the sum of wet and dry delays
+  delay_type: enum('dry', 'wet', 'wet_dry', required=False)
 
 rdr2geo_options:
     # Enable/disable computation of topo layers

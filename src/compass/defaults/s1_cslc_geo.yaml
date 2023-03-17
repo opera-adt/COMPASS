@@ -17,6 +17,10 @@ runconfig:
       dynamic_ancillary_file_group:
           # Digital elevation model
           dem_file:
+          # TEC file in IONEX format for ionosphere correction
+          tec_file:
+          # Troposphere weather model file
+          weather_model_file:
 
       static_ancillary_file_group:
           # burst database sqlite file
@@ -48,13 +52,6 @@ runconfig:
               lines_per_block: 1000
               threshold: 1.0e-8
               numiter: 25
-          range_split_spectrum:
-              enabled: False
-              lines_per_block: 1000
-              # Low-band bandwidth in Hz
-              low_band_bandwidth: 1e7
-              # High-band bandwidth in Hz
-              high_band_bandwidth: 1e7
 
           correction_luts:
               # Boolean flag to activate/deactivate model-based
@@ -64,6 +61,11 @@ runconfig:
               range_spacing: 120
               # LUT spacing in azimuth direction in seconds
               azimuth_spacing: 0.028
+              # Troposphere delay using weather model
+              troposphere:
+                 # Type of troposphere delay. Any of 'dry', 'wet' or 'wet_dry' for
+                 # the sum of wet and dry delays
+                 delay_type: wet_dry
 
           rdr2geo:
               # Enable/disable computation of topo layers

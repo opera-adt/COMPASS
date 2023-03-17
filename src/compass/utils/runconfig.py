@@ -377,6 +377,10 @@ class RunConfig:
         return self.groups.dynamic_ancillary_file_group.dem_file
 
     @property
+    def tec_file(self) -> str:
+        return self.groups.dynamic_ancillary_file_group.tec_file
+
+    @property
     def is_reference(self) -> bool:
         return self.groups.input_file_group.reference_burst.is_reference
 
@@ -403,10 +407,6 @@ class RunConfig:
     @property
     def geo2rdr_params(self) -> dict:
         return self.groups.processing.geo2rdr
-
-    @property
-    def split_spectrum_params(self) -> dict:
-        return self.groups.processing.range_split_spectrum
 
     @property
     def resample_params(self) -> dict:

@@ -11,6 +11,7 @@ from ruamel.yaml import YAML
 
 from compass.utils.geo_grid import (generate_geogrids_from_db,
                                     generate_geogrids, geogrid_as_dict)
+from compass.utils.helpers import check_file_path
 from compass.utils.runconfig import (
     create_output_paths,
     runconfig_to_bursts,
@@ -73,6 +74,20 @@ class GeoRunConfig(RunConfig):
         geocoding_dict = groups_cfg['processing']['geocoding']
         check_geocode_dict(geocoding_dict)
 
+        # Check TEC file if not None.
+        # The ionosphere correction will be applied only if
+        # the TEC file is not None.
+        tec_file_path = groups_cfg['dynamic_ancillary_file_group']['tec_file']
+        if tec_file_path is not None:
+            check_file_path(tec_file_path)
+        # Check troposphere weather model file if not None. This
+        # troposphere correction is applied only if this file is not None
+        weather_model_path = groups_cfg['dynamic_ancillary_file_group'][
+            'weather_model_file'
+        ]
+        if weather_model_path is not None:
+            check_file_path(weather_model_path)
+
         # Convert runconfig dict to SimpleNamespace
         sns = wrap_namespace(groups_cfg)
 
@@ -101,16 +116,16 @@ class GeoRunConfig(RunConfig):
                    user_plus_default_yaml_str, output_paths, geogrids)
 
     @property
+    def weather_model_file(self) -> str:
+        return self.groups.dynamic_ancillary_file_group.weather_model_file
+
+    @property
     def geocoding_params(self) -> dict:
         return self.groups.processing.geocoding
 
     @property
     def rdr2geo_params(self) -> dict:
         return self.groups.processing.rdr2geo
-
-    @property
-    def split_spectrum_params(self) -> dict:
-        return self.groups.processing.range_split_spectrum
 
     @property
     def lut_params(self) -> dict:
@@ -123,6 +138,10 @@ class GeoRunConfig(RunConfig):
     @property
     def browse_image_params(self) -> dict:
         return self.groups.quality_assurance.browse_iamge
+
+    @property
+    def tropo_params(self) -> dict:
+        return self.groups.processing.correction_luts.troposphere
 
     def as_dict(self):
         ''' Convert self to dict for write to YAML/JSON

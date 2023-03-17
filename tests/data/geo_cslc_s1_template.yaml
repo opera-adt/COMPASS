@@ -1,0 +1,42 @@
+runconfig:
+  groups:
+    dynamic_ancillary_file_group:
+      dem_file: @DATA_PATH@/test_dem.tiff
+      tec_file: @DATA_PATH@/jplg3190.15i
+    static_ancillary_file_group:
+      burst_database_file: @DATA_PATH@/test_burst_map.sqlite3
+    input_file_group:
+      burst_id:
+        - @BURST_ID@
+      orbit_file_path:
+      - @DATA_PATH@/orbits/S1A_OPER_AUX_POEORB_OPOD_20221105T083813_V20221015T225942_20221017T005942.EOF
+      safe_file_path:
+      - @DATA_PATH@/S1A_IW_SLC__1SDV_20221016T015043_20221016T015111_045461_056FC0_6681.zip
+    pge_name_group:
+      pge_name: CSLC_S1_PGE
+    primary_executable:
+      product_type: CSLC_S1
+    processing:
+      rdr2geo:
+        enabled: false
+      geo2rdr:
+        lines_per_block: 1000
+        numiter: 25
+        threshold: 1.0e-08
+      geocoding:
+        flatten: true
+        lines_per_block: 1000
+        x_posting: 5
+        x_snap: null
+        y_posting: 10
+        y_snap: null
+      polarization: co-pol
+    product_path_group:
+      product_path: @TEST_PATH@/product
+      sas_output_file: @TEST_PATH@/product
+      scratch_path: @TEST_PATH@/scratch
+    worker:
+      gpu_enabled: false
+      gpu_id: 0
+      internet_access: false
+  name: cslc_s1_workflow_default

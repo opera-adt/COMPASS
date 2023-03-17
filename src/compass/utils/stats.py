@@ -3,7 +3,6 @@ Class to compute stats for geocoded raster and corrections
 '''
 import json
 
-import h5py
 import isce3
 import numpy as np
 

@@ -5,7 +5,6 @@ Collection of functions to help write HDF5 datasets and metadata
 from dataclasses import dataclass, field
 import os
 
-import h5py
 import isce3
 import numpy as np
 from osgeo import osr, gdal

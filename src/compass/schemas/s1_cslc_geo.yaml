@@ -34,6 +34,8 @@ runconfig:
            # Intermediate file name. SAS writes the output to this file.
            # PGE may rename the product according to file naming convention
            sas_output_file: str()
+           # Product version
+           product_version: num(required=False)
 
         primary_executable:
           product_type: enum('CSLC_S1')

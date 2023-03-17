@@ -190,13 +190,15 @@ def run(cfg: GeoRunConfig):
         # because io.Raster things
         with h5py.File(output_hdf5, 'a') as geo_burst_h5:
             root_group = geo_burst_h5[root_path]
-            identity_to_h5group(root_group, burst)
+            identity_to_h5group(root_group, burst, cfg)
 
             cslc_group = geo_burst_h5.require_group(f'{root_path}/CSLC')
             metadata_to_h5group(cslc_group, burst, cfg)
-            corrections_to_h5group(cslc_group, burst, cfg, rg_lut, az_lut, scratch_path,
-                                   weather_model_path=cfg.weather_model_file,
-                                   delay_type=cfg.tropo_params.delay_type)
+            if cfg.lut_params.enabled:
+                corrections_to_h5group(cslc_group, burst, cfg, rg_lut, az_lut,
+                                       scratch_path,
+                                       weather_model_path=cfg.weather_model_file,
+                                       delay_type=cfg.tropo_params.delay_type)
 
         # If needed, make browse image and compute CSLC raster stats
         browse_params = cfg.browse_image_params

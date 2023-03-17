@@ -469,7 +469,7 @@ def compute_static_troposphere_delay(incidence_angle_arr, hgt_arr):
     '''
     ZPD = 2.3
     H = 6000.0
-    
+
     tropo = ZPD / np.cos(np.deg2rad(incidence_angle_arr)) * np.exp(-1 * hgt_arr / H)
 
     return tropo

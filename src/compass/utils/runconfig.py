@@ -301,6 +301,7 @@ def create_output_paths(sns, bursts):
         fname_pol = f"{fname_stem}_{burst.polarization}"
         h5_path = f"{out_dir}/{fname_stem}.h5"
         browse_path = f"{out_dir}/{fname_stem}.png"
+        stats_json_path = f"{out_dir}/{fname_stem}.json"
 
         scratch_path = f'{product_paths.scratch_path}/{burst_id}/{date_str}'
         os.makedirs(scratch_path, exist_ok=True)
@@ -310,6 +311,7 @@ def create_output_paths(sns, bursts):
                                                  file_name_pol=fname_pol,
                                                  hdf5_path=h5_path,
                                                  browse_path=browse_path,
+                                                 stats_json_path=stats_json_path,
                                                  scratch_directory=scratch_path)
     return output_paths
 

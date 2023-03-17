@@ -24,6 +24,7 @@ from compass.utils.h5_helpers import (corrections_to_h5group,
 from compass.utils.helpers import get_module_name
 from compass.utils.lut import cumulative_correction_luts
 from compass.utils.range_split_spectrum import range_split_spectrum
+from compass.utils.stats import StatsCSLC
 from compass.utils.yaml_argparse import YamlArgparse
 
 
@@ -58,6 +59,7 @@ def run(cfg: GeoRunConfig):
     iters = cfg.geo2rdr_params.numiter
     blocksize = cfg.geo2rdr_params.lines_per_block
     flatten = cfg.geocoding_params.flatten
+    stats = StatsCSLC()
 
     for burst_id, bursts in _bursts_grouping_generator(cfg.bursts):
         burst = bursts[0]
@@ -196,7 +198,7 @@ def run(cfg: GeoRunConfig):
             metadata_to_h5group(cslc_group, burst, cfg)
             corrections_to_h5group(cslc_group, burst, cfg)
 
-        # If needed, make browse image
+        # If needed, make browse image and compute CSLC raster stats
         browse_params = cfg.browse_image_params
         if browse_params.enabled:
             make_browse_image(outpaths.browse_path, output_hdf5, cfg.bursts,
@@ -204,6 +206,11 @@ def run(cfg: GeoRunConfig):
                               browse_params.percent_lo,
                               browse_params.percent_hi,
                               browse_params.gamma, browse_params.equalize)
+
+    if cfg.quality_assurance_params.compute_stats:
+        stats.add_correction_stats(output_hdf5)
+        stats.add_raster_stats(output_hdf5, bursts)
+        stats.write_stats_to_json(outpaths.stats_json_path)
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")

@@ -725,4 +725,3 @@ def get_georaster_bounds(filename, pol):
         max_y = max(max_y, y)
 
     return (min_x, max_x, min_y, max_y)
-

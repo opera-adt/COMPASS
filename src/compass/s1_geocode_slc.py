@@ -83,15 +83,14 @@ def run(cfg: GeoRunConfig):
 
         # If enabled, get range and azimuth LUTs
         if cfg.lut_params.enabled:
-
-            rg_lut, az_lut = cumulative_correction_luts(burst,
-                                                        dem_path=cfg.dem,
-                                                        tec_path=cfg.tec_file,
-                                                        scratch_path=scratch_path,
-                                                        weather_model_path=cfg.weather_model_file,
-                                                        rg_step=cfg.lut_params.range_spacing,
-                                                        az_step=cfg.lut_params.azimuth_spacing,
-                                                        delay_type=cfg.tropo_params.delay_type)
+            rg_lut, az_lut = \
+                cumulative_correction_luts(burst, dem_path=cfg.dem,
+                                           tec_path=cfg.tec_file,
+                                           scratch_path=scratch_path,
+                                           weather_model_path=cfg.weather_model_file,
+                                           rg_step=cfg.lut_params.range_spacing,
+                                           az_step=cfg.lut_params.azimuth_spacing,
+                                           delay_type=cfg.tropo_params.delay_type)
         else:
             rg_lut = isce3.core.LUT2d()
             az_lut = isce3.core.LUT2d()
@@ -200,19 +199,21 @@ def run(cfg: GeoRunConfig):
                                        weather_model_path=cfg.weather_model_file,
                                        delay_type=cfg.tropo_params.delay_type)
 
-        # If needed, make browse image and compute CSLC raster stats
-        browse_params = cfg.browse_image_params
-        if browse_params.enabled:
-            make_browse_image(outpaths.browse_path, output_hdf5, cfg.bursts,
-                              browse_params.complex_to_real,
-                              browse_params.percent_lo,
-                              browse_params.percent_hi,
-                              browse_params.gamma, browse_params.equalize)
+            # If needed, make browse image and compute CSLC raster stats
+            browse_params = cfg.browse_image_params
+            if browse_params.enabled:
+                make_browse_image(out_paths.browse_path, output_hdf5,
+                                  cfg.bursts, browse_params.complex_to_real,
+                                  browse_params.percent_lo,
+                                  browse_params.percent_hi,
+                                  browse_params.gamma, browse_params.equalize)
 
-    if cfg.quality_assurance_params.compute_stats:
-        stats.add_correction_stats(output_hdf5)
-        stats.add_raster_stats(output_hdf5, bursts)
-        stats.write_stats_to_json(outpaths.stats_json_path)
+            # If needed, compute stats
+            if cfg.quality_assurance_params.compute_stats:
+                if cfg.lut_params.enabled:
+                    stats.compute_correction_stats(geo_burst_h5)
+                stats.compute_CSLC_raster_stats(geo_burst_h5, bursts)
+                stats.write_stats_to_json(out_paths.stats_json_path)
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")

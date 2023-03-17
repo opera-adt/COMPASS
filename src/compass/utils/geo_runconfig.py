@@ -141,7 +141,7 @@ class GeoRunConfig(RunConfig):
 
     @property
     def browse_image_params(self) -> dict:
-        return self.groups.quality_assurance.browse_iamge
+        return self.groups.quality_assurance.browse_image
 
     @property
     def tropo_params(self) -> dict:

@@ -5,7 +5,7 @@ import h5py
 import numpy as np
 from PIL import Image
 from osgeo import gdal
-from utils.h5_helpers import get_georaster_bounds, GRID_PATH
+from compass.utils.h5_helpers import get_georaster_bounds, GRID_PATH
 
 
 def _scale_to_max_pixel_dimension(orig_shape, max_dim_allowed=2048):
@@ -69,7 +69,7 @@ def _clip_by_percentage(image, percent_lo, percent_hi):
     return image, vmin, vmax
 
 
-def _noralize_apply_gamma(image, vmin, vmax, gamma=1.0):
+def _normalize_apply_gamma(image, vmin, vmax, gamma=1.0):
     '''
     Normal and gamma correct an image array
 
@@ -217,7 +217,7 @@ def make_browse_image(filename, path_h5, bursts, complex_to_real='amplitude', pe
             browse_h, browse_w = _scale_to_max_pixel_dimension(full_shape)
 
             # create in memory GDAL raster for GSLC as real value array
-            src_raster = f'{derived_ds_str}/{pol}'
+            src_raster = f'{derived_netcdf_to_grid}/{pol}'
 
             min_x, max_x, min_y, max_y = get_georaster_bounds(path_h5, pol)
 
@@ -239,7 +239,7 @@ def make_browse_image(filename, path_h5, bursts, complex_to_real='amplitude', pe
 
             # scale valid pixels to 1-255
             # set NaNs set to 0 to be transparent
-            image =_normalize_apply_gamma(image, vmin, vmax)
+            image = _normalize_apply_gamma(image, vmin, vmax)
 
             # save to disk
-            _save_to_disk(image, filename)
+            _save_to_disk_as_greyscale(image, filename)

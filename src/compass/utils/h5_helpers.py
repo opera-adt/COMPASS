@@ -618,12 +618,7 @@ def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,
                  {'units': 'meters'}),
         ]
 
-        if weather_model_path is None:
-            correction_items.append(Meta('static_los_troposphere_delay',
-                                             ds.GetRasterBand(5).ReadAsArray(),
-                                             f'Static LOS troposphere delay {desc}',
-                                             {'units': 'meters'}))
-        else:
+        if weather_model_path is not None:
             if 'wet' in delay_type:
                 correction_items.append(Meta('wet_los_troposphere_delay',
                                              ds.GetRasterBand(5).ReadAsArray(),

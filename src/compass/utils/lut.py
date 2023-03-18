@@ -105,10 +105,7 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
     descr = ['slant range geometrical doppler', 'azimuth bistatic delay', 'azimuth FM rate mismatch',
              'slant range Solid Earth tides', 'line-of-sight ionospheric delay']
 
-    if weather_model_path is None:
-        data_list.append(los_static_tropo)
-        descr.append('static LOS troposphere')
-    else:
+    if weather_model_path is not None:
         if 'wet' in delay_type:
             data_list.append(wet_los_tropo)
             descr.append('wet LOS troposphere')

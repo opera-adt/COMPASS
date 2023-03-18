@@ -398,6 +398,20 @@ def metadata_to_h5group(parent_group, burst, cfg):
     # create metadata group to write datasets to
     meta_group = parent_group.require_group('metadata')
 
+    # RFI information - placeholder
+    rfi_items = [
+        Meta('is_rfi_info_available', True,
+             'Whether RFI information is available'),
+        Meta('rfi_mitigation_performed', '',
+             'Whether or not the RFI mitigation step was performed'),
+        Meta('rfi_mitigation_domain', '',
+             'in what domain the RFI mitigation step was performed'),
+        Meta('rfi_burst_report', [],
+             'Burst RFI report')]
+    rfi_group = meta_group.require_group('rfi_information')
+    for meta_item in rfi_items:
+        add_dataset_and_attrs(rfi_group, meta_item)
+
     # orbit items
     if 'orbit' in meta_group:
         del meta_group['orbit']

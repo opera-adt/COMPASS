@@ -460,7 +460,7 @@ def compute_static_troposphere_delay(incidence_angle_arr, hgt_arr):
     inc_path: str
         Path to incidence angle raster in radar grid
     hgt_path: str
-    Path to surface heightraster in radar grid
+        Path to surface heightraster in radar grid
 
     Return:
     -------

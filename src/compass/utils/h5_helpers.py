@@ -405,7 +405,8 @@ def metadata_to_h5group(parent_group, burst, cfg):
         Meta('rfi_mitigation_performed', '',
              'Whether or not the RFI mitigation step was performed'),
         Meta('rfi_mitigation_domain', '',
-             'in what domain the RFI mitigation step was performed'),
+             ('in what domain the RFI mitigation step was performed '
+              '["Time", "Frequency", "TimeAndFrequency"]')),
         Meta('rfi_burst_report', [],
              'Burst RFI report')]
     rfi_group = meta_group.require_group('rfi_information')

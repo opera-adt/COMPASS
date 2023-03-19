@@ -401,7 +401,7 @@ def metadata_to_h5group(parent_group, burst, cfg):
     # RFI information - placeholder
     rfi_items = [
         Meta('is_rfi_info_available', True,
-             'Whether RFI information is available'),
+             'Boolean variable specifying availability of RFI information'),
         Meta('rfi_mitigation_performed', '',
              'Whether or not the RFI mitigation step was performed'),
         Meta('rfi_mitigation_domain', '',

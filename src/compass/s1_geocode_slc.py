@@ -215,6 +215,7 @@ def run(cfg: GeoRunConfig):
                 cslc_qa.compute_CSLC_raster_stats(geo_burst_h5, bursts)
                 cslc_qa.raster_pixel_classification()
                 cslc_qa.populate_rfi_dict()
+                cslc_qa.set_orbit_type(cfg)
                 cslc_qa.write_qa_dicts_to_json(out_paths.stats_json_path)
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]

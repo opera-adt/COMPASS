@@ -24,7 +24,6 @@ from compass.utils.h5_helpers import (corrections_to_h5group,
                                       metadata_to_h5group)
 from compass.utils.helpers import get_module_name
 from compass.utils.lut import cumulative_correction_luts
-from compass.utils.stats import StatsCSLC
 from compass.utils.yaml_argparse import YamlArgparse
 
 

@@ -9,7 +9,7 @@ import numpy as np
 from compass.utils.h5_helpers import GRID_PATH, ROOT_PATH
 
 
-class StatsCSLC:
+class QualityAssuranceCSLC:
     '''
     Class to compute stats for geocoded raster and corrections
     '''
@@ -17,6 +17,10 @@ class StatsCSLC:
 
     def __init__(self):
         self.stats_dict = {}
+        self.classification_count_dict = {}
+        self.rfi_dict = {}
+        self.orbit_info_dict = {}
+        self.is_safe_corrupt = False
 
 
     def compute_CSLC_raster_stats(self, cslc_h5py_root, bursts):
@@ -91,12 +95,36 @@ class StatsCSLC:
 
     def raster_pixel_classification(self):
         '''
-        Place holder for classifier of geocoded pixel types
+        Place holder for populating classification of geocoded pixel types
+        '''
+        self.classification_count_dict['topo'] = {}
+        topo_dict = self.classification_count_dict['topo']
+        topo_dict['layover_percent'] = 0
+        topo_dict['shadow_percent'] = 0
+        topo_dict['combined_percent'] = 0
+        self.classification_count_dict['percent_land_pixels'] = 0
+        self.classification_count_dict['percent_valid_pixels'] = 0
+
+
+    def populate_rfi_dict(self):
+        '''
+        Place holder for populating SAFE RFI information
+        '''
+        self.rfi_dict['is_rfi_info_available'] = True
+        # Follow key/values only assigned if RFI info is avaiable
+        self.rfi_dict['rfi_mitigation_performed'] = True
+        self.rfi_dict['rfi_mitigation_domain'] = True
+        self.rfi_dict['rfi_burst_report'] = True
+
+
+    def populate_orbit_dict(self):
+        '''
+        Place holder for populating QA orbit information
         '''
         pass
 
 
-    def write_stats_to_json(self, file_path):
+    def write_qa_dicts_to_json(self, file_path):
         '''
         Write computed stats in dict to JSON file
 
@@ -105,5 +133,12 @@ class StatsCSLC:
         file_path: str
             JSON file to write stats to
         '''
+        # combine all the dicts into one for output
+        output_dict = {
+            'raster_statistics': self.stats_dict,
+            'pixel_classification_percentatges': self.classification_count_dict,
+            'rfi_info': self.rfi_dict}
+
+        # write combined dict to JSON
         with open(file_path, 'w') as f:
-            json.dump(self.stats_dict, f, indent=4)
+            json.dump(output_dict, f, indent=4)

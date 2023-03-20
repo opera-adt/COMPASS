@@ -14,6 +14,7 @@ from s1reader.s1_reader import is_eap_correction_necessary
 
 from compass import s1_rdr2geo
 from compass import s1_geocode_metadata
+from compass.s1_cslc_qa import QualityAssuranceCSLC
 from compass.utils.browse_image import make_browse_image
 from compass.utils.elevation_antenna_pattern import apply_eap_correction
 from compass.utils.geo_runconfig import GeoRunConfig
@@ -58,7 +59,7 @@ def run(cfg: GeoRunConfig):
     iters = cfg.geo2rdr_params.numiter
     blocksize = cfg.geo2rdr_params.lines_per_block
     flatten = cfg.geocoding_params.flatten
-    stats = StatsCSLC()
+    cslc_qa = QualityAssuranceCSLC()
 
     for burst_id, bursts in _bursts_grouping_generator(cfg.bursts):
         burst = bursts[0]
@@ -208,12 +209,14 @@ def run(cfg: GeoRunConfig):
                                   browse_params.percent_hi,
                                   browse_params.gamma, browse_params.equalize)
 
-            # If needed, compute stats
-            if cfg.quality_assurance_params.compute_stats:
+            # If needed, perform QA and write results to JSON
+            if cfg.quality_assurance_params.perform_qa:
                 if cfg.lut_params.enabled:
-                    stats.compute_correction_stats(geo_burst_h5)
-                stats.compute_CSLC_raster_stats(geo_burst_h5, bursts)
-                stats.write_stats_to_json(out_paths.stats_json_path)
+                    cslc_qa.compute_correction_stats(geo_burst_h5)
+                cslc_qa.compute_CSLC_raster_stats(geo_burst_h5, bursts)
+                cslc_qa.raster_pixel_classification()
+                cslc_qa.populate_rfi_dict()
+                cslc_qa.write_qa_dicts_to_json(out_paths.stats_json_path)
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")

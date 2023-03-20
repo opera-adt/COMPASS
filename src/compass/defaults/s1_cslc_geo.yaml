@@ -120,4 +120,4 @@ runconfig:
               gamma: 0.5
               # Enable/disable histogram equalization
               equalize: False
-          compute_stats: True
+          perform_qa: True

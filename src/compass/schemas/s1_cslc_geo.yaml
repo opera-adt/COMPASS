@@ -143,7 +143,7 @@ quality_assurance_options:
     # Options for generating browse images
     browse_image: include('browse_image_options', required=False)
     # Enable/disable computation of statistics of CSLC rasters and corrections
-    compute_stats: bool(required=False)
+    perform_qa: bool(required=False)
 
 browse_image_options:
     # Enable/disable generation of CSLC browse image

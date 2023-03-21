@@ -168,9 +168,9 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
     }
 
     # define the geogrid for calbration LUT
-    radargrid_calibration = radar_grid.multilook(dec_factor,
+    calibration_radargrid = radar_grid.multilook(dec_factor,
                                                  dec_factor)
-    geogrid_calibration = isce3.product.GeoGridParameters(
+    calibration_geogrid = isce3.product.GeoGridParameters(
                             geo_grid.start_x,
                             geo_grid.start_y,
                             geo_grid.spacing_x * dec_factor,

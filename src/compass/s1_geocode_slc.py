@@ -14,6 +14,8 @@ from s1reader.s1_reader import is_eap_correction_necessary
 
 from compass import s1_rdr2geo
 from compass import s1_geocode_metadata
+from compass.s1_cslc_qa import QualityAssuranceCSLC
+from compass.utils.browse_image import make_browse_image
 from compass.utils.elevation_antenna_pattern import apply_eap_correction
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.h5_helpers import (corrections_to_h5group,
@@ -56,6 +58,7 @@ def run(cfg: GeoRunConfig):
     iters = cfg.geo2rdr_params.numiter
     blocksize = cfg.geo2rdr_params.lines_per_block
     flatten = cfg.geocoding_params.flatten
+    cslc_qa = QualityAssuranceCSLC()
 
     for burst_id, bursts in _bursts_grouping_generator(cfg.bursts):
         burst = bursts[0]
@@ -80,15 +83,14 @@ def run(cfg: GeoRunConfig):
 
         # If enabled, get range and azimuth LUTs
         if cfg.lut_params.enabled:
-
-            rg_lut, az_lut = cumulative_correction_luts(burst,
-                                                        dem_path=cfg.dem,
-                                                        tec_path=cfg.tec_file,
-                                                        scratch_path=scratch_path,
-                                                        weather_model_path=cfg.weather_model_file,
-                                                        rg_step=cfg.lut_params.range_spacing,
-                                                        az_step=cfg.lut_params.azimuth_spacing,
-                                                        delay_type=cfg.tropo_params.delay_type)
+            rg_lut, az_lut = \
+                cumulative_correction_luts(burst, dem_path=cfg.dem,
+                                           tec_path=cfg.tec_file,
+                                           scratch_path=scratch_path,
+                                           weather_model_path=cfg.weather_model_file,
+                                           rg_step=cfg.lut_params.range_spacing,
+                                           az_step=cfg.lut_params.azimuth_spacing,
+                                           delay_type=cfg.tropo_params.delay_type)
         else:
             rg_lut = isce3.core.LUT2d()
             az_lut = isce3.core.LUT2d()
@@ -196,6 +198,25 @@ def run(cfg: GeoRunConfig):
                                        scratch_path,
                                        weather_model_path=cfg.weather_model_file,
                                        delay_type=cfg.tropo_params.delay_type)
+
+            # If needed, make browse image and compute CSLC raster stats
+            browse_params = cfg.browse_image_params
+            if browse_params.enabled:
+                make_browse_image(out_paths.browse_path, output_hdf5,
+                                  cfg.bursts, browse_params.complex_to_real,
+                                  browse_params.percent_low,
+                                  browse_params.percent_high,
+                                  browse_params.gamma, browse_params.equalize)
+
+            # If needed, perform QA and write results to JSON
+            if cfg.quality_assurance_params.perform_qa:
+                if cfg.lut_params.enabled:
+                    cslc_qa.compute_correction_stats(geo_burst_h5)
+                cslc_qa.compute_CSLC_raster_stats(geo_burst_h5, bursts)
+                cslc_qa.raster_pixel_classification()
+                cslc_qa.populate_rfi_dict()
+                cslc_qa.set_orbit_type(cfg)
+                cslc_qa.write_qa_dicts_to_json(out_paths.stats_json_path)
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")

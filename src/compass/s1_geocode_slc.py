@@ -207,6 +207,12 @@ def run(cfg: GeoRunConfig):
                 cslc_qa.set_orbit_type(cfg)
                 cslc_qa.write_qa_dicts_to_json(out_paths.stats_json_path)
 
+            if burst.burst_calibration is not None:
+                # Geocode the calibration parameters and write them into HDF5
+                s1_geocode_metadata.geocode_calibration_luts(geo_burst_h5,
+                                                             burst,
+                                                             cfg)
+
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
 

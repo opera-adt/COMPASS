@@ -161,8 +161,6 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
     iters = cfg.geo2rdr_params.numiter
     scratch_path = out_paths.scratch_directory
 
-    root_path = '/science/SENTINEL1'
-
     # Designate radiometric calibration parameter to geocode
     calibration_dict = {
         'gamma':burst.burst_calibration.gamma,

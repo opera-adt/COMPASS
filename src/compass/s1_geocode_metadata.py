@@ -164,6 +164,7 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
     calibration_dict = {
         'gamma':burst.burst_calibration.gamma,
         'sigma_naught':burst.burst_calibration.sigma_naught,
+        'dn':burst.burst_calibration.dn
     }
 
     # define the geogrid for calbration LUT
@@ -216,6 +217,9 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
                 update=True)
 
         # populate and prepare radargrid LUT input raster
+
+        # NOTE: `lut_arr` below is a placeholder, which will be
+        #  eventually replaced by LUTs for geocoded calibration parameters.
         lut_arr = np.zeros((calibration_radargrid.length,
                             calibration_radargrid.width))
         lut_gdal_raster = gdal_envi_driver.Create(

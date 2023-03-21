@@ -105,3 +105,19 @@ runconfig:
           # Optional. Index of GPU to be used for processing. Ignored if
           # *gpu_enabled* is False (default: 0)
           gpu_id: 0
+
+      quality_assurance:
+          browse_image:
+              # Enable/disable generation of CSLC browse image
+              enabled: True
+              # How to convert complex CSLC to real
+              complex_to_real: amplitude
+              # Lower percentile of non-nan pixels to clip
+              percent_low: 0
+              # Higher percentile of non-nan pixels to clip
+              percent_high: 95
+              # Gamma exponent applied to normalized image
+              gamma: 0.5
+              # Enable/disable histogram equalization
+              equalize: False
+          perform_qa: True

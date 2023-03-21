@@ -16,7 +16,8 @@ from compass.utils.runconfig import RunConfig
 from compass.utils.h5_helpers import (corrections_to_h5group,
                                       identity_to_h5group,
                                       init_geocoded_dataset,
-                                      metadata_to_h5group)
+                                      metadata_to_h5group,
+                                      ROOT_PATH)
 from compass.utils.helpers import get_module_name
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -163,8 +164,6 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
     iters = cfg.geo2rdr_params.numiter
     scratch_path = out_paths.scratch_directory
 
-    root_path = '/science/SENTINEL1'
-
     # Designate radiometric calibration parameter to geocode
     calibration_dict = {
         'gamma':burst.burst_calibration.gamma,
@@ -172,9 +171,9 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
     }
 
     # define the geogrid for calbration LUT
-    radargrid_calibration = radar_grid.multilook(dec_factor,
+    calibration_radargrid = radar_grid.multilook(dec_factor,
                                                  dec_factor)
-    geogrid_calibration = isce3.product.GeoGridParameters(
+    calibration_geogrid = isce3.product.GeoGridParameters(
                             geo_grid.start_x,
                             geo_grid.start_y,
                             geo_grid.spacing_x * dec_factor,
@@ -183,7 +182,8 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
                             geo_grid.length // dec_factor + 1,
                             geo_grid.epsg)
 
-    geo_calibration = isce3.geocode.GeocodeFloat32()
+    # init geocode object
+    geocode_obj = isce3.geocode.GeocodeFloat32()
     geo_calibration.orbit = burst.orbit
     geo_calibration.ellipsoid = ellipsoid
     geo_calibration.doppler = isce3.core.LUT2d()
@@ -196,38 +196,39 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
                             geogrid_calibration.width,
                             geogrid_calibration.length,
                             geogrid_calibration.epsg)
-    dem_raster = isce3.io.Raster(cfg.dem)
     calibration_group_path =\
-        f'{root_path}/CSLC/metadata/calibration_information'
+        f'{ROOT_PATH}/metadata/calibration_information'
     calibration_group =\
         geo_burst_h5.require_group(calibration_group_path)
 
-    drv_lut_radargrid = gdal.GetDriverByName('ENVI')
+    gdal_envi_driver = gdal.GetDriverByName('ENVI')
     for calibration_key, vec_calib in calibration_dict.items():
+        # prepare input dataset in output HDF5
         init_geocoded_dataset(calibration_group,
-                                calibration_key,
-                                geogrid_calibration,
-                                'float32',
-                                f'geocoded {calibration_key}')
+                              calibration_key,
+                              geogrid_calibration,
+                              'float32',
+                              f'geocoded {calibration_key}')
 
         calibration_dataset =\
             geo_burst_h5[f'{calibration_group_path}/{calibration_key}']
 
-        calibration_burst_raster =\
+        # prepare output raster
+        geocoded_cal_lut_raster =\
             isce3.io.Raster(
                 f"IH5:::ID={calibration_dataset.id.id}".encode("utf-8"),
                 update=True)
 
-        # prepare for the LUT in radar grid
+        # populate and prepare radargrid LUT input raster
         lut_arr = np.zeros((radargrid_calibration.length,
                             radargrid_calibration.width))
-        outRaster = drv_lut_radargrid.Create(
+        lut_gdal_raster = drv_lut_radargrid.Create(
                         f'{scratch_path}/{calibration_key}_radargrid.rdr',
                         radargrid_calibration.width,
                         radargrid_calibration.length,
                         1,
                         gdal.GDT_Float32)
-        outband = outRaster.GetRasterBand(1)
+        lut_band = outRaster.GetRasterBand(1)
         outband.WriteArray(lut_arr)
         outband.FlushCache()
         outRaster = None
@@ -236,6 +237,7 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
                 isce3.io.Raster(f'{scratch_path}/'
                                 f'{calibration_key}_radargrid.rdr')
 
+        # geocode then set transfrom and EPSG in output raster
         geo_calibration.geocode(radar_grid=radargrid_calibration,
             input_raster=input_raster,
             output_raster=calibration_burst_raster,

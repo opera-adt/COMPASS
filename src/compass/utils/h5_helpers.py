@@ -416,12 +416,7 @@ def metadata_to_h5group(parent_group, burst, cfg):
             Meta('basename', cal.basename_cads, ''),
             Meta('azimuth_time', cal.azimuth_time.strftime(TIME_STR_FMT),
                  'Start time', {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
-            #Meta('line', cal.line, 'line'),
-            #Meta('pixel', cal.pixel, 'pixel'),
-            #Meta('sigma_naught', cal.sigma_naught, 'sigma_naught'),
-            Meta('beta_naught', cal.beta_naught, 'beta_naught'),
-            #Meta('gamma', cal.gamma, 'gamma'),
-            Meta('dn', cal.dn, 'dn'),
+            Meta('beta_naught', cal.beta_naught, 'beta_naught')
         ]
         cal_group = meta_group.require_group('calibration_information')
         for meta_item in cal_items:

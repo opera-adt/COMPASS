@@ -146,9 +146,14 @@ class QualityAssuranceCSLC:
     def set_orbit_type(self, cfg):
         '''
         Populate QA orbit information
+
+i       Parameters
+        ----------
+        cfg: dict
+            Runconfig dict containing orbit path
         '''
-        orbit_file_path = cfg.orbit_path[0]
-        if 'RESORB' in Path(orbit_file_path).name:
+        orbit_file_path = Path(cfg.orbit_path[0]).name
+        if 'RESORB' in orbit_file_path:
             orbit_type = 'restituted orbit file'
         if 'POEORB' in orbit_file_path:
             orbit_type = 'precise orbit file'

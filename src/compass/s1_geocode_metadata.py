@@ -16,7 +16,8 @@ from compass.utils.runconfig import RunConfig
 from compass.utils.h5_helpers import (corrections_to_h5group,
                                       identity_to_h5group,
                                       init_geocoded_dataset,
-                                      metadata_to_h5group)
+                                      metadata_to_h5group,
+                                      ROOT_PATH)
 from compass.utils.helpers import get_module_name
 from compass.utils.yaml_argparse import YamlArgparse
 

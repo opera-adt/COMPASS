@@ -10,7 +10,6 @@ import h5py
 import isce3
 import journal
 import numpy as np
-from osgeo import gdal
 from s1reader.s1_reader import is_eap_correction_necessary
 
 from compass import s1_rdr2geo
@@ -219,7 +218,7 @@ def run(cfg: GeoRunConfig):
                 cslc_qa.set_orbit_type(cfg)
                 cslc_qa.write_qa_dicts_to_json(out_paths.stats_json_path)
 
-            if burst.burst_calibration is not None: 
+            if burst.burst_calibration is not None:
                 # Geocode the calibration parameters and write them into HDF5
                 s1_geocode_metadata.geocode_calibration_luts(geo_burst_h5,
                                                              burst,

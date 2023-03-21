@@ -126,7 +126,7 @@ def run(cfg, burst, fetch_from_scratch=False):
         f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
 
 
-def geocode_calibration_luts(geo_burst_h5, burst, cfg, 
+def geocode_calibration_luts(geo_burst_h5, burst, cfg,
                              dec_factor=40):
     '''
     Geocode the radiometric calibratio paremeters,
@@ -199,7 +199,7 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
         geo_burst_h5.require_group(calibration_group_path)
 
     gdal_envi_driver = gdal.GetDriverByName('ENVI')
-    for calibration_key, vec_calib in calibration_dict.items():
+    for calibration_key, _ in calibration_dict.items():
         # prepare input dataset in output HDF5
         init_geocoded_dataset(calibration_group,
                               calibration_key,
@@ -242,7 +242,7 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
                             input_raster=input_raster,
                             output_raster=geocoded_cal_lut_raster,
                             dem_raster=dem_raster,
-                            output_mode=isce3.geocode.GeocodeOutputMode.INTERP),
+                            output_mode=isce3.geocode.GeocodeOutputMode.INTERP)
 
         geotransform=[calibration_geogrid.start_x,
                       calibration_geogrid.spacing_x,
@@ -250,7 +250,7 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
                       calibration_geogrid.start_y,
                       0,
                       calibration_geogrid.spacing_y]
-        
+
         geocoded_cal_lut_raster.set_geotransform(geotransform)
         geocoded_cal_lut_raster.set_epsg(epsg)
 

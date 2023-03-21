@@ -409,6 +409,24 @@ def metadata_to_h5group(parent_group, burst, cfg):
     # create metadata group to write datasets to
     processing_group = meta_group.require_group('processing_information')
 
+    # write out calibration metadata, if present
+    if burst.burst_calibration is not None:
+        cal = burst.burst_calibration
+        cal_items = [
+            Meta('basename', cal.basename_cads, ''),
+            Meta('azimuth_time', cal.azimuth_time.strftime(TIME_STR_FMT),
+                 'Start time', {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
+            #Meta('line', cal.line, 'line'),
+            #Meta('pixel', cal.pixel, 'pixel'),
+            #Meta('sigma_naught', cal.sigma_naught, 'sigma_naught'),
+            Meta('beta_naught', cal.beta_naught, 'beta_naught'),
+            #Meta('gamma', cal.gamma, 'gamma'),
+            Meta('dn', cal.dn, 'dn'),
+        ]
+        cal_group = meta_group.require_group('calibration_information')
+        for meta_item in cal_items:
+            add_dataset_and_attrs(cal_group, meta_item)
+
     # runconfig yaml text
     processing_group['runconfig'] = cfg.yaml_string
 
@@ -685,24 +703,6 @@ def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,
         eap_group = correction_group.require_group('elevation_antenna_pattern')
         for meta_item in eap_items:
             add_dataset_and_attrs(eap_group, meta_item)
-
-    # write out calibration metadata, if present
-    if burst.burst_calibration is not None:
-        cal = burst.burst_calibration
-        cal_items = [
-            Meta('basename', cal.basename_cads, ''),
-            Meta('azimuth_time', cal.azimuth_time.strftime(TIME_STR_FMT),
-                 'Start time', {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
-            Meta('line', cal.line, 'line'),
-            Meta('pixel', cal.pixel, 'pixel'),
-            Meta('sigma_naught', cal.sigma_naught, 'sigma_naught'),
-            Meta('beta_naught', cal.beta_naught, 'beta_naught'),
-            Meta('gamma', cal.gamma, 'gamma'),
-            Meta('dn', cal.dn, 'dn'),
-        ]
-        cal_group = correction_group.require_group('calibration')
-        for meta_item in cal_items:
-            add_dataset_and_attrs(cal_group, meta_item)
 
     # write out noise metadata, if present
     if burst.burst_noise is not None:

@@ -33,7 +33,7 @@ def _scale_to_max_pixel_dimension(orig_shape, max_dim_allowed=2048):
     return scaled_shape
 
 
-def _clip_by_percentage(image, percent_lo, percent_hi):
+def _clip_by_percentage(image, percent_low, percent_high):
     '''
     Clip image by low and high percentiles
 
@@ -41,9 +41,9 @@ def _clip_by_percentage(image, percent_lo, percent_hi):
     ----------
     image: np.ndarray
         Numpy array representing an image to be clipped
-    percent_lo: float
+    percent_low: float
         Lower percentile of non-NaN pixels to be clipped
-    percent_hi: float
+    percent_high: float
         Higher percentile of non-NaN pixels to be clipped
 
     Returns
@@ -51,19 +51,19 @@ def _clip_by_percentage(image, percent_lo, percent_hi):
     image: np.ndarray
         Clipped image
     vmin: float
-        Minimum value of image determined by percent_lo
+        Minimum value of image determined by percent_low
     vmax_: float
-        Maximum value of image determined by percent_hi
+        Maximum value of image determined by percent_high
     '''
-    if percent_hi <= percent_lo:
+    if percent_high <= percent_low:
         raise ValueError('upper percentile not > lower percentile')
 
     # get max/min values by percentile
-    vmax = np.nanpercentile(image, percent_hi)
-    vmin = np.nanpercentile(image, percent_lo)
+    vmax = np.nanpercentile(image, percent_high)
+    vmin = np.nanpercentile(image, percent_low)
 
     # clip if necessary
-    if percent_lo == 0.0 and percent_hi == 100.0:
+    if percent_low == 0.0 and percent_high == 100.0:
         image = np.clip(image, a_min=vmin, a_max=vmax)
 
     return image, vmin, vmax
@@ -168,8 +168,8 @@ def _save_to_disk_as_greyscale(image, fname):
     img.save(fname, transparency=0)
 
 
-def make_browse_image(filename, path_h5, bursts, complex_to_real='amplitude', percent_lo=0.0,
-                      percent_hi=100.0, gamma=1.0, equalize=False):
+def make_browse_image(filename, path_h5, bursts, complex_to_real='amplitude', percent_low=0.0,
+                      percent_high=100.0, gamma=1.0, equalize=False):
     '''
     Make browse image(s) for geocoded CSLC raster(s)
 
@@ -184,9 +184,9 @@ def make_browse_image(filename, path_h5, bursts, complex_to_real='amplitude', pe
     complex_to_real: str
         Method to convert complex float CSLC data to float data. Available
         methods: amplitude, intensity, logamplitude
-    percent_lo: float
+    percent_low: float
         Lower percentile of non-NaN pixels to be clipped
-    percent_hi: float
+    percent_high: float
         Higher percentile of non-NaN pixels to be clipped
     gamma: float
         Exponent value used to gamma correct image
@@ -227,8 +227,8 @@ def make_browse_image(filename, path_h5, bursts, complex_to_real='amplitude', pe
             image = ds_wgs84.ReadAsArray()
 
             # get hi/lo values by percentile
-            image, vmin, vmax = _clip_by_percentage(image, percent_lo,
-                                                    percent_hi)
+            image, vmin, vmax = _clip_by_percentage(image, percent_low,
+                                                    percent_high)
 
             if equalize:
                 image = _image_histogram_equalization(image)

@@ -204,8 +204,8 @@ def run(cfg: GeoRunConfig):
             if browse_params.enabled:
                 make_browse_image(out_paths.browse_path, output_hdf5,
                                   cfg.bursts, browse_params.complex_to_real,
-                                  browse_params.percent_lo,
-                                  browse_params.percent_hi,
+                                  browse_params.percent_low,
+                                  browse_params.percent_high,
                                   browse_params.gamma, browse_params.equalize)
 
             # If needed, perform QA and write results to JSON

@@ -2,6 +2,7 @@
 Class to compute stats for geocoded raster and corrections
 '''
 import json
+from pathlib import Path
 
 import isce3
 import numpy as np

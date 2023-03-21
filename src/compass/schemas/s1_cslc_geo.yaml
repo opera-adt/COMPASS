@@ -151,9 +151,9 @@ browse_image_options:
     # How to convert complex CSLC to real
     complex_to_real: enum('amplitude', 'intensity', 'logamplitude', required=False)
     # Lower percentile of non-nan pixels to clip
-    percent_lo: num(min=0, required=False)
+    percent_low: num(min=0, required=False)
     # Higher percentile of non-nan pixels to clip
-    percent_hi: num(min=0, required=False)
+    percent_high: num(min=0, required=False)
     # Gamma exponent applied to normalized image
     gamma: num(min=0, required=False)
     # Enable/disable histogram equalization

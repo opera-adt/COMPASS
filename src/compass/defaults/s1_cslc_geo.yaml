@@ -113,9 +113,9 @@ runconfig:
               # How to convert complex CSLC to real
               complex_to_real: amplitude
               # Lower percentile of non-nan pixels to clip
-              percent_lo: 0
+              percent_low: 0
               # Higher percentile of non-nan pixels to clip
-              percent_hi: 95
+              percent_high: 95
               # Gamma exponent applied to normalized image
               gamma: 0.5
               # Enable/disable histogram equalization

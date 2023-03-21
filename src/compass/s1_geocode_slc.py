@@ -223,7 +223,7 @@ def run(cfg: GeoRunConfig):
                 s1_geocode_metadata.geocode_calibration_luts(geo_burst_h5,
                                                              burst,
                                                              cfg)
-            
+
             if burst.burst_noise is not None:
                 # Geocode the calibration parameters and write them into HDF5
                 s1_geocode_metadata.geocode_noise_luts(geo_burst_h5,

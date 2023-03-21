@@ -293,7 +293,7 @@ def geocode_noise_luts(geo_burst_h5, burst, cfg,
     scratch_path = out_paths.scratch_directory
 
     # Designate radiometric calibration parameter to geocode
-    
+
     # define the geogrid for calbration LUT
     noise_radargrid = radar_grid.multilook(dec_factor,
                                                  dec_factor)
@@ -331,7 +331,7 @@ def geocode_noise_luts(geo_burst_h5, burst, cfg,
                           'thermal_noise_lut',
                            noise_geogrid,
                             'float32',
-                           f'geocoded thermal noise LUT')
+                           'geocoded thermal noise LUT')
 
     noise_dataset =\
         geo_burst_h5[f'{noise_group_path}/thermal_noise_lut']

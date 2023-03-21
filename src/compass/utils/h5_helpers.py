@@ -93,6 +93,11 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
         Data type of dataset to be geocoded
     description: str
         Description of dataset to be geocoded
+
+    Returns
+    -------
+    cslc_ds: h5py.Dataset
+        h5py dataset ready to be populated with geocoded dataset
     '''
     shape = (geo_grid.length, geo_grid.width)
     cslc_ds = grid_group.require_dataset(dataset_name, dtype=dtype,
@@ -271,6 +276,8 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
 
     else:
         raise NotImplementedError('Waiting for implementation / Not supported in ISCE3')
+
+    return cslc_ds
 
 
 def save_orbit(orbit, orbit_direction, orbit_group):

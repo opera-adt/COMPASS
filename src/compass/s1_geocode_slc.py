@@ -3,7 +3,6 @@
 '''wrapper for geocoded CSLC'''
 
 from datetime import timedelta
-import itertools
 import time
 
 import h5py
@@ -22,24 +21,16 @@ from compass.utils.h5_helpers import (corrections_to_h5group,
                                       identity_to_h5group,
                                       init_geocoded_dataset,
                                       metadata_to_h5group)
-from compass.utils.helpers import get_module_name
+from compass.utils.helpers import bursts_grouping_generator, get_module_name
 from compass.utils.lut import cumulative_correction_luts
 from compass.utils.yaml_argparse import YamlArgparse
-
-
-def _bursts_grouping_generator(bursts):
-    # Dict to group bursts with the same burst ID but different polarizations
-    # key: burst ID, value: list[S1BurstSlc]
-    grouped_bursts = itertools.groupby(bursts, key=lambda b: str(b.burst_id))
-
-    for k, v in grouped_bursts:
-        yield k, list(v)
 
 
 def run(cfg: GeoRunConfig):
     '''
     Run geocode burst workflow with user-defined
     args stored in dictionary runconfig *cfg*
+
     Parameters
     ---------
     cfg: GeoRunConfig
@@ -60,7 +51,7 @@ def run(cfg: GeoRunConfig):
     flatten = cfg.geocoding_params.flatten
     cslc_qa = QualityAssuranceCSLC()
 
-    for burst_id, bursts in _bursts_grouping_generator(cfg.bursts):
+    for burst_id, bursts in bursts_grouping_generator(cfg.bursts):
         burst = bursts[0]
 
         # Reinitialize the dem raster per burst to prevent raster artifacts
@@ -102,7 +93,7 @@ def run(cfg: GeoRunConfig):
         # Get azimuth polynomial coefficients for this burst
         az_carrier_poly2d = burst.get_az_carrier_poly()
 
-        # Generate required metadata layers
+        # Generate required static layers
         if cfg.rdr2geo_params.enabled:
             s1_rdr2geo.run(cfg, save_in_scratch=True)
             if cfg.rdr2geo_params.geocode_metadata_layers:
@@ -154,12 +145,10 @@ def run(cfg: GeoRunConfig):
 
                 rdr_burst_raster = isce3.io.Raster(temp_slc_path)
 
-                init_geocoded_dataset(grid_group, pol, geo_grid, 'complex64',
-                                      f'{pol} geocoded CSLC image')
-
-                # access the HDF5 dataset for a given frequency and polarization
-                dataset_path = f'{grid_path}/{pol}'
-                gslc_dataset = geo_burst_h5[dataset_path]
+                # Create HDF5 dataset for a given frequency and polarization
+                gslc_dataset = init_geocoded_dataset(grid_group, pol, geo_grid,
+                                                     'complex64',
+                                                     f'{pol} geocoded CSLC image')
 
                 # Construct the output raster directly from HDF5 dataset
                 geo_burst_raster = isce3.io.Raster(f"IH5:::ID={gslc_dataset.id.id}".encode("utf-8"),

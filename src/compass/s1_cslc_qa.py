@@ -175,7 +175,6 @@ i       Parameters
             'raster_statistics': self.stats_dict,
             'pixel_classification_percentatges': self.classification_count_dict,
             'rfi_info': self.rfi_dict, 'orbit_info': self.orbit_dict}
-        print(output_dict)
 
         # write combined dict to JSON
         with open(file_path, 'w') as f:

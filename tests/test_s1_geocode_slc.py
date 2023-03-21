@@ -117,4 +117,4 @@ def test_geocode_slc_validate(geocode_slc_params):
 
     # check for bright spots in sliced array
     corner_reflector_threshold = 3e3
-    assert np.any(arr > corner_reflector_threshold)
+    assert np.any(np.abs(arr) > corner_reflector_threshold)

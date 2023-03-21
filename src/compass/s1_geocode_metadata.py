@@ -184,18 +184,18 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
 
     # init geocode object
     geocode_obj = isce3.geocode.GeocodeFloat32()
-    geo_calibration.orbit = burst.orbit
-    geo_calibration.ellipsoid = ellipsoid
-    geo_calibration.doppler = isce3.core.LUT2d()
-    geo_calibration.threshold_geo2rdr = threshold
-    geo_calibration.numiter_geo2rdr = iters
-    geo_calibration.geogrid(geogrid_calibration.start_x,
-                            geogrid_calibration.start_y,
-                            geogrid_calibration.spacing_x,
-                            geogrid_calibration.spacing_y,
-                            geogrid_calibration.width,
-                            geogrid_calibration.length,
-                            geogrid_calibration.epsg)
+    geocode_obj.orbit = burst.orbit
+    geocode_obj.ellipsoid = ellipsoid
+    geocode_obj.doppler = isce3.core.LUT2d()
+    geocode_obj.threshold_geo2rdr = threshold
+    geocode_obj.numiter_geo2rdr = iters
+    geocode_obj.geogrid(calibration_geogrid.start_x,
+                            calibration_geogrid.start_y,
+                            calibration_geogrid.spacing_x,
+                            calibration_geogrid.spacing_y,
+                            calibration_geogrid.width,
+                            calibration_geogrid.length,
+                            calibration_geogrid.epsg)
     calibration_group_path =\
         f'{ROOT_PATH}/metadata/calibration_information'
     calibration_group =\
@@ -206,7 +206,7 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
         # prepare input dataset in output HDF5
         init_geocoded_dataset(calibration_group,
                               calibration_key,
-                              geogrid_calibration,
+                              calibration_geogrid,
                               'float32',
                               f'geocoded {calibration_key}')
 
@@ -220,40 +220,42 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
                 update=True)
 
         # populate and prepare radargrid LUT input raster
-        lut_arr = np.zeros((radargrid_calibration.length,
-                            radargrid_calibration.width))
-        lut_gdal_raster = drv_lut_radargrid.Create(
+        lut_arr = np.zeros((calibration_radargrid.length,
+                            calibration_radargrid.width))
+        lut_gdal_raster = gdal_envi_driver.Create(
                         f'{scratch_path}/{calibration_key}_radargrid.rdr',
-                        radargrid_calibration.width,
-                        radargrid_calibration.length,
+                        calibration_radargrid.width,
+                        calibration_radargrid.length,
                         1,
                         gdal.GDT_Float32)
-        lut_band = outRaster.GetRasterBand(1)
-        outband.WriteArray(lut_arr)
-        outband.FlushCache()
-        outRaster = None
+        lut_band = lut_gdal_raster.GetRasterBand(1)
+        lut_band.WriteArray(lut_arr)
+        lut_band.FlushCache()
+        lut_gdal_raster = None
 
         input_raster =\
                 isce3.io.Raster(f'{scratch_path}/'
                                 f'{calibration_key}_radargrid.rdr')
 
         # geocode then set transfrom and EPSG in output raster
-        geo_calibration.geocode(radar_grid=radargrid_calibration,
-            input_raster=input_raster,
-            output_raster=calibration_burst_raster,
-            dem_raster=dem_raster,
-            output_mode=isce3.geocode.GeocodeOutputMode.INTERP)
-        geotransform = [geogrid_calibration.start_x,
-                        geogrid_calibration.spacing_x,
-                        0,
-                        geogrid_calibration.start_y,
-                        0,
-                        geogrid_calibration.spacing_y]
-        calibration_burst_raster.set_geotransform(geotransform)
-        calibration_burst_raster.set_epsg(epsg)
+        geocode_obj.geocode(radar_grid=calibration_radargrid,
+                            input_raster=input_raster,
+                            output_raster=geocoded_cal_lut_raster,
+                            dem_raster=dem_raster,
+                            output_mode=isce3.geocode.GeocodeOutputMode.INTERP),
+
+        geotransform=[calibration_geogrid.start_x,
+                      calibration_geogrid.spacing_x,
+                      0,
+                      calibration_geogrid.start_y,
+                      0,
+                      calibration_geogrid.spacing_y]
+        
+        geocoded_cal_lut_raster.set_geotransform(geotransform)
+        geocoded_cal_lut_raster.set_epsg(epsg)
 
         del input_raster
-        del calibration_burst_raster
+        del geocoded_cal_lut_raster
 
 
 if __name__ == "__main__":

@@ -13,6 +13,10 @@ import numpy as np
 
 from osgeo import gdal
 from compass.utils.runconfig import RunConfig
+from compass.utils.h5_helpers import (corrections_to_h5group,
+                                      identity_to_h5group,
+                                      init_geocoded_dataset,
+                                      metadata_to_h5group)
 from compass.utils.helpers import get_module_name
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -120,6 +124,131 @@ def run(cfg, burst, fetch_from_scratch=False):
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     info_channel.log(
         f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
+
+
+def geocode_calibration_luts(geo_burst_h5, burst, cfg, 
+                             dec_factor=40):
+    '''
+    Geocode the radiometric calibratio paremeters,
+    and write them into output HDF5.
+
+    Parameters
+    ----------
+    geo_burst_h5: h5py.files.File
+        HDF5 object as the output product
+    burst: s1reader.Sentinel1BurstSlc
+        Sentinel-1 burst SLC
+    cfg: GeoRunConfig
+        GeoRunConfig object with user runconfig options
+    dec_factor: int
+        Decimation factor to downsample the slant range pixels for LUT
+    '''
+    dem_raster = isce3.io.Raster(cfg.dem)
+    epsg = dem_raster.get_epsg()
+    proj = isce3.core.make_projection(epsg)
+    ellipsoid = proj.ellipsoid
+    burst_id = str(burst.burst_id)
+    geo_grid = cfg.geogrids[burst_id]
+    radar_grid = burst.as_isce3_radargrid()
+
+    date_str = burst.sensing_start.strftime("%Y%m%d")
+    burst_id_date_key = (burst_id, date_str)
+    out_paths = cfg.output_paths[burst_id_date_key]
+
+    # Common initializations
+    threshold = cfg.geo2rdr_params.threshold
+    iters = cfg.geo2rdr_params.numiter
+    scratch_path = out_paths.scratch_directory
+
+    root_path = '/science/SENTINEL1'
+
+    # Designate radiometric calibration parameter to geocode
+    calibration_dict = {
+        'gamma':burst.burst_calibration.gamma,
+        'sigma_naught':burst.burst_calibration.sigma_naught,
+    }
+
+    # define the geogrid for calbration LUT
+    radargrid_calibration = radar_grid.multilook(dec_factor,
+                                                 dec_factor)
+    geogrid_calibration = isce3.product.GeoGridParameters(
+                            geo_grid.start_x,
+                            geo_grid.start_y,
+                            geo_grid.spacing_x * dec_factor,
+                            geo_grid.spacing_y * dec_factor,
+                            geo_grid.width // dec_factor + 1,
+                            geo_grid.length // dec_factor + 1,
+                            geo_grid.epsg)
+
+    geo_calibration = isce3.geocode.GeocodeFloat32()
+    geo_calibration.orbit = burst.orbit
+    geo_calibration.ellipsoid = ellipsoid
+    geo_calibration.doppler = isce3.core.LUT2d()
+    geo_calibration.threshold_geo2rdr = threshold
+    geo_calibration.numiter_geo2rdr = iters
+    geo_calibration.geogrid(geogrid_calibration.start_x,
+                            geogrid_calibration.start_y,
+                            geogrid_calibration.spacing_x,
+                            geogrid_calibration.spacing_y,
+                            geogrid_calibration.width,
+                            geogrid_calibration.length,
+                            geogrid_calibration.epsg)
+    dem_raster = isce3.io.Raster(cfg.dem)
+    calibration_group_path =\
+        f'{root_path}/CSLC/metadata/calibration_information'
+    calibration_group =\
+        geo_burst_h5.require_group(calibration_group_path)
+
+    drv_lut_radargrid = gdal.GetDriverByName('ENVI')
+    for calibration_key, vec_calib in calibration_dict.items():
+        init_geocoded_dataset(calibration_group,
+                                calibration_key,
+                                geogrid_calibration,
+                                'float32',
+                                f'geocoded {calibration_key}')
+
+        calibration_dataset =\
+            geo_burst_h5[f'{calibration_group_path}/{calibration_key}']
+
+        calibration_burst_raster =\
+            isce3.io.Raster(
+                f"IH5:::ID={calibration_dataset.id.id}".encode("utf-8"),
+                update=True)
+
+        # prepare for the LUT in radar grid
+        lut_arr = np.zeros((radargrid_calibration.length,
+                            radargrid_calibration.width))
+        outRaster = drv_lut_radargrid.Create(
+                        f'{scratch_path}/{calibration_key}_radargrid.rdr',
+                        radargrid_calibration.width,
+                        radargrid_calibration.length,
+                        1,
+                        gdal.GDT_Float32)
+        outband = outRaster.GetRasterBand(1)
+        outband.WriteArray(lut_arr)
+        outband.FlushCache()
+        outRaster = None
+
+        input_raster =\
+                isce3.io.Raster(f'{scratch_path}/'
+                                f'{calibration_key}_radargrid.rdr')
+
+        geo_calibration.geocode(radar_grid=radargrid_calibration,
+            input_raster=input_raster,
+            output_raster=calibration_burst_raster,
+            dem_raster=dem_raster,
+            output_mode=isce3.geocode.GeocodeOutputMode.INTERP)
+        geotransform = [geogrid_calibration.start_x,
+                        geogrid_calibration.spacing_x,
+                        0,
+                        geogrid_calibration.start_y,
+                        0,
+                        geogrid_calibration.spacing_y]
+        calibration_burst_raster.set_geotransform(geotransform)
+        calibration_burst_raster.set_epsg(epsg)
+
+        del input_raster
+        del calibration_burst_raster
 
 
 if __name__ == "__main__":

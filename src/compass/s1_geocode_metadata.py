@@ -187,12 +187,12 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
     geocode_obj.threshold_geo2rdr = threshold
     geocode_obj.numiter_geo2rdr = iters
     geocode_obj.geogrid(calibration_geogrid.start_x,
-                            calibration_geogrid.start_y,
-                            calibration_geogrid.spacing_x,
-                            calibration_geogrid.spacing_y,
-                            calibration_geogrid.width,
-                            calibration_geogrid.length,
-                            calibration_geogrid.epsg)
+                        calibration_geogrid.start_y,
+                        calibration_geogrid.spacing_x,
+                        calibration_geogrid.spacing_y,
+                        calibration_geogrid.width,
+                        calibration_geogrid.length,
+                        calibration_geogrid.epsg)
     calibration_group_path =\
         f'{ROOT_PATH}/metadata/calibration_information'
     calibration_group =\

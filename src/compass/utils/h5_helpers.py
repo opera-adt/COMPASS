@@ -614,16 +614,19 @@ def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,
         Meta('los_solid_earth_tides', ds.GetRasterBand(4).ReadAsArray(),
              f'Solid Earth tides (range) {desc}',
              {'units': 'meters'}),
+        Meta('los_ionospheric_delay', ds.GetRasterBand(5).ReadAsArray(),
+             f'Ionospheric delay (range) {desc}',
+             {'units': 'meters'}),
     ]
     if weather_model_path is not None:
         if 'wet' in delay_type:
             correction_items.append(Meta('wet_los_troposphere_delay',
-                                         ds.GetRasterBand(5).ReadAsArray(),
+                                         ds.GetRasterBand(6).ReadAsArray(),
                                          f'Wet LOS troposphere delay {desc}',
                                          {'units': 'meters'}))
         if 'dry' in delay_type:
             correction_items.append(Meta('dry_los_troposphere_delay',
-                                         ds.GetRasterBand(6).ReadAsArray(),
+                                         ds.GetRasterBand(7).ReadAsArray(),
                                          f'Dry LOS troposphere delay {desc}',
                                          {'units': 'meters'}))
 

@@ -62,7 +62,7 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
     '''
     # Get individual LUTs
     geometrical_steer_doppler, bistatic_delay, az_fm_mismatch, [tide_rg, tide_az], \
-        [wet_los_tropo, dry_los_tropo] = \
+        los_ionosphere, [wet_los_tropo, dry_los_tropo], los_static_tropo = \
         compute_geocoding_correction_luts(burst,
                                           dem_path=dem_path,
                                           tec_path=tec_path,
@@ -73,7 +73,7 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
 
     # Convert to geometrical doppler from range time (seconds) to range (m)
     geometry_doppler = geometrical_steer_doppler.data * isce3.core.speed_of_light * 0.5
-    rg_lut_data = geometry_doppler + tide_rg + los_ionosphere
+    rg_lut_data = geometry_doppler + tide_rg + los_ionosphere + los_static_tropo
 
     # Add troposphere delay to range LUT
     if 'wet' in delay_type:
@@ -106,12 +106,13 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
     descr = ['slant range geometrical doppler', 'azimuth bistatic delay', 'azimuth FM rate mismatch',
              'slant range Solid Earth tides', 'line-of-sight ionospheric delay']
 
-    if 'wet' in delay_type:
-        data_list.append(wet_los_tropo)
-        descr.append('wet LOS troposphere')
-    if 'dry' in delay_type:
-        data_list.append(dry_los_tropo)
-        descr.append('dry LOS troposphere')
+    if weather_model_path is not None:
+        if 'wet' in delay_type:
+            data_list.append(wet_los_tropo)
+            descr.append('wet LOS troposphere')
+        if 'dry' in delay_type:
+            data_list.append(dry_los_tropo)
+            descr.append('dry LOS troposphere')
 
     write_raster(f'{output_path}/corrections', data_list, descr)
 
@@ -241,9 +242,14 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
                                       tec_path, lon, lat, inc_angle)
 
     # Compute wet and dry troposphere delays using RAiDER
-    wet_los_tropo, dry_los_tropo = [np.zeros(out_shape) for _ in range(2)]
+    wet_los_tropo, dry_los_tropo, los_static_tropo =\
+        [np.zeros(out_shape) for _ in range(3)]
 
-    if weather_model_path is not None:
+    if weather_model_path is None:
+        # Compute static troposphere correction
+        los_static_tropo = compute_static_troposphere_delay(inc_angle, height)
+
+    else:
         # Instantiate an "aoi" object to read lat/lon/height files
         aoi = RasterRDR(rdr2geo_raster_paths[1], rdr2geo_raster_paths[0],
                         rdr2geo_raster_paths[2])
@@ -263,7 +269,7 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
         dry_los_tropo = 2.0 * zen_dry / np.cos(np.deg2rad(inc_angle))
 
     return geometrical_steering_doppler, bistatic_delay, az_fm_mismatch, [
-        rg_set, az_set], los_ionosphere, [wet_los_tropo, dry_los_tropo]
+        rg_set, az_set], los_ionosphere, [wet_los_tropo, dry_los_tropo], los_static_tropo
 
 
 
@@ -436,3 +442,27 @@ def resample_set(geo_tide, pts_src, pts_dest):
                    bounds_error=False, fill_value=0)
     rdr_tide = rgi_func(pts_dest)
     return rdr_tide
+
+
+def compute_static_troposphere_delay(incidence_angle_arr, hgt_arr):
+    '''
+    Compute troposphere delay using static model
+
+    Parameters:
+    -----------
+    inc_path: str
+        Path to incidence angle raster in radar grid in degrees
+    hgt_path: str
+        Path to surface heightraster in radar grid in meters
+
+    Return:
+    -------
+    tropo: np.ndarray
+        Troposphere delay in slant range
+    '''
+    ZPD = 2.3
+    H = 6000.0
+
+    tropo = ZPD / np.cos(np.deg2rad(incidence_angle_arr)) * np.exp(-1 * hgt_arr / H)
+
+    return tropo

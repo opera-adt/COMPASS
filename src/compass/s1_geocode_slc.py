@@ -224,6 +224,12 @@ def run(cfg: GeoRunConfig):
                                                              burst,
                                                              cfg)
 
+            if burst.burst_noise is not None:
+                # Geocode the calibration parameters and write them into HDF5
+                s1_geocode_metadata.geocode_noise_luts(geo_burst_h5,
+                                                       burst,
+                                                       cfg)
+
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
 

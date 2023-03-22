@@ -22,7 +22,6 @@ class QualityAssuranceCSLC:
     Class to compute stats for geocoded raster and corrections
     '''
     stat_names = ['mean', 'min', 'max', 'std']
-    stat_desc = 'Mean, minimum, maximum, and standard deviation of '
 
     def __init__(self):
         self.stats_dict = {}
@@ -147,7 +146,7 @@ class QualityAssuranceCSLC:
         '''
         Populate QA orbit information
 
-i       Parameters
+        Parameters
         ----------
         cfg: dict
             Runconfig dict containing orbit path
@@ -175,7 +174,6 @@ i       Parameters
             'raster_statistics': self.stats_dict,
             'pixel_classification_percentatges': self.classification_count_dict,
             'rfi_info': self.rfi_dict, 'orbit_info': self.orbit_dict}
-        print(output_dict)
 
         # write combined dict to JSON
         with open(file_path, 'w') as f:

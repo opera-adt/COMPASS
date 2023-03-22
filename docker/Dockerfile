@@ -44,10 +44,11 @@ RUN curl -sSL https://github.com/opera-adt/s1-reader/archive/main.tar.gz -o s1_r
     python -m pip install ./s1-reader
 
 # installing RAiDER
-RUN curl -sSL https://github.com/dbekaert/RAiDER/archive/refs/tags/v0.4.2.tar.gz -o raider_src.tar.gz &&\
-    tar -xvf raider_src.tar.gz &&\
-    ln -s RAiDER-0.4.2 RAiDER &&\
-    rm raider_src.tar.gz &&\
+RUN mkdir RAiDER &&\
+    git clone git@github.com:dbekaert/RAiDER.git RAiDER &&\
+    cd RAiDER &&\
+    git checkout tags/tags/v0.4.2 &&\
+    cd .. &&\
     python -m pip install ./RAiDER
 
 

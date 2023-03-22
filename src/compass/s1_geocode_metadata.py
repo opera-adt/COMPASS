@@ -213,7 +213,7 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
         #  eventually replaced by LUTs for geocoded calibration parameters.
         lut_arr = np.zeros((decimated_radargrid.length,
                             decimated_radargrid.width))
-        lut_path = f'{scratch_path}/{item_name}_radargrid.rdr',
+        lut_path = f'{scratch_path}/{item_name}_radargrid.rdr'
         lut_gdal_raster = gdal_envi_driver.Create(
                         lut_path, decimated_radargrid.width,
                         decimated_radargrid.length, 1, gdal.GDT_Float32)

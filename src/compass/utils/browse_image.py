@@ -1,10 +1,14 @@
 '''
 function to generate CSLC browse image and image manipulation helper functions
 '''
+import argparse
+
 import h5py
 import numpy as np
 from PIL import Image
 from osgeo import gdal
+
+from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.h5_helpers import get_georaster_bounds, GRID_PATH
 
 
@@ -63,7 +67,7 @@ def _clip_by_percentage(image, percent_low, percent_high):
     vmin = np.nanpercentile(image, percent_low)
 
     # clip if necessary
-    if percent_low == 0.0 and percent_high == 100.0:
+    if percent_low != 0.0 or percent_high != 100.0:
         image = np.clip(image, a_min=vmin, a_max=vmax)
 
     return image, vmin, vmax
@@ -235,7 +239,45 @@ def make_browse_image(filename, path_h5, bursts, complex_to_real='amplitude', pe
 
             # scale valid pixels to 1-255
             # set NaNs set to 0 to be transparent
-            image = _normalize_apply_gamma(image, vmin, vmax)
+            image = _normalize_apply_gamma(image, vmin, vmax, gamma)
 
             # save to disk
             _save_to_disk_as_greyscale(image, filename)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Create browse images for the geocode cslc workflow from command line',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('run-config-path', nargs='?',
+                        default=None, help='Path to run config file')
+    parser.add_argument('-o', '--out-fname',
+                        help='Path to output png file')
+    parser.add_argument('-c', '--complex-to-real',
+                        choices=['amplitude', 'intensity', 'logamplitude'],
+                        default='amplitude', help='Method to convert complex data to real')
+    parser.add_argument('-l', '--percent-low', type=float, default=0.0,
+                        help='Lower percentage of non-NaN pixels to be clipped')
+    parser.add_argument('-u', '--percent-up', type=float, default=100.0,
+                        help='Upper percentage of non-NaN pixels to be clipped')
+    parser.add_argument('-g', '--gamma', type=float, default=0.5,
+                        help='Exponent value used for gamma correction')
+    parser.add_argument('-e', '--equalize', action='store_true',
+                        help='Enable histogram equalization')
+    args = parser.parse_args()
+
+    # Get a runconfig dict from command line argumens
+    cfg = GeoRunConfig.load_from_yaml(args.run_config_path,
+                                      workflow_name='s1_cslc_geo')
+
+    # unpack args to make browse image
+    bursts = cfg.bursts
+    burst = bursts[0]
+    date_str = burst.sensing_start.strftime("%Y%m%d")
+    burst_id_date_key = (str(burst.burst_id), date_str)
+    out_paths = cfg.output_paths[burst_id_date_key]
+    output_hdf5 = out_paths.hdf5_path
+
+    # Run geocode burst workflow
+    make_browse_image(args.out_fname, output_hdf5, bursts,
+                      args.complex_to_real,  args.percent_low, args.percent_up,
+                      args.gamma, args.equalize)

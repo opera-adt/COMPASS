@@ -200,7 +200,11 @@ def run(cfg: GeoRunConfig):
             # If needed, perform QA and write results to JSON
             if cfg.quality_assurance_params.perform_qa:
                 if cfg.lut_params.enabled:
-                    cslc_qa.compute_correction_stats(geo_burst_h5)
+                    # apply tropo corrections if weather file provided
+                    apply_tropo_corrections = cfg.weather_model_file is not None
+                    cslc_qa.compute_correction_stats(
+                        geo_burst_h5, apply_tropo_corrections,
+                        cfg.tropo_params.delay_type)
                 cslc_qa.compute_CSLC_raster_stats(geo_burst_h5, bursts)
                 cslc_qa.raster_pixel_classification()
                 cslc_qa.populate_rfi_dict()

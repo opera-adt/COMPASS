@@ -54,7 +54,7 @@ def _gdal_nfo_retrieve(path_h5):
                 break
 
     # Extract some info from reference/secondary CSLC products with GDAL
-    h5_gdal_path = f'HDF5:{path_h5}://{grid_path}/{pol}'
+    h5_gdal_path = f'NETCDF:{path_h5}://{grid_path}/{pol}'
     dataset = gdal.Open(h5_gdal_path, gdal.GA_ReadOnly)
     geotransform = dataset.GetGeoTransform()
     proj = dataset.GetProjection()

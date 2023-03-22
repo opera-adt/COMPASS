@@ -139,10 +139,10 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
         Sentinel-1 burst SLC
     cfg: GeoRunConfig
         GeoRunConfig object with user runconfig options
-    dst_group_path:
-        xyz
-    item_dict:
-        abc
+    dst_group_path: str
+        Path in HDF5 where geocode rasters will be placed
+    item_dict: dict
+        Dict containing item names and values to be geocoded
     dec_factor: int
         Decimation factor to downsample the slant range pixels for LUT
     '''
@@ -163,7 +163,7 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
     iters = cfg.geo2rdr_params.numiter
     scratch_path = out_paths.scratch_directory
 
-    # generate decimated radar and geo grids for LU(s)
+    # generate decimated radar and geo grids for LUT(s)
     decimated_radargrid = radar_grid.multilook(dec_factor, dec_factor)
     decimated_geogrid = isce3.product.GeoGridParameters(
                             geo_grid.start_x,

@@ -63,8 +63,6 @@ processing_options:
    rdr2geo: include('rdr2geo_options', required=False)
 
 geocoding_options:
-    # Format of output file
-    output_format: enum('ENVI', 'GTiff', 'COG', required=False)
     # Boolean flag to enable/disable flattenin
     flatten: bool(required=False)
     # Number of lines to process in batch

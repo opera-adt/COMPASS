@@ -23,7 +23,6 @@ class QualityAssuranceCSLC:
     Class to compute stats for geocoded raster and corrections
     '''
     stat_names = ['mean', 'min', 'max', 'std']
-    stat_desc = 'Mean, minimum, maximum, and standard deviation of '
 
     def __init__(self):
         self.stats_dict = {}
@@ -168,7 +167,7 @@ class QualityAssuranceCSLC:
         '''
         Populate QA orbit information
 
-i       Parameters
+        Parameters
         ----------
         cfg: dict
             Runconfig dict containing orbit path

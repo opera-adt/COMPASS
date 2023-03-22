@@ -93,6 +93,11 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
         Data type of dataset to be geocoded
     description: str
         Description of dataset to be geocoded
+
+    Returns
+    -------
+    cslc_ds: h5py.Dataset
+        h5py dataset ready to be populated with geocoded dataset
     '''
     shape = (geo_grid.length, geo_grid.width)
     cslc_ds = grid_group.require_dataset(dataset_name, dtype=dtype,
@@ -272,6 +277,8 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
     else:
         raise NotImplementedError('Waiting for implementation / Not supported in ISCE3')
 
+    return cslc_ds
+
 
 def save_orbit(orbit, orbit_direction, orbit_group):
     '''
@@ -421,6 +428,19 @@ def metadata_to_h5group(parent_group, burst, cfg):
         cal_group = meta_group.require_group('calibration_information')
         for meta_item in cal_items:
             add_dataset_and_attrs(cal_group, meta_item)
+
+    # write out noise metadata, if present
+    if burst.burst_noise is not None:
+        noise = burst.burst_noise
+        noise_items = [
+            Meta('basename', noise.basename_nads, ''),
+            Meta('range_azimuth_time',
+                 noise.range_azimuth_time.strftime(TIME_STR_FMT),
+                 'Start time', {'format': 'YYYY-MM-DD HH:MM:SS.6f'})
+        ]
+        noise_group = meta_group.require_group('noise_information')
+        for meta_item in noise_items:
+            add_dataset_and_attrs(noise_group, meta_item)
 
     # runconfig yaml text
     processing_group['runconfig'] = cfg.yaml_string
@@ -698,33 +718,6 @@ def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,
         eap_group = correction_group.require_group('elevation_antenna_pattern')
         for meta_item in eap_items:
             add_dataset_and_attrs(eap_group, meta_item)
-
-    # write out noise metadata, if present
-    if burst.burst_noise is not None:
-        noise = burst.burst_noise
-        noise_items = [
-            Meta('basename', noise.basename_nads, ''),
-            Meta('range_azimuth_time',
-                 noise.range_azimuth_time.strftime(TIME_STR_FMT),
-                 'Start time', {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
-            Meta('range_line', noise.range_line, 'Range line'),
-            Meta('range_pixel', noise.range_pixel, 'Range array in pixel for LUT'),
-            Meta('range_lut', noise.range_lut, 'Range noise lookup table data'),
-            Meta('azimuth_first_azimuth_line', noise.azimuth_first_azimuth_line,
-                 'First line of the burst in subswath. NaN if not available in annotation.'),
-            Meta('azimuth_first_range_sample', noise.azimuth_first_range_sample,
-                 'First range sample of the burst. NaN if not available in annotation.'),
-            Meta('azimuth_last_azimuth_line', noise.azimuth_last_azimuth_line,
-                 'Last line of the burst in subswatn. NaN if not available in annotation.'),
-            Meta('azimuth_last_range_sample', noise.azimuth_last_range_sample,
-                 'Last range of the burst. NaN if not available in annotation.'),
-            Meta('azimuth_line', noise.azimuth_line, 'azimuth line index for noise LUT'),
-            Meta('azimuth_lut', noise.azimuth_lut, 'azimuth noise lookup table data')
-        ]
-        noise_group = correction_group.require_group('noise')
-        for meta_item in noise_items:
-            add_dataset_and_attrs(noise_group, meta_item)
-
 
 def get_cslc_geotransform(filename, pol: str = "VV"):
     gdal_str = f'NETCDF:{filename}:/{GRID_PATH}/{pol}'

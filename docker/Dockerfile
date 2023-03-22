@@ -1,8 +1,8 @@
 FROM oraclelinux:8
 
 LABEL author="OPERA ADT" \
-      description="s1 cslc 0.1 Beta release" \
-      version="0.1-beta"
+    description="s1 cslc 0.1 Beta release" \
+    version="0.1-beta"
 
 RUN yum -y update &&\
     yum -y install curl &&\
@@ -42,6 +42,14 @@ RUN curl -sSL https://github.com/opera-adt/s1-reader/archive/main.tar.gz -o s1_r
     ln -s s1-reader-main s1-reader &&\
     rm s1_reader_src.tar.gz &&\
     python -m pip install ./s1-reader
+
+# installing RAiDER
+RUN curl -sSL https://github.com/dbekaert/RAiDER/archive/refs/tags/v0.4.2.tar.gz -o raider_src.tar.gz &&\
+    tar -xvf raider_src.tar.gz &&\
+    ln -s RAiDER-0.4.2 RAiDER &&\
+    rm raider_src.tar.gz &&\
+    python -m pip install ./RAiDER
+
 
 # installing OPERA COMPASS
 RUN python -m pip install ./COMPASS &&\

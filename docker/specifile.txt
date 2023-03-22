@@ -187,4 +187,3 @@ https://conda.anaconda.org/conda-forge/linux-64/scipy-1.10.1-py311h8e6699e_0.con
 https://conda.anaconda.org/conda-forge/linux-64/isce3-0.11.0-py311h0802494_0.conda
 https://conda.anaconda.org/conda-forge/linux-64/scikit-image-0.19.3-py311h8b32b4d_2.tar.bz2
 https://conda.anaconda.org/conda-forge/linux-64/pysolid-0.2.3-py311ha29c927_1.tar.bz2
-https://anaconda.org/conda-forge/raider/0.4.2/download/linux-64/raider-0.4.2-py38h578d9bd_0.conda

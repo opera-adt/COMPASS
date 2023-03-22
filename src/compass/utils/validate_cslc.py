@@ -147,25 +147,19 @@ def compare_cslc_products(file_ref, file_sec):
 def _get_group_item_paths(h5py_group):
     '''
     Get paths for all datasets and groups nested within a h5py.Group
+
     Parameters
     ----------
     h5py_group: h5py.Group
         Group object where paths to objects within are to be retrieved.
+
     Returns
     -------
     paths: list[str]
         Paths of all items in given h5py.Group
     '''
     paths = []
-    # Iterate of items with the group
-    for v in h5py_group.values():
-        # Save name/path of current value
-        paths.append(v.name)
-
-        # If value is Group, get names/paths within
-        if isinstance(v, h5py.Group):
-            paths.extend(_get_group_item_paths(v))
-
+    h5py_group.visit(lambda path: paths.append(path))
     return paths
 
 

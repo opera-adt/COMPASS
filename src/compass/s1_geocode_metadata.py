@@ -14,7 +14,7 @@ from osgeo import gdal
 from compass import s1_rdr2geo
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.h5_helpers import (init_geocoded_dataset,
-                                      ROOT_PATH)
+                                      GRID_PATH, ROOT_PATH)
 from compass.utils.helpers import bursts_grouping_generator, get_module_name
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -93,8 +93,12 @@ def run(cfg, burst, fetch_from_scratch=False):
                    'layover_shadow_mask': cfg.rdr2geo_params.compute_layover_shadow_mask
                    }
 
-    out_h5 = f'{out_paths.output_directory}/topo.h5'
-    with h5py.File(out_h5, 'w') as topo_root_h5:
+    out_h5 = f'{out_paths.output_directory}/static_layers_{burst_id}.h5'
+    with h5py.File(out_h5, 'w') as h5_obj:
+        # Create group static_layers group under GRID_PATH for consistency with
+        # CSLC product
+        static_layer_group = h5_obj.require_group(f'{GRID_PATH}/static_layers')
+
         # Geocode designated layers
         for layer_name, enabled in meta_layers.items():
             if not enabled:
@@ -108,8 +112,9 @@ def run(cfg, burst, fetch_from_scratch=False):
                 dtype = np.byte
 
             # Create dataset with x/y coords/spacing and projection
-            topo_ds = init_geocoded_dataset(topo_root_h5, layer_name, geo_grid,
-                                            dtype, np.string_(layer_name))
+            topo_ds = init_geocoded_dataset(static_layer_group, layer_name,
+                                            geo_grid, dtype,
+                                            np.string_(layer_name))
 
             # Init output and input isce3.io.Raster objects for geocoding
             output_raster = isce3.io.Raster(f"IH5:::ID={topo_ds.id.id}".encode("utf-8"),

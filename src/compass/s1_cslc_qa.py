@@ -7,7 +7,8 @@ from pathlib import Path
 import isce3
 import numpy as np
 
-from compass.utils.h5_helpers import GRID_PATH, ROOT_PATH
+from compass.utils.h5_helpers import (GRID_PATH, ROOT_PATH,
+                                      add_dataset_and_attrs, Meta)
 
 
 def value_description_dict(val, desc):
@@ -34,7 +35,8 @@ class QualityAssuranceCSLC:
 
     def compute_CSLC_raster_stats(self, cslc_h5py_root, bursts):
         '''
-        Compute CSLC raster stats
+        Compute CSLC raster stats. Stats written to HDF5 and saved to class
+        dict for later JSON output
 
         Parameters
         ----------
@@ -47,11 +49,11 @@ class QualityAssuranceCSLC:
             pol = b.polarization
 
             # get dataset and compute stats according to dtype
-            src_path = f'{GRID_PATH}/{pol}'
-            ds = cslc_h5py_root[src_path]
+            pol_path = f'{GRID_PATH}/{pol}'
+            pol_ds = cslc_h5py_root[pol_path]
 
             # compute stats for real and complex
-            stat_obj = isce3.math.StatsRealImagFloat32(ds[()])
+            stat_obj = isce3.math.StatsRealImagFloat32(pol_ds[()])
 
             # create dict for current polarization
             self.stats_dict[pol] = {}
@@ -63,29 +65,41 @@ class QualityAssuranceCSLC:
                 # create dict to store real/imaginary stat items
                 pol_dict[real_imag] = {}
 
+                # create HDF5 group for real/imaginary stats of current
+                # polarization
+                stats_path = f'{GRID_PATH}/stats/{pol}/{real_imag}'
+                stats_group = cslc_h5py_root.require_group(stats_path)
+
                 # add description for stat items
                 qa_item_desc = f'{real_imag} part of geoocoded SLC'
 
                 vals = [cstat_member.mean, cstat_member.min,
                         cstat_member.max, cstat_member.sample_stddev]
-                # write stats to HDF5
+                # save stats to dict and write to HDF5
                 for val_name, val in zip(self.stat_names, vals):
+                    desc = f'{val_name} of {qa_item_desc}'
                     pol_dict[real_imag][val_name] = value_description_dict(
-                        val, f'{val_name} of {qa_item_desc}')
+                        val, desc)
+                    add_dataset_and_attrs(stats_group, Meta(val_name, val,
+                                                            desc))
 
 
     def compute_correction_stats(self, cslc_h5py_root):
         '''
-        Compute correction stats
+        Compute correction stats. Stats written to HDF5 and saved to class dict
+        for later JSON output
 
         Parameters
         ----------
         cslc_h5py_root: h5py.File
             Root of CSLC HDF5
         '''
+        corrections_path = f'{ROOT_PATH}/corrections'
+
         # compute and save corrections stats
         corrections = ['bistatic_delay', 'geometry_steering_doppler',
-                       'azimuth_fm_rate_mismatch']
+                       'azimuth_fm_rate_mismatch', 'los_ionospheric_delay',
+                       'los_solid_earth_tides']
 
         # compute stats and write to hdf5
         self.stats_dict['corrections'] = {}
@@ -96,15 +110,22 @@ class QualityAssuranceCSLC:
             correction_dict = corrections_dict[correction]
 
             # get dataset and compute stats according to dtype
-            src_path = f'{ROOT_PATH}/corrections/{correction}'
-            ds = cslc_h5py_root[src_path]
-            stat_obj = isce3.math.StatsFloat32(ds[()].astype(np.float32))
+            correction_path = f'{corrections_path}/{correction}'
+            corr_ds = cslc_h5py_root[correction_path]
+            stat_obj = isce3.math.StatsFloat32(corr_ds[()].astype(np.float32))
 
-            # write stats to HDF5
-            vals = [stat_obj.mean, stat_obj.min, stat_obj.max]
+            # create HDF5 group for stats of current correction
+            correction_stat_path = f'{corrections_path}/stats/{correction}'
+            stats_group = cslc_h5py_root.require_group(correction_stat_path)
+
+            # save stats to dict and write to HDF5
+            vals = [stat_obj.mean, stat_obj.min, stat_obj.max,
+                    stat_obj.sample_stddev]
             for val_name, val in zip(self.stat_names, vals):
-                correction_dict[val_name] = value_description_dict(
-                    val, f'{val_name} of {correction} correction')
+                desc = f'{val_name} of {correction} correction'
+                correction_dict[val_name] = value_description_dict(val,
+                                                                   desc)
+                add_dataset_and_attrs(stats_group, Meta(val_name, val, desc))
 
 
     def raster_pixel_classification(self):
@@ -175,7 +196,6 @@ i       Parameters
             'raster_statistics': self.stats_dict,
             'pixel_classification_percentatges': self.classification_count_dict,
             'rfi_info': self.rfi_dict, 'orbit_info': self.orbit_dict}
-        print(output_dict)
 
         # write combined dict to JSON
         with open(file_path, 'w') as f:

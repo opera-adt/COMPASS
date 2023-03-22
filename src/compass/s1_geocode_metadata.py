@@ -14,7 +14,8 @@ from osgeo import gdal
 from compass import s1_rdr2geo
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.h5_helpers import (init_geocoded_dataset,
-                                      GRID_PATH, ROOT_PATH)
+                                      metadata_to_h5group, GRID_PATH,
+                                      ROOT_PATH)
 from compass.utils.helpers import bursts_grouping_generator, get_module_name
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -133,6 +134,10 @@ def run(cfg, burst, fetch_from_scratch=False):
             output_raster.set_epsg(output_epsg)
             del input_raster
             del output_raster
+
+            # save metadata
+            cslc_group = h5_obj.require_group(ROOT_PATH)
+            metadata_to_h5group(cslc_group, burst, cfg)
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     info_channel.log(

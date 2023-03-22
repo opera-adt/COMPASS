@@ -246,26 +246,23 @@ def make_browse_image(filename, path_h5, bursts, complex_to_real='amplitude', pe
 
 
 if __name__ == "__main__":
-    '''Run geocode cslc workflow from command line'''
-    # load arguments from command line
-    parser = argparse.ArgumentParser(description='',
+    parser = argparse.ArgumentParser(description='Create browse images for the geocode cslc workflow from command line',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('run_config_path', type=str, nargs='?',
+    parser.add_argument('run-config-path', nargs='?',
                         default=None, help='Path to run config file')
-    parser.add_argument('-o', '--out_fname', type=str, nargs='?',
-                        default=None, help='Path to output png file')
-    parser.add_argument('-c','--complex_to_real', type=str,
-                        default='amplitude', choices=['amplitude', 'intensity',
-                                                      'logamplitude'],
-                        help='Method to convert complex data to real')
-    parser.add_argument('-l', '--percent_low', type=float, nargs='?',
-                        default=0.0, help='Lower %age of non-NaN pixels to be clipped')
-    parser.add_argument('-u', '--percent_up', type=float, nargs='?',
-                        default=100.0, help='Upper %age of non-NaN pixels to be clipped')
-    parser.add_argument('-g', '--gamma', type=float, nargs='?',
-                        default=0.5, help='Exponent value used for gamma correction')
-    parser.add_argument('-e', '--equalize', type=bool, nargs='?',
-                        default=False, help='Enable/disble histogram equalzation')
+    parser.add_argument('-o', '--out-fname',
+                        help='Path to output png file')
+    parser.add_argument('-c', '--complex-to-real',
+                        choices=['amplitude', 'intensity', 'logamplitude'],
+                        default='amplitude', help='Method to convert complex data to real')
+    parser.add_argument('-l', '--percent-low', type=float, default=0.0,
+                        help='Lower percentage of non-NaN pixels to be clipped')
+    parser.add_argument('-u', '--percent-up', type=float, default=100.0,
+                        help='Upper percentage of non-NaN pixels to be clipped')
+    parser.add_argument('-g', '--gamma', type=float, default=0.5,
+                        help='Exponent value used for gamma correction')
+    parser.add_argument('-e', '--equalize', action='store_true',
+                        help='Enable histogram equalization')
     args = parser.parse_args()
 
     # Get a runconfig dict from command line argumens

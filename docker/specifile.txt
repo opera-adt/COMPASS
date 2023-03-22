@@ -144,6 +144,7 @@ https://conda.anaconda.org/conda-forge/noarch/packaging-23.0-pyhd8ed1ab_0.conda
 https://conda.anaconda.org/conda-forge/noarch/pycparser-2.21-pyhd8ed1ab_0.tar.bz2
 https://conda.anaconda.org/conda-forge/noarch/pyparsing-3.0.9-pyhd8ed1ab_0.tar.bz2
 https://conda.anaconda.org/conda-forge/noarch/pysocks-1.7.1-pyha2e5f31_6.tar.bz2
+https://conda.anaconda.org/conda-forge/noarch/pytz-2022.7.1-pyhd8ed1ab_0.conda
 https://conda.anaconda.org/conda-forge/linux-64/pyyaml-6.0-py311hd4cff14_5.tar.bz2
 https://conda.anaconda.org/conda-forge/linux-64/ruamel.yaml.clib-0.2.7-py311h2582759_1.conda
 https://conda.anaconda.org/conda-forge/noarch/setuptools-67.6.0-pyhd8ed1ab_0.conda
@@ -187,6 +188,7 @@ https://conda.anaconda.org/conda-forge/linux-64/kealib-1.5.0-ha7026e8_0.conda
 https://conda.anaconda.org/conda-forge/linux-64/libnetcdf-4.9.1-nompi_hd2e9713_102.conda
 https://conda.anaconda.org/conda-forge/linux-64/libspatialite-5.0.1-h2d2bb50_24.conda
 https://conda.anaconda.org/conda-forge/linux-64/matplotlib-base-3.7.1-py311h8597a09_0.conda
+https://conda.anaconda.org/conda-forge/linux-64/pandas-1.5.3-py311h2872171_0.conda
 https://conda.anaconda.org/conda-forge/noarch/platformdirs-3.1.1-pyhd8ed1ab_0.conda
 https://conda.anaconda.org/conda-forge/linux-64/poppler-23.03.0-hf052cbe_1.conda
 https://conda.anaconda.org/conda-forge/linux-64/pyproj-3.4.1-py311h945b3ca_1.conda
@@ -195,6 +197,7 @@ https://conda.anaconda.org/conda-forge/linux-64/tiledb-2.13.2-hd532e3d_0.conda
 https://conda.anaconda.org/conda-forge/linux-64/libgdal-3.6.3-h93ed92d_1.conda
 https://conda.anaconda.org/conda-forge/noarch/pyopenssl-23.0.0-pyhd8ed1ab_0.conda
 https://conda.anaconda.org/conda-forge/noarch/tifffile-2023.3.21-pyhd8ed1ab_0.conda
+https://conda.anaconda.org/conda-forge/noarch/xarray-2023.2.0-pyhd8ed1ab_0.conda
 https://conda.anaconda.org/conda-forge/linux-64/gdal-3.6.3-py311hadb6153_1.conda
 https://conda.anaconda.org/conda-forge/noarch/urllib3-1.26.15-pyhd8ed1ab_0.conda
 https://conda.anaconda.org/conda-forge/noarch/requests-2.28.2-pyhd8ed1ab_0.conda

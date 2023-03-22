@@ -5,7 +5,7 @@ LABEL author="OPERA ADT" \
     version="0.1-beta"
 
 RUN yum -y update &&\
-    yum -y install curl &&\
+    yum -y install curl git &&\
     adduser compass_user
 
 RUN mkdir -p /home/compass_user/OPERA
@@ -45,9 +45,9 @@ RUN curl -sSL https://github.com/opera-adt/s1-reader/archive/main.tar.gz -o s1_r
 
 # installing RAiDER
 RUN mkdir RAiDER &&\
-    git clone git@github.com:dbekaert/RAiDER.git RAiDER &&\
+    git clone https://github.com/dbekaert/RAiDER.git RAiDER &&\
     cd RAiDER &&\
-    git checkout tags/tags/v0.4.2 &&\
+    git checkout tags/v0.4.2 &&\
     cd .. &&\
     python -m pip install ./RAiDER
 

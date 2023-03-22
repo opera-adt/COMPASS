@@ -263,7 +263,7 @@ if __name__ == "__main__":
     parser.add_argument('-u', '--percent_up', type=float, nargs='?',
                         default=100.0, help='Upper %age of non-NaN pixels to be clipped')
     parser.add_argument('-g', '--gamma', type=float, nargs='?',
-                        default=1.0, help='Exponent value used for gamma correction')
+                        default=0.5, help='Exponent value used for gamma correction')
     parser.add_argument('-e', '--equalize', type=bool, nargs='?',
                         default=False, help='Enable/disble histogram equalzation')
     args = parser.parse_args()

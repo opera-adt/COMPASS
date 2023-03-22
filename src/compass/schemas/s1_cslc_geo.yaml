@@ -142,6 +142,8 @@ quality_assurance_options:
     browse_image: include('browse_image_options', required=False)
     # Enable/disable computation of statistics of CSLC rasters and corrections
     perform_qa: bool(required=False)
+    # Enable/disable writing of QA information to JSON
+    output_to_json: bool(required=False)
 
 browse_image_options:
     # Enable/disable generation of CSLC browse image

@@ -13,12 +13,12 @@ from s1reader.s1_burst_slc import Sentinel1BurstSlc
 import shapely
 
 import compass
-from compass.utils.lut import compute_geocoding_correction_luts
 
 
 TIME_STR_FMT = '%Y-%m-%d %H:%M:%S.%f'
 ROOT_PATH = '/science/SENTINEL1/CSLC'
 GRID_PATH = f'{ROOT_PATH}/grids'
+QA_PATH = f'{ROOT_PATH}/quality_assurance'
 
 
 @dataclass
@@ -720,12 +720,44 @@ def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,
         for meta_item in eap_items:
             add_dataset_and_attrs(eap_group, meta_item)
 
-def get_cslc_geotransform(filename, pol: str = "VV"):
+
+def get_cslc_geotransform(filename: str, pol: str = "VV"):
+    '''
+    Extract and return geotransform of a geocoded CSLC raster in an HDFg
+
+    Parameters
+    ----------
+    filename: str
+        Path the CSLC HDF5
+    pol: str
+        Polarization of geocoded raster whose boundary is to be computed
+
+    Returns
+    -------
+    list
+        Geotransform of the geocoded raster
+    '''
     gdal_str = f'NETCDF:{filename}:/{GRID_PATH}/{pol}'
     return gdal.Info(gdal_str, format='json')['geoTransform']
 
 
-def get_georaster_bounds(filename, pol):
+def get_georaster_bounds(filename: str, pol: str = 'VV'):
+    '''
+    Compute CSLC raster boundary of a given polarization
+
+    Parameters
+    ----------
+    filename: str
+        Path the CSLC HDF5
+    pol: str
+        Polarization of geocoded raster whose boundary is to be computed
+
+    Returns
+    -------
+    tuple
+        WGS84 coordinates of the geocoded raster boundary given as min_x,
+        max_x, min_y, max_y
+    '''
     nfo = gdal.Info(f'NETCDF:{filename}:/{GRID_PATH}/{pol}', format='json')
 
     # set extreme initial values for min/max x/y

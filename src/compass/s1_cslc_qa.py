@@ -7,7 +7,7 @@ from pathlib import Path
 import isce3
 import numpy as np
 
-from compass.utils.h5_helpers import (GRID_PATH, ROOT_PATH,
+from compass.utils.h5_helpers import (GRID_PATH, QA_PATH, ROOT_PATH,
                                       add_dataset_and_attrs, Meta)
 
 
@@ -18,6 +18,20 @@ def value_description_dict(val, desc):
     return {'value': val, 'description': desc}
 
 
+def _qa_items_to_h5_and_dict(h5_group, qa_dict, qa_items):
+    '''
+    Convenience function that write QA items to HDF5 group and QA dict
+    '''
+    # write items to HDF5 and dict
+    for qa_item in qa_items:
+        # write to HDF5 group RFI info
+        add_dataset_and_attrs(h5_group, qa_item)
+
+        # add items to RFI dict
+        qa_dict[qa_item.name] = value_description_dict(qa_item.value,
+                                                       qa_item.description)
+
+
 class QualityAssuranceCSLC:
     '''
     Class to compute stats for geocoded raster and corrections
@@ -26,10 +40,11 @@ class QualityAssuranceCSLC:
 
     def __init__(self):
         self.stats_dict = {}
-        self.classification_count_dict = {}
+        self.pixel_percentage_dict = {}
         self.rfi_dict = {}
         self.is_safe_corrupt = False
         self.orbit_dict = {}
+        self.output_to_json = False
 
 
     def compute_CSLC_raster_stats(self, cslc_h5py_root, bursts):
@@ -66,21 +81,23 @@ class QualityAssuranceCSLC:
 
                 # create HDF5 group for real/imaginary stats of current
                 # polarization
-                stats_path = f'{GRID_PATH}/stats/{pol}/{real_imag}'
-                stats_group = cslc_h5py_root.require_group(stats_path)
+                h5_stats_path = f'{QA_PATH}/stats/grids/{pol}/{real_imag}'
+                stats_group = cslc_h5py_root.require_group(h5_stats_path)
 
                 # add description for stat items
-                qa_item_desc = f'{real_imag} part of geoocoded SLC'
+                suffix_qa_item_desc = f'{real_imag} part of geoocoded SLC'
 
+                # build list of QA stat items for real_imag
+                qa_items = []
                 vals = [cstat_member.mean, cstat_member.min,
                         cstat_member.max, cstat_member.sample_stddev]
-                # save stats to dict and write to HDF5
                 for val_name, val in zip(self.stat_names, vals):
-                    desc = f'{val_name} of {qa_item_desc}'
-                    pol_dict[real_imag][val_name] = value_description_dict(
-                        val, desc)
-                    add_dataset_and_attrs(stats_group, Meta(val_name, val,
-                                                            desc))
+                    desc = f'{val_name} of {suffix_qa_item_desc}'
+                    qa_items.append(Meta(val_name, val, desc))
+
+                # save stats to dict and write to HDF5
+                _qa_items_to_h5_and_dict(stats_group, pol_dict[real_imag],
+                                      qa_items)
 
 
     def compute_correction_stats(self, cslc_h5py_root, apply_tropo_corrections,
@@ -127,56 +144,76 @@ class QualityAssuranceCSLC:
             stat_obj = isce3.math.StatsFloat32(corr_ds[()].astype(np.float32))
 
             # create HDF5 group for stats of current correction
-            correction_stat_path = f'{corrections_path}/stats/{correction}'
-            stats_group = cslc_h5py_root.require_group(correction_stat_path)
+            h5_stats_path = f'{QA_PATH}/stats/corrections/{correction}'
+            correction_stats_group = cslc_h5py_root.require_group(h5_stats_path)
 
             # save stats to dict and write to HDF5
+            qa_items = []
             vals = [stat_obj.mean, stat_obj.min, stat_obj.max,
                     stat_obj.sample_stddev]
             for val_name, val in zip(self.stat_names, vals):
                 desc = f'{val_name} of {correction} correction'
-                correction_dict[val_name] = value_description_dict(val,
-                                                                   desc)
-                add_dataset_and_attrs(stats_group, Meta(val_name, val, desc))
+                qa_items.append(Meta(val_name, val, desc))
+
+            # save stats to dict and write to HDF5
+            _qa_items_to_h5_and_dict(correction_stats_group, correction_dict,
+                                  qa_items)
 
 
-    def raster_pixel_classification(self):
+    def raster_pixel_percentages(self, cslc_h5py_root):
         '''
         Place holder for populating classification of geocoded pixel types
+
+        Parameters
+        ----------
+        cslc_h5py_root: h5py.File
+            Root of CSLC HDF5
         '''
-        self.classification_count_dict['topo'] = {}
-        topo_dict = self.classification_count_dict['topo']
-        topo_dict['percent_layover_pixels'] = value_description_dict(
-            0, 'Percentage of output pixels labeled layover')
-        topo_dict['percent_shadow_pixels'] = value_description_dict(
-            0, 'Percentage of output pixels labeled shadow')
-        topo_dict['percent_combined_pixels'] = value_description_dict(
-            0, 'Percentage of output pixels labeled layover and shadow')
-        self.classification_count_dict['percent_land_pixels'] = \
-            value_description_dict(
-                0, 'Percentage of output pixels labeld as land')
-        self.classification_count_dict['percent_valid_pixels'] = \
-            value_description_dict(
-                0, 'Percentage of output pixels are valid')
+        pxl_qa_items = [
+            Meta('percent_land_pixels', 0.0,
+                 'Percentage of output pixels labeld as land'),
+            Meta('percent_valid_pixels', 0.0,
+                 'Percentage of output pixels are valid')
+        ]
+
+        # create HDF5 group for pixel classification info
+        h5_pxl_path = f'{QA_PATH}/pixel_classification_percentages'
+        pxl_group = cslc_h5py_root.require_group(h5_pxl_path)
+
+        # write items to HDF5 and dict
+        _qa_items_to_h5_and_dict(pxl_group, self.pixel_percentage_dict,
+                              pxl_qa_items)
 
 
-    def populate_rfi_dict(self):
+    def populate_rfi_dict(self, cslc_h5py_root):
         '''
         Place holder for populating SAFE RFI information
+
+        Parameters
+        ----------
+        cslc_h5py_root: h5py.File
+            Root of CSLC HDF5
         '''
-        self.rfi_dict['is_rfi_info_available'] = value_description_dict(
-            True, 'Whether or not RFI information is available')
-        # Follow key/values only assigned if RFI info is avaiable
-        self.rfi_dict['rfi_mitigation_performed'] = value_description_dict(
-            True, 'Whether or not the RFI mitigation step was performed')
-        self.rfi_dict['rfi_mitigation_domain'] = value_description_dict(
-            True, 'Domain the RFI mitigation step was performed')
-        self.rfi_dict['rfi_burst_report'] = value_description_dict(
-            '', 'Burst RFI report')
+        rfi_qa_items = [
+            Meta('is_rfi_info_available',True,
+                 'Whether or not RFI information is available'),
+            # Follow key/values only assigned if RFI info is avaiable
+            Meta('rfi_mitigation_performed', True,
+                 'Whether or not the RFI mitigation step was performed'),
+            Meta('rfi_mitigation_domain', True,
+                 'Domain the RFI mitigation step was performed'),
+            Meta('rfi_burst_report', '', 'Burst RFI report')
+        ]
+
+        # create HDF5 group for RFI info
+        h5_rfi_path = f'{QA_PATH}/rfi_info'
+        rfi_group = cslc_h5py_root.require_group(h5_rfi_path)
+
+        # write items to HDF5 and dict
+        _qa_items_to_h5_and_dict(rfi_group, self.rfi_dict, rfi_qa_items)
 
 
-
-    def set_orbit_type(self, cfg):
+    def set_orbit_type(self, cfg, cslc_h5py_root):
         '''
         Populate QA orbit information
 
@@ -184,14 +221,25 @@ class QualityAssuranceCSLC:
         ----------
         cfg: dict
             Runconfig dict containing orbit path
+        cslc_h5py_root: h5py.File
+            Root of CSLC HDF5
         '''
         orbit_file_path = Path(cfg.orbit_path[0]).name
         if 'RESORB' in orbit_file_path:
             orbit_type = 'restituted orbit file'
         if 'POEORB' in orbit_file_path:
             orbit_type = 'precise orbit file'
-        self.orbit_dict['orbit_type'] = value_description_dict(
-            orbit_type, 'Type of orbit file used in processing')
+        orbit_qa_items = [
+            Meta('orbit_type', orbit_type,
+                 'Type of orbit file used in processing')
+        ]
+
+        # create HDF5 group for orbit info
+        h5_orbit_path = f'{QA_PATH}/orbit_info'
+        orbit_group = cslc_h5py_root.require_group(h5_orbit_path)
+
+        # write to HDF5 group orbit info
+        _qa_items_to_h5_and_dict(orbit_group, self.orbit_dict, orbit_qa_items)
 
 
     def write_qa_dicts_to_json(self, file_path):
@@ -206,7 +254,7 @@ class QualityAssuranceCSLC:
         # combine all the dicts into one for output
         output_dict = {
             'raster_statistics': self.stats_dict,
-            'pixel_classification_percentatges': self.classification_count_dict,
+            'pixel_classification_percentatges': self.pixel_percentage_dict,
             'rfi_info': self.rfi_dict, 'orbit_info': self.orbit_dict}
 
         # write combined dict to JSON

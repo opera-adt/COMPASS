@@ -1,5 +1,6 @@
 '''collection of useful functions used across workflows'''
 
+import itertools
 import os
 import sqlite3
 
@@ -324,7 +325,7 @@ def burst_bboxes_from_db(burst_ids, burst_db_file=None, burst_db_conn=None):
 def open_raster(filename, band=1):
     '''
     Return band as numpy array from gdal-friendly raster
-    
+
     Parameters
     ----------
     filename: str
@@ -394,3 +395,26 @@ def write_raster(filename, data_list, descriptions,
         raster_band.WriteArray(data)
 
     out_ds.FlushCache()
+
+
+def bursts_grouping_generator(bursts):
+    '''
+    Dict to group bursts with the same burst ID but different polarizations
+    key: burst ID, value: list[S1BurstSlc]
+
+    Parameters
+    ----------
+    bursts: list[Sentinel1BurstSlc]
+        List of bursts to grouped
+
+    Yields
+    ------
+    k: S1BurstId
+        Burst ID of grouped list of bursts
+    v: list[Sentinel1BurstSlc]
+        List of bursts with the same burst ID
+    '''
+    grouped_bursts = itertools.groupby(bursts, key=lambda b: str(b.burst_id))
+
+    for k, v in grouped_bursts:
+        yield k, list(v)

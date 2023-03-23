@@ -49,7 +49,6 @@ def run(cfg: GeoRunConfig):
     iters = cfg.geo2rdr_params.numiter
     blocksize = cfg.geo2rdr_params.lines_per_block
     flatten = cfg.geocoding_params.flatten
-    cslc_qa = QualityAssuranceCSLC()
 
     for burst_id, bursts in bursts_grouping_generator(cfg.bursts):
         burst = bursts[0]
@@ -199,13 +198,19 @@ def run(cfg: GeoRunConfig):
 
             # If needed, perform QA and write results to JSON
             if cfg.quality_assurance_params.perform_qa:
+                cslc_qa = QualityAssuranceCSLC()
                 if cfg.lut_params.enabled:
-                    cslc_qa.compute_correction_stats(geo_burst_h5)
+                    # apply tropo corrections if weather file provided
+                    apply_tropo_corrections = cfg.weather_model_file is not None
+                    cslc_qa.compute_correction_stats(
+                        geo_burst_h5, apply_tropo_corrections,
+                        cfg.tropo_params.delay_type)
                 cslc_qa.compute_CSLC_raster_stats(geo_burst_h5, bursts)
-                cslc_qa.raster_pixel_classification()
-                cslc_qa.populate_rfi_dict()
-                cslc_qa.set_orbit_type(cfg)
-                cslc_qa.write_qa_dicts_to_json(out_paths.stats_json_path)
+                cslc_qa.populate_rfi_dict(geo_burst_h5)
+                cslc_qa.valid_pixel_percentages(geo_burst_h5)
+                cslc_qa.set_orbit_type(cfg, geo_burst_h5)
+                if cslc_qa.output_to_json:
+                    cslc_qa.write_qa_dicts_to_json(out_paths.stats_json_path)
 
             if burst.burst_calibration is not None:
                 # Geocode the calibration parameters and write them into HDF5

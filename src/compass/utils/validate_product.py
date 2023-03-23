@@ -32,7 +32,7 @@ def cmd_line_parser():
     return parser.parse_args()
 
 
-def _grid_nfo_retrieve(path_h5, dataset_names, is_static_layer):
+def _grid_info_retrieve(path_h5, dataset_names, is_static_layer):
     """
     Extract names of found datasets, geotransform array, and projection from
     grid group of given HDF5
@@ -104,12 +104,10 @@ def compare_products(file_ref, file_sec, product_type):
         ['x', 'y', 'z', 'incidence', 'local_incidence', 'heading',
          'layover_shadow_mask']
     is_static_layer = product_type == 'static_layer'
-    items_ref, geotransform_ref, proj_ref = _grid_nfo_retrieve(file_ref,
-                                                               dataset_names,
-                                                               is_static_layer)
-    items_sec, geotransform_sec, proj_sec = _grid_nfo_retrieve(file_sec,
-                                                               dataset_names,
-                                                               is_static_layer)
+    items_ref, geotransform_ref, proj_ref = \
+        _grid_info_retrieve(file_ref, dataset_names, is_static_layer)
+    items_sec, geotransform_sec, proj_sec = \
+        _grid_info_retrieve(file_sec, dataset_names, is_static_layer)
 
     # Intersect grid items found
     set_ref_minus_sec = items_ref - items_sec

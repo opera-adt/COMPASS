@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 '''
 Collection of functions to compare 2 CSLC HDF5 contents and metadata
 '''

@@ -1,11 +1,11 @@
 FROM oraclelinux:8
 
 LABEL author="OPERA ADT" \
-      description="s1 cslc 0.1 Beta release" \
-      version="0.1-beta"
+    description="s1 cslc 0.2 Gamma release" \
+    version="0.2-gamma"
 
 RUN yum -y update &&\
-    yum -y install curl &&\
+    yum -y install curl git &&\
     adduser compass_user
 
 RUN mkdir -p /home/compass_user/OPERA
@@ -30,18 +30,27 @@ RUN ${CONDA_PREFIX}/bin/conda init bash
 COPY --chown=compass_user:compass_user . /home/compass_user/OPERA/COMPASS
 
 # create CONDA environment
-RUN conda create --name "COMPASS" --file /home/compass_user/OPERA/COMPASS/docker/specifile.txt
+RUN conda create --name "COMPASS" --file /home/compass_user/OPERA/COMPASS/docker/specfile.txt
 
 SHELL ["conda", "run", "-n", "COMPASS", "/bin/bash", "-c"]
 
 WORKDIR /home/compass_user/OPERA
 
 # installing OPERA s1-reader
-RUN curl -sSL https://github.com/opera-adt/s1-reader/archive/main.tar.gz -o s1_reader_src.tar.gz &&\
+RUN curl -sSL https://github.com/opera-adt/s1-reader/archive/refs/tags/v0.1.6.tar.gz -o s1_reader_src.tar.gz &&\
     tar -xvf s1_reader_src.tar.gz &&\
-    ln -s s1-reader-main s1-reader &&\
+    ln -s s1-reader-0.1.6 s1-reader &&\
     rm s1_reader_src.tar.gz &&\
     python -m pip install ./s1-reader
+
+# installing RAiDER
+RUN mkdir RAiDER &&\
+    git clone https://github.com/dbekaert/RAiDER.git RAiDER &&\
+    cd RAiDER &&\
+    git checkout tags/v0.4.2 &&\
+    cd .. &&\
+    python -m pip install ./RAiDER
+
 
 # installing OPERA COMPASS
 RUN python -m pip install ./COMPASS &&\

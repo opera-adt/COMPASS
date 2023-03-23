@@ -27,7 +27,7 @@ def cmd_line_parser():
         '-s', '--sec-product', type=str, dest='sec_product',
         help='Secondary CSLC or static layer product to compare with reference')
     parser.add_argument('-p', '--product-type', type=str, dest='product_type',
-                        choices=['CSLC', 'static_layer'],
+                        choices=['CSLC', 'static_layers'],
                         default='CSLC', help='Type of file to be validated')
     return parser.parse_args()
 
@@ -87,7 +87,7 @@ def compare_products(file_ref, file_sec, product_type):
     file_sec: str
         File path to generated product to use for comparison
     product_type: str
-        Product type of CSLC or static_layer
+        Product type of CSLC or static_layers
     '''
 
     # Check if file paths exits
@@ -103,7 +103,7 @@ def compare_products(file_ref, file_sec, product_type):
     dataset_names = ['VV', 'VH', 'HH', 'HV'] if product_type == 'CSLC' else \
         ['x', 'y', 'z', 'incidence', 'local_incidence', 'heading',
          'layover_shadow_mask']
-    is_static_layer = product_type == 'static_layer'
+    is_static_layer = product_type == 'static_layers'
     items_ref, geotransform_ref, proj_ref = \
         _grid_info_retrieve(file_ref, dataset_names, is_static_layer)
     items_sec, geotransform_sec, proj_sec = \

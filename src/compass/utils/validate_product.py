@@ -53,7 +53,7 @@ def _grid_nfo_retrieve(path_h5, dataset_names, is_static_layer):
     geotransform: np.array
         Array holding x/y start, x/y spacing, and geogrid dimensions
     proj: str
-        EPSG projection of geogrid
+        Map projection of the raster in WKT
     """
     grid_path = f'{DATA_ROOT}/CSLC/grids'
     if is_static_layer:

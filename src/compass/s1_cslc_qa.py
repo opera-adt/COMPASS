@@ -100,6 +100,43 @@ class QualityAssuranceCSLC:
                                       qa_items)
 
 
+    def compute_static_layer_stats(self, cslc_h5py_root, rdr2geo_params):
+        '''
+        Compute correction stats. Stats written to HDF5 and saved to class dict
+        for later JSON output
+
+        Parameters
+        ----------
+        cslc_h5py_root: h5py.File
+            Root of CSLC HDF5
+        apply_tropo_corrections: bool
+            Whether or not to compute troposhpere correction stats
+        tropo_delay_type: str
+            Type of troposphere delay. Any between 'dry', or 'wet', or
+            'wet_dry' for the sum of wet and dry troposphere delays. Only used
+            apply_tropo_corrections is true.
+        '''
+        # path to source group
+        static_layer_path = f'{GRID_PATH}/static_layers'
+
+        # Get the static layer to compute stats for
+        static_layers_dict = {
+            'x': rdr2geo_params.compute_longitude,
+            'y': rdr2geo_params.compute_latitude,
+            'z': rdr2geo_params.compute_height,
+            'incidence': rdr2geo_params.compute_incidence_angle,
+            'local_incidence': rdr2geo_params.compute_local_incidence_angle,
+            'heading': rdr2geo_params.compute_azimuth_angle
+        }
+        static_layers = [key for key, val in static_layers_dict.items()
+                         if val]
+
+        self.compute_stats_from_float_hdf5_dataset(cslc_h5py_root,
+                                                   static_layer_path,
+                                                   'static_layers',
+                                                   static_layers)
+
+
     def compute_correction_stats(self, cslc_h5py_root, apply_tropo_corrections,
                                  tropo_delay_type):
         '''
@@ -117,9 +154,10 @@ class QualityAssuranceCSLC:
             'wet_dry' for the sum of wet and dry troposphere delays. Only used
             apply_tropo_corrections is true.
         '''
-        corrections_path = f'{ROOT_PATH}/corrections'
+        # path to source group
+        corrections_src_path = f'{ROOT_PATH}/corrections'
 
-        # compute and save corrections stats
+        # names of datasets to compute stats for
         corrections = ['bistatic_delay', 'geometry_steering_doppler',
                        'azimuth_fm_rate_mismatch', 'los_ionospheric_delay',
                        'los_solid_earth_tides']
@@ -130,37 +168,88 @@ class QualityAssuranceCSLC:
                 if delay_type in tropo_delay_type:
                     corrections.append(f'{delay_type}_los_troposphere_delay')
 
+        self.compute_stats_from_float_hdf5_dataset(cslc_h5py_root,
+                                                   corrections_src_path,
+                                                   'corrections', corrections)
+
+
+    def compute_stats_from_float_hdf5_dataset(self, cslc_h5py_root,
+                                              src_group_path, qa_group_name,
+                                              qa_item_names):
+        '''
+        Compute correction stats for float-type, HDF5datasets. Stats written to
+        HDF5 and saved to class dict for later JSON output
+
+        Parameters
+        ----------
+        cslc_h5py_root: h5py.File
+            Root of CSLC HDF5
+        src_group_path: str
+        qa_group_name: str
+        qa_item_names: list[str]
+        '''
+        # init dict to save all QA item stats to
+        self.stats_dict[qa_group_name] = {}
+        qa_dict = self.stats_dict[qa_group_name]
+
         # compute stats and write to hdf5
-        self.stats_dict['corrections'] = {}
-        corrections_dict = self.stats_dict['corrections']
-        for correction in corrections:
-            # create dict for current correction
-            corrections_dict[correction] = {}
-            correction_dict = corrections_dict[correction]
+        for qa_item_name in qa_item_names:
+            # init dict for current QA item
+            qa_dict[qa_item_name] = {}
+            qa_item_dict = qa_dict[qa_item_name]
 
             # get dataset and compute stats according to dtype
-            correction_path = f'{corrections_path}/{correction}'
-            corr_ds = cslc_h5py_root[correction_path]
-            stat_obj = isce3.math.StatsFloat32(corr_ds[()].astype(np.float32))
+            qa_item_path = f'{src_group_path}/{qa_item_name}'
+            qa_item_ds = cslc_h5py_root[qa_item_path]
 
-            # create HDF5 group for stats of current correction
-            h5_stats_path = f'{QA_PATH}/stats/corrections/{correction}'
-            correction_stats_group = cslc_h5py_root.require_group(h5_stats_path)
+            # compute stats
+            stat_obj = isce3.math.StatsFloat32(qa_item_ds[()].astype(np.float32))
 
-            # save stats to dict and write to HDF5
+            # create HDF5 group for stats of current QA item
+            h5_stats_path = f'{QA_PATH}/stats/{qa_group_name}/{qa_item_name}'
+            qa_item_stats_group = cslc_h5py_root.require_group(h5_stats_path)
+
+            # build list of QA stat items
             qa_items = []
             vals = [stat_obj.mean, stat_obj.min, stat_obj.max,
                     stat_obj.sample_stddev]
             for val_name, val in zip(self.stat_names, vals):
-                desc = f'{val_name} of {correction} correction'
+                desc = f'{val_name} of {qa_item_name}'
                 qa_items.append(Meta(val_name, val, desc))
 
             # save stats to dict and write to HDF5
-            _qa_items_to_h5_and_dict(correction_stats_group, correction_dict,
-                                  qa_items)
+            _qa_items_to_h5_and_dict(qa_item_stats_group, qa_item_dict,
+                                     qa_items)
 
 
-    def raster_pixel_percentages(self, cslc_h5py_root):
+    def shadow_pixel_classification(self, cslc_h5py_root):
+        '''
+        Place holder for populating classification of shadow layover pixels
+
+        Parameters
+        ----------
+        cslc_h5py_root: h5py.File
+            Root of CSLC HDF5
+        '''
+        pxl_qa_items = [
+            Meta('percent_layover_pixels', 0,
+                 'Percentage of output pixels labeled layover'),
+            Meta('percent_shadow_pixels', 0,
+                 'Percentage of output pixels labeled shadow'),
+            Meta('percent_combined_pixels', 0,
+                 'Percentage of output pixels labeled layover and shadow')
+        ]
+
+        # create HDF5 group for pixel classification info
+        h5_pxl_path = f'{QA_PATH}/pixel_classification_percentages'
+        pxl_group = cslc_h5py_root.require_group(h5_pxl_path)
+
+        # write items to HDF5 and dict
+        _qa_items_to_h5_and_dict(pxl_group, self.pixel_percentage_dict,
+                                 pxl_qa_items)
+
+
+    def valid_pixel_percentages(self, cslc_h5py_root):
         '''
         Place holder for populating classification of geocoded pixel types
 
@@ -182,7 +271,7 @@ class QualityAssuranceCSLC:
 
         # write items to HDF5 and dict
         _qa_items_to_h5_and_dict(pxl_group, self.pixel_percentage_dict,
-                              pxl_qa_items)
+                                 pxl_qa_items)
 
 
     def populate_rfi_dict(self, cslc_h5py_root):

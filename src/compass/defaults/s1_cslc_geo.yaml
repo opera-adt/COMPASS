@@ -17,6 +17,10 @@ runconfig:
       dynamic_ancillary_file_group:
           # Digital elevation model
           dem_file:
+          # TEC file in IONEX format for ionosphere correction
+          tec_file:
+          # Troposphere weather model file
+          weather_model_file:
 
       static_ancillary_file_group:
           # burst database sqlite file
@@ -30,6 +34,8 @@ runconfig:
           # Intermediate file name. SAS writes the output to this file.
           # PGE may rename the product according to file naming convention
           sas_output_file:
+          # Product version
+          product_version: 0.2
 
       primary_executable:
           product_type: CSLC_S1
@@ -37,7 +43,6 @@ runconfig:
       processing:
           polarization: co-pol
           geocoding:
-              output_format: ENVI
               flatten: True
               lines_per_block: 1000
               x_posting:
@@ -57,6 +62,11 @@ runconfig:
               range_spacing: 120
               # LUT spacing in azimuth direction in seconds
               azimuth_spacing: 0.028
+              # Troposphere delay using weather model
+              troposphere:
+                 # Type of troposphere delay. Any of 'dry', 'wet' or 'wet_dry' for
+                 # the sum of wet and dry delays
+                 delay_type: wet_dry
 
           rdr2geo:
               # Enable/disable computation of topo layers
@@ -94,3 +104,20 @@ runconfig:
           # Optional. Index of GPU to be used for processing. Ignored if
           # *gpu_enabled* is False (default: 0)
           gpu_id: 0
+
+      quality_assurance:
+          browse_image:
+              # Enable/disable generation of CSLC browse image
+              enabled: True
+              # How to convert complex CSLC to real
+              complex_to_real: amplitude
+              # Lower percentile of non-nan pixels to clip
+              percent_low: 0
+              # Higher percentile of non-nan pixels to clip
+              percent_high: 95
+              # Gamma exponent applied to normalized image
+              gamma: 0.5
+              # Enable/disable histogram equalization
+              equalize: False
+          perform_qa: True
+          output_to_json: False

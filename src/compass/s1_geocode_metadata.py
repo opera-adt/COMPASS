@@ -3,17 +3,21 @@
 '''wrapper to geocode metadata layers'''
 
 from datetime import timedelta
-import os
 import time
 
 import h5py
 import isce3
 import journal
 import numpy as np
-
 from osgeo import gdal
-from compass.utils.runconfig import RunConfig
-from compass.utils.helpers import get_module_name
+
+from compass import s1_rdr2geo
+from compass.s1_cslc_qa import QualityAssuranceCSLC
+from compass.utils.geo_runconfig import GeoRunConfig
+from compass.utils.h5_helpers import (init_geocoded_dataset,
+                                      metadata_to_h5group, GRID_PATH,
+                                      ROOT_PATH)
+from compass.utils.helpers import bursts_grouping_generator, get_module_name
 from compass.utils.yaml_argparse import YamlArgparse
 
 
@@ -23,8 +27,10 @@ def run(cfg, burst, fetch_from_scratch=False):
 
     Parameters
     ----------
-    cfg: dict
-        Dictionary with user runconfig options
+    cfg: GeoRunConfig
+        GeoRunConfig object with user runconfig options
+    burst: Sentinel1BurstSlc
+        Object containing burst parameters needed for geocoding
     fetch_from_scratch: bool
         If True grabs metadata layers from scratch dir
     '''
@@ -43,8 +49,7 @@ def run(cfg, burst, fetch_from_scratch=False):
     image_grid_doppler = isce3.core.LUT2d()
     threshold = cfg.geo2rdr_params.threshold
     iters = cfg.geo2rdr_params.numiter
-    blocksize = cfg.geo2rdr_params.lines_per_block
-    output_format = cfg.geocoding_params.output_format
+    lines_per_block = cfg.geo2rdr_params.lines_per_block
 
     # process one burst only
     date_str = burst.sensing_start.strftime("%Y%m%d")
@@ -64,14 +69,15 @@ def run(cfg, burst, fetch_from_scratch=False):
         input_path = out_paths.scratch_directory
 
     # Initialize geocode object
-    geo = isce3.geocode.GeocodeFloat32()
-    geo.orbit = orbit
-    geo.ellipsoid = ellipsoid
-    geo.doppler = image_grid_doppler
-    geo.threshold_geo2rdr = threshold
-    geo.numiter_geo2rdr = iters
-    geo.lines_per_block = blocksize
-    geo.geogrid(geo_grid.start_x, geo_grid.start_y,
+    geocode_obj = isce3.geocode.GeocodeFloat32()
+    geocode_obj.orbit = orbit
+    geocode_obj.ellipsoid = ellipsoid
+    geocode_obj.doppler = image_grid_doppler
+    geocode_obj.threshold_geo2rdr = threshold
+    geocode_obj.numiter_geo2rdr = iters
+    float_bytes = 4
+    block_size = lines_per_block * geo_grid.width * float_bytes
+    geocode_obj.geogrid(geo_grid.start_x, geo_grid.start_y,
                 geo_grid.spacing_x, geo_grid.spacing_y,
                 geo_grid.width, geo_grid.length, geo_grid.epsg)
 
@@ -86,40 +92,230 @@ def run(cfg, burst, fetch_from_scratch=False):
                    'incidence': cfg.rdr2geo_params.compute_incidence_angle,
                    'local_incidence': cfg.rdr2geo_params.compute_local_incidence_angle,
                    'heading': cfg.rdr2geo_params.compute_azimuth_angle,
-                   'layover_shadow_mask': cfg.rdr2geo_params.compute_layover_shadow_mask}
+                   'layover_shadow_mask': cfg.rdr2geo_params.compute_layover_shadow_mask
+                   }
 
-    out_h5 = f'{out_paths.output_directory}/topo.h5'
-    shape = (geo_grid.length, geo_grid.width)
-    with h5py.File(out_h5, 'w') as topo_h5:
+    out_h5 = f'{out_paths.output_directory}/static_layers_{burst_id}.h5'
+    with h5py.File(out_h5, 'w') as h5_obj:
+        # Create group static_layers group under GRID_PATH for consistency with
+        # CSLC product
+        static_layer_group = h5_obj.require_group(f'{GRID_PATH}/static_layers')
+
+        # Geocode designated layers
         for layer_name, enabled in meta_layers.items():
             if not enabled:
                 continue
+
             dtype = np.single
             # layoverShadowMask is last option, no need to change data type
             # and interpolator afterwards
             if layer_name == 'layover_shadow_mask':
-                geo.data_interpolator = 'NEAREST'
+                geocode_obj.data_interpolator = 'NEAREST'
                 dtype = np.byte
 
-            topo_ds = topo_h5.create_dataset(layer_name, dtype=dtype,
-                                             shape=shape)
-            topo_ds.attrs['description'] = np.string_(layer_name)
+            # Create dataset with x/y coords/spacing and projection
+            topo_ds = init_geocoded_dataset(static_layer_group, layer_name,
+                                            geo_grid, dtype,
+                                            np.string_(layer_name))
+
+            # Init output and input isce3.io.Raster objects for geocoding
             output_raster = isce3.io.Raster(f"IH5:::ID={topo_ds.id.id}".encode("utf-8"),
                                             update=True)
 
             input_raster = isce3.io.Raster(f'{input_path}/{layer_name}.rdr')
 
-            geo.geocode(radar_grid=radar_grid, input_raster=input_raster,
-                        output_raster=output_raster, dem_raster=dem_raster,
-                        output_mode=isce3.geocode.GeocodeOutputMode.INTERP)
+            geocode_obj.geocode(radar_grid=radar_grid,
+                                input_raster=input_raster,
+                                output_raster=output_raster,
+                                dem_raster=dem_raster,
+                                output_mode=isce3.geocode.GeocodeOutputMode.INTERP,
+                                min_block_size=block_size,
+                                max_block_size=block_size)
             output_raster.set_geotransform(geotransform)
             output_raster.set_epsg(output_epsg)
             del input_raster
             del output_raster
 
+            # save metadata
+            cslc_group = h5_obj.require_group(ROOT_PATH)
+            metadata_to_h5group(cslc_group, burst, cfg)
+
+    if cfg.quality_assurance_params.perform_qa:
+        cslc_qa = QualityAssuranceCSLC()
+        with h5py.File(out_h5, 'a') as h5_obj:
+            cslc_qa.compute_static_layer_stats(h5_obj, cfg.rdr2geo_params)
+            cslc_qa.shadow_pixel_classification(h5_obj)
+            cslc_qa.set_orbit_type(cfg, h5_obj)
+            if cslc_qa.output_to_json:
+                cslc_qa.write_qa_dicts_to_json(out_paths.stats_json_path)
+
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     info_channel.log(
         f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
+
+
+def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
+                 dec_factor=40):
+    '''
+    Geocode the radiometric calibratio paremeters,
+    and write them into output HDF5.
+
+    Parameters
+    ----------
+    geo_burst_h5: h5py.files.File
+        HDF5 object as the output product
+    burst: s1reader.Sentinel1BurstSlc
+        Sentinel-1 burst SLC
+    cfg: GeoRunConfig
+        GeoRunConfig object with user runconfig options
+    dst_group_path: str
+        Path in HDF5 where geocode rasters will be placed
+    item_dict: dict
+        Dict containing item names and values to be geocoded
+    dec_factor: int
+        Decimation factor to downsample the slant range pixels for LUT
+    '''
+    dem_raster = isce3.io.Raster(cfg.dem)
+    epsg = dem_raster.get_epsg()
+    proj = isce3.core.make_projection(epsg)
+    ellipsoid = proj.ellipsoid
+    burst_id = str(burst.burst_id)
+    geo_grid = cfg.geogrids[burst_id]
+    radar_grid = burst.as_isce3_radargrid()
+
+    date_str = burst.sensing_start.strftime("%Y%m%d")
+    burst_id_date_key = (burst_id, date_str)
+    out_paths = cfg.output_paths[burst_id_date_key]
+
+    # Common initializations
+    threshold = cfg.geo2rdr_params.threshold
+    iters = cfg.geo2rdr_params.numiter
+    scratch_path = out_paths.scratch_directory
+
+    # generate decimated radar and geo grids for LUT(s)
+    decimated_radargrid = radar_grid.multilook(dec_factor, dec_factor)
+    decimated_geogrid = isce3.product.GeoGridParameters(
+                            geo_grid.start_x,
+                            geo_grid.start_y,
+                            geo_grid.spacing_x * dec_factor,
+                            geo_grid.spacing_y * dec_factor,
+                            geo_grid.width // dec_factor + 1,
+                            geo_grid.length // dec_factor + 1,
+                            geo_grid.epsg)
+
+    # init geocode object
+    geocode_obj = isce3.geocode.GeocodeFloat32()
+    geocode_obj.orbit = burst.orbit
+    geocode_obj.ellipsoid = ellipsoid
+    geocode_obj.doppler = isce3.core.LUT2d()
+    geocode_obj.threshold_geo2rdr = threshold
+    geocode_obj.numiter_geo2rdr = iters
+    geocode_obj.geogrid(decimated_geogrid.start_x,
+                        decimated_geogrid.start_y,
+                        decimated_geogrid.spacing_x,
+                        decimated_geogrid.spacing_y,
+                        decimated_geogrid.width,
+                        decimated_geogrid.length,
+                        decimated_geogrid.epsg)
+    dst_group =\
+        geo_burst_h5.require_group(dst_group_path)
+
+    gdal_envi_driver = gdal.GetDriverByName('ENVI')
+    for item_name, _ in item_dict.items():
+        # prepare input dataset in output HDF5
+        init_geocoded_dataset(dst_group,
+                              item_name,
+                              decimated_geogrid,
+                              'float32',
+                              f'geocoded {item_name}')
+
+        dst_dataset = geo_burst_h5[f'{dst_group_path}/{item_name}']
+
+        # prepare output raster
+        geocoded_cal_lut_raster =\
+            isce3.io.Raster(
+                f"IH5:::ID={dst_dataset.id.id}".encode("utf-8"), update=True)
+
+        # populate and prepare radargrid LUT input raster
+
+        # NOTE: `lut_arr` below is a placeholder, which will be
+        #  eventually replaced by LUTs for geocoded calibration parameters.
+        lut_arr = np.zeros((decimated_radargrid.length,
+                            decimated_radargrid.width))
+        lut_path = f'{scratch_path}/{item_name}_radargrid.rdr'
+        lut_gdal_raster = gdal_envi_driver.Create(
+                        lut_path, decimated_radargrid.width,
+                        decimated_radargrid.length, 1, gdal.GDT_Float32)
+        lut_band = lut_gdal_raster.GetRasterBand(1)
+        lut_band.WriteArray(lut_arr)
+        lut_band.FlushCache()
+        lut_gdal_raster = None
+
+        input_raster = isce3.io.Raster(lut_path)
+
+        # geocode then set transfrom and EPSG in output raster
+        geocode_obj.geocode(radar_grid=decimated_radargrid,
+                            input_raster=input_raster,
+                            output_raster=geocoded_cal_lut_raster,
+                            dem_raster=dem_raster,
+                            output_mode=isce3.geocode.GeocodeOutputMode.INTERP)
+
+        geotransform = [decimated_geogrid.start_x, decimated_geogrid.spacing_x,
+                        0, decimated_geogrid.start_y, 0,
+                        decimated_geogrid.spacing_y]
+
+        geocoded_cal_lut_raster.set_geotransform(geotransform)
+        geocoded_cal_lut_raster.set_epsg(epsg)
+
+        del input_raster
+        del geocoded_cal_lut_raster
+
+
+def geocode_calibration_luts(geo_burst_h5, burst, cfg,
+                             dec_factor=40):
+    '''
+    Geocode the radiometric calibratio paremeters,
+    and write them into output HDF5.
+
+    Parameters
+    ----------
+    geo_burst_h5: h5py.files.File
+        HDF5 object as the output product
+    burst: s1reader.Sentinel1BurstSlc
+        Sentinel-1 burst SLC
+    cfg: GeoRunConfig
+        GeoRunConfig object with user runconfig options
+    dec_factor: int
+        Decimation factor to downsample the slant range pixels for LUT
+    '''
+    dst_group_path = f'{ROOT_PATH}/metadata/calibration_information'
+    item_dict = {'gamma':burst.burst_calibration.gamma,
+                 'sigma_naught':burst.burst_calibration.sigma_naught,
+                 'dn':burst.burst_calibration.dn}
+    geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
+                 dec_factor)
+
+
+def geocode_noise_luts(geo_burst_h5, burst, cfg,
+                       dec_factor=40):
+    '''
+    Geocode the noise LUT, and write that into output HDF5.
+
+    Parameters
+    ----------
+    geo_burst_h5: h5py.files.File
+        HDF5 object as the output product
+    burst: s1reader.Sentinel1BurstSlc
+        Sentinel-1 burst SLC
+    cfg: GeoRunConfig
+        GeoRunConfig object with user runconfig options
+    dec_factor: int
+        Decimation factor to downsample the slant range pixels for LUT
+    '''
+    dst_group_path =  f'{ROOT_PATH}/metadata/noise_information'
+    item_dict = {'thermal_noise_lut': None}
+    geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
+                 dec_factor)
 
 
 if __name__ == "__main__":
@@ -127,7 +323,16 @@ if __name__ == "__main__":
     parser = YamlArgparse()
 
     # Get a runconfig dict from command line args
-    cfg = RunConfig.load_from_yaml(parser.args.run_config_path,
-                                   workflow_name='s1_cslc_radar')
-    # run geocode metadata layers
-    run(cfg)
+    cfg = GeoRunConfig.load_from_yaml(parser.args.run_config_path,
+                                      workflow_name='s1_cslc_geo')
+
+    for _, bursts in bursts_grouping_generator(cfg.bursts):
+        burst = bursts[0]
+
+        # Generate required static layers
+        if cfg.rdr2geo_params.enabled:
+            s1_rdr2geo.run(cfg, save_in_scratch=True)
+
+            # Geocode static layers if needed
+            if cfg.rdr2geo_params.geocode_metadata_layers:
+                run(cfg, burst, fetch_from_scratch=True)

@@ -17,6 +17,10 @@ runconfig:
         dynamic_ancillary_file_group:
            # Digital Elevation Model.
            dem_file: str(required=False)
+           # TEC file in IONEX format for ionosphere correction
+           tec_file: str(required=False)
+           # Troposphere weather model
+           weather_model_file: str(required=False)
 
         static_ancillary_file_group:
            # burst database sqlite file
@@ -30,6 +34,8 @@ runconfig:
            # Intermediate file name. SAS writes the output to this file.
            # PGE may rename the product according to file naming convention
            sas_output_file: str()
+           # Product version
+           product_version: num(required=False)
 
         primary_executable:
           product_type: enum('CSLC_S1')
@@ -40,6 +46,8 @@ runconfig:
         # Worker options (e.g. enable/disable GPU processing, select GPU device ID)
         worker: include('worker_options', required=False)
 
+        # Quality assurance options
+        quality_assurance: include('quality_assurance_options', required=False)
 ---
 # Group of processing options
 processing_options:
@@ -55,28 +63,26 @@ processing_options:
    rdr2geo: include('rdr2geo_options', required=False)
 
 geocoding_options:
-   # Format of output file
-   output_format: enum('ENVI', 'GTiff', 'COG', required=False)
-   # Boolean flag to enable/disable flattenin
-   flatten: bool(required=False)
-   # Number of lines to process in batch
-   lines_per_block: int(min=1, required=False)
-   # Product posting along X (same units as burst center EPSG)
-   x_posting: num(min=0, required=False)
-   # Product posting along Y (same units as burst center EPSG)
-   y_posting: num(min=0, required=False)
-   # Controls the product grid along X (same units as burst center EPSG)
-   x_snap: num(min=0, required=False)
-   # Controls the product grid along Y (same units as burst center EPSG)
-   y_snap: num(min=0, required=False)
+    # Boolean flag to enable/disable flattenin
+    flatten: bool(required=False)
+    # Number of lines to process in batch
+    lines_per_block: int(min=1, required=False)
+    # Product posting along X (same units as burst center EPSG)
+    x_posting: num(min=0, required=False)
+    # Product posting along Y (same units as burst center EPSG)
+    y_posting: num(min=0, required=False)
+    # Controls the product grid along X (same units as burst center EPSG)
+    x_snap: num(min=0, required=False)
+    # Controls the product grid along Y (same units as burst center EPSG)
+    y_snap: num(min=0, required=False)
 
 geo2rdr_options:
-  # Convergence threshold for geo2rdr algorithm
-  threshold: num(min=0, required=False)
-  # Maximum number of iterations
-  numiter: int(min=1, required=False)
-  # Lines per block to process in batch
-  lines_per_block: int(min=1, required=False)
+    # Convergence threshold for geo2rdr algorithm
+    threshold: num(min=0, required=False)
+    # Maximum number of iterations
+    numiter: int(min=1, required=False)
+    # Lines per block to process in batch
+    lines_per_block: int(min=1, required=False)
 
 lut_options:
   # Boolean flag to activate/deactivate model-based
@@ -86,40 +92,69 @@ lut_options:
   range_spacing: num(min=0, required=False)
   # LUT spacing in azimuth direction in seconds
   azimuth_spacing: num(min=0, required=False)
+  # Troposphere delay using weather model
+  troposphere: include('troposphere_options', required=False)
+
+troposphere_options:
+  # Type of troposphere delay. Any of 'dry', 'wet' or 'wet_dry' for
+  # the sum of wet and dry delays
+  delay_type: enum('dry', 'wet', 'wet_dry', required=False)
 
 rdr2geo_options:
-   # Enable/disable computation of topo layers
-   enabled: bool(required=False)
-   # Convergence threshold for rdr2geo algorithm
-   threshold: num(min=0, required=False)
-   # Maximum number of iterations
-   numiter: int(min=1, required=False)
-   # Lines per block to process in batch
-   lines_per_block: int(min=1, required=False)
-   # Secondary number of iterations
-   extraiter: int(min=1, required=False)
-   # Enable/disable computation of latitude raster
-   compute_latitude: bool(required=False)
-   # Enable/disable computation of longitude raster
-   compute_longitude: bool(required=False)
-   # Enable/disable computation of height raster
-   compute_height: bool(required=False)
-   # Enable/disable layover shadow mask output
-   compute_layover_shadow_mask: bool(required=False)
-   # Enable/disable incidence angle output
-   compute_incidence_angle: bool(required=False)
-   # Enable/disable local incidence output
-   compute_local_incidence_angle: bool(required=False)
-   # Enable/disable azimuth angle output
-   compute_azimuth_angle: bool(required=False)
-   # Enable/disable geocoding of the topo layers
-   geocode_metadata_layers: bool(required=False)
+    # Enable/disable computation of topo layers
+    enabled: bool(required=False)
+    # Convergence threshold for rdr2geo algorithm
+    threshold: num(min=0, required=False)
+    # Maximum number of iterations
+    numiter: int(min=1, required=False)
+    # Lines per block to process in batch
+    lines_per_block: int(min=1, required=False)
+    # Secondary number of iterations
+    extraiter: int(min=1, required=False)
+    # Enable/disable computation of latitude raster
+    compute_latitude: bool(required=False)
+    # Enable/disable computation of longitude raster
+    compute_longitude: bool(required=False)
+    # Enable/disable computation of height raster
+    compute_height: bool(required=False)
+    # Enable/disable layover shadow mask output
+    compute_layover_shadow_mask: bool(required=False)
+    # Enable/disable incidence angle output
+    compute_incidence_angle: bool(required=False)
+    # Enable/disable local incidence output
+    compute_local_incidence_angle: bool(required=False)
+    # Enable/disable azimuth angle output
+    compute_azimuth_angle: bool(required=False)
+    # Enable/disable geocoding of the topo layers
+    geocode_metadata_layers: bool(required=False)
 
 worker_options:
-  # To prevent downloading DEM / other data automatically. Default True
-  internet_access: bool(required=False)
-  # Enable/Disable GPU processing capabilities. Default False
-  gpu_enabled: bool(required=False)
-  # Index of the GPU to use for processing, optional. Defaults to the
-  # first available CUDA device. Ignored if *gpu_enabled* is False.
-  gpu_id: int(min=0, required=False)
+    # To prevent downloading DEM / other data automatically. Default True
+    internet_access: bool(required=False)
+    # Enable/Disable GPU processing capabilities. Default False
+    gpu_enabled: bool(required=False)
+    # Index of the GPU to use for processing, optional. Defaults to the
+    # first available CUDA device. Ignored if *gpu_enabled* is False.
+    gpu_id: int(min=0, required=False)
+
+quality_assurance_options:
+    # Options for generating browse images
+    browse_image: include('browse_image_options', required=False)
+    # Enable/disable computation of statistics of CSLC rasters and corrections
+    perform_qa: bool(required=False)
+    # Enable/disable writing of QA information to JSON
+    output_to_json: bool(required=False)
+
+browse_image_options:
+    # Enable/disable generation of CSLC browse image
+    enabled: bool(required=False)
+    # How to convert complex CSLC to real
+    complex_to_real: enum('amplitude', 'intensity', 'logamplitude', required=False)
+    # Lower percentile of non-nan pixels to clip
+    percent_low: num(min=0, required=False)
+    # Higher percentile of non-nan pixels to clip
+    percent_high: num(min=0, required=False)
+    # Gamma exponent applied to normalized image
+    gamma: num(min=0, required=False)
+    # Enable/disable histogram equalization
+    equalize: bool(required=False)

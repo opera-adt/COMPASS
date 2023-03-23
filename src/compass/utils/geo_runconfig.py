@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import json
+import os
 import yaml
 
 import isce3
@@ -10,6 +11,7 @@ from ruamel.yaml import YAML
 
 from compass.utils.geo_grid import (generate_geogrids_from_db,
                                     generate_geogrids, geogrid_as_dict)
+from compass.utils.helpers import check_file_path
 from compass.utils.runconfig import (
     create_output_paths,
     runconfig_to_bursts,
@@ -19,7 +21,7 @@ from compass.utils.wrap_namespace import wrap_namespace
 
 
 def check_geocode_dict(geocode_cfg: dict) -> None:
-    error_channel = journal.error('runconfig.check_and_prepare_geocode_params')
+    error_channel = journal.error('runconfig.check_geocode_dict')
 
     for xy in 'xy':
         # check posting value in current axis
@@ -58,11 +60,33 @@ class GeoRunConfig(RunConfig):
         workflow_name: str
             Name of the workflow for which uploading default options
         """
+        error_channel = journal.error('runconfig.load_from_yaml')
+
         cfg = load_validate_yaml(yaml_path, workflow_name)
         groups_cfg = cfg['runconfig']['groups']
 
+        burst_database_file = groups_cfg['static_ancillary_file_group']['burst_database_file']
+        if not os.path.isfile(burst_database_file):
+            err_str = '{burst_database_file} not found'
+            error_channel.log(err_str)
+            raise FileNotFoundError(err_str)
+
         geocoding_dict = groups_cfg['processing']['geocoding']
         check_geocode_dict(geocoding_dict)
+
+        # Check TEC file if not None.
+        # The ionosphere correction will be applied only if
+        # the TEC file is not None.
+        tec_file_path = groups_cfg['dynamic_ancillary_file_group']['tec_file']
+        if tec_file_path is not None:
+            check_file_path(tec_file_path)
+        # Check troposphere weather model file if not None. This
+        # troposphere correction is applied only if this file is not None
+        weather_model_path = groups_cfg['dynamic_ancillary_file_group'][
+            'weather_model_file'
+        ]
+        if weather_model_path is not None:
+            check_file_path(weather_model_path)
 
         # Convert runconfig dict to SimpleNamespace
         sns = wrap_namespace(groups_cfg)
@@ -72,7 +96,6 @@ class GeoRunConfig(RunConfig):
 
         # Load geogrids
         dem_file = groups_cfg['dynamic_ancillary_file_group']['dem_file']
-        burst_database_file = groups_cfg['static_ancillary_file_group']['burst_database_file']
         if burst_database_file is None:
             geogrids = generate_geogrids(bursts, geocoding_dict, dem_file)
         else:
@@ -93,6 +116,14 @@ class GeoRunConfig(RunConfig):
                    user_plus_default_yaml_str, output_paths, geogrids)
 
     @property
+    def product_group(self) -> dict:
+        return self.groups.product_path_group
+
+    @property
+    def weather_model_file(self) -> str:
+        return self.groups.dynamic_ancillary_file_group.weather_model_file
+
+    @property
     def geocoding_params(self) -> dict:
         return self.groups.processing.geocoding
 
@@ -103,6 +134,18 @@ class GeoRunConfig(RunConfig):
     @property
     def lut_params(self) -> dict:
         return self.groups.processing.correction_luts
+
+    @property
+    def quality_assurance_params(self) -> dict:
+        return self.groups.quality_assurance
+
+    @property
+    def browse_image_params(self) -> dict:
+        return self.groups.quality_assurance.browse_image
+
+    @property
+    def tropo_params(self) -> dict:
+        return self.groups.processing.correction_luts.troposphere
 
     def as_dict(self):
         ''' Convert self to dict for write to YAML/JSON

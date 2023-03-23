@@ -7,16 +7,18 @@ import os
 
 import isce3
 import numpy as np
-from osgeo import osr
+from osgeo import osr, gdal
 import s1reader
 from s1reader.s1_burst_slc import Sentinel1BurstSlc
 import shapely
 
 import compass
-from compass.utils.lut import compute_geocoding_correction_luts
 
 
 TIME_STR_FMT = '%Y-%m-%d %H:%M:%S.%f'
+ROOT_PATH = '/science/SENTINEL1/CSLC'
+GRID_PATH = f'{ROOT_PATH}/grids'
+QA_PATH = f'{ROOT_PATH}/quality_assurance'
 
 
 @dataclass
@@ -91,6 +93,11 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
         Data type of dataset to be geocoded
     description: str
         Description of dataset to be geocoded
+
+    Returns
+    -------
+    cslc_ds: h5py.Dataset
+        h5py dataset ready to be populated with geocoded dataset
     '''
     shape = (geo_grid.length, geo_grid.width)
     cslc_ds = grid_group.require_dataset(dataset_name, dtype=dtype,
@@ -270,6 +277,8 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
     else:
         raise NotImplementedError('Waiting for implementation / Not supported in ISCE3')
 
+    return cslc_ds
+
 
 def save_orbit(orbit, orbit_direction, orbit_group):
     '''
@@ -337,7 +346,7 @@ def get_polygon_wkt(burst: Sentinel1BurstSlc):
     return geometry_polygon.wkt
 
 
-def identity_to_h5group(dst_group, burst):
+def identity_to_h5group(dst_group, burst, cfg):
     '''
     Write burst metadata to HDF5
 
@@ -347,12 +356,12 @@ def identity_to_h5group(dst_group, burst):
         HDF5 group metadata will be written to
     burst: Sentinel1BurstSlc
         Burst whose metadata is to written to HDF5
-    dataset_path: str
-        Path to CSLC data in HDF5
+    cfg: dict[Namespace]
+        Name space dictionary with runconfig parameters
     '''
     # identification datasets
     id_meta_items = [
-        Meta('product_version', '?', 'CSLC product version'),
+        Meta('product_version', f'{cfg.product_group.product_version}', 'CSLC-S1 product version'),
         Meta('absolute_orbit_number', burst.abs_orbit_number, 'Absolute orbit number'),
         Meta('track_number', burst.burst_id.track_number, 'Track number'),
         Meta('burst_id', str(burst.burst_id), 'Burst identification (burst ID)'),
@@ -368,13 +377,9 @@ def identity_to_h5group(dst_group, burst):
              'Azimuth start time of product'),
         Meta('zero_doppler_end_time', burst.sensing_stop.strftime(TIME_STR_FMT),
             'Azimuth stop time of product'),
-        Meta('list_of_frequencies', ['A'],
-             'List of frequency layers available in the product'),  # T)C
-        Meta('is_geocoded', True, 'Flag to indicate radar geometry or geocoded product'),
-        Meta('is_urgent_observation', False,
-             'List of booleans indicating if datatakes are nominal or urgent'),
-        Meta('diagnostic_mode_flag', False,
-             'Indicates if the radar mode is a diagnostic mode or not: True or False'),
+        Meta('is_geocoded', 'True', 'Boolean indicating if product is in radar geometry or geocoded'),
+        Meta('is_urgent_observation', 'False',
+             'Boolean indicating if data take is a urgent observation'),
         ]
     id_group = dst_group.require_group('identification')
     for meta_item in id_meta_items:
@@ -411,6 +416,32 @@ def metadata_to_h5group(parent_group, burst, cfg):
     # create metadata group to write datasets to
     processing_group = meta_group.require_group('processing_information')
 
+    # write out calibration metadata, if present
+    if burst.burst_calibration is not None:
+        cal = burst.burst_calibration
+        cal_items = [
+            Meta('basename', cal.basename_cads, ''),
+            Meta('azimuth_time', cal.azimuth_time.strftime(TIME_STR_FMT),
+                 'Start time', {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
+            Meta('beta_naught', cal.beta_naught, 'beta_naught')
+        ]
+        cal_group = meta_group.require_group('calibration_information')
+        for meta_item in cal_items:
+            add_dataset_and_attrs(cal_group, meta_item)
+
+    # write out noise metadata, if present
+    if burst.burst_noise is not None:
+        noise = burst.burst_noise
+        noise_items = [
+            Meta('basename', noise.basename_nads, ''),
+            Meta('range_azimuth_time',
+                 noise.range_azimuth_time.strftime(TIME_STR_FMT),
+                 'Start time', {'format': 'YYYY-MM-DD HH:MM:SS.6f'})
+        ]
+        noise_group = meta_group.require_group('noise_information')
+        for meta_item in noise_items:
+            add_dataset_and_attrs(noise_group, meta_item)
+
     # runconfig yaml text
     processing_group['runconfig'] = cfg.yaml_string
 
@@ -431,7 +462,7 @@ def metadata_to_h5group(parent_group, burst, cfg):
 
     vrt_items = [
         Meta('tiff_path', burst.tiff_path,
-             'Path to measurement tiff inside RSLC SAFE file'),
+             'Path to measurement tiff file inside the SAFE file'),
         Meta('burst_index', burst.i_burst,
              'Burst index relative other bursts in swath'),
         Meta('first_valid_sample', burst.first_valid_sample,
@@ -451,13 +482,13 @@ def metadata_to_h5group(parent_group, burst, cfg):
     algorithm_items = [
         Meta('dem_interpolation', 'biquintic', 'DEM interpolation method'),
         Meta('geocoding_interpolator', 'sinc interpolation',
-             'Geocoding algorithm'),
-        Meta('ISCE_version', isce3.__version__,
-             'ISCE version used for processing'),
+             'Geocoding interpolation method'),
+        Meta('ISCE3_version', isce3.__version__,
+             'ISCE3 version used for processing'),
         Meta('s1Reader_version', s1reader.__version__,
              'S1-Reader version used for processing'),
         Meta('COMPASS_version', compass.__version__,
-             'COMPASS version used for processing')
+             'COMPASS (CSLC-S1 processor) version used for processing')
     ]
     algorithm_group = processing_group.require_group('algorithms')
     for meta_item in algorithm_items:
@@ -466,7 +497,7 @@ def metadata_to_h5group(parent_group, burst, cfg):
     # burst items
     burst_meta_items = [
         Meta('ipf_version', str(burst.ipf_version),
-             'Image Processing Facility'),
+             'Image Processing Facility software version'),
         Meta('sensing_start', burst.sensing_start.strftime(TIME_STR_FMT),
              'Sensing start time of the burst',
              {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
@@ -498,7 +529,7 @@ def metadata_to_h5group(parent_group, burst, cfg):
         Meta('range_pixel_spacing', burst.range_pixel_spacing,
              'Pixel spacing between slant range samples in the input burst SLC',
              {'units':'meters'}),
-        Meta('shape', burst.shape, 'Shape of SLC (length, width)',
+        Meta('shape', burst.shape, 'Shape (length, width) of the burst in radar coordinates',
              {'units':'pixels'}),
         Meta('range_bandwidth', burst.range_bandwidth,
              'Slant range bandwidth of the signal', {'units':'Hz'}),
@@ -513,7 +544,7 @@ def metadata_to_h5group(parent_group, burst, cfg):
         Meta('range_window_coefficient', burst.range_window_coefficient,
              'Value of the weighting window coefficient used during processing'),
         Meta('rank', burst.rank,
-             "The number of PRI between transmitted pulse and return echo"),
+             "The number of Pulse Repetition Intervals (PRI) between transmitted pulse and return echo"),
         Meta('prf_raw_data', burst.prf_raw_data,
              'Pulse repetition frequency (PRF) of the raw data',
              {'units':'Hz'}),
@@ -549,7 +580,9 @@ def metadata_to_h5group(parent_group, burst, cfg):
     poly1d_to_h5(burst_meta_group, 'doppler', burst.doppler.poly1d)
 
 
-def corrections_to_h5group(parent_group, burst, cfg):
+def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,
+                           scratch_path, weather_model_path=None,
+                           delay_type='dry'):
     '''
     Write azimuth, slant range, and EAP (if needed) correction LUT2ds to HDF5
 
@@ -561,47 +594,79 @@ def corrections_to_h5group(parent_group, burst, cfg):
         Burst containing corrections
     cfg: types.SimpleNamespace
         SimpleNamespace containing run configuration
+    rg_lut: isce3.core.LUT2d()
+        LUT2d along slant direction
+    az_lut: isce3.core.LUT2d()
+        LUT2d along azimuth direction
+    scratch_path: str
+        Path to the scratch directory
+    weather_model_path: str
+        Path to troposphere weather model in NetCDF4 format.
+        This is the only format supported by RAiDER. If None,
+        no weather model-based troposphere correction is applied
+        (default: None).
+    delay_type: str
+        Type of troposphere delay. Any between 'dry', or 'wet', or
+        'wet_dry' for the sum of wet and dry troposphere delays.
     '''
-    correction_group = parent_group.require_group('corrections')
 
     # If enabled, save the correction LUTs
-    if cfg.lut_params.enabled:
-        geometrical_steering_doppler, bistatic_delay_lut, az_fm_mismatch = \
-            compute_geocoding_correction_luts(burst,
-                                              dem_path=cfg.dem,
-                                              rg_step=cfg.lut_params.range_spacing,
-                                              az_step=cfg.lut_params.azimuth_spacing)
+    if not cfg.lut_params.enabled:
+        return
 
-        # create slant range and azimuth vectors shared by the LUTs
-        x_end = bistatic_delay_lut.x_start + bistatic_delay_lut.width * bistatic_delay_lut.x_spacing
-        slant_range = np.linspace(bistatic_delay_lut.x_start, x_end,
-                                  bistatic_delay_lut.width, dtype=np.float64)
-        y_end = bistatic_delay_lut.y_start + bistatic_delay_lut.length * bistatic_delay_lut.y_spacing
-        azimuth = np.linspace(bistatic_delay_lut.y_start, y_end,
-                              bistatic_delay_lut.length, dtype=np.float64)
+    # Open GDAL dataset to fetch corrections
+    ds = gdal.Open(f'{scratch_path}/corrections/corrections',
+                   gdal.GA_ReadOnly)
+    correction_group = parent_group.require_group('corrections')
 
-        # correction LUTs axis and doppler correction LUTs
-        desc = 'correction as a function of slant range and azimuth time'
-        correction_items = [
-            Meta('slant_range', slant_range, 'slant range of LUT data',
-                {'units': 'meters'}),
-            Meta('slant_range_spacing', bistatic_delay_lut.x_spacing,
-                 'spacing of slant range of LUT data', {'units': 'meters'}),
-            Meta('zero_doppler_time', azimuth, 'azimuth time of LUT data',
-                 {'units': 'seconds'}),
-            Meta('zero_doppler_time_spacing', bistatic_delay_lut.y_spacing,
-                 'spacing of azimuth time of LUT data', {'units': 'seconds'}),
-            Meta('bistatic_delay', bistatic_delay_lut.data,
-                 f'bistatic delay (azimuth) {desc}', {'units': 'seconds'}),
-            Meta('geometry_steering_doppler', geometrical_steering_doppler.data,
-                 f'geometry steering doppler (range) {desc}',
-                 {'units': 'meters'}),
-            Meta('azimuth_fm_rate_mismatch', az_fm_mismatch.data,
-                 f'azimuth FM rate mismatch mitigation (azimuth) {desc}',
-                 {'units': 'seconds'}),
-        ]
-        for meta_item in correction_items:
-            add_dataset_and_attrs(correction_group, meta_item)
+    # create slant range and azimuth vectors shared by the LUTs
+    x_end = rg_lut.x_start + rg_lut.width * rg_lut.x_spacing
+    slant_range = np.linspace(rg_lut.x_start, x_end,
+                              rg_lut.width, dtype=np.float64)
+    y_end = az_lut.y_start + az_lut.length * az_lut.y_spacing
+    azimuth = np.linspace(az_lut.y_start, y_end,
+                          az_lut.length, dtype=np.float64)
+
+    # correction LUTs axis and doppler correction LUTs
+    desc = 'correction as a function of slant range and azimuth time'
+    correction_items = [
+        Meta('slant_range', slant_range, 'slant range of LUT data',
+            {'units': 'meters'}),
+        Meta('slant_range_spacing', rg_lut.x_spacing,
+             'spacing of slant range of LUT data', {'units': 'meters'}),
+        Meta('zero_doppler_time', azimuth, 'azimuth time of LUT data',
+             {'units': 'seconds'}),
+        Meta('zero_doppler_time_spacing',rg_lut.y_spacing,
+             'spacing of azimuth time of LUT data', {'units': 'seconds'}),
+        Meta('bistatic_delay', ds.GetRasterBand(2).ReadAsArray(),
+             f'bistatic delay (azimuth) {desc}', {'units': 'seconds'}),
+        Meta('geometry_steering_doppler', ds.GetRasterBand(1).ReadAsArray(),
+             f'geometry steering doppler (range) {desc}',
+             {'units': 'meters'}),
+        Meta('azimuth_fm_rate_mismatch', ds.GetRasterBand(3).ReadAsArray(),
+             f'azimuth FM rate mismatch mitigation (azimuth) {desc}',
+             {'units': 'seconds'}),
+        Meta('los_solid_earth_tides', ds.GetRasterBand(4).ReadAsArray(),
+             f'Solid Earth tides (range) {desc}',
+             {'units': 'meters'}),
+        Meta('los_ionospheric_delay', ds.GetRasterBand(5).ReadAsArray(),
+             f'Ionospheric delay (range) {desc}',
+             {'units': 'meters'}),
+    ]
+    if weather_model_path is not None:
+        if 'wet' in delay_type:
+            correction_items.append(Meta('wet_los_troposphere_delay',
+                                         ds.GetRasterBand(6).ReadAsArray(),
+                                         f'Wet LOS troposphere delay {desc}',
+                                         {'units': 'meters'}))
+        if 'dry' in delay_type:
+            correction_items.append(Meta('dry_los_troposphere_delay',
+                                         ds.GetRasterBand(7).ReadAsArray(),
+                                         f'Dry LOS troposphere delay {desc}',
+                                         {'units': 'meters'}))
+
+    for meta_item in correction_items:
+        add_dataset_and_attrs(correction_group, meta_item)
 
     # Extended FM rate and doppler centroid polynomial coefficients for azimuth
     # FM rate mismatch mitigation
@@ -640,7 +705,8 @@ def corrections_to_h5group(parent_group, burst, cfg):
                  'range sampling frequency', { 'units': 'Hz'}),
             Meta('eta_start', eap.eta_start.strftime(TIME_STR_FMT),
                  'Sensing start time', {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
-            Meta('tau_0', eap.tau_0, 'slant range time of the product', {'units': 'seconds'}),
+            Meta('tau_0', eap.tau_0, 'slant range time of the product',
+                 {'units': 'seconds'}),
             Meta('tau_sub', eap.tau_sub, 'slant range time of AUX_CAL antenna pattern',
                  {'units': 'seconds'}),
             Meta('theta_sub', eap.theta_sub, 'elevation angle',
@@ -654,46 +720,58 @@ def corrections_to_h5group(parent_group, burst, cfg):
         for meta_item in eap_items:
             add_dataset_and_attrs(eap_group, meta_item)
 
-    # write out calibration metadata, if present
-    if burst.burst_calibration is not None:
-        cal = burst.burst_calibration
-        cal_items = [
-            Meta('basename', cal.basename_cads, ''),
-            Meta('azimuth_time', cal.azimuth_time.strftime(TIME_STR_FMT),
-                 'Start time', {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
-            Meta('line', cal.line, 'line'),
-            Meta('pixel', cal.pixel, 'pixel'),
-            Meta('sigma_naught', cal.sigma_naught, 'sigma_naught'),
-            Meta('beta_naught', cal.beta_naught, 'beta_naught'),
-            Meta('gamma', cal.gamma, 'gamma'),
-            Meta('dn', cal.dn, 'dn'),
-        ]
-        cal_group = correction_group.require_group('calibration')
-        for meta_item in cal_items:
-            add_dataset_and_attrs(cal_group, meta_item)
 
-    # write out noise metadata, if present
-    if burst.burst_noise is not None:
-        noise = burst.burst_noise
-        noise_items = [
-            Meta('basename', noise.basename_nads, ''),
-            Meta('range_azimuth_time',
-                 noise.range_azimuth_time.strftime(TIME_STR_FMT),
-                 'Start time', {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
-            Meta('range_line', noise.range_line, 'Range line'),
-            Meta('range_pixel', noise.range_pixel, 'Range array in pixel for LUT'),
-            Meta('range_lut', noise.range_lut, 'Range noise lookup table data'),
-            Meta('azimuth_first_azimuth_line', noise.azimuth_first_azimuth_line,
-                 'First line of the burst in subswath. NaN if not available in annotation.'),
-            Meta('azimuth_first_range_sample', noise.azimuth_first_range_sample,
-                 'First range sample of the burst. NaN if not available in annotation.'),
-            Meta('azimuth_last_azimuth_line', noise.azimuth_last_azimuth_line,
-                 'Last line of the burst in subswatn. NaN if not available in annotation.'),
-            Meta('azimuth_last_range_sample', noise.azimuth_last_range_sample,
-                 'Last range of the burst. NaN if not available in annotation.'),
-            Meta('azimuth_line', noise.azimuth_line, 'azimuth line index for noise LUT'),
-            Meta('azimuth_lut', noise.azimuth_lut, 'azimuth noise lookup table data')
-        ]
-        noise_group = correction_group.require_group('noise')
-        for meta_item in noise_items:
-            add_dataset_and_attrs(noise_group, meta_item)
+def get_cslc_geotransform(filename: str, pol: str = "VV"):
+    '''
+    Extract and return geotransform of a geocoded CSLC raster in an HDFg
+
+    Parameters
+    ----------
+    filename: str
+        Path the CSLC HDF5
+    pol: str
+        Polarization of geocoded raster whose boundary is to be computed
+
+    Returns
+    -------
+    list
+        Geotransform of the geocoded raster
+    '''
+    gdal_str = f'NETCDF:{filename}:/{GRID_PATH}/{pol}'
+    return gdal.Info(gdal_str, format='json')['geoTransform']
+
+
+def get_georaster_bounds(filename: str, pol: str = 'VV'):
+    '''
+    Compute CSLC raster boundary of a given polarization
+
+    Parameters
+    ----------
+    filename: str
+        Path the CSLC HDF5
+    pol: str
+        Polarization of geocoded raster whose boundary is to be computed
+
+    Returns
+    -------
+    tuple
+        WGS84 coordinates of the geocoded raster boundary given as min_x,
+        max_x, min_y, max_y
+    '''
+    nfo = gdal.Info(f'NETCDF:{filename}:/{GRID_PATH}/{pol}', format='json')
+
+    # set extreme initial values for min/max x/y
+    min_x = 999999
+    max_x = -999999
+    min_y = 999999
+    max_y = -999999
+
+    # extract wgs84 extent and find min/max x/y
+    wgs84_coords = nfo['wgs84Extent']['coordinates'][0]
+    for x, y in wgs84_coords:
+        min_x = min(min_x, x)
+        max_x = max(max_x, x)
+        min_y = min(min_y, y)
+        max_y = max(max_y, y)
+
+    return (min_x, max_x, min_y, max_y)

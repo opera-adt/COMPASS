@@ -12,6 +12,7 @@ import numpy as np
 from osgeo import gdal
 
 from compass import s1_rdr2geo
+from compass.s1_cslc_qa import QualityAssuranceCSLC
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.h5_helpers import (init_geocoded_dataset,
                                       metadata_to_h5group, GRID_PATH,
@@ -138,6 +139,15 @@ def run(cfg, burst, fetch_from_scratch=False):
             # save metadata
             cslc_group = h5_obj.require_group(ROOT_PATH)
             metadata_to_h5group(cslc_group, burst, cfg)
+
+    if cfg.quality_assurance_params.perform_qa:
+        cslc_qa = QualityAssuranceCSLC()
+        with h5py.File(out_h5, 'a') as h5_obj:
+            cslc_qa.compute_static_layer_stats(h5_obj, cfg.rdr2geo_params)
+            cslc_qa.shadow_pixel_classification(h5_obj)
+            cslc_qa.set_orbit_type(cfg, h5_obj)
+            if cslc_qa.output_to_json:
+                cslc_qa.write_qa_dicts_to_json(out_paths.stats_json_path)
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     info_channel.log(

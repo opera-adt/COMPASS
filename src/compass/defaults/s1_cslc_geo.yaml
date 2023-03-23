@@ -120,3 +120,4 @@ runconfig:
               # Enable/disable histogram equalization
               equalize: False
           perform_qa: True
+          output_to_json: False

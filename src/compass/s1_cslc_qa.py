@@ -74,14 +74,14 @@ class QualityAssuranceCSLC:
             pol_dict = self.stats_dict[pol]
 
             # write stats to HDF5
-            for real_imag, cstat_member in zip(['real', 'imag'],
+            for real_imag, cstat_member in zip(['real', 'imaginary'],
                                                [stat_obj.real, stat_obj.imag]):
                 # create dict to store real/imaginary stat items
                 pol_dict[real_imag] = {}
 
                 # create HDF5 group for real/imaginary stats of current
                 # polarization
-                h5_stats_path = f'{QA_PATH}/stats/grids/{pol}/{real_imag}'
+                h5_stats_path = f'{QA_PATH}/statistics/grids/{pol}/{real_imag}'
                 stats_group = cslc_h5py_root.require_group(h5_stats_path)
 
                 # add description for stat items
@@ -206,7 +206,7 @@ class QualityAssuranceCSLC:
             stat_obj = isce3.math.StatsFloat32(qa_item_ds[()].astype(np.float32))
 
             # create HDF5 group for stats of current QA item
-            h5_stats_path = f'{QA_PATH}/stats/{qa_group_name}/{qa_item_name}'
+            h5_stats_path = f'{QA_PATH}/statistics/{qa_group_name}/{qa_item_name}'
             qa_item_stats_group = cslc_h5py_root.require_group(h5_stats_path)
 
             # build list of QA stat items
@@ -241,7 +241,7 @@ class QualityAssuranceCSLC:
         ]
 
         # create HDF5 group for pixel classification info
-        h5_pxl_path = f'{QA_PATH}/pixel_classification_percentages'
+        h5_pxl_path = f'{QA_PATH}/pixel_classification'
         pxl_group = cslc_h5py_root.require_group(h5_pxl_path)
 
         # write items to HDF5 and dict
@@ -266,7 +266,7 @@ class QualityAssuranceCSLC:
         ]
 
         # create HDF5 group for pixel classification info
-        h5_pxl_path = f'{QA_PATH}/pixel_classification_percentages'
+        h5_pxl_path = f'{QA_PATH}/pixel_classification'
         pxl_group = cslc_h5py_root.require_group(h5_pxl_path)
 
         # write items to HDF5 and dict
@@ -289,13 +289,13 @@ class QualityAssuranceCSLC:
             # Follow key/values only assigned if RFI info is avaiable
             Meta('rfi_mitigation_performed', True,
                  'Whether or not the RFI mitigation step was performed'),
-            Meta('rfi_mitigation_domain', True,
+            Meta('rfi_mitigation_domain', '',
                  'Domain the RFI mitigation step was performed'),
             Meta('rfi_burst_report', '', 'Burst RFI report')
         ]
 
         # create HDF5 group for RFI info
-        h5_rfi_path = f'{QA_PATH}/rfi_info'
+        h5_rfi_path = f'{QA_PATH}/rfi_information'
         rfi_group = cslc_h5py_root.require_group(h5_rfi_path)
 
         # write items to HDF5 and dict
@@ -324,7 +324,7 @@ class QualityAssuranceCSLC:
         ]
 
         # create HDF5 group for orbit info
-        h5_orbit_path = f'{QA_PATH}/orbit_info'
+        h5_orbit_path = f'{QA_PATH}/orbit_information'
         orbit_group = cslc_h5py_root.require_group(h5_orbit_path)
 
         # write to HDF5 group orbit info
@@ -344,7 +344,8 @@ class QualityAssuranceCSLC:
         output_dict = {
             'raster_statistics': self.stats_dict,
             'pixel_classification_percentatges': self.pixel_percentage_dict,
-            'rfi_info': self.rfi_dict, 'orbit_info': self.orbit_dict}
+            'rfi_information': self.rfi_dict,
+            'orbit_information': self.orbit_dict}
 
         # write combined dict to JSON
         with open(file_path, 'w') as f:

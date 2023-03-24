@@ -7,8 +7,10 @@ import time
 
 import h5py
 import isce3
+from isce3.block_processing.rdr_geo_block_generator import block_generator
 import journal
 import numpy as np
+from osgeo import gdal
 from s1reader.s1_reader import is_eap_correction_necessary
 
 from compass import s1_rdr2geo
@@ -24,6 +26,11 @@ from compass.utils.h5_helpers import (corrections_to_h5group,
 from compass.utils.helpers import bursts_grouping_generator, get_module_name
 from compass.utils.lut import cumulative_correction_luts
 from compass.utils.yaml_argparse import YamlArgparse
+
+
+def _slice_to_start_and_size(grid_slice):
+    size = grid_slice.stop - grid_slice.start
+    return grid_slice.start, size
 
 
 def run(cfg: GeoRunConfig):
@@ -47,8 +54,10 @@ def run(cfg: GeoRunConfig):
     image_grid_doppler = isce3.core.LUT2d()
     threshold = cfg.geo2rdr_params.threshold
     iters = cfg.geo2rdr_params.numiter
-    blocksize = cfg.geo2rdr_params.lines_per_block
+    lines_per_block = cfg.geocoding_params.lines_per_block
+    cols_per_block = cfg.geocoding_params.columns_per_block
     flatten = cfg.geocoding_params.flatten
+    geogrid_expansion_threshold = 100
 
     for burst_id, bursts in bursts_grouping_generator(cfg.bursts):
         burst = bursts[0]
@@ -122,8 +131,13 @@ def run(cfg: GeoRunConfig):
             grid_path = f'{root_path}/CSLC/grids'
             grid_group = geo_burst_h5.require_group(grid_path)
             check_eap = is_eap_correction_necessary(burst.ipf_version)
-            for b in bursts:
-                pol = b.polarization
+
+            # initialize source/rdr and destination/geo datasets
+            # also apply EAP per raster if needed
+            rdr_datasets = []
+            geo_datasets = []
+            for burst in bursts:
+                pol = burst.polarization
 
                 # Load the input burst SLC
                 temp_slc_path = f'{scratch_path}/{out_paths.file_name_pol}_temp.vrt'
@@ -133,7 +147,7 @@ def run(cfg: GeoRunConfig):
                 if check_eap.phase_correction:
                     temp_slc_path_corrected = temp_slc_path.replace('_temp.vrt',
                                                                     '_corrected_temp.rdr')
-                    apply_eap_correction(b,
+                    apply_eap_correction(burst,
                                          temp_slc_path,
                                          temp_slc_path_corrected,
                                          check_eap)
@@ -141,36 +155,96 @@ def run(cfg: GeoRunConfig):
                     # Replace the input burst if the correction is applied
                     temp_slc_path = temp_slc_path_corrected
 
+                # prepare input dataset as GDAL raster
+                rdr_dataset = gdal.Open(temp_slc_path, gdal.GA_ReadOnly)
+                print(rdr_dataset.RasterXSize, rdr_dataset.RasterYSize)
+                rdr_datasets.append(rdr_dataset)
 
-                rdr_burst_raster = isce3.io.Raster(temp_slc_path)
+                # prepare output dataset in HDF5
+                geo_ds = init_geocoded_dataset(grid_group, pol, geo_grid,
+                                               'complex64',
+                                               f'{pol} geocoded CSLC image')
+                geo_datasets.append(geo_ds)
 
-                # Create HDF5 dataset for a given frequency and polarization
-                gslc_dataset = init_geocoded_dataset(grid_group, pol, geo_grid,
-                                                     'complex64',
-                                                     f'{pol} geocoded CSLC image')
+            # block proc things
+            max_start_col = -1
+            min_start_col = 100000000
+            max_start_line = -1
+            min_start_line = 100000000
+            max_width = -1
+            min_width = 100000000
+            max_length = -1
+            min_length = 100000000
+            for (rdr_blk_slice, geo_blk_slice, geo_blk_shape,
+                 blk_geo_grid) in block_generator(geo_grid, radar_grid, orbit,
+                                                  dem_raster, lines_per_block,
+                                                  cols_per_block,
+                                                  geogrid_expansion_threshold):
+                # extract start and size from slice
+                start_col, width = _slice_to_start_and_size(rdr_blk_slice[0])
+                start_line, length = _slice_to_start_and_size(rdr_blk_slice[1])
+                #print(start_col, width, start_line, width)
+                max_start_col = max(max_start_col, start_col)
+                min_start_col = min(min_start_col, start_col)
+                max_start_line = max(max_start_line, start_line)
+                min_start_line = min(min_start_line, start_line)
+                max_width = max(max_width, width)
+                min_width = min(min_width, width)
+                max_length = max(max_length, length)
+                min_length = min(min_length, length)
 
-                # Construct the output raster directly from HDF5 dataset
-                geo_burst_raster = isce3.io.Raster(f"IH5:::ID={gslc_dataset.id.id}".encode("utf-8"),
-                                                   update=True)
+                # unpack block parameters
+                az_first = rdr_blk_slice[0].start
+                rg_first = rdr_blk_slice[1].start
+
+                # Init input and output blocks/arrays lists
+                geo_data_blks = []
+                rdr_data_blks = []
+
+                # Build input and output arrays to be passed to geocode_slc
+                for rdr_dataset in rdr_datasets:
+                    rdr_data_blks.append(
+                        #rdr_dataset.ReadAsArray(start_col, start_line,
+                        #                        length, width))
+                        rdr_dataset.ReadAsArray(start_line, start_col,
+                                                length, width))
+
+                    geo_data_blks.append(np.zeros(geo_blk_shape,
+                                                  dtype=np.complex64))
 
                 # Geocode
-                isce3.geocode.geocode_slc(geo_burst_raster, rdr_burst_raster,
-                                          dem_raster,
-                                          radar_grid, sliced_radar_grid,
-                                          geo_grid, orbit,
-                                          native_doppler,
-                                          image_grid_doppler, ellipsoid, threshold,
-                                          iters, blocksize, flatten,
+                isce3.geocode.geocode_slc(geo_data_blks, rdr_data_blks,
+                                          dem_raster, radar_grid,
+                                          sliced_radar_grid, blk_geo_grid,
+                                          orbit, native_doppler,
+                                          image_grid_doppler, ellipsoid,
+                                          threshold, iters, start_col,
+                                          start_line)#, flatten,
+                '''
                                           azimuth_carrier=az_carrier_poly2d,
                                           az_time_correction=az_lut,
                                           srange_correction=rg_lut)
+                '''
 
+                # write geocoded blocks to respective HDF5 datasets
+                for geo_dataset, geo_data_blk in zip(geo_datasets,
+                                                     geo_data_blks):
+                    # write to GSLC block HDF5
+                    geo_dataset.write_direct(geo_data_blk,
+                                             dest_sel=geo_blk_slice)
+
+            print('min/max start col ', min_start_col, max_start_col)
+            print('min/max width     ', min_width, max_width)
+            print('min/max start line', min_start_line, max_start_line)
+            print('min/max length    ', min_length, max_length)
             # Set geo transformation
+            '''
             geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,
                             geo_grid.start_y, 0, geo_grid.spacing_y]
             geo_burst_raster.set_geotransform(geotransform)
             geo_burst_raster.set_epsg(epsg)
             del geo_burst_raster
+            '''
             del dem_raster # modified in geocodeSlc
 
         # Save burst corrections and metadata with new h5py File instance

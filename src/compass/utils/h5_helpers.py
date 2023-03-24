@@ -83,6 +83,8 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
     Create and allocate dataset for isce.geocode.geocode_slc to write to that
     is NC compliant
 
+    Parameters
+    ----------
     grid_group: h5py.Group
         h5py group where geocoded dataset will be created in
     dataset_name: str
@@ -97,7 +99,7 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
     Returns
     -------
     cslc_ds: h5py.Dataset
-        h5py dataset ready to be populated with geocoded dataset
+        NC compliant h5py dataset ready to be populated with geocoded raster
     '''
     shape = (geo_grid.length, geo_grid.width)
     cslc_ds = grid_group.require_dataset(dataset_name, dtype=dtype,

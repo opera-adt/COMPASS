@@ -167,14 +167,6 @@ def run(cfg: GeoRunConfig):
                 geo_datasets.append(geo_ds)
 
             # block proc things
-            max_start_col = -1
-            min_start_col = 100000000
-            max_start_line = -1
-            min_start_line = 100000000
-            max_width = -1
-            min_width = 100000000
-            max_length = -1
-            min_length = 100000000
             for (rdr_blk_slice, geo_blk_slice, geo_blk_shape,
                  blk_geo_grid) in block_generator(geo_grid, radar_grid, orbit,
                                                   dem_raster, lines_per_block,
@@ -183,19 +175,6 @@ def run(cfg: GeoRunConfig):
                 # extract start and size from slice
                 start_col, width = _slice_to_start_and_size(rdr_blk_slice[0])
                 start_line, length = _slice_to_start_and_size(rdr_blk_slice[1])
-                #print(start_col, width, start_line, width)
-                max_start_col = max(max_start_col, start_col)
-                min_start_col = min(min_start_col, start_col)
-                max_start_line = max(max_start_line, start_line)
-                min_start_line = min(min_start_line, start_line)
-                max_width = max(max_width, width)
-                min_width = min(min_width, width)
-                max_length = max(max_length, length)
-                min_length = min(min_length, length)
-
-                # unpack block parameters
-                az_first = rdr_blk_slice[0].start
-                rg_first = rdr_blk_slice[1].start
 
                 # Init input and output blocks/arrays lists
                 geo_data_blks = []
@@ -204,8 +183,6 @@ def run(cfg: GeoRunConfig):
                 # Build input and output arrays to be passed to geocode_slc
                 for rdr_dataset in rdr_datasets:
                     rdr_data_blks.append(
-                        #rdr_dataset.ReadAsArray(start_col, start_line,
-                        #                        length, width))
                         rdr_dataset.ReadAsArray(start_line, start_col,
                                                 length, width))
 
@@ -219,12 +196,10 @@ def run(cfg: GeoRunConfig):
                                           orbit, native_doppler,
                                           image_grid_doppler, ellipsoid,
                                           threshold, iters, start_col,
-                                          start_line)#, flatten,
-                '''
-                                          azimuth_carrier=az_carrier_poly2d,
+                                          start_line, flatten,
+                                          az_carrier=az_carrier_poly2d,
                                           az_time_correction=az_lut,
                                           srange_correction=rg_lut)
-                '''
 
                 # write geocoded blocks to respective HDF5 datasets
                 for geo_dataset, geo_data_blk in zip(geo_datasets,
@@ -233,10 +208,6 @@ def run(cfg: GeoRunConfig):
                     geo_dataset.write_direct(geo_data_blk,
                                              dest_sel=geo_blk_slice)
 
-            print('min/max start col ', min_start_col, max_start_col)
-            print('min/max width     ', min_width, max_width)
-            print('min/max start line', min_start_line, max_start_line)
-            print('min/max length    ', min_length, max_length)
             # Set geo transformation
             '''
             geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,

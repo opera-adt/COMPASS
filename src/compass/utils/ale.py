@@ -49,7 +49,7 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_ale=False):
 
     # Identify which CR are contained in the usable part of the burst
     # Get CSLC-S1 polygon
-    cslc_poly = get_clsc_polygon(cslc_file)
+    cslc_poly = get_cslc_polygon(cslc_file)
     cr_x = []
     cr_y = []
     cr_x_cslc = []
@@ -62,12 +62,12 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_ale=False):
 
         if cslc_poly.contains(cr_loc):
             # Convert corner lat/lon coordinates in UTM
-            cslc_epsg = get_clsc_epsg(cslc_file)
+            cslc_epsg = get_cslc_epsg(cslc_file)
             x, y = latlon2utm(cr_lat, cr_lon, cslc_epsg)
             cr_x.append(x)
             cr_y.append(y)
 
-            # Compute location of CR in CSLC image
+            # Compute location of CR in CSLC image at pixel precision
             x_coord, dx, y_coord, dy = get_xy_info(cslc_file)
             cr_x_cslc.append(int((x - x_coord[0]) / dx))
             cr_y_cslc.append(int((y - y_coord[0]) / dy))
@@ -243,7 +243,7 @@ def latlon2utm(lat, lon, out_epsg):
     return x, y
 
 
-def get_clsc_polygon(cslc_file):
+def get_cslc_polygon(cslc_file):
     '''
     Get the polygon containing the valid values of
     the CSLC-S1 product in 'cslc_file'
@@ -264,7 +264,7 @@ def get_clsc_polygon(cslc_file):
     return cslc_poly
 
 
-def get_clsc_epsg(cslc_file):
+def get_cslc_epsg(cslc_file):
     '''
     Returns projection code for CSLC-S1 product
     in 'cslc_file'

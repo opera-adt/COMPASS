@@ -68,9 +68,9 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_ale=False):
             cr_y.append(y)
 
             # Compute location of CR in CSLC image at pixel precision
-            x_coord, dx, y_coord, dy = get_xy_info(cslc_file)
-            cr_x_cslc.append(int((x - x_coord[0]) / dx))
-            cr_y_cslc.append(int((y - y_coord[0]) / dy))
+            x_coord_vect, dx, y_coord_vect, dy = get_xy_info(cslc_file)
+            cr_x_cslc.append(int((x - x_coord_vect[0]) / dx))
+            cr_y_cslc.append(int((y - y_coord_vect[0]) / dy))
         else:
             # If the CR is not in the burst, drop the corresponding
             # row from the panda dataframe
@@ -90,9 +90,9 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_ale=False):
     for idx, row in cr_df.iterrows():
         x_peak, y_peak = find_peak(cslc_arr, int(row['CR_X_CSLC']),
                                    int(row['CR_Y_CSLC']))
-        x_coord, dx, y_coord, dy = get_xy_info(cslc_file)
-        x_peak_vect.append(x_coord[0] + x_peak * dx)
-        y_peak_vect.append(y_coord[0] + y_peak * dy)
+        x_coord_vect, dx, y_coord_vect, dy = get_xy_info(cslc_file)
+        x_peak_vect.append(x_coord_vect[0] + x_peak * dx)
+        y_peak_vect.append(y_coord_vect[0] + y_peak * dy)
 
     cr_df['CR_X_CSLC_PEAK'] = x_peak_vect
     cr_df['CR_Y_CSLC_PEAK'] = y_peak_vect

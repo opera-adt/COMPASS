@@ -107,16 +107,19 @@ def run(cfg, burst, fetch_from_scratch=False):
                 continue
 
             dtype = np.single
+            init_value = np.nan
             # layoverShadowMask is last option, no need to change data type
             # and interpolator afterwards
             if layer_name == 'layover_shadow_mask':
                 geocode_obj.data_interpolator = 'NEAREST'
                 dtype = np.byte
+                init_value = 255
 
             # Create dataset with x/y coords/spacing and projection
             topo_ds = init_geocoded_dataset(static_layer_group, layer_name,
                                             geo_grid, dtype,
-                                            np.string_(layer_name))
+                                            np.string_(layer_name),
+                                            init_value)
 
             # Init output and input isce3.io.Raster objects for geocoding
             output_raster = isce3.io.Raster(f"IH5:::ID={topo_ds.id.id}".encode("utf-8"),
@@ -227,7 +230,8 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
                               item_name,
                               decimated_geogrid,
                               'float32',
-                              f'geocoded {item_name}')
+                              f'geocoded {item_name}',
+                              np.nan)
 
         dst_dataset = geo_burst_h5[f'{dst_group_path}/{item_name}']
 

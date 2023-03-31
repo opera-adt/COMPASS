@@ -78,7 +78,7 @@ def add_dataset_and_attrs(group, meta_item):
 
 
 def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
-                          description):
+                          description, init_value):
     '''
     Create and allocate dataset for isce.geocode.geocode_slc to write to that
     is NC compliant
@@ -95,6 +95,8 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
         Data type of dataset to be geocoded
     description: str
         Description of dataset to be geocoded
+    init_value: float, complex
+        Value to initialize dataset raster with
 
     Returns
     -------
@@ -103,7 +105,7 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
     '''
     shape = (geo_grid.length, geo_grid.width)
     cslc_ds = grid_group.require_dataset(dataset_name, dtype=dtype,
-                                         shape=shape)
+                                         shape=shape, fillvalue=init_value)
 
     cslc_ds.attrs['description'] = description
 

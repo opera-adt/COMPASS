@@ -162,49 +162,43 @@ def run(cfg: GeoRunConfig):
                 # prepare output dataset in HDF5
                 geo_ds = init_geocoded_dataset(grid_group, pol, geo_grid,
                                                'complex64',
-                                               f'{pol} geocoded CSLC image')
+                                               f'{pol} geocoded CSLC image',
+                                               np.nan + np.nan * 1j)
                 geo_datasets.append(geo_ds)
 
             # block proc things
-            for (has_rdr_bbox, rdr_blk_slice, geo_blk_slice, geo_blk_shape,
-                 blk_geo_grid) in block_generator(geo_grid, radar_grid, orbit,
-                                                  dem_raster, lines_per_block,
-                                                  cols_per_block,
-                                                  geogrid_expansion_threshold):
+            for (rdr_blk_slice, geo_blk_slice, geo_blk_shape, blk_geo_grid) \
+                in block_generator(geo_grid, radar_grid, orbit, dem_raster,
+                                   lines_per_block, cols_per_block,
+                                   geogrid_expansion_threshold):
 
-                # Init output blocks/arrays lists to NaN
+                # extract start and size from slice
+                start_col, width = _slice_to_start_and_size(rdr_blk_slice[0])
+                start_line, length = _slice_to_start_and_size(rdr_blk_slice[1])
+
+                # Build input arrays to be passed to geocode_slc
+                rdr_data_blks = []
                 geo_data_blks = []
-                for _ in rdr_datasets:
-                    geo_data_blks.append(np.full(geo_blk_shape, np.nan,
-                                                 dtype=np.complex64))
+                for rdr_dataset in rdr_datasets:
+                    rdr_data_blks.append(
+                        rdr_dataset.ReadAsArray(start_line, start_col,
+                                                length, width))
 
-                # geocode if bbox present
-                if has_rdr_bbox:
-                    # extract start and size from slice
-                    start_col, width = _slice_to_start_and_size(rdr_blk_slice[0])
-                    start_line, length = _slice_to_start_and_size(rdr_blk_slice[1])
+                    # Init output blocks/arrays lists to NaN
+                    geo_data_blks.append(np.zeros(geo_blk_shape,
+                                                  dtype=np.complex64))
 
-                    # Build input arrays to be passed to geocode_slc
-                    rdr_data_blks = []
-                    for rdr_dataset in rdr_datasets:
-                        rdr_data_blks.append(
-                            rdr_dataset.ReadAsArray(start_line, start_col,
-                                                    length, width))
-
-                        geo_data_blks.append(np.zeros(geo_blk_shape,
-                                                      dtype=np.complex64))
-
-                    # Geocode
-                    isce3.geocode.geocode_slc(geo_data_blks, rdr_data_blks,
-                                              dem_raster, radar_grid,
-                                              sliced_radar_grid, blk_geo_grid,
-                                              orbit, native_doppler,
-                                              image_grid_doppler, ellipsoid,
-                                              threshold, iters, start_col,
-                                              start_line, flatten,
-                                              az_carrier=az_carrier_poly2d,
-                                              az_time_correction=az_lut,
-                                              srange_correction=rg_lut)
+                # Geocode
+                isce3.geocode.geocode_slc(geo_data_blks, rdr_data_blks,
+                                          dem_raster, radar_grid,
+                                          sliced_radar_grid, blk_geo_grid,
+                                          orbit, native_doppler,
+                                          image_grid_doppler, ellipsoid,
+                                          threshold, iters, start_col,
+                                          start_line, flatten,
+                                          az_carrier=az_carrier_poly2d,
+                                          az_time_correction=az_lut,
+                                          srange_correction=rg_lut)
 
                 # write geocoded blocks to respective HDF5 datasets
                 for geo_dataset, geo_data_blk in zip(geo_datasets,

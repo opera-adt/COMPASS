@@ -90,23 +90,19 @@ lut_options:
   # LUT spacing in azimuth direction in seconds
   azimuth_spacing: num(min=0, required=False)
   # Enable/disable geometry steering doppler correction
-  geometry_steering_doppler: include('enable_options', required=False)
+  geometry_steering_doppler: bool(required=False)
   # Enable/disable bistatic delay correction
-  bistatic_delay: include('enable_options', required=False)
+  bistatic_delay: bool(required=False)
   # Enable/disable azimuth FM rate mismatch correction
-  azimuth_fm_rate: include('enable_options', required=False)
+  azimuth_fm_rate: bool(required=False)
   # Enable/disable Solid Earth tides correction
-  solid_earth_tide: include('enable_options', required=False)
+  solid_earth_tides: bool(required=False)
   # Enable/disable ionosphere TEC correction
-  tec_ionosphere: include('enable_options', required=False)
+  ionosphere_tec: bool(required=False)
   # Enable/disable static troposphere correction
-  static_troposphere: include('enable_options', required=False)
+  static_troposphere: bool(required=False)
   # Troposphere delay using weather model
-  weather_model_troposphere: include('troposphere_options', required=False)
-
-enable_options:
-  # Boolean flag to enable a LUT correction
-  enabled: bool(required=False)
+  weather_model_troposphere: bool(required=False)
 
 troposphere_options:
   enabled: bool(required=False)

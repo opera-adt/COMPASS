@@ -66,9 +66,9 @@ runconfig:
               # Enable/disable azimuth FM rate mismatch correction
               azimuth_fm_rate: True
               # Enable/disable Solid Earth tides correction
-              solid_earth_tide: True
+              solid_earth_tides: True
               # Enable/disable ionosphere TEC correction
-              tec_ionosphere: True
+              ionosphere_tec: True
               # Enable/disable static troposphere correction
               static_troposphere: True
               # Troposphere delay using weather model

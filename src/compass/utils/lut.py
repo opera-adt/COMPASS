@@ -12,7 +12,6 @@ from skimage.transform import resize
 from compass.utils.geometry_utils import enu2los, en2az
 from compass.utils.iono import ionosphere_delay
 from compass.utils.helpers import open_raster
-from compass.utils.helpers import write_raster
 from RAiDER.delay import tropo_delay
 from RAiDER.llreader import RasterRDR
 from RAiDER.losreader import Zenith
@@ -164,7 +163,17 @@ def correction_luts(burst, lut_par, dem_path, tec_path,
                               lut.x_spacing, lut.y_spacing,
                               az_data)
 
-    # TO DO: save corrections
+    # Save corrections
+    driver = gdal.GetDriverByName('ENVI')
+    out_ds = driver.Create(f'{output_path}/corrections',
+                           lut_shape[1], lut_shape[0], len(data_dict),
+                           gdal.GDT_Float32)
+    band = 0
+    for key in data_dict.keys():
+        band += 1
+        raster_band = out_ds.GetRasterBand(band)
+        raster_band.SetDescription(data_dict[key][1])
+        raster_band.WriteArray(data_dict[key][0])
 
     return rg_lut, az_lut
 

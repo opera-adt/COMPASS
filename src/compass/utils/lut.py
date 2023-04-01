@@ -45,7 +45,6 @@ def correction_luts(burst, lut_par, dem_path, tec_path,
     qz_lut: isce3.core.LUT2d
         Cumulative LUT in azimuth direction (seconds)
     '''
-    
     # Dem info
     dem_raster = isce3.io.Raster(dem_path)
     epsg = dem_raster.get_epsg()

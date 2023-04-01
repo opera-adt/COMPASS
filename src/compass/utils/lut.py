@@ -20,6 +20,32 @@ from RAiDER.losreader import Zenith
 def correction_luts(burst, lut_par, dem_path, tec_path,
                     scratch_path=None,
                     weather_model_path=None):
+    '''
+    Compute correction look-up tables (LUTs)
+
+    Parameters
+    ----------
+    burst: Sentinel1BurstSlc
+        S1-A/B burst SLC object
+    lut_par: dict
+        Dictionary with LUT parameters
+    dem_path: str
+        File path to DEM
+    tec_path: str
+        File path to ionosphere TEC file
+    scratch_path: str
+        File path to scratch directory (default: None)
+    weather_model_path: str
+        File path to weather model file (default: None)
+
+    Returns
+    -------
+    rg_lut: isce3.core.LUT2d
+        Cumulative LUT in slant range direction (meters)
+    qz_lut: isce3.core.LUT2d
+        Cumulative LUT in azimuth direction (seconds)
+    '''
+    
     # Dem info
     dem_raster = isce3.io.Raster(dem_path)
     epsg = dem_raster.get_epsg()

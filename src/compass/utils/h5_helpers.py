@@ -580,9 +580,8 @@ def metadata_to_h5group(parent_group, burst, cfg):
     poly1d_to_h5(burst_meta_group, 'doppler', burst.doppler.poly1d)
 
 
-def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,
-                           scratch_path, weather_model_path=None,
-                           delay_type='dry'):
+def corrections_to_h5group(parent_group, burst, rg_lut,
+                           az_lut, scratch_path):
     '''
     Write azimuth, slant range, and EAP (if needed) correction LUT2ds to HDF5
 
@@ -592,27 +591,13 @@ def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,
         HDF5 group where correction data will be written to
     burst: Sentinel1BurstSlc
         Burst containing corrections
-    cfg: types.SimpleNamespace
-        SimpleNamespace containing run configuration
     rg_lut: isce3.core.LUT2d()
         LUT2d along slant direction
     az_lut: isce3.core.LUT2d()
         LUT2d along azimuth direction
     scratch_path: str
         Path to the scratch directory
-    weather_model_path: str
-        Path to troposphere weather model in NetCDF4 format.
-        This is the only format supported by RAiDER. If None,
-        no weather model-based troposphere correction is applied
-        (default: None).
-    delay_type: str
-        Type of troposphere delay. Any between 'dry', or 'wet', or
-        'wet_dry' for the sum of wet and dry troposphere delays.
     '''
-
-    # If enabled, save the correction LUTs
-    if not cfg.lut_params.enabled:
-        return
 
     # Open GDAL dataset to fetch corrections
     ds = gdal.Open(f'{scratch_path}/corrections/corrections',
@@ -638,32 +623,30 @@ def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,
              {'units': 'seconds'}),
         Meta('zero_doppler_time_spacing',rg_lut.y_spacing,
              'spacing of azimuth time of LUT data', {'units': 'seconds'}),
-        Meta('bistatic_delay', ds.GetRasterBand(2).ReadAsArray(),
-             f'bistatic delay (azimuth) {desc}', {'units': 'seconds'}),
         Meta('geometry_steering_doppler', ds.GetRasterBand(1).ReadAsArray(),
              f'geometry steering doppler (range) {desc}',
              {'units': 'meters'}),
+        Meta('bistatic_delay', ds.GetRasterBand(2).ReadAsArray(),
+             f'bistatic delay (azimuth) {desc}', {'units': 'seconds'}),
         Meta('azimuth_fm_rate_mismatch', ds.GetRasterBand(3).ReadAsArray(),
              f'azimuth FM rate mismatch mitigation (azimuth) {desc}',
              {'units': 'seconds'}),
         Meta('los_solid_earth_tides', ds.GetRasterBand(4).ReadAsArray(),
              f'Solid Earth tides (range) {desc}',
              {'units': 'meters'}),
-        Meta('los_ionospheric_delay', ds.GetRasterBand(5).ReadAsArray(),
+        Meta('azimuth_solid_earth_tides', ds.GetRasterBand(5).ReadAsArray(),
+             f'Solid Earth tides (range) {desc}',
+             {'units': 'seconds'}),
+        Meta('los_ionospheric_delay', ds.GetRasterBand(7).ReadAsArray(),
              f'Ionospheric delay (range) {desc}',
              {'units': 'meters'}),
+        Meta('wet_los_troposphere_delay', ds.GetRasterBand(8).ReadAsArray(),
+             f'Wet LOS troposphere delay {desc}',
+             {'units': 'meters'}),
+        Meta('dry_los_troposphere_delay', ds.GetRasterBand(9).ReadAsArray(),
+             f'Dry LOS troposphere delay {desc}',
+             {'units': 'meters'})
     ]
-    if weather_model_path is not None:
-        if 'wet' in delay_type:
-            correction_items.append(Meta('wet_los_troposphere_delay',
-                                         ds.GetRasterBand(6).ReadAsArray(),
-                                         f'Wet LOS troposphere delay {desc}',
-                                         {'units': 'meters'}))
-        if 'dry' in delay_type:
-            correction_items.append(Meta('dry_los_troposphere_delay',
-                                         ds.GetRasterBand(7).ReadAsArray(),
-                                         f'Dry LOS troposphere delay {desc}',
-                                         {'units': 'meters'}))
 
     for meta_item in correction_items:
         add_dataset_and_attrs(correction_group, meta_item)

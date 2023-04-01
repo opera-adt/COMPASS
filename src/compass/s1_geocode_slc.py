@@ -22,7 +22,7 @@ from compass.utils.h5_helpers import (corrections_to_h5group,
                                       init_geocoded_dataset,
                                       metadata_to_h5group)
 from compass.utils.helpers import bursts_grouping_generator, get_module_name
-from compass.utils.lut import cumulative_correction_luts
+from compass.utils.lut import correction_luts
 from compass.utils.yaml_argparse import YamlArgparse
 
 
@@ -70,20 +70,12 @@ def run(cfg: GeoRunConfig):
         # Create scratch as needed
         scratch_path = out_paths.scratch_directory
 
-
-        # If enabled, get range and azimuth LUTs
-        if cfg.lut_params.enabled:
-            rg_lut, az_lut = \
-                cumulative_correction_luts(burst, dem_path=cfg.dem,
-                                           tec_path=cfg.tec_file,
-                                           scratch_path=scratch_path,
-                                           weather_model_path=cfg.weather_model_file,
-                                           rg_step=cfg.lut_params.range_spacing,
-                                           az_step=cfg.lut_params.azimuth_spacing,
-                                           delay_type=cfg.tropo_params.delay_type)
-        else:
-            rg_lut = isce3.core.LUT2d()
-            az_lut = isce3.core.LUT2d()
+        # Compute correction LUTs
+        rg_lut, az_lut = correction_luts(burst, cfg.lut_params,
+                                         dem_path=cfg.dem,
+                                         tec_path=cfg.tec_file,
+                                         scratch_path=scratch_path,
+                                         weather_model_path=cfg.weather_model_file)
 
         radar_grid = burst.as_isce3_radargrid()
         native_doppler = burst.doppler.lut2d
@@ -181,11 +173,10 @@ def run(cfg: GeoRunConfig):
 
             cslc_group = geo_burst_h5.require_group(f'{root_path}/CSLC')
             metadata_to_h5group(cslc_group, burst, cfg)
-            if cfg.lut_params.enabled:
-                corrections_to_h5group(cslc_group, burst, cfg, rg_lut, az_lut,
-                                       scratch_path,
-                                       weather_model_path=cfg.weather_model_file,
-                                       delay_type=cfg.tropo_params.delay_type)
+
+            # Save corrections
+            corrections_to_h5group(cslc_group, burst, rg_lut, az_lut,
+                                   scratch_path)
 
             # If needed, make browse image and compute CSLC raster stats
             browse_params = cfg.browse_image_params
@@ -199,12 +190,12 @@ def run(cfg: GeoRunConfig):
             # If needed, perform QA and write results to JSON
             if cfg.quality_assurance_params.perform_qa:
                 cslc_qa = QualityAssuranceCSLC()
-                if cfg.lut_params.enabled:
-                    # apply tropo corrections if weather file provided
-                    apply_tropo_corrections = cfg.weather_model_file is not None
-                    cslc_qa.compute_correction_stats(
-                        geo_burst_h5, apply_tropo_corrections,
-                        cfg.tropo_params.delay_type)
+                # if cfg.lut_params.enabled:
+                #     # apply tropo corrections if weather file provided
+                #     apply_tropo_corrections = cfg.weather_model_file is not None
+                #     cslc_qa.compute_correction_stats(
+                #         geo_burst_h5, apply_tropo_corrections,
+                #         cfg.tropo_params.delay_type)
                 cslc_qa.compute_CSLC_raster_stats(geo_burst_h5, bursts)
                 cslc_qa.populate_rfi_dict(geo_burst_h5)
                 cslc_qa.valid_pixel_percentages(geo_burst_h5)

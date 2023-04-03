@@ -10,6 +10,7 @@ import isce3
 import journal
 import numpy as np
 from osgeo import gdal
+from scipy.interpolate import InterpolatedUnivariateSpline
 
 from compass import s1_rdr2geo
 from compass.s1_cslc_qa import QualityAssuranceCSLC
@@ -193,7 +194,6 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
     scratch_path = out_paths.scratch_directory
 
     # generate decimated radar and geo grids for LUT(s)
-    decimated_radargrid = radar_grid.multilook(dec_factor, dec_factor)
     decimated_geogrid = isce3.product.GeoGridParameters(
                             geo_grid.start_x,
                             geo_grid.start_y,
@@ -203,7 +203,7 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
                             geo_grid.length // dec_factor + 1,
                             geo_grid.epsg)
 
-    # init geocode object
+    # initialize geocode object
     geocode_obj = isce3.geocode.GeocodeFloat32()
     geocode_obj.orbit = burst.orbit
     geocode_obj.ellipsoid = ellipsoid
@@ -221,7 +221,7 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
         geo_burst_h5.require_group(dst_group_path)
 
     gdal_envi_driver = gdal.GetDriverByName('ENVI')
-    for item_name, _ in item_dict.items():
+    for item_name, lut_rgaz in item_dict.items():
         # prepare input dataset in output HDF5
         init_geocoded_dataset(dst_group,
                               item_name,
@@ -236,16 +236,43 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
             isce3.io.Raster(
                 f"IH5:::ID={dst_dataset.id.id}".encode("utf-8"), update=True)
 
-        # populate and prepare radargrid LUT input raster
+        # Define the radargrid for LUT interpolation
+        radargrid_interp = radar_grid.copy()
 
-        # NOTE: `lut_arr` below is a placeholder, which will be
-        #  eventually replaced by LUTs for geocoded calibration parameters.
-        lut_arr = np.zeros((decimated_radargrid.length,
-                            decimated_radargrid.width))
+        radargrid_interp.width = int(np.ceil(burst.width / dec_factor))
+        intv_interp_range = (burst.width - 1) / (radargrid_interp.width - 1)
+        range_px_interp_vec = np.arange(0, burst.width, intv_interp_range)
+
+        radargrid_interp.length = int(np.ceil(burst.length / dec_factor))
+        intv_interp_azimuth = (burst.length - 1) / (radargrid_interp.length - 1)
+        azimuth_px_interp_vec = np.arange(0, burst.length, intv_interp_azimuth)
+
+        radargrid_interp.range_pixel_spacing *= intv_interp_range
+        radargrid_interp.prf /= intv_interp_azimuth
+        
+        # Get the interpolated range LUT
+        param_interp_obj = InterpolatedUnivariateSpline(lut_rgaz[0],
+                                                        lut_rgaz[1],
+                                                        k=1)
+        range_lut_interp = param_interp_obj(range_px_interp_vec)
+
+        # Get the interpolated azimuth LUT
+        if lut_rgaz[2] is None or lut_rgaz[3] is None:
+            azimuth_lut_interp = np.ones(radargrid_interp.length)
+        else:
+            param_interp_obj = InterpolatedUnivariateSpline(lut_rgaz[2],
+                                                            lut_rgaz[3],
+                                                            k=1)
+            azimuth_lut_interp = param_interp_obj(azimuth_px_interp_vec)
+
+        lut_arr = np.matmul(azimuth_lut_interp[..., np.newaxis],
+                            range_lut_interp[np.newaxis, ...])
+
         lut_path = f'{scratch_path}/{item_name}_radargrid.rdr'
-        lut_gdal_raster = gdal_envi_driver.Create(
-                        lut_path, decimated_radargrid.width,
-                        decimated_radargrid.length, 1, gdal.GDT_Float32)
+        lut_gdal_raster = gdal_envi_driver.Create(lut_path,
+                                                  radargrid_interp.width,
+                                                  radargrid_interp.length,
+                                                  1, gdal.GDT_Float32)
         lut_band = lut_gdal_raster.GetRasterBand(1)
         lut_band.WriteArray(lut_arr)
         lut_band.FlushCache()
@@ -254,15 +281,15 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
         input_raster = isce3.io.Raster(lut_path)
 
         # geocode then set transfrom and EPSG in output raster
-        geocode_obj.geocode(radar_grid=decimated_radargrid,
+        geocode_obj.geocode(radar_grid=radargrid_interp,
                             input_raster=input_raster,
                             output_raster=geocoded_cal_lut_raster,
                             dem_raster=dem_raster,
                             output_mode=isce3.geocode.GeocodeOutputMode.INTERP)
 
-        geotransform = [decimated_geogrid.start_x, decimated_geogrid.spacing_x,
-                        0, decimated_geogrid.start_y, 0,
-                        decimated_geogrid.spacing_y]
+        geotransform = \
+            [decimated_geogrid.start_x, decimated_geogrid.spacing_x, 0,
+             decimated_geogrid.start_y, 0, decimated_geogrid.spacing_y]
 
         geocoded_cal_lut_raster.set_geotransform(geotransform)
         geocoded_cal_lut_raster.set_epsg(epsg)
@@ -289,10 +316,14 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
         Decimation factor to downsample the slant range pixels for LUT
     '''
     dst_group_path = f'{ROOT_PATH}/metadata/calibration_information'
-    item_dict = {'gamma':burst.burst_calibration.gamma,
-                 'sigma_naught':burst.burst_calibration.sigma_naught,
-                 'dn':burst.burst_calibration.dn}
-    geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
+
+    #[Range grid of the source in pixel. range LUT value, azimuth grid of the source in pixel, azimuth LUT value],
+    item_dict_calibration = {
+        'gamma':[burst.burst_calibration.pixel, burst.burst_calibration.gamma, None, None],
+        'sigma_naught':[burst.burst_calibration.pixel, burst.burst_calibration.sigma_naught, None, None],
+        'dn':[burst.burst_calibration.pixel, burst.burst_calibration.dn, None, None]
+        }
+    geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict_calibration,
                  dec_factor)
 
 
@@ -313,8 +344,12 @@ def geocode_noise_luts(geo_burst_h5, burst, cfg,
         Decimation factor to downsample the slant range pixels for LUT
     '''
     dst_group_path =  f'{ROOT_PATH}/metadata/noise_information'
-    item_dict = {'thermal_noise_lut': None}
-    geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
+    item_dict_noise = {'thermal_noise_lut': [burst.burst_noise.range_pixel,
+                                       burst.burst_noise.range_lut,
+                                       burst.burst_noise.azimuth_line,
+                                       burst.burst_noise.azimuth_lut]
+                                       }
+    geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict_noise,
                  dec_factor)
 
 

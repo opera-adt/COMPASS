@@ -249,7 +249,7 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
 
         radargrid_interp.range_pixel_spacing *= intv_interp_range
         radargrid_interp.prf /= intv_interp_azimuth
-        
+
         # Get the interpolated range LUT
         param_interp_obj = InterpolatedUnivariateSpline(lut_rgaz[0],
                                                         lut_rgaz[1],
@@ -317,11 +317,23 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
     '''
     dst_group_path = f'{ROOT_PATH}/metadata/calibration_information'
 
-    #[Range grid of the source in pixel. range LUT value, azimuth grid of the source in pixel, azimuth LUT value],
+    #[Range grid of the source in pixel,
+    # range LUT value,
+    # azimuth grid of the source in pixel,
+    # azimuth LUT value]
     item_dict_calibration = {
-        'gamma':[burst.burst_calibration.pixel, burst.burst_calibration.gamma, None, None],
-        'sigma_naught':[burst.burst_calibration.pixel, burst.burst_calibration.sigma_naught, None, None],
-        'dn':[burst.burst_calibration.pixel, burst.burst_calibration.dn, None, None]
+        'gamma':[burst.burst_calibration.pixel,
+                 burst.burst_calibration.gamma,
+                 None,
+                 None],
+        'sigma_naught':[burst.burst_calibration.pixel,
+                        burst.burst_calibration.sigma_naught,
+                        None,
+                        None],
+        'dn':[burst.burst_calibration.pixel,
+              burst.burst_calibration.dn,
+              None,
+              None]
         }
     geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict_calibration,
                  dec_factor)

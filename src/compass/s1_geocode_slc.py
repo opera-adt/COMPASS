@@ -7,7 +7,7 @@ import time
 
 import h5py
 import isce3
-from isce3.block_processing.rdr_geo_block_generator import block_generator
+from isce3.core.rdr_geo_block_generator import block_generator
 import journal
 import numpy as np
 from osgeo import gdal
@@ -132,8 +132,10 @@ def run(cfg: GeoRunConfig):
             grid_group = geo_burst_h5.require_group(grid_path)
             check_eap = is_eap_correction_necessary(burst.ipf_version)
 
-            # initialize source/rdr and destination/geo datasets
-            # also apply EAP per raster if needed
+            # Initialize source/radar and destination/geo dataset into lists
+            # where polarizations for radar and geo data are put into the same
+            # place on their respective lists to allow data to be correctly
+            # written correct place in the HDF5
             rdr_datasets = []
             geo_datasets = []
             for burst in bursts:
@@ -155,18 +157,18 @@ def run(cfg: GeoRunConfig):
                     # Replace the input burst if the correction is applied
                     temp_slc_path = temp_slc_path_corrected
 
-                # prepare input dataset as GDAL raster
+                # prepare input dataset of current polarization as GDAL raster
                 rdr_dataset = gdal.Open(temp_slc_path, gdal.GA_ReadOnly)
                 rdr_datasets.append(rdr_dataset)
 
-                # prepare output dataset in HDF5
+                # prepare output dataset of current polarization in HDF5
                 geo_ds = init_geocoded_dataset(grid_group, pol, geo_grid,
                                                'complex64',
                                                f'{pol} geocoded CSLC image',
                                                np.nan + np.nan * 1j)
                 geo_datasets.append(geo_ds)
 
-            # block proc things
+            # iterate over geogrid blocks that have radar data
             for (rdr_blk_slice, geo_blk_slice, geo_blk_shape, blk_geo_grid) \
                 in block_generator(geo_grid, radar_grid, orbit, dem_raster,
                                    lines_per_block, cols_per_block,
@@ -207,14 +209,6 @@ def run(cfg: GeoRunConfig):
                     geo_dataset.write_direct(geo_data_blk,
                                              dest_sel=geo_blk_slice)
 
-            # Set geo transformation
-            '''
-            geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,
-                            geo_grid.start_y, 0, geo_grid.spacing_y]
-            geo_burst_raster.set_geotransform(geotransform)
-            geo_burst_raster.set_epsg(epsg)
-            del geo_burst_raster
-            '''
             del dem_raster # modified in geocodeSlc
 
         # Save burst corrections and metadata with new h5py File instance

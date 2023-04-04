@@ -81,7 +81,7 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
                           description, init_value):
     '''
     Create and allocate dataset for isce.geocode.geocode_slc to write to that
-    is NC compliant
+    is NetCDF compliant
 
     Parameters
     ----------

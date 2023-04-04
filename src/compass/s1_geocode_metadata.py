@@ -106,6 +106,7 @@ def run(cfg, burst, fetch_from_scratch=False):
             if not enabled:
                 continue
 
+            # init value is invalid value for the single/float32
             dtype = np.single
             init_value = np.nan
             # layoverShadowMask is last option, no need to change data type
@@ -113,7 +114,9 @@ def run(cfg, burst, fetch_from_scratch=False):
             if layer_name == 'layover_shadow_mask':
                 geocode_obj.data_interpolator = 'NEAREST'
                 dtype = np.byte
-                init_value = 255
+                # layover shadow is a char (no NaN char, 0 represents unmasked
+                # value)
+                init_value = 127
 
             # Create dataset with x/y coords/spacing and projection
             topo_ds = init_geocoded_dataset(static_layer_group, layer_name,

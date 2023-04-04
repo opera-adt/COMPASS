@@ -178,7 +178,7 @@ def run(cfg: GeoRunConfig):
                 start_col, width = _slice_to_start_and_size(rdr_blk_slice[0])
                 start_line, length = _slice_to_start_and_size(rdr_blk_slice[1])
 
-                # Build input arrays to be passed to geocode_slc
+                # Build list of arrays to be passed to geocode_slc
                 rdr_data_blks = []
                 geo_data_blks = []
                 for rdr_dataset in rdr_datasets:

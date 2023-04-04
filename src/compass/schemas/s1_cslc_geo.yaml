@@ -65,7 +65,7 @@ processing_options:
 geocoding_options:
     # Boolean flag to enable/disable flattening
     flatten: bool(required=False)
-    # Number of lines to process in batch
+    # Number of lines to process in block
     lines_per_block: int(min=1, required=False)
     # Number of columns to process in block
     columns_per_block: int(min=1, required=False)

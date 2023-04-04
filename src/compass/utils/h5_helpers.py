@@ -101,7 +101,7 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
     Returns
     -------
     cslc_ds: h5py.Dataset
-        NC compliant h5py dataset ready to be populated with geocoded raster
+        NCDF compliant h5py dataset ready to be populated with geocoded raster
     '''
     shape = (geo_grid.length, geo_grid.width)
     cslc_ds = grid_group.require_dataset(dataset_name, dtype=dtype,

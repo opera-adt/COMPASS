@@ -322,7 +322,7 @@ def enu2rgaz(radargrid_ref, orbit, ellipsoid,
     When `geo2rdr_params` is not provided, then the iteration
     threshold and max # iterations are set to
     `1.0e-8` and `25` respectively.
-    
+
     '''
     if geo2rdr_params is None:
         # default threshold and # iteration for geo2rdr
@@ -382,7 +382,7 @@ def enu2rgaz(radargrid_ref, orbit, ellipsoid,
 
 def get_enu_vector_ecef(lon, lat, units='degree'):
     '''
-    Calculate the east, north, and up vectors in ECEF for lon / lat provided 
+    Calculate the east, north, and up vectors in ECEF for lon / lat provided
 
     Parameters
     ----------

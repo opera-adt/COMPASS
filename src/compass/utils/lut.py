@@ -124,10 +124,10 @@ def correction_luts(burst, lut_par, dem_path, tec_path,
     if lut_par.solid_earth_tides:
         dec_factor = int(np.round(5000.0 / rg_step))
         dec_slice = np.s_[::dec_factor]
-        rg_set_temp, az_set_temp = solid_earth_tides(burst, lat[dec_slice],
-                                                     lon[dec_slice],
-                                                     inc_angle[dec_slice],
-                                                     head_angle[dec_slice])
+        rg_set_temp, az_set_temp = solid_earth_tides(burst, lat[dec_slice, dec_slice],
+                                                     lon[dec_slice, dec_slice],
+                                                     inc_angle[dec_slice, dec_slice],
+                                                     head_angle[dec_slice, dec_slice])
 
         # Resize SET to the size of the correction grid
         kwargs = dict(order=1, mode='edge', anti_aliasing=True,

@@ -222,11 +222,11 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
     # compute Solid Earth Tides using pySolid. Decimate the rdr2geo layers.
     # compute decimation factor assuming a 5 km spacing along slant range
     dec_factor = int(np.round(5000.0 / rg_step))
-    dec_slice = np.s_[::dec_factor]
+    dec_slice = np.s_[::dec_factor, ::dec_factor]
     rg_set_temp, az_set_temp = solid_earth_tides(burst,
-                                                 lat[dec_slice, dec_slice],
-                                                 lon[dec_slice, dec_slice],
-                                                 height[dec_slice, dec_slice],
+                                                 lat[dec_slice],
+                                                 lon[dec_slice],
+                                                 height[dec_slice],
                                                  ellipsoid)
 
     # Resize SET to the size of the correction grid
@@ -273,9 +273,8 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
             [wet_los_tropo, dry_los_tropo], los_static_tropo
 
 
-
-def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, inc_angle,
-                      head_angle):
+def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, hgt_radar_grid,
+                      ellipsoid):
     '''
     Compute displacement due to Solid Earth Tides (SET)
     in slant range and azimuth directions
@@ -343,13 +342,9 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, inc_angle,
          for set_enu in [set_e, set_n, set_u]]
 
     # Convert SET from ENU to range/azimuth coordinates
-    # Note: rdr2geo heading angle is measured wrt to the East and it is positive
-    # anti-clockwise. To convert ENU to LOS, we need the azimuth angle which is
-    # measured from the north and positive anti-clockwise
-    # azimuth_angle = heading + 90
-    set_rg = enu2los(rdr_set_e, rdr_set_n, rdr_set_u, inc_angle,
-                     az_angle=head_angle + 90.0)
-    set_az = en2az(rdr_set_e, rdr_set_n, head_angle - 90.0)
+    set_rg, set_az = enu2rgaz(burst.as_isce3_radargrid(), burst.orbit, ellipsoid,
+             lon_radar_grid, lat_radar_grid, hgt_radar_grid,
+             rdr_set_e, rdr_set_n, rdr_set_u)
 
     return set_rg, set_az
 

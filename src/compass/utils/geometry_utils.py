@@ -7,7 +7,7 @@
 
 
 import numpy as np
-
+import isce3
 
 def los2orbit_azimuth_angle(los_az_angle, look_direction='right'):
     """
@@ -271,7 +271,27 @@ def enu2rgaz(radargrid_ref, orbit, ellipsoid,
              lon_arr, lat_arr, hgt_arr,
              e_arr, n_arr, u_arr):
     '''
-    Convert ENU displacement into range / azimuth displacement
+    Convert ENU displacement into range / azimuth displacement,
+    based on the idea mentioned in ETAD ATBD, available in the link below:
+    ("https://sentinels.copernicus.eu/documents/247904/4629150/"
+     "ETAD-DLR-DD-0008_Algorithm-Technical-Baseline-Document_2.3.pdf/"
+     "5cb45b43-76dc-8dec-04ef-ca1252ace434?t=1680181574715")
+
+    Algorithm description
+    ---------------------
+    For all lon / lat / height of the array;
+    1. Calculate the ECEF coordinates before applying SET
+    2. Calculate the normal vector of east / north / up directions of the point
+    3. Scale the normal vector in 2 with ENU displacement to
+       get the displacement in ECEF
+    4. Add the vectors calculated in 4 into 1.
+       This will be the ECEF coordinates after applying SET
+    5. Convert 4 into lat / lon / hgt.
+       This will be LLH coordinates after applying SET
+    6. Calculate the radar coordinate before SET applied using `geo2rdr`
+    7. Calculate the radar coordinate AFTER SET applied using `geo2rdr`
+    8. Calculate the difference between (7) and (6),
+       which will be the displacement in radargrid by SET
 
     Parameters
     ----------
@@ -283,9 +303,9 @@ def enu2rgaz(radargrid_ref, orbit, ellipsoid,
         Ellipsoid definition
 
     lon_arr, lat_arr, hgt_arr: np.nadrray
-        Arrays for lonfigute, latitude, and height.
+        Arrays for longitude, latitude, and height.
         Units for longitude and latitude are degree; unit for height is meters.
-    
+
     e_arr, n_arr, u_arr: np.ndarray
         Displacement in east, north, and up direction in meters
 
@@ -309,14 +329,14 @@ def enu2rgaz(radargrid_ref, orbit, ellipsoid,
         vec_e, vec_n, vec_u = get_enu_vector_ecef(lon_deg, lat_deg)
 
         llh_ref = np.array([np.deg2rad(lon_deg),
-                               np.deg2rad(lat_deg),
-                               hgt])
+                            np.deg2rad(lat_deg),
+                            hgt])
 
         xyz_before = ellipsoid.lon_lat_to_xyz(llh_ref)
-        xyz_set = (xyz_before + vec_e * e_arr[index_arr]
+        xyz_after_set = (xyz_before + vec_e * e_arr[index_arr]
                               + vec_n * n_arr[index_arr]
                               + vec_u * u_arr[index_arr])
-        llh_displaced = ellipsoid.xyz_to_lon_lat(xyz_set)
+        llh_displaced = ellipsoid.xyz_to_lon_lat(xyz_after_set)
 
         aztime_ref, slant_range_ref =\
             isce3.geometry.geo2rdr(llh_ref,
@@ -342,7 +362,7 @@ def enu2rgaz(radargrid_ref, orbit, ellipsoid,
     return rg_arr, az_arr
 
 
-def get_enu_vector_ecef(lon, lat, unit='degree'):
+def get_enu_vector_ecef(lon, lat, units='degree'):
     '''
     Calculate the east, north, and up vectors in ECEF for lon / lat provided 
 
@@ -352,8 +372,9 @@ def get_enu_vector_ecef(lon, lat, unit='degree'):
         Longitude of the points to calculate ENU vectors
     lat: np.ndarray
         Latitude of the points to calculate ENU vectors
-    unit: str
-        Unit of the `lon` and `lat`. Default is `degree`
+    units: str
+        Units of the `lon` and `lat`.
+        Acceptable unit is `radian` or `degree` (Default)
 
     Return
     ------
@@ -364,19 +385,19 @@ def get_enu_vector_ecef(lon, lat, unit='degree'):
     vec_u: np.ndarray
         unit vector of "up" direction in ECEF
     '''
-    if unit=='degree':
+    if units=='degree':
         lon_rad = np.deg2rad(lon)
         lat_rad = np.deg2rad(lat)
-    elif unit=='radian':
+    elif units=='radian':
         lon_rad = lon
         lat_rad = lat
     else:
-        raise ValueError(f'"{unit}" was provided for "unit", '
+        raise ValueError(f'"{units}" was provided for "unit", '
                          'which needs to be either "degree" or "radian"')
 
     vec_u = np.array([np.cos(lon_rad) * np.cos(lat_rad),
-                       np.sin(lon_rad) * np.cos(lat_rad),
-                       np.sin(lat_rad)])
+                      np.sin(lon_rad) * np.cos(lat_rad),
+                      np.sin(lat_rad)])
 
     vec_n = np.array([-np.cos(lon_rad) * np.sin(lat_rad),
                       -np.sin(lon_rad) * np.sin(lat_rad),

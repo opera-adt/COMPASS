@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import shapely.wkt as wkt
+from osgeo import gdal
 from pyproj import CRS, Proj
 from shapely import geometry
 
@@ -184,7 +185,7 @@ def get_cslc(cslc_file, pol='VV'):
     return cslc
 
 
-def get_xy_info(cslc_file):
+def get_xy_info(cslc_file, pol='VV'):
     '''
     Get X/Y-coordinate vector and spacings
     from CSLC-S1 product in 'cslc_file'
@@ -205,12 +206,18 @@ def get_xy_info(cslc_file):
     y_spac: np.float
         CSLC-S1 spacing along Y-direction
     '''
+    # Open CSLC with NETCDF4 driver
+    ds_in = gdal.Open(f'NETCDF:{cslc_file}:science/SENTINEL1/CSLC/grids/{pol}')
+    width = ds_in.RasterXSize
+    length = ds_in.RasterYSize
 
-    with h5py.File(cslc_file, 'r') as h5:
-        x_vect = h5['science/SENTINEL1/CSLC/grids/x_coordinates'][()]
-        y_vect = h5['science/SENTINEL1/CSLC/grids/y_coordinates'][()]
-        x_spac = h5['science/SENTINEL1/CSLC/grids/x_spacing'][()]
-        y_spac = h5['science/SENTINEL1/CSLC/grids/y_spacing'][()]
+    geo_trans = ds_in.GetGeoTransform()
+    x_spac = geo_trans[1]
+    y_spac = geo_trans[5]
+
+    # Generate x_vect and y_vect
+    x_vect = geo_trans[0] + np.arange(0, width)*x_spac
+    y_vect = geo_trans[1] + np.arange(0, length)*y_spac
 
     return x_vect, x_spac, y_vect, y_spac
 

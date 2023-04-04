@@ -378,8 +378,6 @@ def identity_to_h5group(dst_group, burst, cfg):
         Meta('zero_doppler_end_time', burst.sensing_stop.strftime(TIME_STR_FMT),
             'Azimuth stop time of product'),
         Meta('is_geocoded', 'True', 'Boolean indicating if product is in radar geometry or geocoded'),
-        Meta('is_urgent_observation', 'False',
-             'Boolean indicating if data take is a urgent observation'),
         ]
     id_group = dst_group.require_group('identification')
     for meta_item in id_meta_items:

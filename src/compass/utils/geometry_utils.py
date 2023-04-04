@@ -269,7 +269,8 @@ def get_unit_vector4component_of_interest(los_inc_angle, los_az_angle, comp='enu
 
 def enu2rgaz(radargrid_ref, orbit, ellipsoid,
              lon_arr, lat_arr, hgt_arr,
-             e_arr, n_arr, u_arr):
+             e_arr, n_arr, u_arr,
+             geo2rdr_params=None):
     '''
     Convert ENU displacement into range / azimuth displacement,
     based on the idea mentioned in ETAD ATBD, available in the link below:
@@ -301,13 +302,13 @@ def enu2rgaz(radargrid_ref, orbit, ellipsoid,
         Orbit of the burst
     ellipsoid: isce3.core.Ellipsoid
         Ellipsoid definition
-
     lon_arr, lat_arr, hgt_arr: np.nadrray
         Arrays for longitude, latitude, and height.
         Units for longitude and latitude are degree; unit for height is meters.
-
     e_arr, n_arr, u_arr: np.ndarray
         Displacement in east, north, and up direction in meters
+    geo2rdr_params: SimpleNameSpace
+        Parameters for geo2rdr
 
     Returns
     -------
@@ -315,7 +316,22 @@ def enu2rgaz(radargrid_ref, orbit, ellipsoid,
         Displacement in slant range direction in meters.
     az_arr: np.ndarray
         Displacement in azimuth direction in seconds.
+
+    Notes
+    -----
+    When `geo2rdr_params` is not provided, then the iteration
+    threshold and max # iterations are set to
+    `1.0e-8` and `25` respectively.
+    
     '''
+    if geo2rdr_params is None:
+        # default threshold and # iteration for geo2rdr
+        threshold = 1.0e-8
+        maxiter = 25
+    else:
+        threshold = geo2rdr_params.threshold
+        maxiter = geo2rdr_params.numiter
+
     shape_arr = lon_arr.shape
     rg_arr = np.zeros(shape_arr)
     az_arr = np.zeros(shape_arr)
@@ -345,7 +361,8 @@ def enu2rgaz(radargrid_ref, orbit, ellipsoid,
                                    isce3.core.LUT2d(),
                                    radargrid_ref.wavelength,
                                    radargrid_ref.lookside,
-                                   threshold=1.0e-10, maxiter=50, delta_range=10.0)
+                                   threshold=threshold,
+                                   maxiter=maxiter)
 
         aztime_displaced, slant_range_displaced =\
             isce3.geometry.geo2rdr(llh_displaced,
@@ -354,7 +371,8 @@ def enu2rgaz(radargrid_ref, orbit, ellipsoid,
                                    isce3.core.LUT2d(),
                                    radargrid_ref.wavelength,
                                    radargrid_ref.lookside,
-                                   threshold=1.0e-10, maxiter=50, delta_range=10.0)
+                                   threshold=threshold,
+                                   maxiter=maxiter)
 
         rg_arr[index_arr] = slant_range_displaced - slant_range_ref
         az_arr[index_arr] = aztime_displaced - aztime_ref

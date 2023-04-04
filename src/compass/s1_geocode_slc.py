@@ -80,7 +80,8 @@ def run(cfg: GeoRunConfig):
                                            weather_model_path=cfg.weather_model_file,
                                            rg_step=cfg.lut_params.range_spacing,
                                            az_step=cfg.lut_params.azimuth_spacing,
-                                           delay_type=cfg.tropo_params.delay_type)
+                                           delay_type=cfg.tropo_params.delay_type,
+                                           geo2rdr_params=cfg.geo2rdr_params)
         else:
             rg_lut = isce3.core.LUT2d()
             az_lut = isce3.core.LUT2d()

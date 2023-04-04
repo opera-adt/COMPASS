@@ -22,7 +22,8 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
                                scratch_path=None,
                                weather_model_path=None,
                                rg_step=200, az_step=0.25,
-                               delay_type='dry'):
+                               delay_type='dry',
+                               geo2rdr_params=None):
     '''
     Sum correction LUTs and returns cumulative correction LUT in slant range
     and azimuth directions
@@ -60,7 +61,7 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
         and slant range
     '''
     # Get individual LUTs
-    geometrical_steer_doppler, bistatic_delay, az_fm_mismatch, [tide_rg, _], \
+    geometrical_steer_doppler, bistatic_delay, az_fm_mismatch, [tide_rg, tide_az], \
         los_ionosphere, [wet_los_tropo, dry_los_tropo], los_static_tropo = \
         compute_geocoding_correction_luts(burst,
                                           dem_path=dem_path,
@@ -68,7 +69,8 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
                                           scratch_path=scratch_path,
                                           weather_model_path=weather_model_path,
                                           rg_step=rg_step,
-                                          az_step=az_step)
+                                          az_step=az_step,
+                                          geo2rdr_params=geo2rdr_params)
 
     # Convert to geometrical doppler from range time (seconds) to range (m)
     geometry_doppler = geometrical_steer_doppler.data * isce3.core.speed_of_light * 0.5
@@ -122,7 +124,8 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
 def compute_geocoding_correction_luts(burst, dem_path, tec_path,
                                       scratch_path=None,
                                       weather_model_path=None,
-                                      rg_step=200, az_step=0.25,):
+                                      rg_step=200, az_step=0.25,
+                                      geo2rdr_params=None):
     '''
     Compute slant range and azimuth LUTs corrections
     to be applied during burst geocoding
@@ -227,7 +230,8 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
                                                  lat[dec_slice],
                                                  lon[dec_slice],
                                                  height[dec_slice],
-                                                 ellipsoid)
+                                                 ellipsoid,
+                                                 geo2rdr_params)
 
     # Resize SET to the size of the correction grid
     out_shape = bistatic_delay.data.shape
@@ -274,7 +278,7 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
 
 
 def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, hgt_radar_grid,
-                      ellipsoid):
+                      ellipsoid, geo2rdr_params=None):
     '''
     Compute displacement due to Solid Earth Tides (SET)
     in slant range and azimuth directions
@@ -344,7 +348,7 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, hgt_radar_grid,
     # Convert SET from ENU to range/azimuth coordinates
     set_rg, set_az = enu2rgaz(burst.as_isce3_radargrid(), burst.orbit, ellipsoid,
              lon_radar_grid, lat_radar_grid, hgt_radar_grid,
-             rdr_set_e, rdr_set_n, rdr_set_u)
+             rdr_set_e, rdr_set_n, rdr_set_u, geo2rdr_params)
 
     return set_rg, set_az
 

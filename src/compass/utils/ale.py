@@ -3,16 +3,20 @@ import os
 
 import h5py
 import isce3
+import datetime as dt
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import pysolid
 import shapely.wkt as wkt
 from osgeo import gdal
 from pyproj import CRS, Proj
 from shapely import geometry
 
+dateformat = '%Y-%m-%d %H:%M:%S.%f'
 
-def run(cslc_file, cr_file, csv_output_file=None, plot_ale=False):
+def run(cslc_file, cr_file, csv_output_file=None, plot_ale=False,
+        correct_set=True):
     '''
     Compute absolute geolocation error based on CSLC-S1
     product and a file containing surveying corner
@@ -31,6 +35,9 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_ale=False):
     plot_ale: bool
         If True, plots Absolute geolocation error
         results
+    correct_set: bool
+        Correct Corner Reflector positions for Solid
+        Earth tides
     '''
 
     # Check that the CSLC-S1 product file exists
@@ -64,7 +71,14 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_ale=False):
         if cslc_poly.contains(cr_loc):
             # Convert corner lat/lon coordinates in UTM
             cslc_epsg = get_cslc_epsg(cslc_file)
-            x, y = latlon2utm(cr_lat, cr_lon, cslc_epsg)
+
+            # Correct corner reflector position for solid Earth tides
+            # otherwise just transform coordinates to UTM
+            if correct_set:
+                x, y = correct_cr_tides(cslc_file, cr_lat, cr_lon)
+            else:
+                x, y = latlon2utm(cr_lat, cr_lon, cslc_epsg)
+
             cr_x.append(x)
             cr_y.append(y)
 
@@ -119,6 +133,55 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_ale=False):
         ax.set_ylabel('Northing error (m)')
         fig.suptitle('Absolute geolocation error')
         plt.show()
+
+
+def correct_cr_tides(cslc_file, cr_lat, cr_lon):
+    '''
+    Correct Corner reflector position for Solid Earth tides
+    Parameters
+    ----------
+    cslc_file: str
+        File path to CSLC product
+    x_cr: float
+        Corner reflector position along X-direction
+    y_cr: float
+        Corner reflector position along Y-direction
+
+    Returns
+    -------
+    x_tide_cr: float
+        Corner reflector position along X-direction corrected
+        for Solid Earth tides
+    y_tide_cr: float
+        Corner reflector position along Y-direction corrected
+        for Solid Earth tide
+    '''
+
+    # Get burst sensing_start and sensing stop
+    with h5py.File(cslc_file, 'r') as h5:
+        start = h5['/science/SENTINEL1/CSLC/metadata/processing_information/s1_burst_metadata/sensing_start'][()]
+        stop = h5['/science/SENTINEL1/CSLC/metadata/processing_information/s1_burst_metadata/sensing_stop'][()]
+
+    sensing_start = dt.datetime.strptime(str(start), dateformat)
+    sensing_stop = dt.datetime.strptime(str(stop), dateformat)
+
+    # Call pysolid to compute the Solid Earth tides
+    (dt_out,
+     tide_e,
+     tide_n,
+     tide_u) = pysolid.calc_solid_earth_tides_point(cr_lat, cr_lon, sensing_start,
+                                                    sensing_stop,
+                                                    step_sec=5,
+                                                    display=False,
+                                                    verbose=False)
+    tide_e = np.mean(tide_e[0:2])
+    tide_n = np.mean(tide_n[0:2])
+
+    # Transform CR coordinates to UTM
+    cslc_epsg = get_cslc_epsg(cslc_file)
+    x, y = latlon2utm(cr_lat, cr_lon, cslc_epsg)
+
+    return x + tide_e , y + tide_n
 
 
 def find_peak(arr, x_loc, y_loc, ovs_factor=64, margin=8):
@@ -313,6 +376,8 @@ def create_parser():
                           help='Save ALE in CSV file (default: None)')
     optional.add_argument('-i', '--plot-ale', dest='plot_ale', default=False,
                           help='Plot ALE')
+    optional.add_argument('-t', '--set', dest=set, default=False,
+                          help='If True, correct corner reflector positions for Solid Earth Tides')
     return parser.parse_args()
 
 
@@ -325,7 +390,8 @@ def main():
     run(cslc_file=args.cslc_file,
         cr_file=args.cr_file,
         csv_output_file=args.save_csv,
-        plot_ale=args.plot_ale)
+        plot_ale=args.plot_ale,
+        correct_set=args.set)
 
 
 if __name__ == '__main__':

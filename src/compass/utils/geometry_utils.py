@@ -266,6 +266,7 @@ def get_unit_vector4component_of_interest(los_inc_angle, los_az_angle, comp='enu
 
     return unit_vec
 
+
 def enu2rgaz(radargrid_ref, orbit, ellipsoid,
              lon_arr, lat_arr, hgt_arr,
              e_arr, n_arr, u_arr):

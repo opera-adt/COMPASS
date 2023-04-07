@@ -15,12 +15,14 @@ from shapely import geometry
 
 dateformat = '%Y-%m-%d %H:%M:%S.%f'
 
-def run(cslc_file, cr_file, csv_output_file=None, plot_ale=False,
-        correct_set=True):
+def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
+        correct_set=False, mission_id='S1', pol='VV', ovs_factor=128,
+        margin=32):
     '''
-    Compute absolute geolocation error based on CSLC-S1
-    product and a file containing surveying corner
-    reflector (CR) locations
+    Compute Absolute Geolocation Error (AGE) for geocoded SLC
+    products from Sentinel-1 or NISAR missions. AGE is computed
+    by differencing the surveyed corner reflector (CR) positions from
+    the CSV file with that detected in the geocoded CSLC product.
 
     Parameters
     ----------
@@ -32,63 +34,84 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_ale=False,
     csv_output_file: str, None
         File path to save computations in
         CSV file. If None, csv file is not saved
-    plot_ale: bool
+    plot_age: bool
         If True, plots Absolute geolocation error
         results
     correct_set: bool
         Correct Corner Reflector positions for Solid
         Earth tides
+    mission_id: str
+        Mission identifier. 'S1' for Sentinel-1 OPERA
+        CSLC or 'NI' for NISAR GSLC
+    pol: str
+        Polarization channel to use to evaluate AGE
+    ovs_factor: int
+        Oversampling factor detecting CR location with
+        sub-pixel accuracy (default: 128)
+    margin: int
+        Margin to consider around CR position detected in
+        the geocoded SLC image. Overall included margin
+        is 2*margin from left-to-right and from top-to-bottom
+        (default: 32)
     '''
 
     # Check that the CSLC-S1 product file exists
     if not os.path.exists(cslc_file):
-        err_str = f'{cslc_file} CSLC-S1 product does not exist'
+        err_str = f'{cslc_file} input geocoded SLC product does not exist'
         raise FileNotFoundError(err_str)
 
     # Check corner reflector file exists
     if not os.path.exists(cr_file):
-        err_str = f'{cr_file} corner reflector file does not exist'
+        err_str = f'{cr_file} CSV CR position file does not exist'
         raise FileNotFoundError(err_str)
 
-    # Open corner reflector file
+    # Open and load CSV CR file in pandas dataframe
     cr_df = pd.read_csv(cr_file)
 
-    # Add empty columns necessary for computation
-
-    # Identify which CR are contained in the usable part of the burst
-    # Get CSLC-S1 polygon
-    cslc_poly = get_cslc_polygon(cslc_file)
+    # Identify CRs contained in the usable part of the
+    # geocoded SLC
+    cslc_poly = get_cslc_polygon(cslc_file,
+                                 mission_id=mission_id)
+    # Initialize empty lists to include in the CR
+    # pandas dataframe
     cr_x = []
     cr_y = []
     cr_x_cslc = []
     cr_y_cslc = []
 
     for idx, row in cr_df.iterrows():
+        # Extract surveyed CR positions from pandas dataframe
         cr_lat = row['Latitude (deg)']
         cr_lon = row['Longitude (deg)']
         cr_loc = geometry.Point(cr_lon, cr_lat)
 
+        # If the CR is contained in the geocoded SLC product
+        # get its position in the SLC image, otherwise, drop
+        # the CR from the pandas dataframe
         if cslc_poly.contains(cr_loc):
             # Convert corner lat/lon coordinates in UTM
-            cslc_epsg = get_cslc_epsg(cslc_file)
+            cslc_epsg = get_cslc_epsg(cslc_file, mission_id=mission_id)
 
             # Correct corner reflector position for solid Earth tides
             # otherwise just transform coordinates to UTM
             if correct_set:
-                x, y = correct_cr_tides(cslc_file, cr_lat, cr_lon)
+                x, y = correct_cr_tides(cslc_file, cr_lat, cr_lon,
+                                        mission_id=mission_id)
             else:
                 x, y = latlon2utm(cr_lat, cr_lon, cslc_epsg)
 
             cr_x.append(x)
             cr_y.append(y)
 
-            # Compute location of CR in CSLC image at pixel precision
-            x_coord_vect, dx, y_coord_vect, dy = get_xy_info(cslc_file)
+            # Compute CR location in the geocoded SLC at pixel-precision
+            x_coord_vect, dx, y_coord_vect, dy = get_xy_info(cslc_file,
+                                                             mission_id=mission_id,
+                                                             pol=pol)
             cr_x_cslc.append(int((x - x_coord_vect[0]) / dx))
             cr_y_cslc.append(int((y - y_coord_vect[0]) / dy))
         else:
-            # If the CR is not in the burst, drop the corresponding
-            # row from the panda dataframe
+            # The CR is not contained in the geocoded CSLC; drop it
+            # from the pandas dataframe
             cr_df.drop(idx, inplace=True)
 
     # Assign computed data
@@ -103,7 +126,9 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_ale=False,
     # Find peak location for every corner reflector in DataFrame
     for idx, row in cr_df.iterrows():
         x_peak, y_peak = find_peak(cslc_file, int(row['CR_X_CSLC']),
-                                   int(row['CR_Y_CSLC']))
+                                   int(row['CR_Y_CSLC']), pol=pol,
+                                   mission_id=mission_id, ovs_factor=ovs_factor,
+                                   margin=margin)
         x_peak_vect.append(x_peak)
         y_peak_vect.append(y_peak)
 
@@ -117,9 +142,10 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_ale=False,
     if csv_output_file is not None:
         cr_df.to_csv(csv_output_file)
     else:
+        print('Print to screen AGE results')
         print(cr_df)
 
-    if plot_ale:
+    if plot_age:
         fig, ax = plt.subplots(figsize=(8, 6))
         sc = ax.scatter(cr_df['ALE_X'], cr_df['ALE_Y'], s=200, alpha=0.8,
                         marker='o')
@@ -131,11 +157,12 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_ale=False,
         ax.axvline(0, color='black')
         ax.set_xlabel('Easting error (m)')
         ax.set_ylabel('Northing error (m)')
-        fig.suptitle('Absolute geolocation error')
+        fig.suptitle('Absolute geolocation error (AGE)')
         plt.show()
 
 
-def correct_cr_tides(cslc_file, cr_lat, cr_lon):
+def correct_cr_tides(cslc_file, cr_lat, cr_lon,
+                     mission_id='S1'):
     '''
     Correct Corner reflector position for Solid Earth tides
     Parameters
@@ -146,6 +173,8 @@ def correct_cr_tides(cslc_file, cr_lat, cr_lon):
         Corner reflector position along X-direction
     y_cr: float
         Corner reflector position along Y-direction
+    mission_id: str
+        Mission identifier. S1: Sentinel or NI: NISAR
 
     Returns
     -------
@@ -156,22 +185,32 @@ def correct_cr_tides(cslc_file, cr_lat, cr_lon):
         Corner reflector position along Y-direction corrected
         for Solid Earth tide
     '''
+    # Get geocode SLC sensing start and stop
+    if mission_id == 'S1':
+        start_path = '/science/SENTINEL1/CSLC/metadata/processing_information/s1_burst_metadata/sensing_start'
+        stop_path = '/science/SENTINEL1/CSLC/metadata/processing_information/s1_burst_metadata/sensing_stop'
+    elif mission_id == 'NI':
+        start_path = '/science/LSAR/GSLC/identification/zeroDopplerStartTime'
+        stop_path = '/science/LSAR/GSLC/identification/zeroDopplerEndTime'
+    else:
+        err_str = f'{mission_id} is not a valid mission identifier'
+        raise ValueError(err_str)
 
-    # Get burst sensing_start and sensing stop
     with h5py.File(cslc_file, 'r') as h5:
-        start = h5['/science/SENTINEL1/CSLC/metadata/processing_information/s1_burst_metadata/sensing_start'][()]
-        stop = h5['/science/SENTINEL1/CSLC/metadata/processing_information/s1_burst_metadata/sensing_stop'][()]
+        start = h5[start_path][()]
+        stop = h5[stop_path][()]
 
     sensing_start = dt.datetime.strptime(start.decode('UTF-8'),
                                          dateformat)
     sensing_stop = dt.datetime.strptime(stop.decode('UTF-8'),
                                         dateformat)
 
-    # Call pysolid to compute the Solid Earth tides
+    # Compute SET in ENU using pySolid
     (dt_out,
      tide_e,
      tide_n,
-     tide_u) = pysolid.calc_solid_earth_tides_point(cr_lat, cr_lon, sensing_start,
+     tide_u) = pysolid.calc_solid_earth_tides_point(cr_lat, cr_lon,
+                                                    sensing_start,
                                                     sensing_stop,
                                                     step_sec=5,
                                                     display=False,
@@ -180,13 +219,16 @@ def correct_cr_tides(cslc_file, cr_lat, cr_lon):
     tide_n = np.mean(tide_n[0:2])
 
     # Transform CR coordinates to UTM
-    cslc_epsg = get_cslc_epsg(cslc_file)
+    cslc_epsg = get_cslc_epsg(cslc_file,
+                              mission_id=mission_id)
     x, y = latlon2utm(cr_lat, cr_lon, cslc_epsg)
+    x_tide_cr = x + tide_e
+    y_tide_cr = y + tide_n
 
-    return x + tide_e , y + tide_n
+    return x_tide_cr, y_tide_cr
 
 
-def find_peak(cslc_file, x_loc, y_loc,
+def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
               ovs_factor=128, margin=32, pol='VV'):
     '''
     Find peak location in 'arr'
@@ -198,6 +240,8 @@ def find_peak(cslc_file, x_loc, y_loc,
         First guess of peak location along X-coordinates
     y_loc: np.int
         First guess of peak location along Y-coordinates
+    mission_id: str
+        Mission identifier. S1: Sentinel-1 or NI: NISAR
     ovs_factor: np.int
         Oversampling factor
     margin: int
@@ -211,8 +255,12 @@ def find_peak(cslc_file, x_loc, y_loc,
         Peak location along Y-coordinate
     '''
 
-    arr = get_cslc(cslc_file, pol=pol)
-    x_vect, x_spac, y_vect, y_spac = get_xy_info(cslc_file, pol=pol)
+    arr = get_cslc(cslc_file,
+                   mission_id=mission_id,
+                   pol=pol)
+    x_vect, x_spac, y_vect, y_spac = get_xy_info(cslc_file,
+                                                 mission_id=mission_id,
+                                                 pol=pol)
 
     # Check if the X/Y coordinate in the image are withing the input CSLC
     upperleft_x = int(np.round(x_loc)) - margin//2
@@ -234,16 +282,11 @@ def find_peak(cslc_file, x_loc, y_loc,
     idx_peak_ovs = np.argmax(np.abs(img_ovs))
     img_peak_ovs = np.unravel_index(idx_peak_ovs, img_ovs.shape)
 
-    imgxy_peak = (upperleft_x + img_peak_ovs[1]/ovs_factor,
-                  upperleft_y + img_peak_ovs[0]/ovs_factor)
     x_chip = x_vect[0] + x_spac * upperleft_x
     y_chip = y_vect[0] + y_spac * upperleft_y
 
     dx1 = x_spac / ovs_factor
     dy1 = y_spac / ovs_factor
-
-    x1 = x_chip + dx1/2
-    y1 = y_chip + dy1/2
 
     x_cr = x_chip + x_spac/2 + img_peak_ovs[1] * dx1
     y_cr = y_chip + y_spac/2 + img_peak_ovs[0] * dy1
@@ -251,7 +294,7 @@ def find_peak(cslc_file, x_loc, y_loc,
     return x_cr, y_cr
 
 
-def get_cslc(cslc_file, pol='VV'):
+def get_cslc(cslc_file, mission_id='S1', pol='VV'):
     '''
     Get CSLC-S1 array associated to 'pol'
 
@@ -259,6 +302,9 @@ def get_cslc(cslc_file, pol='VV'):
     ----------
     cslc_file: str
         File path to CSLC-S1 product
+    mission_id: str
+        Mission identifier. S1: Sentinel-1 or
+        NI: NISAR (default: S1)
     pol: str
         Polarization string of CSLC-S1 array
         to extract from product
@@ -266,23 +312,39 @@ def get_cslc(cslc_file, pol='VV'):
     Returns
     -------
     cslc: np.ndarray
-        CSLC-S1 image associated to polarization
-        channel 'pol'
+        Geocoded SLC image corresponding to 'pol'
+        polarization channel.
     '''
+
+    if mission_id == 'S1':
+        cslc_path = f'science/SENTINEL1/CSLC/grids/{pol}'
+    elif mission_id == 'NI':
+        cslc_path = f'/science/LSAR/GSLC/grids/frequencyA/{pol}'
+    else:
+        err_str = f'{mission_id} is not a valid mission identifier'
+        raise ValueError(err_str)
+
     with h5py.File(cslc_file, 'r') as h5:
-        cslc = h5[f'science/SENTINEL1/CSLC/grids/{pol}'][()]
+        cslc = h5[cslc_path][()]
+
     return cslc
 
 
-def get_xy_info(cslc_file, pol='VV'):
+def get_xy_info(cslc_file, mission_id='S1', pol='VV'):
     '''
-    Get X/Y-coordinate vector and spacings
-    from CSLC-S1 product in 'cslc_file'
+    Get X/Y spacings and coordinate vectors from the
+    geocoded SLC contained in 'cslc_file'
 
     Parameters
     ----------
     cslc_file: str
         File path to CSLC-S1 product
+    mission_id: str
+        Mission identifier. S1: Sentinel-1 or
+        NI: NISAR (default: S1)
+    pol: str
+        Polarization channel of the geocoded SLC
+        to analyze (default: VV)
 
     Returns
     -------
@@ -295,8 +357,16 @@ def get_xy_info(cslc_file, pol='VV'):
     y_spac: np.float
         CSLC-S1 spacing along Y-direction
     '''
-    # Open CSLC with NETCDF4 driver
-    ds_in = gdal.Open(f'NETCDF:{cslc_file}:science/SENTINEL1/CSLC/grids/{pol}')
+    if mission_id == 'S1':
+        cslc_path = '/science/SENTINEL1/CSLC/grids/'
+    elif mission_id == 'NI':
+        cslc_path = '/science/LSAR/GSLC/grids/'
+    else:
+        err_str = f'{mission_id} is not a valid mission identifier'
+        raise ValueError(err_str)
+
+    # Open geocoded SLC with a NetCDF driver
+    ds_in = gdal.Open(f'NETCDF:{cslc_file}:{cslc_path}{pol}')
     width = ds_in.RasterXSize
     length = ds_in.RasterYSize
 
@@ -339,44 +409,70 @@ def latlon2utm(lat, lon, out_epsg):
     return x, y
 
 
-def get_cslc_polygon(cslc_file):
+def get_cslc_polygon(cslc_file, mission_id='S1'):
     '''
-    Get the polygon containing the valid values of
-    the CSLC-S1 product in 'cslc_file'
+    Get bounding polygon identifying the valid portion
+    of the geocoded SLC product on the ground
 
     Parameters
     ----------
     cslc_file: str
         File path to the CSLC-S1 product
+    mission_id: str
+        Mission identifier; S1: Sentinel-1
+        NI: NISAR
 
     Returns
     -------
     cslc_poly: shapely.Polygon
         Shapely polygon including CSLC-S1 valid values
     '''
+    if mission_id == 'S1':
+        poly_path = 'science/SENTINEL1/identification/bounding_polygon'
+    elif mission_id == 'NI':
+        poly_path = 'science/LSAR/identification/boundingPolygon'
+    else:
+        err_str = f'{mission_id} is not a valid mission identifier'
+        raise ValueError(err_str)
+
     with h5py.File(cslc_file, 'r') as h5:
-        poly = h5['science/SENTINEL1/identification/bounding_polygon'][()]
+        poly = h5[poly_path][()]
+
     cslc_poly = wkt.loads(poly.decode('UTF-8'))
+
     return cslc_poly
 
 
-def get_cslc_epsg(cslc_file):
+def get_cslc_epsg(cslc_file, mission_id='S1'):
     '''
-    Returns projection code for CSLC-S1 product
-    in 'cslc_file'
+    Returns EPSG projection code for geocoded
+    SLC contained in 'cslc_file'
 
     Parameters
     ----------
     cslc_file: str
         Path to CSLC-S1 product
+    mission_id: str
+        Mission identifier. S1: Sentinel-1
+        NI: NISAR
 
     Returns
     -------
     epsg: int
-        EPSG code identifying the projection of CSLC-S1
+        EPSG code identifying the projection of the
+        geocoded SLC product
     '''
+    if mission_id == 'S1':
+        epsg_path = '/science/SENTINEL1/CSLC/grids/projection'
+    elif mission_id == 'NI':
+        epsg_path = '/science/LSAR/GSLC/frequencyA/projection'
+    else:
+        err_str = f'{mission_id} is not a valid mission identifier'
+        raise ValueError(err_str)
+
     with h5py.File(cslc_file, 'r') as h5:
-        epsg = h5['/science/SENTINEL1/CSLC/grids/projection'][()]
+        epsg = h5[epsg_path][()]
+
     return epsg
 
 
@@ -386,7 +482,8 @@ def create_parser():
     '''
 
     parser = argparse.ArgumentParser(
-        description="Compute absolute geolocation error (ALE) for CSLC-S1",
+        description="Compute absolute geolocation error (AGE) for geocoded SLC"
+                    "from Sentinel-1 or NISAR missions",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser._action_groups.pop()
@@ -394,16 +491,26 @@ def create_parser():
     optional = parser.add_argument_group('optional arguments')
 
     required.add_argument('-p', '--cslc-s1', required=True, dest='cslc_file',
-                          help='OPERA L2 CSLC-S1 product')
+                          help='File path to geocoded SLC product')
     required.add_argument('-c', '--cr-file', required=True, dest='cr_file',
-                          help='Corner reflector position CSV file '
-                               'same date as input CSLC-S1')
+                          help='File path to CSV corner reflector position file')
     optional.add_argument('-s', '--save-csv', dest='save_csv', default=None,
-                          help='Save ALE in CSV file (default: None)')
-    optional.add_argument('-i', '--plot-ale', dest='plot_ale', default=False,
-                          help='Plot ALE')
+                          help='File path to save AGE results in CSV format')
+    optional.add_argument('-i', '--plot-age', dest='plot_age', default=False,
+                          help='If True, plots AGE results ')
     optional.add_argument('-t', '--set', dest='set', default=False,
-                          help='If True, correct corner reflector positions for Solid Earth Tides')
+                          help='If True, corrects CSV corner reflector positions for Solid Earth Tides (default: False)')
+    optional.add_argument('-m', '--mission-id', dest='mission_id', default='S1',
+                          help='Mission identifier; S1: Sentinel1, NI: NISAR')
+    optional.add_argument('-pol', '--polarization', dest='pol', default='VV',
+                          help='Polarization channel to use to evaluate AGE ')
+    optional.add_argument('-o', '--ovs', dest='ovs_factor', default=128,
+                          help='Oversample factor for determining CR location in the '
+                               'geocoded SLC with sub-pixel accuracy')
+    optional.add_argument('-mm', '--margin', dest='margin', default=32,
+                          help='Padding margin around CR position detected in the geocoded SLC '
+                               'image. Actual margin is 2*margin from left-to-right and from'
+                               'top-to-bottom')
     return parser.parse_args()
 
 
@@ -416,8 +523,12 @@ def main():
     run(cslc_file=args.cslc_file,
         cr_file=args.cr_file,
         csv_output_file=args.save_csv,
-        plot_ale=args.plot_ale,
-        correct_set=args.set)
+        plot_age=args.plot_age,
+        correct_set=args.set,
+        mission_id=args.mission_id,
+        pol=args.pol,
+        ovs_factor=args.ovs_factor,
+        margin=args.margin)
 
 
 if __name__ == '__main__':

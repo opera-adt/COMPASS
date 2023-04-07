@@ -101,13 +101,11 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_ale=False,
     y_peak_vect = []
     
     # Find peak location for every corner reflector in DataFrame
-    cslc_arr = get_cslc(cslc_file)
     for idx, row in cr_df.iterrows():
-        x_peak, y_peak = find_peak(cslc_arr, int(row['CR_X_CSLC']),
+        x_peak, y_peak = find_peak(cslc_file, int(row['CR_X_CSLC']),
                                    int(row['CR_Y_CSLC']))
-        x_coord_vect, dx, y_coord_vect, dy = get_xy_info(cslc_file)
-        x_peak_vect.append(x_coord_vect[0] + x_peak * dx)
-        y_peak_vect.append(y_coord_vect[0] + y_peak * dy)
+        x_peak_vect.append(x_peak)
+        y_peak_vect.append(y_peak)
 
     cr_df['CR_X_CSLC_PEAK'] = x_peak_vect
     cr_df['CR_Y_CSLC_PEAK'] = y_peak_vect
@@ -118,10 +116,12 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_ale=False,
 
     if csv_output_file is not None:
         cr_df.to_csv(csv_output_file)
+    else:
+        print(cr_df)
 
     if plot_ale:
         fig, ax = plt.subplots(figsize=(8, 6))
-        sc = ax.scatter(cr_df['ALE_Y'], cr_df['ALE_X'], s=200, alpha=0.8,
+        sc = ax.scatter(cr_df['ALE_X'], cr_df['ALE_Y'], s=200, alpha=0.8,
                         marker='o')
 
         ax.grid(True)
@@ -162,8 +162,10 @@ def correct_cr_tides(cslc_file, cr_lat, cr_lon):
         start = h5['/science/SENTINEL1/CSLC/metadata/processing_information/s1_burst_metadata/sensing_start'][()]
         stop = h5['/science/SENTINEL1/CSLC/metadata/processing_information/s1_burst_metadata/sensing_stop'][()]
 
-    sensing_start = dt.datetime.strptime(str(start), dateformat)
-    sensing_stop = dt.datetime.strptime(str(stop), dateformat)
+    sensing_start = dt.datetime.strptime(start.decode('UTF-8'),
+                                         dateformat)
+    sensing_stop = dt.datetime.strptime(stop.decode('UTF-8'),
+                                        dateformat)
 
     # Call pysolid to compute the Solid Earth tides
     (dt_out,
@@ -184,13 +186,14 @@ def correct_cr_tides(cslc_file, cr_lat, cr_lon):
     return x + tide_e , y + tide_n
 
 
-def find_peak(arr, x_loc, y_loc, ovs_factor=64, margin=8):
+def find_peak(cslc_file, x_loc, y_loc,
+              ovs_factor=128, margin=32, pol='VV'):
     '''
     Find peak location in 'arr'
     Parameters
     ----------
-    arr: np.ndarray
-        Array to use for identifying peak location
+    cslc_file: str
+        File path to CSLC product
     x_loc: np.int
         First guess of peak location along X-coordinates
     y_loc: np.int
@@ -208,9 +211,22 @@ def find_peak(arr, x_loc, y_loc, ovs_factor=64, margin=8):
         Peak location along Y-coordinate
     '''
 
+    arr = get_cslc(cslc_file, pol=pol)
+    x_vect, x_spac, y_vect, y_spac = get_xy_info(cslc_file, pol=pol)
+
+    # Check if the X/Y coordinate in the image are withing the input CSLC
+    upperleft_x = int(np.round(x_loc)) - margin//2
+    upperleft_y = int(np.round(y_loc)) - margin//2
+    lowerright_x = upperleft_x + margin
+    lowerright_y = upperleft_y + margin
+
+    if (upperleft_x < 0) or (upperleft_y < 0) or \
+            (lowerright_x > arr.shape[1]) or (lowerright_y > arr.shape[0]):
+        err_msg = 'The corner reflector input coordinates are outside of the CSLC'
+        raise ValueError(err_msg)
+
     # Extract an area around x_loc, y_loc
-    img = arr[(y_loc - margin):(y_loc + margin),
-              (x_loc - margin):(x_loc + margin)]
+    img = arr[upperleft_y:lowerright_y, upperleft_x:lowerright_x]
 
     # Oversample CSLC subset and get amplitude
     img_ovs = isce3.cal.point_target_info.oversample(
@@ -218,11 +234,21 @@ def find_peak(arr, x_loc, y_loc, ovs_factor=64, margin=8):
     idx_peak_ovs = np.argmax(np.abs(img_ovs))
     img_peak_ovs = np.unravel_index(idx_peak_ovs, img_ovs.shape)
 
-    # Get location of the peak wrt the upper left corner of image subset
-    x_peak = x_loc - margin + img_peak_ovs[1] / ovs_factor
-    y_peak = y_loc - margin + img_peak_ovs[0] / ovs_factor
+    imgxy_peak = (upperleft_x + img_peak_ovs[1]/ovs_factor,
+                  upperleft_y + img_peak_ovs[0]/ovs_factor)
+    x_chip = x_vect[0] + x_spac * upperleft_x
+    y_chip = y_vect[0] + y_spac * upperleft_y
 
-    return x_peak, y_peak
+    dx1 = x_spac / ovs_factor
+    dy1 = y_spac / ovs_factor
+
+    x1 = x_chip + dx1/2
+    y1 = y_chip + dy1/2
+
+    x_cr = x_chip + x_spac/2 + img_peak_ovs[1] * dx1
+    y_cr = y_chip + y_spac/2 + img_peak_ovs[0] * dy1
+
+    return x_cr, y_cr
 
 
 def get_cslc(cslc_file, pol='VV'):
@@ -280,7 +306,7 @@ def get_xy_info(cslc_file, pol='VV'):
 
     # Generate x_vect and y_vect
     x_vect = geo_trans[0] + np.arange(0, width)*x_spac
-    y_vect = geo_trans[1] + np.arange(0, length)*y_spac
+    y_vect = geo_trans[3] + np.arange(0, length)*y_spac
 
     return x_vect, x_spac, y_vect, y_spac
 
@@ -330,7 +356,7 @@ def get_cslc_polygon(cslc_file):
     '''
     with h5py.File(cslc_file, 'r') as h5:
         poly = h5['science/SENTINEL1/identification/bounding_polygon'][()]
-    cslc_poly = wkt.loads(poly)
+    cslc_poly = wkt.loads(poly.decode('UTF-8'))
     return cslc_poly
 
 
@@ -376,7 +402,7 @@ def create_parser():
                           help='Save ALE in CSV file (default: None)')
     optional.add_argument('-i', '--plot-ale', dest='plot_ale', default=False,
                           help='Plot ALE')
-    optional.add_argument('-t', '--set', dest=set, default=False,
+    optional.add_argument('-t', '--set', dest='set', default=False,
                           help='If True, correct corner reflector positions for Solid Earth Tides')
     return parser.parse_args()
 

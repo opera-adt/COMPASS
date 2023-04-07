@@ -15,6 +15,7 @@ from shapely import geometry
 
 dateformat = '%Y-%m-%d %H:%M:%S.%f'
 
+
 def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
         correct_set=False, mission_id='S1', pol='VV', ovs_factor=128,
         margin=32):
@@ -122,7 +123,7 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
 
     x_peak_vect = []
     y_peak_vect = []
-    
+
     # Find peak location for every corner reflector in DataFrame
     for idx, row in cr_df.iterrows():
         x_peak, y_peak = find_peak(cslc_file, int(row['CR_X_CSLC']),
@@ -263,8 +264,8 @@ def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
                                                  pol=pol)
 
     # Check if the X/Y coordinate in the image are withing the input CSLC
-    upperleft_x = int(np.round(x_loc)) - margin//2
-    upperleft_y = int(np.round(y_loc)) - margin//2
+    upperleft_x = int(np.round(x_loc)) - margin // 2
+    upperleft_y = int(np.round(y_loc)) - margin // 2
     lowerright_x = upperleft_x + margin
     lowerright_y = upperleft_y + margin
 
@@ -288,8 +289,8 @@ def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
     dx1 = x_spac / ovs_factor
     dy1 = y_spac / ovs_factor
 
-    x_cr = x_chip + x_spac/2 + img_peak_ovs[1] * dx1
-    y_cr = y_chip + y_spac/2 + img_peak_ovs[0] * dy1
+    x_cr = x_chip + x_spac / 2 + img_peak_ovs[1] * dx1
+    y_cr = y_chip + y_spac / 2 + img_peak_ovs[0] * dy1
 
     return x_cr, y_cr
 
@@ -375,8 +376,8 @@ def get_xy_info(cslc_file, mission_id='S1', pol='VV'):
     y_spac = geo_trans[5]
 
     # Generate x_vect and y_vect
-    x_vect = geo_trans[0] + np.arange(0, width)*x_spac
-    y_vect = geo_trans[3] + np.arange(0, length)*y_spac
+    x_vect = geo_trans[0] + np.arange(0, width) * x_spac
+    y_vect = geo_trans[3] + np.arange(0, length) * y_spac
 
     return x_vect, x_spac, y_vect, y_spac
 

@@ -137,9 +137,11 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
 
     grid_meta_items = [
         Meta('x_spacing', geo_grid.spacing_x,
-             'Spacing of geo grid in x-axis.'),
+             'Spacing of the geographical grid along X-direction',
+             {'units': 'meters'}),
         Meta('y_spacing', geo_grid.spacing_y,
-             'Spacing of geo grid in y-axis.')
+             'Spacing of the geographical grid along Y-direction',
+             {'units': 'meters'})
     ]
     for meta_item in grid_meta_items:
         add_dataset_and_attrs(grid_group, meta_item)

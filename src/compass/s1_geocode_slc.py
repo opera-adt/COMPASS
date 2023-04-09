@@ -48,7 +48,7 @@ def run(cfg: GeoRunConfig):
     info_channel.log(f"Starting {module_name} burst")
 
     # Start tracking processing time
-    t_start = time.time()
+    t_start = time.perf_counter()
 
     # Common initializations
     image_grid_doppler = isce3.core.LUT2d()
@@ -81,6 +81,7 @@ def run(cfg: GeoRunConfig):
 
 
         # If enabled, get range and azimuth LUTs
+        t_corrections = time.perf_counter()
         if cfg.lut_params.enabled:
             rg_lut, az_lut = \
                 cumulative_correction_luts(burst, dem_path=cfg.dem,
@@ -93,6 +94,7 @@ def run(cfg: GeoRunConfig):
         else:
             rg_lut = isce3.core.LUT2d()
             az_lut = isce3.core.LUT2d()
+        dt_corrections = str(timedelta(seconds=time.perf_counter() - t_corrections)).split(".")[0]
 
         radar_grid = burst.as_isce3_radargrid()
         native_doppler = burst.doppler.lut2d
@@ -136,6 +138,7 @@ def run(cfg: GeoRunConfig):
             # where polarizations for radar and geo data are put into the same
             # place on their respective lists to allow data to be correctly
             # written correct place in the HDF5
+            t_prep = time.perf_counter()
             rdr_datasets = []
             geo_datasets = []
             for burst in bursts:
@@ -167,8 +170,10 @@ def run(cfg: GeoRunConfig):
                                                f'{pol} geocoded CSLC image',
                                                np.nan + np.nan * 1j)
                 geo_datasets.append(geo_ds)
+            dt_prep = str(timedelta(seconds=time.perf_counter() - t_prep)).split(".")[0]
 
             # iterate over geogrid blocks that have radar data
+            t_geocoding = time.perf_counter()
             for (rdr_blk_slice, geo_blk_slice, geo_blk_shape, blk_geo_grid) \
                 in block_generator(geo_grid, radar_grid, orbit, dem_raster,
                                    lines_per_block, cols_per_block,
@@ -210,9 +215,11 @@ def run(cfg: GeoRunConfig):
                                              dest_sel=geo_blk_slice)
 
             del dem_raster # modified in geocodeSlc
+            dt_geocoding = str(timedelta(seconds=time.perf_counter() - t_geocoding)).split(".")[0]
 
         # Save burst corrections and metadata with new h5py File instance
         # because io.Raster things
+        t_qa_meta = time.perf_counter()
         with h5py.File(output_hdf5, 'a') as geo_burst_h5:
             root_group = geo_burst_h5[root_path]
             identity_to_h5group(root_group, burst, cfg)
@@ -261,8 +268,13 @@ def run(cfg: GeoRunConfig):
                 s1_geocode_metadata.geocode_noise_luts(geo_burst_h5,
                                                        burst,
                                                        cfg)
+        dt_qa_meta = str(timedelta(seconds=time.perf_counter() - t_qa_meta)).split(".")[0]
 
-    dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
+    dt = str(timedelta(seconds=time.perf_counter() - t_start)).split(".")[0]
+    info_channel.log(f"{module_name} corrections computation time {dt_corrections} (hr:min:sec)")
+    info_channel.log(f"{module_name} geocode prep time {dt_prep} (hr:min:sec)")
+    info_channel.log(f"{module_name} geocoding time {dt_geocoding} (hr:min:sec)")
+    info_channel.log(f"{module_name} QA meta processing time {dt_qa_meta} (hr:min:sec)")
     info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
 
 

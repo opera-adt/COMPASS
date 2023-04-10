@@ -90,13 +90,14 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
         # the CR from the pandas dataframe
         if cslc_poly.contains(cr_loc):
             # Convert corner lat/lon coordinates in UTM
-            cslc_epsg = get_cslc_epsg(cslc_file, mission_id=mission_id)
+            cslc_epsg = get_cslc_epsg(cslc_file, mission_id=mission_id,
+                                      pol=pol)
 
             # Correct corner reflector position for solid Earth tides
             # otherwise just transform coordinates to UTM
             if correct_set:
                 x, y = correct_cr_tides(cslc_file, cr_lat, cr_lon,
-                                        mission_id=mission_id)
+                                        mission_id=mission_id, pol=pol)
             else:
                 x, y = latlon2utm(cr_lat, cr_lon, cslc_epsg)
 
@@ -162,7 +163,7 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
 
 
 def correct_cr_tides(cslc_file, cr_lat, cr_lon,
-                     mission_id='S1'):
+                     mission_id='S1', pol=pol):
     '''
     Correct Corner reflector position for Solid Earth tides
     Parameters
@@ -221,7 +222,8 @@ def correct_cr_tides(cslc_file, cr_lat, cr_lon,
 
     # Transform CR coordinates to UTM
     cslc_epsg = get_cslc_epsg(cslc_file,
-                              mission_id=mission_id)
+                              mission_id=mission_id,
+                              pol=pol)
     x, y = latlon2utm(cr_lat, cr_lon, cslc_epsg)
     x_tide_cr = x + tide_e
     y_tide_cr = y + tide_n
@@ -320,7 +322,11 @@ def get_cslc(cslc_file, mission_id='S1', pol='VV'):
     if mission_id == 'S1':
         cslc_path = f'science/SENTINEL1/CSLC/grids/{pol}'
     elif mission_id == 'NI':
-        cslc_path = f'/science/LSAR/GSLC/grids/frequencyA/{pol}'
+        with h5py.File(cslc_file, 'r') as h5:
+             frequencies = h5["/science/LSAR/identification/listOfFrequencies"][()]
+             freq = frequencies[0].decode('utf-8')
+             frequency = f'frequency{freq}'
+        cslc_path = f'/science/LSAR/GSLC/grids/{frequency}/{pol}'
     else:
         err_str = f'{mission_id} is not a valid mission identifier'
         raise ValueError(err_str)
@@ -361,7 +367,7 @@ def get_xy_info(cslc_file, mission_id='S1', pol='VV'):
     if mission_id == 'S1':
         cslc_path = '/science/SENTINEL1/CSLC/grids/'
     elif mission_id == 'NI':
-        cslc_path = '/science/LSAR/GSLC/grids/'
+        cslc_path = '/science/LSAR/GSLC/grids/frequencyA'
     else:
         err_str = f'{mission_id} is not a valid mission identifier'
         raise ValueError(err_str)
@@ -444,7 +450,7 @@ def get_cslc_polygon(cslc_file, mission_id='S1'):
     return cslc_poly
 
 
-def get_cslc_epsg(cslc_file, mission_id='S1'):
+def get_cslc_epsg(cslc_file, mission_id='S1', pol='VV'):
     '''
     Returns EPSG projection code for geocoded
     SLC contained in 'cslc_file'
@@ -456,6 +462,8 @@ def get_cslc_epsg(cslc_file, mission_id='S1'):
     mission_id: str
         Mission identifier. S1: Sentinel-1
         NI: NISAR
+    pol: str
+        Polarization channel
 
     Returns
     -------
@@ -465,14 +473,21 @@ def get_cslc_epsg(cslc_file, mission_id='S1'):
     '''
     if mission_id == 'S1':
         epsg_path = '/science/SENTINEL1/CSLC/grids/projection'
+        with h5py.File(cslc_file, 'r') as h5:
+            epsg = h5[epsg_path][()]
     elif mission_id == 'NI':
-        epsg_path = '/science/LSAR/GSLC/frequencyA/projection'
+        with h5py.File(cslc_file, 'r') as h5:
+            frequencies = h5["/science/LSAR/identification/listOfFrequencies"]
+            freq = frequencies[0].decode('utf-8')
+            frequency = f'frequency{freq}'
+        dataset_path = f'NETCDF:{cslc_file}://science/LSAR/GSLC/grids/{frequency}/{pol}'
+        ds = gdal.Open(dataset_path, gdal.GA_ReadOnly)
+        s = osr.SpatialReference(wkt=ds.GetProjection()).ExportToProj4()
+        crs = CRS.from_proj4(s)
+        epsg = crs.to_epsg()
     else:
         err_str = f'{mission_id} is not a valid mission identifier'
         raise ValueError(err_str)
-
-    with h5py.File(cslc_file, 'r') as h5:
-        epsg = h5[epsg_path][()]
 
     return epsg
 

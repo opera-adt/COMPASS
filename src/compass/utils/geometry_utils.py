@@ -349,9 +349,10 @@ def enu2rgaz(radargrid_ref, orbit, ellipsoid,
                             hgt])
 
         xyz_before = ellipsoid.lon_lat_to_xyz(llh_ref)
-        xyz_after_set = (xyz_before + vec_e * e_arr[index_arr]
-                              + vec_n * n_arr[index_arr]
-                              + vec_u * u_arr[index_arr])
+        xyz_after_set = (xyz_before
+                         + vec_e * e_arr[index_arr]
+                         + vec_n * n_arr[index_arr]
+                         + vec_u * u_arr[index_arr])
         llh_displaced = ellipsoid.xyz_to_lon_lat(xyz_after_set)
 
         aztime_ref, slant_range_ref =\
@@ -380,7 +381,7 @@ def enu2rgaz(radargrid_ref, orbit, ellipsoid,
     return rg_arr, az_arr
 
 
-def get_enu_vector_ecef(lon, lat, units='degree'):
+def get_enu_vector_ecef(lon, lat, units='degrees'):
     '''
     Calculate the east, north, and up vectors in ECEF for lon / lat provided
 
@@ -392,10 +393,10 @@ def get_enu_vector_ecef(lon, lat, units='degree'):
         Latitude of the points to calculate ENU vectors
     units: str
         Units of the `lon` and `lat`.
-        Acceptable unit is `radian` or `degree` (Default)
+        Acceptable units are `radians` or `degrees`, (Default: degrees)
 
-    Return
-    ------
+    Returns
+    -------
     vec_e: np.ndarray
         unit vector of "east" direction in ECEF
     vec_n: np.ndarray
@@ -403,15 +404,15 @@ def get_enu_vector_ecef(lon, lat, units='degree'):
     vec_u: np.ndarray
         unit vector of "up" direction in ECEF
     '''
-    if units=='degree':
+    if units == 'degrees':
         lon_rad = np.deg2rad(lon)
         lat_rad = np.deg2rad(lat)
-    elif units=='radian':
+    elif units == 'radians':
         lon_rad = lon
         lat_rad = lat
     else:
-        raise ValueError(f'"{units}" was provided for "unit", '
-                         'which needs to be either "degree" or "radian"')
+        raise ValueError(f'"{units}" was provided for `units`, '
+                         'which needs to be either `degrees` or `radians`')
 
     vec_u = np.array([np.cos(lon_rad) * np.cos(lat_rad),
                       np.sin(lon_rad) * np.cos(lat_rad),

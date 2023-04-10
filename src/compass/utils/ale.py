@@ -7,9 +7,8 @@ import datetime as dt
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import pysolid
 import shapely.wkt as wkt
-from osgeo import gdal
+from osgeo import gdal, osr
 from pyproj import CRS, Proj
 from shapely import geometry
 
@@ -186,6 +185,7 @@ def correct_cr_tides(cslc_file, cr_lat, cr_lon,
         Corner reflector position along Y-direction corrected
         for Solid Earth tide
     '''
+    import pysolid
     # Get geocode SLC sensing start and stop
     if mission_id == 'S1':
         start_path = '/science/SENTINEL1/CSLC/metadata/processing_information/s1_burst_metadata/sensing_start'

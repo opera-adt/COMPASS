@@ -163,7 +163,7 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
 
 
 def correct_cr_tides(cslc_file, cr_lat, cr_lon,
-                     mission_id='S1', pol=pol):
+                     mission_id='S1', pol='VV'):
     '''
     Correct Corner reflector position for Solid Earth tides
     Parameters
@@ -367,15 +367,13 @@ def get_xy_info(cslc_file, mission_id='S1', pol='VV'):
     if mission_id == 'S1':
         cslc_path = '/science/SENTINEL1/CSLC/grids/'
     elif mission_id == 'NI':
-        cslc_path = '/science/LSAR/GSLC/grids/frequencyA'
+        cslc_path = '/science/LSAR/GSLC/grids/frequencyA/'
     else:
         err_str = f'{mission_id} is not a valid mission identifier'
         raise ValueError(err_str)
 
     # Open geocoded SLC with a NetCDF driver
     ds_in = gdal.Open(f'NETCDF:{cslc_file}:{cslc_path}{pol}')
-    width = ds_in.RasterXSize
-    length = ds_in.RasterYSize
 
     geo_trans = ds_in.GetGeoTransform()
     x_spac = geo_trans[1]

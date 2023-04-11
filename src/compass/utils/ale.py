@@ -148,8 +148,8 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
 
     if plot_age:
         fig, ax = plt.subplots(figsize=(8, 6))
-        sc = ax.scatter(cr_df['ALE_X'], cr_df['ALE_Y'], s=200, alpha=0.8,
-                        marker='o')
+        ax.scatter(cr_df['ALE_X'], cr_df['ALE_Y'], s=200, alpha=0.8,
+                   marker='o')
 
         ax.grid(True)
         ax.set_xlim(-10, 10)
@@ -208,10 +208,10 @@ def correct_cr_tides(cslc_file, cr_lat, cr_lon,
                                         dateformat)
 
     # Compute SET in ENU using pySolid
-    (dt_out,
+    (_,
      tide_e,
      tide_n,
-     tide_u) = pysolid.calc_solid_earth_tides_point(cr_lat, cr_lon,
+     _) = pysolid.calc_solid_earth_tides_point(cr_lat, cr_lon,
                                                     sensing_start,
                                                     sensing_stop,
                                                     step_sec=5,

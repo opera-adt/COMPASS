@@ -105,11 +105,11 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
             cr_y.append(y)
 
             # Compute CR location in the geocoded SLC at pixel-precision
-            x_coord_vect, dx, y_coord_vect, dy = get_xy_info(cslc_file,
-                                                             mission_id=mission_id,
-                                                             pol=pol)
-            cr_x_cslc.append(int((x - x_coord_vect[0]) / dx))
-            cr_y_cslc.append(int((y - y_coord_vect[0]) / dy))
+            x_start, dx, y_start, dy = get_xy_info(cslc_file,
+                                                   mission_id=mission_id,
+                                                   pol=pol)
+            cr_x_cslc.append(int((x - x_start) / dx))
+            cr_y_cslc.append(int((y - y_start) / dy))
         else:
             # The CR is not contained in the geocoded CSLC; drop it
             # from the pandas dataframe
@@ -261,9 +261,9 @@ def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
     arr = get_cslc(cslc_file,
                    mission_id=mission_id,
                    pol=pol)
-    x_vect, x_spac, y_vect, y_spac = get_xy_info(cslc_file,
-                                                 mission_id=mission_id,
-                                                 pol=pol)
+    x_start, x_spac, y_start, y_spac = get_xy_info(cslc_file,
+                                                   mission_id=mission_id,
+                                                   pol=pol)
 
     # Check if the X/Y coordinate in the image are withing the input CSLC
     upperleft_x = int(np.round(x_loc)) - margin // 2
@@ -285,8 +285,8 @@ def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
     idx_peak_ovs = np.argmax(np.abs(img_ovs))
     img_peak_ovs = np.unravel_index(idx_peak_ovs, img_ovs.shape)
 
-    x_chip = x_vect[0] + x_spac * upperleft_x
-    y_chip = y_vect[0] + y_spac * upperleft_y
+    x_chip = x_start + x_spac * upperleft_x
+    y_chip = y_start + y_spac * upperleft_y
 
     dx1 = x_spac / ovs_factor
     dy1 = y_spac / ovs_factor
@@ -355,10 +355,10 @@ def get_xy_info(cslc_file, mission_id='S1', pol='VV'):
 
     Returns
     -------
-    x_vect: np.ndarray
-        Array of X-coordinates associated to CSLC-S1
-    y_vect: np.ndarray
-        Array of Y-coordinates associated to CSLC-S1
+    x_start: np.float
+        X-coordinate of the upper-left corner of the upper-left pixel
+    y_start: np.float
+        Y-coordinate of the upper-left corner of the upper-left pixel
     x_spac: np.float
         CSLC-S1 spacing along X-direction
     y_spac: np.float
@@ -382,10 +382,10 @@ def get_xy_info(cslc_file, mission_id='S1', pol='VV'):
     y_spac = geo_trans[5]
 
     # Generate x_vect and y_vect
-    x_vect = geo_trans[0] + np.arange(0, width) * x_spac
-    y_vect = geo_trans[3] + np.arange(0, length) * y_spac
+    x_start = geo_trans[0]
+    y_start = geo_trans[3]
 
-    return x_vect, x_spac, y_vect, y_spac
+    return x_start, x_spac, y_start, y_spac
 
 
 def latlon2utm(lat, lon, out_epsg):

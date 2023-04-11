@@ -151,8 +151,6 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-.DS_Store
-
 # unit test files/directories
 tests/data/geo_cslc_s1.yaml
 tests/data/2022-10-16_0000_Rosamond-corner-reflectors.csv

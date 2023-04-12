@@ -237,6 +237,8 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
                 f"IH5:::ID={dst_dataset.id.id}".encode("utf-8"), update=True)
 
         # Define the radargrid for LUT interpolation
+        # The resultant radargrid will have
+        # the very first and the last LUT values be included.
         radargrid_interp = radar_grid.copy()
 
         radargrid_interp.width = int(np.ceil(burst.width / dec_factor))

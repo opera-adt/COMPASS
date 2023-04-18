@@ -85,10 +85,13 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
         cr_lon = row['Longitude (deg)']
         cr_loc = geometry.Point(cr_lon, cr_lat)
 
+        # Add buffer of approx. 30 m to CR location
+        buff_cr_loc = cr_loc.buffer(0.0003)
+
         # If the CR is contained in the geocoded SLC product
         # get its position in the SLC image, otherwise, drop
         # the CR from the pandas dataframe
-        if cslc_poly.contains(cr_loc):
+        if cslc_poly.contains(buff_cr_loc):
             # Convert corner lat/lon coordinates in UTM
             cslc_epsg = get_cslc_epsg(cslc_file, mission_id=mission_id,
                                       pol=pol)

@@ -121,7 +121,7 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
 def compute_geocoding_correction_luts(burst, dem_path, tec_path,
                                       scratch_path=None,
                                       weather_model_path=None,
-                                      rg_step=200, az_step=0.25,):
+                                      rg_step=200, az_step=0.25):
     '''
     Compute slant range and azimuth LUTs corrections
     to be applied during burst geocoding
@@ -396,7 +396,7 @@ def compute_rdr2geo_rasters(burst, dem_raster, output_path,
     # Initialize the rdr2geo object
     rdr2geo_obj = isce3.geometry.Rdr2Geo(rdr_grid, burst.orbit,
                                          ellipsoid, grid_doppler,
-                                         threshold=1.0e8)
+                                         threshold=1.0e-8)
 
     # Get the rdr2geo raster needed for SET computation
     topo_output = {f'{output_path}/x.rdr': gdal.GDT_Float64,

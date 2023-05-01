@@ -7,6 +7,7 @@ import time
 
 import h5py
 import isce3
+# import raster mode geocode_slc. isce3.geocode.geocode_slc is array mode
 from isce3.ext.isce3.geocode import geocode_slc
 import journal
 import numpy as np

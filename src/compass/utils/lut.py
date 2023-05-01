@@ -13,9 +13,6 @@ from compass.utils.geometry_utils import enu2los, en2az
 from compass.utils.iono import ionosphere_delay
 from compass.utils.helpers import open_raster
 from compass.utils.helpers import write_raster
-from RAiDER.delay import tropo_delay
-from RAiDER.llreader import RasterRDR
-from RAiDER.losreader import Zenith
 
 
 def cumulative_correction_luts(burst, dem_path, tec_path,
@@ -248,6 +245,9 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
         los_static_tropo = compute_static_troposphere_delay(inc_angle, height)
 
     else:
+        from RAiDER.delay import tropo_delay
+        from RAiDER.llreader import RasterRDR
+        from RAiDER.losreader import Zenith
         # Instantiate an "aoi" object to read lat/lon/height files
         aoi = RasterRDR(rdr2geo_raster_paths[1], rdr2geo_raster_paths[0],
                         rdr2geo_raster_paths[2])

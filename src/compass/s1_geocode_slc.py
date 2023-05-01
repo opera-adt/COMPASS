@@ -196,14 +196,19 @@ def run(cfg: GeoRunConfig):
                                                   dtype=np.complex64))
 
                 # Geocode
+                #import ipdb; ipdb.set_trace()
                 isce3.geocode.geocode_slc(geo_data_blks, rdr_data_blks,
                                           dem_raster, radar_grid,
-                                          sliced_radar_grid, blk_geo_grid,
+                                          blk_geo_grid,
                                           orbit, native_doppler,
                                           image_grid_doppler, ellipsoid,
-                                          threshold, iters, start_col,
-                                          start_line, flatten,
+                                          threshold, iters,
+                                          sliced_radar_grid,
+                                          start_col,
+                                          start_line,
+                                          flatten,
                                           az_carrier=az_carrier_poly2d,
+                                          rg_carrier=isce3.core.Poly2d(np.array([0])),
                                           az_time_correction=az_lut,
                                           srange_correction=rg_lut)
 

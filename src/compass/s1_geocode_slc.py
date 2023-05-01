@@ -9,6 +9,7 @@ import h5py
 import isce3
 import journal
 import numpy as np
+from osgeo import gdal
 from s1reader.s1_reader import is_eap_correction_necessary
 
 from compass import s1_rdr2geo
@@ -26,11 +27,9 @@ from compass.utils.lut import cumulative_correction_luts
 from compass.utils.yaml_argparse import YamlArgparse
 
 
-def _create_raster(raster_path, shape):
-    drvout = gdal.GetDriverByName('ENVI')
-    raster_out = drvout.Create(path_slc_corrected, shape[1], shape[0], 1,
-                               dtype)
-    return raster_out
+def _create_optional_raster(raster_path, shape):
+    return isce3.io.Raster(raster_path, shape[1], shape[0], 1,
+                           gdal.GDT_Float64, 'ENVI')
 
 
 def run(cfg: GeoRunConfig):
@@ -163,11 +162,11 @@ def run(cfg: GeoRunConfig):
                 # prepare
                 geo_shape = (geo_grid.length, geo_grid.width)
                 carrier_raster = \
-                    _create_raster(f'{out_paths.output_directory}/geocoded_carrier.bin',
-                                   geo_shape)
+                    _create_optional_raster(f'{out_paths.output_directory}/geocoded_carrier.bin',
+                                            geo_shape)
                 rg_offset_raster = \
-                    _create_raster(f'{out_paths.output_directory}/geocoded_range.bin',
-                                   geo_shape)
+                    _create_optional_raster(f'{out_paths.output_directory}/geocoded_range.bin',
+                                            geo_shape)
 
                 # Geocode
                 isce3.geocode.geocode_slc(geo_burst_raster, rdr_burst_raster,
@@ -180,7 +179,8 @@ def run(cfg: GeoRunConfig):
                                           azimuth_carrier=az_carrier_poly2d,
                                           az_time_correction=az_lut,
                                           srange_correction=rg_lut,
-                                          carrier_raster, rg_offset_raster)
+                                          carrier_phase_raster=carrier_raster,
+                                          range_offset_raster=rg_offset_raster)
 
             # Set geo transformation
             geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,

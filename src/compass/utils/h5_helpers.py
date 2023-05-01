@@ -293,7 +293,8 @@ def save_orbit(orbit, orbit_direction, orbit_group):
     orbit_group: h5py.Group
         HDF5 group where orbit parameters will be written
     '''
-    ref_epoch = orbit.reference_epoch.isoformat().replace('T', ' ')
+    # isce isoformat gives 9 decimal places, but python `fromisoformat` wants 6
+    ref_epoch = orbit.reference_epoch.isoformat().replace('T', ' ')[:-3]
     orbit_items = [
         Meta('reference_epoch', ref_epoch, 'Reference epoch of the state vectors',
              {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),

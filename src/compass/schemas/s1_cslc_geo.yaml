@@ -36,6 +36,8 @@ runconfig:
            sas_output_file: str()
            # Product version
            product_version: num(required=False)
+           # Product specification document version
+           product_specification_version: num(required=False)
 
         primary_executable:
           product_type: enum('CSLC_S1')

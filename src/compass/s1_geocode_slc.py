@@ -7,6 +7,7 @@ import time
 
 import h5py
 import isce3
+from isce3.ext.isce3.geocode import geocode_slc
 import journal
 import numpy as np
 from s1reader.s1_reader import is_eap_correction_necessary
@@ -154,16 +155,13 @@ def run(cfg: GeoRunConfig):
                                                    update=True)
 
                 # Geocode
-                isce3.geocode.geocode_slc(geo_burst_raster, rdr_burst_raster,
-                                          dem_raster,
-                                          radar_grid, sliced_radar_grid,
-                                          geo_grid, orbit,
-                                          native_doppler,
-                                          image_grid_doppler, ellipsoid, threshold,
-                                          iters, blocksize, flatten,
-                                          azimuth_carrier=az_carrier_poly2d,
-                                          az_time_correction=az_lut,
-                                          srange_correction=rg_lut)
+                geocode_slc(geo_burst_raster, rdr_burst_raster, dem_raster,
+                            radar_grid, sliced_radar_grid, geo_grid, orbit,
+                            native_doppler, image_grid_doppler, ellipsoid,
+                            threshold, iters, blocksize, flatten,
+                            azimuth_carrier=az_carrier_poly2d,
+                            az_time_correction=az_lut,
+                            srange_correction=rg_lut)
 
             # Set geo transformation
             geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,

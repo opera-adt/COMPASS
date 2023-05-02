@@ -7,7 +7,6 @@ import time
 
 import h5py
 import isce3
-from isce3.core.rdr_geo_block_generator import block_generator
 import journal
 import numpy as np
 from osgeo import gdal
@@ -160,11 +159,11 @@ def run(cfg: GeoRunConfig):
                     # Replace the input burst if the correction is applied
                     temp_slc_path = temp_slc_path_corrected
 
-                # prepare input dataset of current polarization as GDAL raster
+                # Prepare input dataset of current polarization as GDAL raster
                 rdr_dataset = gdal.Open(temp_slc_path, gdal.GA_ReadOnly)
                 rdr_datasets.append(rdr_dataset)
 
-                # prepare output dataset of current polarization in HDF5
+                # Prepare output dataset of current polarization in HDF5
                 geo_ds = init_geocoded_dataset(grid_group, pol, geo_grid,
                                                'complex64',
                                                f'{pol} geocoded CSLC image',
@@ -174,50 +173,35 @@ def run(cfg: GeoRunConfig):
 
             # iterate over geogrid blocks that have radar data
             t_geocoding = time.perf_counter()
-            for (rdr_blk_slice, geo_blk_slice, geo_blk_shape, blk_geo_grid) \
-                in block_generator(geo_grid, radar_grid, orbit, dem_raster,
-                                   lines_per_block, cols_per_block,
-                                   geogrid_expansion_threshold):
 
-                # extract start and size from slice
-                start_col, width = _slice_to_start_and_size(rdr_blk_slice[0])
-                start_line, length = _slice_to_start_and_size(rdr_blk_slice[1])
+            # Build list of arrays to be passed to geocode_slc
+            rdr_data_blks = []
+            geo_data_blks = []
+            for rdr_dataset in rdr_datasets:
+                rdr_data_blks.append(rdr_dataset.ReadAsArray())
 
-                # Build list of arrays to be passed to geocode_slc
-                rdr_data_blks = []
-                geo_data_blks = []
-                for rdr_dataset in rdr_datasets:
-                    rdr_data_blks.append(
-                        rdr_dataset.ReadAsArray(start_line, start_col,
-                                                length, width))
+                # Init output blocks/arrays lists to NaN
+                geo_data_blks.append(np.zeros((geo_grid.length,
+                                               geo_grid.width),
+                                              dtype=np.complex64))
 
-                    # Init output blocks/arrays lists to NaN
-                    geo_data_blks.append(np.zeros(geo_blk_shape,
-                                                  dtype=np.complex64))
+            # Geocode
+            isce3.geocode.geocode_slc(geo_data_blks, rdr_data_blks,
+                                      dem_raster, radar_grid,
+                                      geo_grid, orbit, native_doppler,
+                                      image_grid_doppler, ellipsoid,
+                                      threshold, iters, sliced_radar_grid,
+                                      0, 0, flatten,
+                                      az_carrier=az_carrier_poly2d,
+                                      rg_carrier=isce3.core.Poly2d(np.array([0])),
+                                      az_time_correction=az_lut,
+                                      srange_correction=rg_lut)
 
-                # Geocode
-                #import ipdb; ipdb.set_trace()
-                isce3.geocode.geocode_slc(geo_data_blks, rdr_data_blks,
-                                          dem_raster, radar_grid,
-                                          blk_geo_grid,
-                                          orbit, native_doppler,
-                                          image_grid_doppler, ellipsoid,
-                                          threshold, iters,
-                                          sliced_radar_grid,
-                                          start_col,
-                                          start_line,
-                                          flatten,
-                                          az_carrier=az_carrier_poly2d,
-                                          rg_carrier=isce3.core.Poly2d(np.array([0])),
-                                          az_time_correction=az_lut,
-                                          srange_correction=rg_lut)
-
-                # write geocoded blocks to respective HDF5 datasets
-                for geo_dataset, geo_data_blk in zip(geo_datasets,
-                                                     geo_data_blks):
-                    # write to GSLC block HDF5
-                    geo_dataset.write_direct(geo_data_blk,
-                                             dest_sel=geo_blk_slice)
+            # write geocoded blocks to respective HDF5 datasets
+            for geo_dataset, geo_data_blk in zip(geo_datasets,
+                                                 geo_data_blks):
+                # write to GSLC block HDF5
+                geo_dataset.write_direct(geo_data_blk)
 
             del dem_raster # modified in geocodeSlc
             dt_geocoding = str(timedelta(seconds=time.perf_counter() - t_geocoding)).split(".")[0]

@@ -17,7 +17,7 @@ dateformat = '%Y-%m-%d %H:%M:%S.%f'
 
 def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
         correct_set=False, mission_id='S1', pol='VV', ovs_factor=128,
-        margin=32):
+        margin=32, carrier=True, unflatten=True):
     '''
     Compute Absolute Geolocation Error (AGE) for geocoded SLC
     products from Sentinel-1 or NISAR missions. AGE is computed
@@ -53,6 +53,16 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
         the geocoded SLC image. Overall included margin
         is 2*margin from left-to-right and from top-to-bottom
         (default: 32)
+    carrier: bool
+        If set to True, adds back the azimuth carrier ramp prior
+        to detect CR peak. This option should be set to True for
+        S1-A/B data where deramping has an effect on AGE.
+        Azimuth carrier ramp is generated based on the azimuth
+        carrier layer allocated for CSLC-S1 products
+    unflatten: bool
+        If set to True, adds back the flatten phase prior to detect
+        CR peak. This option should always be set to True as flattening
+        can drammatically effect AGE
     '''
 
     # Check that the CSLC-S1 product file exists
@@ -132,7 +142,7 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
         x_peak, y_peak = find_peak(cslc_file, int(row['CR_X_CSLC']),
                                    int(row['CR_Y_CSLC']), pol=pol,
                                    mission_id=mission_id, ovs_factor=ovs_factor,
-                                   margin=margin)
+                                   margin=margin, carrier=carrier, unflatten=unflatten)
         x_peak_vect.append(x_peak)
         y_peak_vect.append(y_peak)
 
@@ -235,7 +245,8 @@ def correct_cr_tides(cslc_file, cr_lat, cr_lon,
 
 
 def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
-              ovs_factor=128, margin=32, pol='VV'):
+              ovs_factor=128, margin=32, pol='VV',
+              carrier=True, unflatten=True):
     '''
     Find peak location in 'arr'
     Parameters
@@ -252,6 +263,16 @@ def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
         Oversampling factor
     margin: int
         Margin
+    carrier: bool
+        If set to True, adds back the azimuth carrier ramp prior
+        to detect CR peak. This option should be set to True for
+        S1-A/B data where deramping has an effect on AGE.
+        Azimuth carrier ramp is generated based on the azimuth
+        carrier layer allocated for CSLC-S1 products
+    unflatten: bool
+        If set to True, adds back the flatten phase prior to detect
+        CR peak. This option should always be set to True as flattening
+        can drammatically effect AGE
 
     Returns
     -------
@@ -264,6 +285,16 @@ def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
     arr = get_cslc(cslc_file,
                    mission_id=mission_id,
                    pol=pol)
+    # If True, remove azimuth carrier ramp
+    if carrier:
+        carrier_phase = get_carrier_phase(cslc_file, mission_id=mission_id)
+        arr *= np.exp(-1j*carrier_phase)
+
+    # If True, adds back flattening phase
+    if unflatten:
+        flatten_phase = get_flatten_phase(cslc_file, mission_id=mission_id)
+        arr *= np.exp(1j*flatten_phase)
+
     x_start, x_spac, y_start, y_spac = get_xy_info(cslc_file,
                                                    mission_id=mission_id,
                                                    pol=pol)
@@ -300,6 +331,70 @@ def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
     return x_cr, y_cr
 
 
+def get_carrier_phase(cslc_file, mission_id ='S1'):
+    '''
+    Get azimuth carrier phase from CSLC product
+    Note, this is implemented only for CSLC-S1
+
+    Parameters
+    ----------
+    cslc_file: str
+        File path to CSLC product
+    mission_id: str
+        Mission identifier. S1: Sentinel-1 or
+        NI: NISAR (default: S1)
+
+    Returns
+    -------
+    carrier_phase: np.ndarray, float64
+        Numpy array containing azimuth carrier phase
+    '''
+
+    if mission_id == 'S1':
+        carrier_path = 'science/SENTINEL1/CSLC/grids/azimuth_carrier_phase'
+    else:
+        err_str = f"Azimuth carrier phase not present for {mission_id} CSLC product"
+        raise ValueError(err_str)
+
+    with h5py.File(cslc_file, 'r') as h5:
+        carrier_phase = h5[carrier_path][()]
+    return carrier_phase
+
+
+def get_flatten_phase(cslc_file, mission_id='S1'):
+    '''
+    Get flattening phase from CSLC product
+    Note, this is implemented only for CSLC-S1
+
+    Parameters
+    ----------
+    cslc_file: str
+        File path to CSLC product
+    mission_id: str
+        Mission identifier. S1: Sentinel-1 or
+        NI: NISAR (default: S1)
+
+    Returns
+    -------
+    flatten_phase: np.ndarray, float64
+        Numpy array containing flattening phase
+    '''
+
+    if mission_id == 'S1':
+        rg_off_path = 'science/SENTINEL1/CSLC/grids/range_offset'
+        wavelength_path = '/science/SENTINEL1/CSLC/metadata/processing_information/s1_burst_metadata/wavelength'
+    else:
+        err_str = f"Range offsets not present for {mission_id} CSLC product"
+        raise ValueError(err_str)
+
+    with h5py.File(cslc_file, 'r') as h5:
+        rg_off = h5[rg_off_path][()]
+        wavelength = h5[wavelength_path][()]
+
+    flatten_phase = (4.0*np.pi*rg_off)/wavelength
+    return flatten_phase
+
+
 def get_cslc(cslc_file, mission_id='S1', pol='VV'):
     '''
     Get CSLC-S1 array associated to 'pol'
@@ -307,7 +402,7 @@ def get_cslc(cslc_file, mission_id='S1', pol='VV'):
     Parameters
     ----------
     cslc_file: str
-        File path to CSLC-S1 product
+        File path to CSLC product
     mission_id: str
         Mission identifier. S1: Sentinel-1 or
         NI: NISAR (default: S1)
@@ -528,6 +623,12 @@ def create_parser():
                           help='Padding margin around CR position detected in the geocoded SLC '
                                'image. Actual margin is 2*margin from left-to-right and from'
                                'top-to-bottom')
+    optional.add_argument('-r', '--azimuth-ramp', dest='az_ramp', default=True,
+                          help='If True, adds back azimuth carrier ramp prior to CR peak location. '
+                               'This option should be set to True for S1-A/B AGE analyses')
+    optional.add_argument('-u', '--unflatten', dest='unflatten', default=True,
+                          help='If True, adds back the flatten phase. This option should be set'
+                               'to True if the geocoded SLC product has not been flattened')
     return parser.parse_args()
 
 
@@ -545,7 +646,9 @@ def main():
         mission_id=args.mission_id,
         pol=args.pol,
         ovs_factor=args.ovs_factor,
-        margin=args.margin)
+        margin=args.margin,
+        carrier=args.az_ramp,
+        unflatten=args.unflatten)
 
 
 if __name__ == '__main__':

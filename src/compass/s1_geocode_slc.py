@@ -7,6 +7,8 @@ import time
 
 import h5py
 import isce3
+# import raster mode geocode_slc. isce3.geocode.geocode_slc is array mode
+from isce3.ext.isce3.geocode import geocode_slc
 import journal
 import numpy as np
 from osgeo import gdal
@@ -113,7 +115,7 @@ def run(cfg: GeoRunConfig):
 
         # Generate required static layers
         if cfg.rdr2geo_params.enabled:
-            s1_rdr2geo.run(cfg, save_in_scratch=True)
+            s1_rdr2geo.run(cfg, burst, save_in_scratch=True)
             if cfg.rdr2geo_params.geocode_metadata_layers:
                 s1_geocode_metadata.run(cfg, burst, fetch_from_scratch=True)
 
@@ -222,7 +224,7 @@ def run(cfg: GeoRunConfig):
             browse_params = cfg.browse_image_params
             if browse_params.enabled:
                 make_browse_image(out_paths.browse_path, output_hdf5,
-                                  cfg.bursts, browse_params.complex_to_real,
+                                  bursts, browse_params.complex_to_real,
                                   browse_params.percent_low,
                                   browse_params.percent_high,
                                   browse_params.gamma, browse_params.equalize)

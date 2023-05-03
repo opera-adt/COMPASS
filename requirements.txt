@@ -1,4 +1,4 @@
-python>=3.8     # sentinel1-reader requirement
+python>=3.9     # sentinel1-reader requirement
 numpy           # sentinel1-reader requirement
 lxml            # sentinel1-reader requirement
 gdal>=3

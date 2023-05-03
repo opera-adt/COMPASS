@@ -45,7 +45,6 @@ def _init_geocoded_IH5_raster(dst_group: h5py.Group, dataset_name: str,
     return geo_raster
 
 
-
 def run(cfg: GeoRunConfig):
     '''
     Run geocode burst workflow with user-defined

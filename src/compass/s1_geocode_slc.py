@@ -165,11 +165,11 @@ def run(cfg: GeoRunConfig):
                 rdr_burst_raster = isce3.io.Raster(temp_slc_path)
 
                 # Declare names, types, and descriptions of respective outputs
-                ds_names = [pol, 'carrier_phase', 'range_offset']
+                ds_names = [pol, 'azimuth_carrier_phase', 'flattening_phase']
                 ds_types = ['complex64', 'float64', 'float64']
                 ds_descrs = [f'{pol} geocoded CSLC image{desc}'
-                             for desc in ['', ' carrier phase',
-                                          ' range offset']]
+                             for desc in ['', ' azimuth carrier phase',
+                                          ' flattening phase']]
 
                 # Iterate over zipped names, types, and descriptions and create
                 # raster objects

@@ -3,6 +3,7 @@ Collection of functions to help write HDF5 datasets and metadata
 '''
 
 from dataclasses import dataclass, field
+from datetime import datetime
 import os
 
 import isce3
@@ -374,15 +375,23 @@ def identity_to_h5group(dst_group, burst, cfg):
              'OGR compatible WKT representation of bounding polygon of the image',
              {'units':'degrees'}),
         Meta('mission_id', burst.platform_id, 'Mission identifier'),
+        Meta('processing_date_time', datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+             'Data processing date and time'),
         Meta('product_type', 'CSLC-S1', 'Product type'),
+        Meta('product_level', 'L2', 'L0A: Unprocessed instrument data; L0B: Reformatted, '
+             'unprocessed instrument data; L1: Processed instrument data in radar coordinates system; '
+             'and L2: Processed instrument data in geocoded coordinates system'),
         Meta('look_direction', 'Right', 'Look direction can be left or right'),
+        Meta('instrument_name', 'C-SAR', 'Instrument name'),
         Meta('orbit_pass_direction', burst.orbit_direction,
              'Orbit direction can be ascending or descending'),
+        Meta('radar_band', 'C', 'Radar band'),
         Meta('zero_doppler_start_time', burst.sensing_start.strftime(TIME_STR_FMT),
              'Azimuth start time of product'),
         Meta('zero_doppler_end_time', burst.sensing_stop.strftime(TIME_STR_FMT),
             'Azimuth stop time of product'),
         Meta('is_geocoded', 'True', 'Boolean indicating if product is in radar geometry or geocoded'),
+        Meta('processing_center', 'Jet Propulsion Laboratory', 'Name of the processing center that produced the product')
         ]
     id_group = dst_group.require_group('identification')
     for meta_item in id_meta_items:

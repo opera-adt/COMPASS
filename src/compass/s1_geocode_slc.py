@@ -108,7 +108,7 @@ def run(cfg: GeoRunConfig):
         sliced_radar_grid = burst.as_isce3_radargrid()[b_bounds]
 
         output_hdf5 = out_paths.hdf5_path
-        root_path = '/science/SENTINEL1'
+
         with h5py.File(output_hdf5, 'w') as geo_burst_h5:
             geo_burst_h5.attrs['Conventions'] = "CF-1.8"
             geo_burst_h5.attrs["contact"] = np.string_("operaops@jpl.nasa.gov")
@@ -121,7 +121,7 @@ def run(cfg: GeoRunConfig):
             ctype = h5py.h5t.py_create(np.complex64)
             ctype.commit(geo_burst_h5['/'].id, np.string_('complex64'))
 
-            grid_path = f'{root_path}/CSLC/grids'
+            grid_path = f'/CSLC/data'
             grid_group = geo_burst_h5.require_group(grid_path)
             check_eap = is_eap_correction_necessary(burst.ipf_version)
             for b in bursts:
@@ -175,10 +175,11 @@ def run(cfg: GeoRunConfig):
         # Save burst corrections and metadata with new h5py File instance
         # because io.Raster things
         with h5py.File(output_hdf5, 'a') as geo_burst_h5:
+            root_path = '/'
             root_group = geo_burst_h5[root_path]
             identity_to_h5group(root_group, burst, cfg)
 
-            cslc_group = geo_burst_h5.require_group(f'{root_path}/CSLC')
+            cslc_group = geo_burst_h5.require_group(f'/CSLC')
             metadata_to_h5group(cslc_group, burst, cfg)
             if cfg.lut_params.enabled:
                 corrections_to_h5group(cslc_group, burst, cfg, rg_lut, az_lut,

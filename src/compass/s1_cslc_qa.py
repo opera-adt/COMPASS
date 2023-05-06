@@ -81,7 +81,7 @@ class QualityAssuranceCSLC:
 
                 # create HDF5 group for real/imaginary stats of current
                 # polarization
-                h5_stats_path = f'{QA_PATH}/statistics/grids/{pol}/{real_imag}'
+                h5_stats_path = f'{QA_PATH}/statistics/data/{pol}/{real_imag}'
                 stats_group = cslc_h5py_root.require_group(h5_stats_path)
 
                 # add description for stat items

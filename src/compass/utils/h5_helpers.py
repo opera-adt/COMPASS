@@ -17,8 +17,8 @@ import compass
 
 
 TIME_STR_FMT = '%Y-%m-%d %H:%M:%S.%f'
-ROOT_PATH = '/science/SENTINEL1/CSLC'
-GRID_PATH = f'{ROOT_PATH}/grids'
+ROOT_PATH = 'CSLC'
+GRID_PATH = f'{ROOT_PATH}/data'
 QA_PATH = f'{ROOT_PATH}/quality_assurance'
 
 

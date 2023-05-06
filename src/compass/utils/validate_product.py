@@ -10,7 +10,7 @@ import numpy as np
 from osgeo import gdal
 
 
-DATA_ROOT = 'science/SENTINEL1'
+DATA_ROOT = 'CSLC'
 
 
 def cmd_line_parser():
@@ -55,7 +55,7 @@ def _grid_info_retrieve(path_h5, dataset_names, is_static_layer):
     proj: str
         Map projection of the raster in WKT
     """
-    grid_path = f'{DATA_ROOT}/CSLC/grids'
+    grid_path = f'{DATA_ROOT}/data'
     if is_static_layer:
         grid_path += '/static_layers'
 
@@ -158,7 +158,7 @@ def _compare_static_layer_rasters(file_ref, file_sec, static_layer_items):
     static_layer_items: list[str]
         List of names of static layers to compare
     """
-    grid_path = f'{DATA_ROOT}/CSLC/grids/static_layers'
+    grid_path = f'{DATA_ROOT}/data/static_layers'
     with h5py.File(file_ref, 'r') as h_ref, h5py.File(file_sec, 'r') as h_sec:
         for static_layer_item in static_layer_items:
             if static_layer_item == 'layover_shadow_mask':
@@ -210,7 +210,7 @@ def _compare_complex_slc_rasters(file_ref, file_sec, pols):
     pols: list[str]
         List of polarizations of rasters to compare
     """
-    grid_path = f'{DATA_ROOT}/CSLC/grids'
+    grid_path = f'{DATA_ROOT}/data'
     with h5py.File(file_ref, 'r') as h_ref, h5py.File(file_sec, 'r') as h_sec:
         for pol in pols:
             # Retrieve SLC raster from ref and sec HDF5

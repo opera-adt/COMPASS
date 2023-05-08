@@ -221,6 +221,12 @@ def make_browse_image(filename, path_h5, bursts, complex_to_real='amplitude', pe
 
             min_x, max_x, min_y, max_y = get_georaster_bounds(path_h5, pol)
 
+            # Check if the raster crosses antimeridian
+            if max_x - min_x > 180.0:
+                gdal.SetConfigOption('CENTER_LONG', '180')
+            else:
+                gdal.SetConfigOption('CENTER_LONG', None)
+
             # gdal warp to right geo extents, image shape and EPSG
             ds_wgs84 = gdal.Warp('', src_raster, format='MEM',
                                  dstSRS='EPSG:4326',

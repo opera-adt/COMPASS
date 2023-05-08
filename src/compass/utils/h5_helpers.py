@@ -18,7 +18,7 @@ import compass
 
 TIME_STR_FMT = '%Y-%m-%d %H:%M:%S.%f'
 ROOT_PATH = 'CSLC'
-GRID_PATH = f'{ROOT_PATH}/data'
+DATA_PATH = f'{ROOT_PATH}/data'
 QA_PATH = f'{ROOT_PATH}/quality_assurance'
 
 
@@ -749,7 +749,7 @@ def get_cslc_geotransform(filename: str, pol: str = "VV"):
     list
         Geotransform of the geocoded raster
     '''
-    gdal_str = f'NETCDF:{filename}:/{GRID_PATH}/{pol}'
+    gdal_str = f'NETCDF:{filename}:/{DATA_PATH}/{pol}'
     return gdal.Info(gdal_str, format='json')['geoTransform']
 
 
@@ -770,7 +770,7 @@ def get_georaster_bounds(filename: str, pol: str = 'VV'):
         WGS84 coordinates of the geocoded raster boundary given as min_x,
         max_x, min_y, max_y
     '''
-    nfo = gdal.Info(f'NETCDF:{filename}:/{GRID_PATH}/{pol}', format='json')
+    nfo = gdal.Info(f'NETCDF:{filename}:/{DATA_PATH}/{pol}', format='json')
 
     # set extreme initial values for min/max x/y
     min_x = 999999

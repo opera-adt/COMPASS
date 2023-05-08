@@ -121,8 +121,8 @@ def run(cfg: GeoRunConfig):
             ctype = h5py.h5t.py_create(np.complex64)
             ctype.commit(geo_burst_h5['/'].id, np.string_('complex64'))
 
-            grid_path = f'/CSLC/data'
-            grid_group = geo_burst_h5.require_group(grid_path)
+            data_path = f'/CSLC/data'
+            grid_group = geo_burst_h5.require_group(data_path)
             check_eap = is_eap_correction_necessary(burst.ipf_version)
             for b in bursts:
                 pol = b.polarization

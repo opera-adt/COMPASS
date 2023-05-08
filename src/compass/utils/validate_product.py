@@ -9,6 +9,8 @@ import h5py
 import numpy as np
 from osgeo import gdal
 
+from compass.utils.h5_helpers import DATA_PATH
+
 
 DATA_ROOT = 'CSLC'
 
@@ -55,19 +57,19 @@ def _grid_info_retrieve(path_h5, dataset_names, is_static_layer):
     proj: str
         Map projection of the raster in WKT
     """
-    grid_path = f'{DATA_ROOT}/data'
+    data_path = DATA_PATH
     if is_static_layer:
-        grid_path += '/static_layers'
+        data_path += '/static_layers'
 
     # Extract existing dataset names with h5py
     with h5py.File(path_h5) as h:
         datasets_found = [ds_name for ds_name in dataset_names
-                if ds_name in h[grid_path]]
+                if ds_name in h[data_path]]
 
     ds_name = datasets_found[0]
 
     # Extract some info from reference/secondary products with GDAL
-    h5_gdal_path = f'NETCDF:{path_h5}://{grid_path}/{ds_name}'
+    h5_gdal_path = f'NETCDF:{path_h5}://{data_path}/{ds_name}'
     dataset = gdal.Open(h5_gdal_path, gdal.GA_ReadOnly)
     geotransform = dataset.GetGeoTransform()
     proj = dataset.GetProjection()
@@ -158,15 +160,15 @@ def _compare_static_layer_rasters(file_ref, file_sec, static_layer_items):
     static_layer_items: list[str]
         List of names of static layers to compare
     """
-    grid_path = f'{DATA_ROOT}/data/static_layers'
+    data_path = f'{DATA_PATH}/static_layers'
     with h5py.File(file_ref, 'r') as h_ref, h5py.File(file_sec, 'r') as h_sec:
         for static_layer_item in static_layer_items:
             if static_layer_item == 'layover_shadow_mask':
                 continue
 
             # Retrieve static layer raster from ref and sec HDF5
-            slc_ref = h_ref[f'{grid_path}/{static_layer_item}']
-            slc_sec = h_sec[f'{grid_path}/{static_layer_item}']
+            slc_ref = h_ref[f'{data_path}/{static_layer_item}']
+            slc_sec = h_sec[f'{data_path}/{static_layer_item}']
 
             # Compute total number of pixels different from nan from ref and sec
             ref_nan = np.isnan(slc_ref)
@@ -210,12 +212,12 @@ def _compare_complex_slc_rasters(file_ref, file_sec, pols):
     pols: list[str]
         List of polarizations of rasters to compare
     """
-    grid_path = f'{DATA_ROOT}/data'
+    data_path = DATA_PATH
     with h5py.File(file_ref, 'r') as h_ref, h5py.File(file_sec, 'r') as h_sec:
         for pol in pols:
             # Retrieve SLC raster from ref and sec HDF5
-            slc_ref = h_ref[f'{grid_path}/{pol}']
-            slc_sec = h_sec[f'{grid_path}/{pol}']
+            slc_ref = h_ref[f'{data_path}/{pol}']
+            slc_sec = h_sec[f'{data_path}/{pol}']
 
             # Compute total number of pixels different from nan from ref and sec
             ref_nan = np.isnan(slc_ref)

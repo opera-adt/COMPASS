@@ -11,6 +11,7 @@ import shapely.wkt as wkt
 from osgeo import gdal, osr
 from pyproj import CRS, Proj
 from shapely import geometry
+from compass.utils.h5_helpers import DATA_PATH
 
 dateformat = '%Y-%m-%d %H:%M:%S.%f'
 
@@ -323,7 +324,7 @@ def get_cslc(cslc_file, mission_id='S1', pol='VV'):
     '''
 
     if mission_id == 'S1':
-        cslc_path = f'CSLC/data/{pol}'
+        cslc_path = f'{DATA_PATH}/{pol}'
     elif mission_id == 'NI':
         with h5py.File(cslc_file, 'r') as h5:
              frequencies = h5["/science/LSAR/identification/listOfFrequencies"][()]
@@ -368,7 +369,7 @@ def get_xy_info(cslc_file, mission_id='S1', pol='VV'):
         CSLC-S1 spacing along Y-direction
     '''
     if mission_id == 'S1':
-        cslc_path = 'CSLC/data/'
+        cslc_path = DATA_PATH
     elif mission_id == 'NI':
         cslc_path = '/science/LSAR/GSLC/grids/frequencyA/'
     else:
@@ -473,7 +474,7 @@ def get_cslc_epsg(cslc_file, mission_id='S1', pol='VV'):
         geocoded SLC product
     '''
     if mission_id == 'S1':
-        epsg_path = 'CSLC/data/projection'
+        epsg_path = f'{DATA_PATH}/projection'
         with h5py.File(cslc_file, 'r') as h5:
             epsg = h5[epsg_path][()]
     elif mission_id == 'NI':

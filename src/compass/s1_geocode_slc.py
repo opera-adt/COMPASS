@@ -121,7 +121,7 @@ def run(cfg: GeoRunConfig):
             ctype = h5py.h5t.py_create(np.complex64)
             ctype.commit(geo_burst_h5['/'].id, np.string_('complex64'))
 
-            data_path = f'/CSLC/data'
+            data_path = '/CSLC/data'
             grid_group = geo_burst_h5.require_group(data_path)
             check_eap = is_eap_correction_necessary(burst.ipf_version)
             for b in bursts:
@@ -179,7 +179,7 @@ def run(cfg: GeoRunConfig):
             root_group = geo_burst_h5[root_path]
             identity_to_h5group(root_group, burst, cfg)
 
-            cslc_group = geo_burst_h5.require_group(f'/CSLC')
+            cslc_group = geo_burst_h5.require_group('/CSLC')
             metadata_to_h5group(cslc_group, burst, cfg)
             if cfg.lut_params.enabled:
                 corrections_to_h5group(cslc_group, burst, cfg, rg_lut, az_lut,

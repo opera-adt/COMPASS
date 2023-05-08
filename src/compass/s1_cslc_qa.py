@@ -7,7 +7,7 @@ from pathlib import Path
 import isce3
 import numpy as np
 
-from compass.utils.h5_helpers import (GRID_PATH, QA_PATH, ROOT_PATH,
+from compass.utils.h5_helpers import (DATA_PATH, QA_PATH, ROOT_PATH,
                                       add_dataset_and_attrs, Meta)
 
 
@@ -63,7 +63,7 @@ class QualityAssuranceCSLC:
             pol = b.polarization
 
             # get dataset and compute stats according to dtype
-            pol_path = f'{GRID_PATH}/{pol}'
+            pol_path = f'{DATA_PATH}/{pol}'
             pol_ds = cslc_h5py_root[pol_path]
 
             # compute stats for real and complex
@@ -117,7 +117,7 @@ class QualityAssuranceCSLC:
             apply_tropo_corrections is true.
         '''
         # path to source group
-        static_layer_path = f'{GRID_PATH}/static_layers'
+        static_layer_path = f'{DATA_PATH}/static_layers'
 
         # Get the static layer to compute stats for
         static_layers_dict = {

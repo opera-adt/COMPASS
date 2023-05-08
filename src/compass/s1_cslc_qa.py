@@ -11,6 +11,14 @@ from compass.utils.h5_helpers import (GRID_PATH, QA_PATH, ROOT_PATH,
                                       add_dataset_and_attrs, Meta)
 
 
+def _compute_array_stats(arr: np.ndarray, op):
+    # internal to function to compute min, max, mean, and std dev of op(array)
+    post_op_arr = op(arr)
+
+    return [np_op(post_op_arr) for np_op in [np.nanmin, np.nanmax, np.nanmean,
+                                             np.nanstd]]
+
+
 def value_description_dict(val, desc):
     '''
     Convenience function that returns dict with description and value
@@ -64,40 +72,40 @@ class QualityAssuranceCSLC:
 
             # get dataset and compute stats according to dtype
             pol_path = f'{GRID_PATH}/{pol}'
-            pol_ds = cslc_h5py_root[pol_path]
-
-            # compute stats for real and complex
-            stat_obj = isce3.math.StatsRealImagFloat32(pol_ds[()])
+            pol_arr = cslc_h5py_root[pol_path][()]
 
             # create dict for current polarization
             self.stats_dict[pol] = {}
             pol_dict = self.stats_dict[pol]
 
-            # write stats to HDF5
-            for real_imag, cstat_member in zip(['real', 'imaginary'],
-                                               [stat_obj.real, stat_obj.imag]):
-                # create dict to store real/imaginary stat items
-                pol_dict[real_imag] = {}
+            def _arr2pow(arr):
+                # convenience function to compute power of a complex array
+                return np.abs(arr)**2
 
-                # create HDF5 group for real/imaginary stats of current
+            # write stats to HDF5 for power and phase of CSLC
+            for pwr_phase, cmplx_op in zip(['power', 'phase'],
+                                           [_arr2pow, np.angle]):
+                # create dict to store real/imaginary stat items
+                pol_dict[pwr_phase] = {}
+
+                # create HDF5 group for power or phase stats of current
                 # polarization
-                h5_stats_path = f'{QA_PATH}/statistics/grids/{pol}/{real_imag}'
+                h5_stats_path = f'{QA_PATH}/statistics/grids/{pol}/{pwr_phase}'
                 stats_group = cslc_h5py_root.require_group(h5_stats_path)
 
                 # add description for stat items
-                suffix_qa_item_desc = f'{real_imag} part of geoocoded SLC'
+                suffix_qa_item_desc = f'{pwr_phase} of geoocoded SLC'
 
-                # build list of QA stat items for real_imag
+                # build list of QA stat items for pwr_phase
                 qa_items = []
-                vals = [cstat_member.mean, cstat_member.min,
-                        cstat_member.max, cstat_member.sample_stddev]
+                vals = _compute_array_stats(pol_arr, cmplx_op)
                 for val_name, val in zip(self.stat_names, vals):
                     desc = f'{val_name} of {suffix_qa_item_desc}'
                     qa_items.append(Meta(val_name, val, desc))
 
                 # save stats to dict and write to HDF5
-                _qa_items_to_h5_and_dict(stats_group, pol_dict[real_imag],
-                                      qa_items)
+                _qa_items_to_h5_and_dict(stats_group, pol_dict[pwr_phase],
+                                         qa_items)
 
 
     def compute_static_layer_stats(self, cslc_h5py_root, rdr2geo_params):

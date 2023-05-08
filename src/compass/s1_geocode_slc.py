@@ -174,25 +174,22 @@ def run(cfg: GeoRunConfig):
 
                 # Iterate over zipped names, types, and descriptions and create
                 # raster objects
-                geo_burst_raster, carrier_raster, rg_offset_raster =\
+                geo_burst_raster, carrier_raster, flatten_phase_raster =\
                     [_init_geocoded_IH5_raster(grid_group, ds_name, geo_grid,
                                                ds_type, ds_desc)
                      for ds_name, ds_type, ds_desc in zip(ds_names, ds_types,
                                                           ds_descrs)]
 
                 # Geocode
-                isce3.geocode.geocode_slc(geo_burst_raster, rdr_burst_raster,
-                                          dem_raster,
-                                          radar_grid, sliced_radar_grid,
-                                          geo_grid, orbit,
-                                          native_doppler,
-                                          image_grid_doppler, ellipsoid,
-                                          threshold, iters, blocksize, flatten,
-                                          azimuth_carrier=az_carrier_poly2d,
-                                          az_time_correction=az_lut,
-                                          srange_correction=rg_lut,
-                                          carrier_phase_raster=carrier_raster,
-                                          range_offset_raster=rg_offset_raster)
+                geocode_slc(geo_burst_raster, rdr_burst_raster, dem_raster,
+                            radar_grid, sliced_radar_grid, geo_grid, orbit,
+                            native_doppler, image_grid_doppler, ellipsoid,
+                            threshold, iters, blocksize, flatten, reramp=False,
+                            azimuth_carrier=az_carrier_poly2d,
+                            az_time_correction=az_lut,
+                            srange_correction=rg_lut,
+                            carrier_phase_raster=carrier_raster,
+                            flatten_phase_raster=flatten_phase_raster)
 
             # Set geo transformation
             geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,
@@ -203,7 +200,7 @@ def run(cfg: GeoRunConfig):
             # ISCE3 raster IH5 cleanup
             del geo_burst_raster
             del carrier_raster
-            del rg_offset_raster
+            del flatten_phase_raster
             del dem_raster # modified in geocodeSlc
 
         # Save burst corrections and metadata with new h5py File instance

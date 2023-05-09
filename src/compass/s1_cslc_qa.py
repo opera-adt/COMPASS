@@ -11,12 +11,16 @@ from compass.utils.h5_helpers import (GRID_PATH, QA_PATH, ROOT_PATH,
                                       add_dataset_and_attrs, Meta)
 
 
-def _compute_array_stats(arr: np.ndarray, op):
-    # internal to function to compute min, max, mean, and std dev of op(array)
-    post_op_arr = op(arr)
+def _compute_slc_array_stats(arr: np.ndarray, pwr_phase: str):
+    # internal to function to compute min, max, mean, and std dev of power or
+    # phase of SLC array. Default to phase stat computation.
+    if pwr_phase == 'power':
+        post_op_arr = np.abs(arr)**2
+    else:
+        post_op_arr = np.angle(arr)
 
-    return [np_op(post_op_arr) for np_op in [np.nanmin, np.nanmax, np.nanmean,
-                                             np.nanstd]]
+    return [post_op_arr for np_op in [np.nanmin, np.nanmax, np.nanmean,
+                                      np.nanstd]]
 
 
 def value_description_dict(val, desc):
@@ -78,13 +82,8 @@ class QualityAssuranceCSLC:
             self.stats_dict[pol] = {}
             pol_dict = self.stats_dict[pol]
 
-            def _arr2pow(arr):
-                # convenience function to compute power of a complex array
-                return np.abs(arr)**2
-
             # write stats to HDF5 for power and phase of CSLC
-            for pwr_phase, cmplx_op in zip(['power', 'phase'],
-                                           [_arr2pow, np.angle]):
+            for pwr_phase in ['power', 'phase']:
                 # create dict to store real/imaginary stat items
                 pol_dict[pwr_phase] = {}
 
@@ -93,14 +92,11 @@ class QualityAssuranceCSLC:
                 h5_stats_path = f'{QA_PATH}/statistics/grids/{pol}/{pwr_phase}'
                 stats_group = cslc_h5py_root.require_group(h5_stats_path)
 
-                # add description for stat items
-                suffix_qa_item_desc = f'{pwr_phase} of geoocoded SLC'
-
                 # build list of QA stat items for pwr_phase
                 qa_items = []
-                vals = _compute_array_stats(pol_arr, cmplx_op)
+                vals = _compute_slc_array_stats(pol_arr, pwr_phase)
                 for val_name, val in zip(self.stat_names, vals):
-                    desc = f'{val_name} of {suffix_qa_item_desc}'
+                    desc = f'{val_name} of {pwr_phase} of {pol} geocoded SLC'
                     qa_items.append(Meta(val_name, val, desc))
 
                 # save stats to dict and write to HDF5

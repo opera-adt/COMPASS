@@ -74,7 +74,7 @@ class QualityAssuranceCSLC:
         for b in bursts:
             pol = b.polarization
 
-            # get dataset and compute stats according to dtype
+            # get dataset as array
             pol_path = f'{GRID_PATH}/{pol}'
             pol_arr = cslc_h5py_root[pol_path][()]
 
@@ -82,7 +82,7 @@ class QualityAssuranceCSLC:
             self.stats_dict[pol] = {}
             pol_dict = self.stats_dict[pol]
 
-            # write stats to HDF5 for power and phase of CSLC
+            # compute power or phase then write stats to HDF5 for CSLC
             for pwr_phase in ['power', 'phase']:
                 # create dict to store real/imaginary stat items
                 pol_dict[pwr_phase] = {}

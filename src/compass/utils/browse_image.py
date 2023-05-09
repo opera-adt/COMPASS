@@ -224,6 +224,8 @@ def make_browse_image(filename, path_h5, bursts, complex_to_real='amplitude', pe
             # Check if the raster crosses antimeridian
             if max_x - min_x > 180.0:
                 gdal.SetConfigOption('CENTER_LONG', '180')
+                min_x += 360.0
+                min_x, max_x = max_x, min_x
             else:
                 gdal.SetConfigOption('CENTER_LONG', None)
 
@@ -231,9 +233,9 @@ def make_browse_image(filename, path_h5, bursts, complex_to_real='amplitude', pe
             ds_wgs84 = gdal.Warp('', src_raster, format='MEM',
                                  dstSRS='EPSG:4326',
                                  width=browse_w, height=browse_h,
-                                 resampleAlg = gdal.GRIORA_Bilinear,
-                                 outputBounds=(min_x, min_y, max_x, max_y),
-                                 )
+                                 resampleAlg=gdal.GRIORA_Bilinear,
+                                 outputBounds=(min_x, min_y, max_x, max_y)
+                                )
             image = ds_wgs84.ReadAsArray()
 
             # get hi/lo values by percentile

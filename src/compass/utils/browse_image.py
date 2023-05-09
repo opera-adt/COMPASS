@@ -224,8 +224,8 @@ def make_browse_image(filename, path_h5, bursts, complex_to_real='amplitude', pe
             # Check if the raster crosses antimeridian
             if max_x - min_x > 180.0:
                 gdal.SetConfigOption('CENTER_LONG', '180')
-                min_x += 360.0
-                min_x, max_x = max_x, min_x
+                # Adjust the min / max in the X direction (longitude)
+                min_x, max_x = max_x, min_x + 360.0
             else:
                 gdal.SetConfigOption('CENTER_LONG', None)
 

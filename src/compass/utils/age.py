@@ -131,9 +131,9 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
     # Find peak location for every corner reflector in DataFrame
     for idx, row in cr_df.iterrows():
         x_peak, y_peak, snr_peak = find_peak(cslc_file, int(row['CR_X_CSLC']),
-                                   int(row['CR_Y_CSLC']), pol=pol,
-                                   mission_id=mission_id, ovs_factor=ovs_factor,
-                                   margin=margin)
+                                             int(row['CR_Y_CSLC']), pol=pol,
+                                             mission_id=mission_id, ovs_factor=ovs_factor,
+                                             margin=margin)
         x_peak_vect.append(x_peak)
         y_peak_vect.append(y_peak)
         snr_peak_vect.append(snr_peak)

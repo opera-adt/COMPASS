@@ -126,7 +126,7 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
 
     x_peak_vect = []
     y_peak_vect = []
-    snr_peak_vect = []
+    cr_snr_vect = []
 
     # Find peak location for every corner reflector in DataFrame
     for idx, row in cr_df.iterrows():
@@ -136,11 +136,11 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
                                              margin=margin)
         x_peak_vect.append(x_peak)
         y_peak_vect.append(y_peak)
-        snr_peak_vect.append(snr_peak)
+        cr_snr_vect.append(snr_peak)
 
     cr_df['CR_X_CSLC_PEAK'] = x_peak_vect
     cr_df['CR_Y_CSLC_PEAK'] = y_peak_vect
-    cr_df['CR_SNR_PEAK'] = snr_peak_vect
+    cr_df['CR_SNR'] = cr_snr_vect
 
     # Compute absolute geolocation error along X and Y direction
     cr_df['ALE_X'] = cr_df['CR_X_CSLC_PEAK'] - cr_df['CR_X']

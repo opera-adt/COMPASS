@@ -286,7 +286,7 @@ def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
     img = arr[upperleft_y:lowerright_y, upperleft_x:lowerright_x]
 
     # Check if the SNR of the peak is above the threshold
-    snr_peak_db = get_snr_peak(img)
+    snr_peak_db = get_snr_cr(img)
 
     # Oversample CSLC subset and get amplitude
     img_ovs = isce3.cal.point_target_info.oversample(
@@ -501,14 +501,14 @@ def get_cslc_epsg(cslc_file, mission_id='S1', pol='VV'):
 
 def get_snr_peak(img: np.ndarray, cutoff_percentile: float=3.0):
     '''
-    Estimate the signal-to-noise ration (SNR) of the peak
+    Estimate the signal-to-noise ration (SNR) of the corner reflector contained in img
     in the input image patch
 
     Parameter
     ---------
     img: numpy.ndarray
         SLC image patch to calculate the SNR
-    cutout: float
+    cutoff_percentile: float
         Cutout ratio of high and low part of the signal to cutoff
 
     Returns

@@ -234,6 +234,7 @@ def make_browse_image(filename, path_h5, bursts, complex_to_real='amplitude', pe
                                  dstSRS='EPSG:4326',
                                  width=browse_w, height=browse_h,
                                  resampleAlg=gdal.GRIORA_Bilinear,
+                                 dstNodata = float('nan'),
                                  outputBounds=(min_x, min_y, max_x, max_y)
                                 )
             image = ds_wgs84.ReadAsArray()

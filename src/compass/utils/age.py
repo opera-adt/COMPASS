@@ -130,13 +130,13 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
 
     # Find peak location for every corner reflector in DataFrame
     for idx, row in cr_df.iterrows():
-        x_peak, y_peak, snr_peak = find_peak(cslc_file, int(row['CR_X_CSLC']),
+        x_peak, y_peak, snr_cr = find_peak(cslc_file, int(row['CR_X_CSLC']),
                                              int(row['CR_Y_CSLC']), pol=pol,
                                              mission_id=mission_id, ovs_factor=ovs_factor,
                                              margin=margin)
         x_peak_vect.append(x_peak)
         y_peak_vect.append(y_peak)
-        cr_snr_vect.append(snr_peak)
+        cr_snr_vect.append(snr_cr)
 
     cr_df['CR_X_CSLC_PEAK'] = x_peak_vect
     cr_df['CR_Y_CSLC_PEAK'] = y_peak_vect
@@ -286,7 +286,7 @@ def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
     img = arr[upperleft_y:lowerright_y, upperleft_x:lowerright_x]
 
     # Check if the SNR of the peak is above the threshold
-    snr_peak_db = get_snr_cr(img)
+    snr_cr_db = get_snr_cr(img)
 
     # Oversample CSLC subset and get amplitude
     img_ovs = isce3.cal.point_target_info.oversample(
@@ -303,7 +303,7 @@ def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
     x_cr = x_chip + x_spac / 2 + img_peak_ovs[1] * dx1
     y_cr = y_chip + y_spac / 2 + img_peak_ovs[0] * dy1
 
-    return x_cr, y_cr, snr_peak_db
+    return x_cr, y_cr, snr_cr_db
 
 
 def get_cslc(cslc_file, mission_id='S1', pol='VV') -> np.ndarray :
@@ -499,7 +499,7 @@ def get_cslc_epsg(cslc_file, mission_id='S1', pol='VV'):
     return epsg
 
 
-def get_snr_peak(img: np.ndarray, cutoff_percentile: float=3.0):
+def get_snr_cr(img: np.ndarray, cutoff_percentile: float=3.0):
     '''
     Estimate the signal-to-noise ration (SNR) of the corner reflector contained in img
     in the input image patch
@@ -513,7 +513,7 @@ def get_snr_peak(img: np.ndarray, cutoff_percentile: float=3.0):
 
     Returns
     -------
-    snr_peak_db: float
+    snr_cr_db: float
         SNR of the peak in decibel (db)
     '''
 
@@ -533,9 +533,9 @@ def get_snr_peak(img: np.ndarray, cutoff_percentile: float=3.0):
     peak_power = power_arr.max()
     mean_background_power = np.mean(ma_power_arr)
 
-    snr_peak_db = np.log10(peak_power / mean_background_power) * 10.0
+    snr_cr_db = np.log10(peak_power / mean_background_power) * 10.0
 
-    return snr_peak_db
+    return snr_cr_db
 
 
 def create_parser():

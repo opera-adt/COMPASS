@@ -433,7 +433,6 @@ def metadata_to_h5group(parent_group, burst, cfg):
     if burst.burst_calibration is not None:
         cal = burst.burst_calibration
         cal_items = [
-            Meta('basename', cal.basename_cads, ''),
             Meta('azimuth_time', cal.azimuth_time.strftime(TIME_STR_FMT),
                  'Start time', {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
             Meta('beta_naught', cal.beta_naught, 'beta_naught')
@@ -446,7 +445,6 @@ def metadata_to_h5group(parent_group, burst, cfg):
     if burst.burst_noise is not None:
         noise = burst.burst_noise
         noise_items = [
-            Meta('basename', noise.basename_nads, ''),
             Meta('range_azimuth_time',
                  noise.range_azimuth_time.strftime(TIME_STR_FMT),
                  'Start time', {'format': 'YYYY-MM-DD HH:MM:SS.6f'})
@@ -467,7 +465,7 @@ def metadata_to_h5group(parent_group, burst, cfg):
              'Input calibration file used'),
         Meta('noise_file', burst.burst_noise.basename_nads,
              'Input noise file used'),
-        Meta('dem_source', os.path.basename(cfg.dem), 'sorce DEM file'),
+        Meta('dem_source', os.path.basename(cfg.dem), 'source DEM file'),
     ]
     input_group = processing_group.require_group('inputs')
     for meta_item in input_items:

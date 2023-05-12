@@ -9,10 +9,7 @@ import h5py
 import numpy as np
 from osgeo import gdal
 
-from compass.utils.h5_helpers import DATA_PATH
-
-
-DATA_ROOT = 'CSLC'
+from compass.utils.h5_helpers import DATA_PATH, ROOT_PATH
 
 
 def cmd_line_parser():
@@ -300,8 +297,8 @@ def compare_cslc_metadata(file_ref, file_sec):
 
     # Get metadata keys
     with h5py.File(file_ref, 'r') as h_ref, h5py.File(file_sec, 'r') as h_sec:
-        metadata_ref = set(_get_group_item_paths(h_ref[DATA_ROOT]))
-        metadata_sec = set(_get_group_item_paths(h_sec[DATA_ROOT]))
+        metadata_ref = set(_get_group_item_paths(h_ref[ROOT_PATH]))
+        metadata_sec = set(_get_group_item_paths(h_sec[ROOT_PATH]))
 
     # Intersect metadata keys
     set_ref_minus_sec = metadata_ref - metadata_sec

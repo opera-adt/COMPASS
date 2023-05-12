@@ -7,7 +7,8 @@ from pathlib import Path
 import isce3
 import numpy as np
 
-from compass.utils.h5_helpers import (DATA_PATH, QA_PATH, ROOT_PATH,
+from compass.utils.h5_helpers import (DATA_PATH, METADATA_PATH,
+                                      QA_PATH, ROOT_PATH,
                                       add_dataset_and_attrs, Meta)
 
 
@@ -155,7 +156,7 @@ class QualityAssuranceCSLC:
             apply_tropo_corrections is true.
         '''
         # path to source group
-        corrections_src_path = f'{ROOT_PATH}/corrections'
+        corrections_src_path = f'{METADATA_PATH}/processing_information/timing_corrections'
 
         # names of datasets to compute stats for
         corrections = ['bistatic_delay', 'geometry_steering_doppler',
@@ -170,7 +171,7 @@ class QualityAssuranceCSLC:
 
         self.compute_stats_from_float_hdf5_dataset(cslc_h5py_root,
                                                    corrections_src_path,
-                                                   'corrections', corrections)
+                                                   'timing_corrections', corrections)
 
 
     def compute_stats_from_float_hdf5_dataset(self, cslc_h5py_root,

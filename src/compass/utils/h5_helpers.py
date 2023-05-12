@@ -17,9 +17,10 @@ import compass
 
 
 TIME_STR_FMT = '%Y-%m-%d %H:%M:%S.%f'
-ROOT_PATH = 'CSLC'
-DATA_PATH = f'{ROOT_PATH}/data'
-QA_PATH = f'{ROOT_PATH}/quality_assurance'
+ROOT_PATH = '/'
+DATA_PATH = '/data'
+QA_PATH = '/quality_assurance'
+METADATA_PATH = '/metadata'
 
 
 @dataclass
@@ -629,7 +630,7 @@ def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,
     # Open GDAL dataset to fetch corrections
     ds = gdal.Open(f'{scratch_path}/corrections/corrections',
                    gdal.GA_ReadOnly)
-    correction_group = parent_group.require_group('corrections')
+    correction_group = parent_group.require_group('timing_corrections')
 
     # create slant range and azimuth vectors shared by the LUTs
     x_end = rg_lut.x_start + rg_lut.width * rg_lut.x_spacing

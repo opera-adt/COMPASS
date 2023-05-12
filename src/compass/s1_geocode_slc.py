@@ -19,10 +19,13 @@ from compass.s1_cslc_qa import QualityAssuranceCSLC
 from compass.utils.browse_image import make_browse_image
 from compass.utils.elevation_antenna_pattern import apply_eap_correction
 from compass.utils.geo_runconfig import GeoRunConfig
-from compass.utils.h5_helpers import (corrections_to_h5group,
+from compass.utils.h5_helpers import (DATA_PATH,
+                                      corrections_to_h5group,
                                       identity_to_h5group,
                                       init_geocoded_dataset,
-                                      metadata_to_h5group)
+                                      METADATA_PATH,
+                                      metadata_to_h5group,
+                                      ROOT_PATH)
 from compass.utils.helpers import bursts_grouping_generator, get_module_name
 from compass.utils.lut import cumulative_correction_luts
 from compass.utils.yaml_argparse import YamlArgparse
@@ -121,8 +124,7 @@ def run(cfg: GeoRunConfig):
             ctype = h5py.h5t.py_create(np.complex64)
             ctype.commit(geo_burst_h5['/'].id, np.string_('complex64'))
 
-            data_path = '/CSLC/data'
-            grid_group = geo_burst_h5.require_group(data_path)
+            grid_group = geo_burst_h5.require_group(DATA_PATH)
             check_eap = is_eap_correction_necessary(burst.ipf_version)
             for b in bursts:
                 pol = b.polarization
@@ -175,14 +177,14 @@ def run(cfg: GeoRunConfig):
         # Save burst corrections and metadata with new h5py File instance
         # because io.Raster things
         with h5py.File(output_hdf5, 'a') as geo_burst_h5:
-            root_path = '/'
-            root_group = geo_burst_h5[root_path]
+            root_group = geo_burst_h5[ROOT_PATH]
             identity_to_h5group(root_group, burst, cfg)
 
-            cslc_group = geo_burst_h5.require_group('/CSLC')
-            metadata_to_h5group(cslc_group, burst, cfg)
+            metadata_to_h5group(root_group, burst, cfg)
             if cfg.lut_params.enabled:
-                corrections_to_h5group(cslc_group, burst, cfg, rg_lut, az_lut,
+                correction_group = geo_burst_h5.require_group(
+                    f'{METADATA_PATH}/processing_information')
+                corrections_to_h5group(correction_group, burst, cfg, rg_lut, az_lut,
                                        scratch_path,
                                        weather_model_path=cfg.weather_model_file,
                                        delay_type=cfg.tropo_params.delay_type)

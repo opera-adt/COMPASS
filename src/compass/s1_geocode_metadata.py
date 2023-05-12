@@ -16,6 +16,7 @@ from compass.s1_cslc_qa import QualityAssuranceCSLC
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.h5_helpers import (init_geocoded_dataset,
                                       metadata_to_h5group, DATA_PATH,
+                                      METADATA_PATH,
                                       ROOT_PATH)
 from compass.utils.helpers import bursts_grouping_generator, get_module_name
 from compass.utils.yaml_argparse import YamlArgparse
@@ -288,7 +289,7 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
     dec_factor: int
         Decimation factor to downsample the slant range pixels for LUT
     '''
-    dst_group_path = f'{ROOT_PATH}/metadata/calibration_information'
+    dst_group_path = f'{METADATA_PATH}/calibration_information'
     item_dict = {'gamma':burst.burst_calibration.gamma,
                  'sigma_naught':burst.burst_calibration.sigma_naught,
                  'dn':burst.burst_calibration.dn}
@@ -312,7 +313,7 @@ def geocode_noise_luts(geo_burst_h5, burst, cfg,
     dec_factor: int
         Decimation factor to downsample the slant range pixels for LUT
     '''
-    dst_group_path =  f'{ROOT_PATH}/metadata/noise_information'
+    dst_group_path =  f'{METADATA_PATH}/noise_information'
     item_dict = {'thermal_noise_lut': None}
     geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
                  dec_factor)

@@ -8,8 +8,7 @@ import isce3
 import numpy as np
 
 from compass.utils.h5_helpers import (DATA_PATH, METADATA_PATH,
-                                      QA_PATH, ROOT_PATH,
-                                      add_dataset_and_attrs, Meta)
+                                      QA_PATH, add_dataset_and_attrs, Meta)
 
 
 def value_description_dict(val, desc):

@@ -566,6 +566,19 @@ def metadata_to_h5group(parent_group, burst, cfg):
     for meta_item in burst_meta_items:
         add_dataset_and_attrs(burst_meta_group, meta_item)
 
+    # Add parameters group in processing information
+    par_meta_items = [
+        Meta('ellipsoidalFlatteningApplied', cfg.geocoding_params.flatten,
+             "If True, CSLC-S1 phase has been flatten with respect to a zero height ellipsoid",
+             {'units':'unitless'}),
+        Meta('topographicFlatteningApplied', cfg.geocoding_params.flatten,
+             "If True, CSLC-S1 phase has been flatten with respect to topographic height using a DEM",
+             {'units': 'unitless'}),
+    ]
+    par_meta_group = processing_group.require_group('parameters')
+    for meta_item in par_meta_items:
+        add_dataset_and_attrs(par_meta_group, meta_item)
+
     def poly1d_to_h5(group, poly1d_name, poly1d):
         '''Write isce3.core.Poly1d properties to hdf5
         Parameters

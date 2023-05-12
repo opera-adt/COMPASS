@@ -485,7 +485,7 @@ def metadata_to_h5group(parent_group, burst, cfg):
         Meta('last_valid_line', burst.last_valid_line,
              'Last valid line for burst in measurement tiff')
     ]
-    vrt_group = input_group.require_group('vrt_parameters')
+    vrt_group = input_group.require_group('burst_location_parameters')
     for meta_item in vrt_items:
         add_dataset_and_attrs(vrt_group, meta_item)
 
@@ -562,7 +562,7 @@ def metadata_to_h5group(parent_group, burst, cfg):
         Meta('range_chirp_rate', burst.range_chirp_rate,
              'Range chirp rate', {'units':'Hz'})
     ]
-    burst_meta_group = processing_group.require_group('s1_burst_metadata')
+    burst_meta_group = processing_group.require_group('input_burst_metadata')
     for meta_item in burst_meta_items:
         add_dataset_and_attrs(burst_meta_group, meta_item)
 

@@ -102,7 +102,7 @@ lut_options:
   # Enable/disable static troposphere correction
   static_troposphere: bool(required=False)
   # Troposphere delay using weather model
-  weather_model_troposphere: bool(required=False)
+  weather_model_troposphere: include('troposphere_options', required=False)
 
 troposphere_options:
   enabled: bool(required=False)

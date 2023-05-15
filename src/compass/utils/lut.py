@@ -42,7 +42,7 @@ def correction_luts(burst, lut_par, dem_path, tec_path,
     -------
     rg_lut: isce3.core.LUT2d
         Cumulative LUT in slant range direction (meters)
-    qz_lut: isce3.core.LUT2d
+    az_lut: isce3.core.LUT2d
         Cumulative LUT in azimuth direction (seconds)
     '''
     # Dem info
@@ -83,16 +83,18 @@ def correction_luts(burst, lut_par, dem_path, tec_path,
     az_data = np.zeros(lut_shape, dtype=np.float32)
 
     # Initialize data list and description to save corrections
-    data_dict = {
-        'doppler': [rg_data, 'Slant range geometry and steering doppler'],
-        'bistatic_delay': [rg_data, 'Bistatic delay'],
-        'azimuth_fm_rate': [rg_data, 'Azimuth FM rate mismatch'],
-        'rg_set': [rg_data, 'Slant range Solid Earth Tides'],
-        'az_set': [rg_data, 'Azimuth Solid Earth Tides'],
-        'static_tropo': [rg_data, 'Static troposphere delay'],
-        'tec_iono': [rg_data, 'Slant range ionosphere delay'],
-        'dry_tropo': [rg_data, 'Dry troposphere delay from weather model'],
-        'wet_tropo': [rg_data, 'Wet troposphere delay from weather model']}
+    data_dict_key_dscrs = (
+        ['doppler', 'Slant range geometry and steering doppler'],
+        ['bistatic_delay', 'Bistatic delay'],
+        ['azimuth_fm_rate', 'Azimuth FM rate mismatch'],
+        ['rg_set', 'Slant range Solid Earth Tides'],
+        ['az_set', 'Azimuth Solid Earth Tides'],
+        ['static_tropo', 'Static troposphere delay'],
+        ['tec_iono', 'Slant range ionosphere delay'],
+        ['dry_tropo', 'Dry troposphere delay from weather model'],
+        ['wet_tropo', 'Wet troposphere delay from weather model'])
+    data_dict = {key: (np.zeros_like(rg_data), dscr)
+                 for (key, dscr) in data_dict_key_dscrs}
 
     # Check which corrections are requested and accumulate corresponding data
     # Geometrical and steering doppler
@@ -193,12 +195,10 @@ def correction_luts(burst, lut_par, dem_path, tec_path,
     out_ds = driver.Create(f'{output_path}/corrections',
                            lut_shape[1], lut_shape[0], len(data_dict),
                            gdal.GDT_Float32)
-    band = 0
-    for key in data_dict.keys():
-        band += 1
-        raster_band = out_ds.GetRasterBand(band)
-        raster_band.SetDescription(data_dict[key][1])
-        raster_band.WriteArray(data_dict[key][0])
+    for band, (key, (data, desc)) in enumerate(data_dict.items()):
+        raster_band = out_ds.GetRasterBand(band + 1)
+        raster_band.SetDescription(desc)
+        raster_band.WriteArray(data)
 
     return rg_lut, az_lut
 

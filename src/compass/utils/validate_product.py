@@ -164,8 +164,9 @@ def _compare_static_layer_rasters(file_ref, file_sec, static_layer_items):
                 continue
 
             # Retrieve static layer raster from ref and sec HDF5
-            slc_ref = h_ref[f'{data_path}/{static_layer_item}']
-            slc_sec = h_sec[f'{data_path}/{static_layer_item}']
+            static_path = f'{data_path}/{static_layer_item}'
+            slc_ref = h_ref[static_path]
+            slc_sec = h_sec[static_path]
 
             # Compute total number of pixels different from nan from ref and sec
             ref_nan = np.isnan(slc_ref)
@@ -209,12 +210,11 @@ def _compare_complex_slc_rasters(file_ref, file_sec, pols):
     pols: list[str]
         List of polarizations of rasters to compare
     """
-    data_path = DATA_PATH
     with h5py.File(file_ref, 'r') as h_ref, h5py.File(file_sec, 'r') as h_sec:
         for pol in pols:
             # Retrieve SLC raster from ref and sec HDF5
-            slc_ref = h_ref[f'{data_path}/{pol}']
-            slc_sec = h_sec[f'{data_path}/{pol}']
+            slc_ref = h_ref[f'{DATA_PATH}/{pol}']
+            slc_sec = h_sec[f'{DATA_PATH}/{pol}']
 
             # Compute total number of pixels different from nan from ref and sec
             ref_nan = np.isnan(slc_ref)

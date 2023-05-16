@@ -8,6 +8,7 @@ import requests
 from s1reader.s1_orbit import check_internet_connection
 
 from compass.utils import iono
+from compass.utils.h5_helpers import DATA_PATH
 
 
 def download_if_needed(local_path):
@@ -92,7 +93,7 @@ def geocode_slc_params():
     test_params.output_hdf5_path = f'{output_path}/{output_file_name}'
 
     # path to groups and datasets in output HDF5
-    test_params.grid_group_path = '/data'
+    test_params.grid_group_path = DATA_PATH
     test_params.raster_path = f'{test_params.grid_group_path}/VV'
 
     return test_params

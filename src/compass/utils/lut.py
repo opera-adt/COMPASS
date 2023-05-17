@@ -13,9 +13,6 @@ from compass.utils.geometry_utils import enu2rgaz
 from compass.utils.iono import ionosphere_delay
 from compass.utils.helpers import open_raster
 from compass.utils.helpers import write_raster
-from RAiDER.delay import tropo_delay
-from RAiDER.llreader import RasterRDR
-from RAiDER.losreader import Zenith
 
 
 def cumulative_correction_luts(burst, dem_path, tec_path,
@@ -124,8 +121,7 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
 def compute_geocoding_correction_luts(burst, dem_path, tec_path,
                                       scratch_path=None,
                                       weather_model_path=None,
-                                      rg_step=200, az_step=0.25,
-                                      geo2rdr_params=None):
+                                      rg_step=200, az_step=0.25):
     '''
     Compute slant range and azimuth LUTs corrections
     to be applied during burst geocoding
@@ -254,6 +250,9 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
         los_static_tropo = compute_static_troposphere_delay(inc_angle, height)
 
     else:
+        from RAiDER.delay import tropo_delay
+        from RAiDER.llreader import RasterRDR
+        from RAiDER.losreader import Zenith
         # Instantiate an "aoi" object to read lat/lon/height files
         aoi = RasterRDR(rdr2geo_raster_paths[1], rdr2geo_raster_paths[0],
                         rdr2geo_raster_paths[2])
@@ -400,7 +399,7 @@ def compute_rdr2geo_rasters(burst, dem_raster, output_path,
     # Initialize the rdr2geo object
     rdr2geo_obj = isce3.geometry.Rdr2Geo(rdr_grid, burst.orbit,
                                          ellipsoid, grid_doppler,
-                                         threshold=1.0e8)
+                                         threshold=1.0e-8)
 
     # Get the rdr2geo raster needed for SET computation
     topo_output = {f'{output_path}/x.rdr': gdal.GDT_Float64,

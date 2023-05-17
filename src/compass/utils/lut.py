@@ -272,9 +272,11 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
         wet_los_tropo = 2.0 * zen_wet / np.cos(np.deg2rad(inc_angle))
         dry_los_tropo = 2.0 * zen_dry / np.cos(np.deg2rad(inc_angle))
 
-    return geometrical_steering_doppler, bistatic_delay, az_fm_mismatch,\
-           [rg_set, az_set], los_ionosphere,\
-            [wet_los_tropo, dry_los_tropo], los_static_tropo
+    return (
+        geometrical_steering_doppler, bistatic_delay, az_fm_mismatch,
+        [rg_set, az_set], los_ionosphere,
+        [wet_los_tropo, dry_los_tropo], los_static_tropo
+    )
 
 
 def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, hgt_radar_grid,

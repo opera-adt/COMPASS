@@ -121,7 +121,8 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
 def compute_geocoding_correction_luts(burst, dem_path, tec_path,
                                       scratch_path=None,
                                       weather_model_path=None,
-                                      rg_step=200, az_step=0.25):
+                                      rg_step=200, az_step=0.25,
+                                      geo2rdr_params=None):
     '''
     Compute slant range and azimuth LUTs corrections
     to be applied during burst geocoding

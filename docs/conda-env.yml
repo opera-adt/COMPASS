@@ -10,7 +10,6 @@ dependencies:
   - pyproj
   - pysolid
   - pytest
-  - raider
   - ruamel.yaml
   - scipy
   - yamale

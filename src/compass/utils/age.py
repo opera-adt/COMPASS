@@ -126,18 +126,21 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
 
     x_peak_vect = []
     y_peak_vect = []
+    cr_snr_vect = []
 
     # Find peak location for every corner reflector in DataFrame
     for idx, row in cr_df.iterrows():
-        x_peak, y_peak = find_peak(cslc_file, int(row['CR_X_CSLC']),
-                                   int(row['CR_Y_CSLC']), pol=pol,
-                                   mission_id=mission_id, ovs_factor=ovs_factor,
-                                   margin=margin)
+        x_peak, y_peak, snr_cr = find_peak(cslc_file, int(row['CR_X_CSLC']),
+                                             int(row['CR_Y_CSLC']), pol=pol,
+                                             mission_id=mission_id, ovs_factor=ovs_factor,
+                                             margin=margin)
         x_peak_vect.append(x_peak)
         y_peak_vect.append(y_peak)
+        cr_snr_vect.append(snr_cr)
 
     cr_df['CR_X_CSLC_PEAK'] = x_peak_vect
     cr_df['CR_Y_CSLC_PEAK'] = y_peak_vect
+    cr_df['CR_SNR'] = cr_snr_vect
 
     # Compute absolute geolocation error along X and Y direction
     cr_df['ALE_X'] = cr_df['CR_X_CSLC_PEAK'] - cr_df['CR_X']
@@ -282,6 +285,9 @@ def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
     # Extract an area around x_loc, y_loc
     img = arr[upperleft_y:lowerright_y, upperleft_x:lowerright_x]
 
+    # Check if the SNR of the peak is above the threshold
+    snr_cr_db = get_snr_cr(img)
+
     # Oversample CSLC subset and get amplitude
     img_ovs = isce3.cal.point_target_info.oversample(
         img, ovs_factor)
@@ -297,10 +303,10 @@ def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
     x_cr = x_chip + x_spac / 2 + img_peak_ovs[1] * dx1
     y_cr = y_chip + y_spac / 2 + img_peak_ovs[0] * dy1
 
-    return x_cr, y_cr
+    return x_cr, y_cr, snr_cr_db
 
 
-def get_cslc(cslc_file, mission_id='S1', pol='VV'):
+def get_cslc(cslc_file, mission_id='S1', pol='VV') -> np.ndarray :
     '''
     Get CSLC-S1 array associated to 'pol'
 
@@ -493,6 +499,45 @@ def get_cslc_epsg(cslc_file, mission_id='S1', pol='VV'):
     return epsg
 
 
+def get_snr_cr(img: np.ndarray, cutoff_percentile: float=3.0):
+    '''
+    Estimate the signal-to-noise ration (SNR) of the corner reflector contained in img
+    in the input image patch
+
+    Parameter
+    ---------
+    img: numpy.ndarray
+        SLC image patch to calculate the SNR
+    cutoff_percentile: float
+        Cutout ratio of high and low part of the signal to cutoff
+
+    Returns
+    -------
+    snr_cr_db: float
+        SNR of the peak in decibel (db)
+    '''
+
+    power_arr = img.real ** 2 + img.imag ** 2
+
+    # build up the mask array
+    thres_low = np.nanpercentile(power_arr, cutoff_percentile)
+    thres_high = np.nanpercentile(power_arr, 100 - cutoff_percentile)
+    mask_threshold = np.logical_and(power_arr < thres_low,
+                                    power_arr > thres_high)
+    mask_invalid_pixel = np.logical_and(power_arr <= 0.0,
+                                        np.isnan(power_arr))
+    ma_power_arr = np.ma.masked_array(power_arr,
+                                      mask=np.logical_and(mask_threshold,
+                                                          mask_invalid_pixel))
+
+    peak_power = power_arr.max()
+    mean_background_power = np.mean(ma_power_arr)
+
+    snr_cr_db = np.log10(peak_power / mean_background_power) * 10.0
+
+    return snr_cr_db
+
+
 def create_parser():
     '''
     Generate command line parser
@@ -521,10 +566,10 @@ def create_parser():
                           help='Mission identifier; S1: Sentinel1, NI: NISAR')
     optional.add_argument('-pol', '--polarization', dest='pol', default='VV',
                           help='Polarization channel to use to evaluate AGE ')
-    optional.add_argument('-o', '--ovs', dest='ovs_factor', default=128,
+    optional.add_argument('-o', '--ovs', dest='ovs_factor', default=128, type=int,
                           help='Oversample factor for determining CR location in the '
                                'geocoded SLC with sub-pixel accuracy')
-    optional.add_argument('-mm', '--margin', dest='margin', default=32,
+    optional.add_argument('-mm', '--margin', dest='margin', default=32, type=int,
                           help='Padding margin around CR position detected in the geocoded SLC '
                                'image. Actual margin is 2*margin from left-to-right and from'
                                'top-to-bottom')

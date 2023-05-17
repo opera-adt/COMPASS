@@ -274,18 +274,16 @@ def enu2rgaz(radargrid_ref, orbit, ellipsoid,
     '''
     Convert ENU displacement into range / azimuth displacement,
     based on the idea mentioned in ETAD ATBD, available in the link below:
-    ("https://sentinels.copernicus.eu/documents/247904/4629150/"
-     "ETAD-DLR-DD-0008_Algorithm-Technical-Baseline-Document_2.3.pdf/"
-     "5cb45b43-76dc-8dec-04ef-ca1252ace434?t=1680181574715")
+    https://sentinels.copernicus.eu/documents/247904/4629150/ETAD-DLR-DD-0008_Algorithm-Technical-Baseline-Document_2.3.pdf/5cb45b43-76dc-8dec-04ef-ca1252ace434?t=1680181574715 # noqa
 
     Algorithm description
     ---------------------
     For all lon / lat / height of the array;
     1. Calculate the ECEF coordinates before applying SET
-    2. Calculate the normal vector of east / north / up directions of the point
-    3. Scale the normal vector in 2 with ENU displacement to
+    2. Calculate the unit vector of east / north / up directions of the point (i.e. ENU vectors)
+    3. Scale the ENU vectors in 2 with ENU displacement to
        get the displacement in ECEF
-    4. Add the vectors calculated in 4 into 1.
+    4. Add the vectors calculated in 3 into 1.
        This will be the ECEF coordinates after applying SET
     5. Convert 4 into lat / lon / hgt.
        This will be LLH coordinates after applying SET
@@ -414,6 +412,9 @@ def get_enu_vector_ecef(lon, lat, units='degrees'):
         raise ValueError(f'"{units}" was provided for `units`, '
                          'which needs to be either `degrees` or `radians`')
 
+    # Calculate up, north, and east vectors
+    # reference: https://github.com/isce-framework/isce3/blob/944eba17f4a5b1c88c6a035c2d58ddd0d4f0709c/cxx/isce3/core/Ellipsoid.h#L154-L157 # noqa
+    # https://en.wikipedia.org/wiki/Geographic_coordinate_conversion#From_ECEF_to_ENU # noqa
     vec_u = np.array([np.cos(lon_rad) * np.cos(lat_rad),
                       np.sin(lon_rad) * np.cos(lat_rad),
                       np.sin(lat_rad)])

@@ -221,7 +221,8 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
         geo_burst_h5.require_group(dst_group_path)
 
     gdal_envi_driver = gdal.GetDriverByName('ENVI')
-    for item_name, lut_rgaz in item_dict.items():
+    for item_name, (rg_lut_grid, rg_lut_val,
+                    az_lut_grid, az_lut_val) in item_dict.items():
         # prepare input dataset in output HDF5
         init_geocoded_dataset(dst_group,
                               item_name,
@@ -253,17 +254,17 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
         radargrid_interp.prf /= intv_interp_azimuth
 
         # Get the interpolated range LUT
-        param_interp_obj = InterpolatedUnivariateSpline(lut_rgaz[0],
-                                                        lut_rgaz[1],
+        param_interp_obj = InterpolatedUnivariateSpline(rg_lut_grid,
+                                                        rg_lut_val,
                                                         k=1)
         range_lut_interp = param_interp_obj(range_px_interp_vec)
 
         # Get the interpolated azimuth LUT
-        if lut_rgaz[2] is None or lut_rgaz[3] is None:
+        if az_lut_grid is None or az_lut_val is None:
             azimuth_lut_interp = np.ones(radargrid_interp.length)
         else:
-            param_interp_obj = InterpolatedUnivariateSpline(lut_rgaz[2],
-                                                            lut_rgaz[3],
+            param_interp_obj = InterpolatedUnivariateSpline(az_lut_grid,
+                                                            az_lut_val,
                                                             k=1)
             azimuth_lut_interp = param_interp_obj(azimuth_px_interp_vec)
 

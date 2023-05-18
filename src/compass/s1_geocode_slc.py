@@ -7,6 +7,8 @@ import time
 
 import h5py
 import isce3
+# import raster mode geocode_slc. isce3.geocode.geocode_slc is array mode
+from isce3.ext.isce3.geocode import geocode_slc
 import journal
 import numpy as np
 from s1reader.s1_reader import is_eap_correction_necessary
@@ -86,7 +88,7 @@ def run(cfg: GeoRunConfig):
 
         # Generate required static layers
         if cfg.rdr2geo_params.enabled:
-            s1_rdr2geo.run(cfg, save_in_scratch=True)
+            s1_rdr2geo.run(cfg, burst, save_in_scratch=True)
             if cfg.rdr2geo_params.geocode_metadata_layers:
                 s1_geocode_metadata.run(cfg, burst, fetch_from_scratch=True)
 
@@ -146,16 +148,13 @@ def run(cfg: GeoRunConfig):
                                                    update=True)
 
                 # Geocode
-                isce3.geocode.geocode_slc(geo_burst_raster, rdr_burst_raster,
-                                          dem_raster,
-                                          radar_grid, sliced_radar_grid,
-                                          geo_grid, orbit,
-                                          native_doppler,
-                                          image_grid_doppler, ellipsoid, threshold,
-                                          iters, blocksize, flatten,
-                                          azimuth_carrier=az_carrier_poly2d,
-                                          az_time_correction=az_lut,
-                                          srange_correction=rg_lut)
+                geocode_slc(geo_burst_raster, rdr_burst_raster, dem_raster,
+                            radar_grid, sliced_radar_grid, geo_grid, orbit,
+                            native_doppler, image_grid_doppler, ellipsoid,
+                            threshold, iters, blocksize, flatten,
+                            azimuth_carrier=az_carrier_poly2d,
+                            az_time_correction=az_lut,
+                            srange_correction=rg_lut)
 
             # Set geo transformation
             geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,
@@ -182,7 +181,7 @@ def run(cfg: GeoRunConfig):
             browse_params = cfg.browse_image_params
             if browse_params.enabled:
                 make_browse_image(out_paths.browse_path, output_hdf5,
-                                  cfg.bursts, browse_params.complex_to_real,
+                                  bursts, browse_params.complex_to_real,
                                   browse_params.percent_low,
                                   browse_params.percent_high,
                                   browse_params.gamma, browse_params.equalize)

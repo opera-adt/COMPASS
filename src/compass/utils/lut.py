@@ -12,9 +12,7 @@ from skimage.transform import resize
 from compass.utils.geometry_utils import enu2los, en2az
 from compass.utils.iono import ionosphere_delay
 from compass.utils.helpers import open_raster
-from RAiDER.delay import tropo_delay
-from RAiDER.llreader import RasterRDR
-from RAiDER.losreader import Zenith
+from compass.utils.helpers import write_raster
 
 
 def correction_luts(burst, lut_par, dem_path, tec_path,
@@ -157,6 +155,10 @@ def correction_luts(burst, lut_par, dem_path, tec_path,
 
     # Weather model troposphere correction
     if lut_par.weather_model_troposphere.enabled:
+        from RAiDER.delay import tropo_delay
+        from RAiDER.llreader import RasterRDR
+        from RAiDER.losreader import Zenith
+
         delay_type = lut_par.weather_model_troposphere.delay_type
         # Instantiate an "aoi" object to read lat/lon/height files
         aoi = RasterRDR(rdr2geo_raster_paths[1], rdr2geo_raster_paths[0],
@@ -328,7 +330,7 @@ def compute_rdr2geo_rasters(burst, dem_raster, output_path,
     # Initialize the rdr2geo object
     rdr2geo_obj = isce3.geometry.Rdr2Geo(rdr_grid, burst.orbit,
                                          ellipsoid, grid_doppler,
-                                         threshold=1.0e8)
+                                         threshold=1.0e-8)
 
     # Get the rdr2geo raster needed for SET computation
     topo_output = {f'{output_path}/x.rdr': gdal.GDT_Float64,

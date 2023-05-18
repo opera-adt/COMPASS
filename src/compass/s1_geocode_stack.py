@@ -70,8 +70,21 @@ def create_parser():
     optional.add_argument('-m', '--metadata', action='store_true',
                           help='If flag is set, generates radar metadata layers for each'
                                ' burst stack (see rdr2geo processing options)')
-    optional.add_argument('-nc', '--no-corrections', action='store_true',
-                          help='If flag is set, skip the geocoding LUT corrections.')
+    optional.add_argument('-gsd', '--geometry-steering-doppler-correction', action='store_false',
+                          help='If flag is set, skip application of geometry steering doppler.')
+    optional.add_argument('-bd', '--bistatic-delay-correction', action='store_false',
+                          help='If flag is set, skip application of bistatic delay.')
+    optional.add_argument('-afr', '--azimuth-fm-rate-correction', action='store_false',
+                          help='If flag is set, skip application of azimuth FM rate.')
+    optional.add_argument('-set', '--solid-earth-tides-correction', action='store_false',
+                          help='If flag is set, skip application of solid earth tides.')
+    optional.add_argument('-it', '--ionosphere-tec-correction', action='store_false',
+                          help='If flag is set, skip application of ionosphere TEC.')
+    optional.add_argument('-st', '--static-troposphere-correction', action='store_false',
+                          help='If flag is set, skip application of static troposphere.')
+    optional.add_argument('-wmt', '--weather-model-troposphere-correction', type=str, default=None,
+                          choices=['dry', 'wet', 'wet_dry'],
+                          help='If no value is given, weather model troposphere not applied. Otherwise apply based on given type.')
     optional.add_argument('--unzipped', action='store_true',
                           help='If flag is set, assumes that the SLCs are unzipped, '
                                'and only the SAFE directory is provided.')
@@ -226,7 +239,7 @@ def get_common_burst_ids(data):
 
 
 def create_runconfig(burst_map_row, dem_file, work_dir, flatten, pol, x_spac,
-                     y_spac, enable_metadata, enable_corrections, burst_db_file):
+                     y_spac, enable_metadata, corrections, burst_db_file):
     """
     Create runconfig to process geocoded bursts
 
@@ -248,10 +261,10 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, pol, x_spac,
         Spacing of geocoded burst along Y-direction
     enable_metadata: bool
         Flag to enable/disable metadata generation for each burst stack.
+    corrections: dict
+        Dict containing flags to enable/disable applying corrections to burst stacks.
     burst_db_file: str
         Path to burst database file to use for burst bounding boxes.
-    enable_corrections: bool
-        Flag to enable/disable applying corrections to burst stacks.
 
     Returns
     -------
@@ -284,7 +297,7 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, pol, x_spac,
 
     # Geocoding
     process['polarization'] = pol
-    process['correction_luts']['enabled'] = enable_corrections
+    process['correction_luts'] = corrections
     geocode['flatten'] = flatten
     geocode['x_posting'] = x_spac
     geocode['y_posting'] = y_spac
@@ -480,10 +493,25 @@ def run(slc_dir, dem_file, burst_id=None, common_bursts_only=False, start_date=N
     print('Elapsed time (min):', (end_time - start_time) / 60.0)
 
 
+def _get_correction_args(args):
+    # gather correction related args into dict for easy iteration
+    corrections = {k:v for k, v in args.__dict__.items() if 'correction' in k}
+    wmt = corrections['weather_model_troposphere_correction']
+    if wmt is not None:
+        corrections['weather_model_troposphere_correction'] = \
+            {'enabled':True, 'delay_type':wmt}
+    else:
+        corrections['weather_model_troposphere_correction'] = \
+            {'enabled':False, 'delay_type':wmt}
+    return corrections
+
 def main():
     """Create the command line interface and run the script."""
     # Run main script
     args = create_parser()
+
+    # gather correction related args for easy grouped iteration later
+    corrections = _get_correction_args(args)
 
     run(
         slc_dir=args.slc_dir,
@@ -504,7 +532,7 @@ def main():
         burst_db_file=args.burst_db_file,
         flatten=not args.no_flatten,
         enable_metadata=args.metadata,
-        enable_corrections=not args.no_corrections,
+        corrections=corrections,
         using_zipped=not args.unzipped,
     )
 

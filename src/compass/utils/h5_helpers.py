@@ -137,9 +137,11 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
 
     grid_meta_items = [
         Meta('x_spacing', geo_grid.spacing_x,
-             'Spacing of geo grid in x-axis.'),
+             'Spacing of the geographical grid along X-direction',
+             {'units': 'meters'}),
         Meta('y_spacing', geo_grid.spacing_y,
-             'Spacing of geo grid in y-axis.')
+             'Spacing of the geographical grid along Y-direction',
+             {'units': 'meters'})
     ]
     for meta_item in grid_meta_items:
         add_dataset_and_attrs(grid_group, meta_item)
@@ -291,7 +293,8 @@ def save_orbit(orbit, orbit_direction, orbit_group):
     orbit_group: h5py.Group
         HDF5 group where orbit parameters will be written
     '''
-    ref_epoch = orbit.reference_epoch.isoformat().replace('T', ' ')
+    # isce isoformat gives 9 decimal places, but python `fromisoformat` wants 6
+    ref_epoch = orbit.reference_epoch.isoformat().replace('T', ' ')[:-3]
     orbit_items = [
         Meta('reference_epoch', ref_epoch, 'Reference epoch of the state vectors',
              {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
@@ -362,9 +365,11 @@ def identity_to_h5group(dst_group, burst, cfg):
     # identification datasets
     id_meta_items = [
         Meta('product_version', f'{cfg.product_group.product_version}', 'CSLC-S1 product version'),
+        Meta('product_specification_version', f'{cfg.product_group.product_specification_version}',
+             'CSLC-S1 product specification version'),
         Meta('absolute_orbit_number', burst.abs_orbit_number, 'Absolute orbit number'),
         Meta('track_number', burst.burst_id.track_number, 'Track number'),
-        Meta('burst_id', str(burst.burst_id), 'Burst identification (burst ID)'),
+        Meta('burst_id', str(burst.burst_id), 'Burst identification string (burst ID)'),
         Meta('bounding_polygon', get_polygon_wkt(burst),
              'OGR compatible WKT representation of bounding polygon of the image',
              {'units':'degrees'}),
@@ -378,8 +383,6 @@ def identity_to_h5group(dst_group, burst, cfg):
         Meta('zero_doppler_end_time', burst.sensing_stop.strftime(TIME_STR_FMT),
             'Azimuth stop time of product'),
         Meta('is_geocoded', 'True', 'Boolean indicating if product is in radar geometry or geocoded'),
-        Meta('is_urgent_observation', 'False',
-             'Boolean indicating if data take is a urgent observation'),
         ]
     id_group = dst_group.require_group('identification')
     for meta_item in id_meta_items:

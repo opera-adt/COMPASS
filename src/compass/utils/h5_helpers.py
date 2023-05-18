@@ -376,7 +376,7 @@ def identity_to_h5group(dst_group, burst, cfg):
              'OGR compatible WKT representation of bounding polygon of the image',
              {'units':'degrees'}),
         Meta('mission_id', burst.platform_id, 'Mission identifier'),
-        Meta('processing_date_time', datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+        Meta('processing_date_time', datetime.now().strftime(TIME_STR_FMT),
              'Data processing date and time'),
         Meta('product_type', 'CSLC-S1', 'Product type'),
         Meta('product_level', 'L2', 'L0A: Unprocessed instrument data; L0B: Reformatted, '

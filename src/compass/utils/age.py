@@ -12,9 +12,8 @@ from osgeo import gdal, osr
 from pyproj import CRS, Proj
 from shapely import geometry
 from compass.utils.h5_helpers import (DATA_PATH,
-                                      METADATA_PATH)
-
-dateformat = '%Y-%m-%d %H:%M:%S.%f'
+                                      METADATA_PATH,
+                                      TIME_STR_FMT)
 
 
 def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
@@ -208,9 +207,9 @@ def correct_cr_tides(cslc_file, cr_lat, cr_lon,
         stop = h5[stop_path][()]
 
     sensing_start = dt.datetime.strptime(start.decode('UTF-8'),
-                                         dateformat)
+                                         TIME_STR_FMT)
     sensing_stop = dt.datetime.strptime(stop.decode('UTF-8'),
-                                        dateformat)
+                                        TIME_STR_FMT)
 
     # Compute SET in ENU using pySolid
     (_,

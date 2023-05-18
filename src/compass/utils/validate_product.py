@@ -59,7 +59,7 @@ def _grid_info_retrieve(path_h5, dataset_names, is_static_layer):
         data_path += '/static_layers'
 
     # Extract existing dataset names with h5py
-    with h5py.File(path_h5) as h:
+    with h5py.File(path_h5, 'r') as h:
         datasets_found = [ds_name for ds_name in dataset_names
                 if ds_name in h[data_path]]
 

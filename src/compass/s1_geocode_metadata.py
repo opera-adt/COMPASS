@@ -156,7 +156,7 @@ def run(cfg, burst, fetch_from_scratch=False):
 
 
 def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
-                 dec_factor=40):
+                 dec_factor=(40, 10)):
     '''
     Geocode the radiometric calibratio paremeters,
     and write them into output HDF5.
@@ -173,8 +173,9 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
         Path in HDF5 where geocode rasters will be placed
     item_dict: dict
         Dict containing item names and values to be geocoded
-    dec_factor: int
-        Decimation factor to downsample the slant range pixels for LUT
+    dec_factor: tuple
+        Decimation factor to downsample the LUT in
+        range and azimuth direction respectively
     '''
     dem_raster = isce3.io.Raster(cfg.dem)
     epsg = dem_raster.get_epsg()
@@ -197,10 +198,10 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
     decimated_geogrid = isce3.product.GeoGridParameters(
                             geo_grid.start_x,
                             geo_grid.start_y,
-                            geo_grid.spacing_x * dec_factor,
-                            geo_grid.spacing_y * dec_factor,
-                            geo_grid.width // dec_factor + 1,
-                            geo_grid.length // dec_factor + 1,
+                            geo_grid.spacing_x * dec_factor[0],
+                            geo_grid.spacing_y * dec_factor[1],
+                            geo_grid.width // dec_factor[0] + 1,
+                            geo_grid.length // dec_factor[1] + 1,
                             geo_grid.epsg)
 
     # initialize geocode object
@@ -241,32 +242,37 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
         # The resultant radargrid will have
         # the very first and the last LUT values be included.
         radargrid_interp = radar_grid.copy()
+        #radargrid_interp = radargrid_interp.multilook(dec_factor[1], dec_factor[0])
 
-        radargrid_interp.width = int(np.ceil(burst.width / dec_factor))
-        intv_interp_range = (burst.width - 1) / (radargrid_interp.width - 1)
-        range_px_interp_vec = np.arange(0, burst.width, intv_interp_range)
+        radargrid_interp.width = int(np.ceil(burst.width / dec_factor[0]))
+        range_px_interp_vec = np.linspace(0, burst.width, radargrid_interp.width)
+        intv_interp_range = range_px_interp_vec[1] - range_px_interp_vec[0]
 
-        radargrid_interp.length = int(np.ceil(burst.length / dec_factor))
-        intv_interp_azimuth = (burst.length - 1) / (radargrid_interp.length - 1)
-        azimuth_px_interp_vec = np.arange(0, burst.length, intv_interp_azimuth)
+
+        radargrid_interp.length = int(np.ceil(burst.length / dec_factor[1]))
+        azimuth_px_interp_vec = np.linspace(0, burst.length, radargrid_interp.length)
+        intv_interp_azimuth = azimuth_px_interp_vec[1] - azimuth_px_interp_vec[0]
+
+        if az_lut_grid is not None:
+            azimuth_px_interp_vec += az_lut_grid[0]
 
         radargrid_interp.range_pixel_spacing *= intv_interp_range
         radargrid_interp.prf /= intv_interp_azimuth
 
         # Get the interpolated range LUT
-        param_interp_obj = InterpolatedUnivariateSpline(rg_lut_grid,
-                                                        rg_lut_val,
-                                                        k=1)
-        range_lut_interp = param_interp_obj(range_px_interp_vec)
+        param_interp_obj_rg = InterpolatedUnivariateSpline(rg_lut_grid,
+                                                           rg_lut_val,
+                                                           k=1)
+        range_lut_interp = param_interp_obj_rg(range_px_interp_vec)
 
         # Get the interpolated azimuth LUT
         if az_lut_grid is None or az_lut_val is None:
             azimuth_lut_interp = np.ones(radargrid_interp.length)
         else:
-            param_interp_obj = InterpolatedUnivariateSpline(az_lut_grid,
-                                                            az_lut_val,
-                                                            k=1)
-            azimuth_lut_interp = param_interp_obj(azimuth_px_interp_vec)
+            param_interp_obj_az = InterpolatedUnivariateSpline(az_lut_grid,
+                                                               az_lut_val,
+                                                               k=1)
+            azimuth_lut_interp = param_interp_obj_az(azimuth_px_interp_vec)
 
         lut_arr = np.matmul(azimuth_lut_interp[..., np.newaxis],
                             range_lut_interp[np.newaxis, ...])
@@ -302,7 +308,7 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
 
 
 def geocode_calibration_luts(geo_burst_h5, burst, cfg,
-                             dec_factor=40):
+                             dec_factor=(40, 10)):
     '''
     Geocode the radiometric calibratio paremeters,
     and write them into output HDF5.
@@ -315,8 +321,9 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
         Sentinel-1 burst SLC
     cfg: GeoRunConfig
         GeoRunConfig object with user runconfig options
-    dec_factor: int
-        Decimation factor to downsample the slant range pixels for LUT
+    dec_factor: tuple
+        Decimation factor to downsample the LUT in
+        range and azimuth direction respectively
     '''
     dst_group_path = f'{ROOT_PATH}/metadata/calibration_information'
 
@@ -343,7 +350,7 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
 
 
 def geocode_noise_luts(geo_burst_h5, burst, cfg,
-                       dec_factor=40):
+                       dec_factor=(40, 10)):
     '''
     Geocode the noise LUT, and write that into output HDF5.
 
@@ -355,8 +362,9 @@ def geocode_noise_luts(geo_burst_h5, burst, cfg,
         Sentinel-1 burst SLC
     cfg: GeoRunConfig
         GeoRunConfig object with user runconfig options
-    dec_factor: int
-        Decimation factor to downsample the slant range pixels for LUT
+    dec_factor: tuple
+        Decimation factor to downsample the LUT in
+        range and azimuth direction respectively
     '''
     dst_group_path =  f'{ROOT_PATH}/metadata/noise_information'
     item_dict_noise = {'thermal_noise_lut': [burst.burst_noise.range_pixel,

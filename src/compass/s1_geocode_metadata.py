@@ -183,8 +183,7 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
     ellipsoid = proj.ellipsoid
     burst_id = str(burst.burst_id)
     geo_grid = cfg.geogrids[burst_id]
-    radar_grid = burst.as_isce3_radargrid()
-
+    
     date_str = burst.sensing_start.strftime("%Y%m%d")
     burst_id_date_key = (burst_id, date_str)
     out_paths = cfg.output_paths[burst_id_date_key]
@@ -241,16 +240,15 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
         # Define the radargrid for LUT interpolation
         # The resultant radargrid will have
         # the very first and the last LUT values be included.
-        radargrid_interp = radar_grid.copy()
+        radargrid_interp = burst.as_isce3_radargrid()
         #radargrid_interp = radargrid_interp.multilook(dec_factor[1], dec_factor[0])
 
         radargrid_interp.width = int(np.ceil(burst.width / dec_factor[0]))
-        range_px_interp_vec = np.linspace(0, burst.width, radargrid_interp.width)
+        range_px_interp_vec = np.linspace(0, burst.width - 1, radargrid_interp.width)
         intv_interp_range = range_px_interp_vec[1] - range_px_interp_vec[0]
 
-
         radargrid_interp.length = int(np.ceil(burst.length / dec_factor[1]))
-        azimuth_px_interp_vec = np.linspace(0, burst.length, radargrid_interp.length)
+        azimuth_px_interp_vec = np.linspace(0, burst.length - 1, radargrid_interp.length)
         intv_interp_azimuth = azimuth_px_interp_vec[1] - azimuth_px_interp_vec[0]
 
         if az_lut_grid is not None:

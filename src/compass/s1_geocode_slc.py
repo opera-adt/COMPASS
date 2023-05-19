@@ -72,13 +72,6 @@ def run(cfg: GeoRunConfig):
         # Create scratch as needed
         scratch_path = out_paths.scratch_directory
 
-        # Compute correction LUTs
-        rg_lut, az_lut = correction_luts(burst, cfg.lut_params,
-                                         dem_path=cfg.dem,
-                                         tec_path=cfg.tec_file,
-                                         scratch_path=scratch_path,
-                                         weather_model_path=cfg.weather_model_file)
-
         radar_grid = burst.as_isce3_radargrid()
         native_doppler = burst.doppler.lut2d
         orbit = burst.orbit
@@ -111,17 +104,26 @@ def run(cfg: GeoRunConfig):
 
             # add type to root for GDAL recognition of datasets
             ctype = h5py.h5t.py_create(np.complex64)
-            ctype.commit(geo_burst_h5['/'].id, np.string_('complex64'))
+            #ctype.commit(geo_burst_h5['/'].id, np.string_('complex64'))
 
             grid_path = f'{root_path}/CSLC/grids'
             grid_group = geo_burst_h5.require_group(grid_path)
             check_eap = is_eap_correction_necessary(burst.ipf_version)
+
+            # Compute correction LUTs
+            rg_lut, az_lut = correction_luts(burst, cfg.lut_params,
+                                             dem_path=cfg.dem,
+                                             tec_path=cfg.tec_file,
+                                             h5_file_obj=geo_burst_h5,
+                                             scratch_path=scratch_path,
+                                             weather_model_path=cfg.weather_model_file)
+
             for b in bursts:
                 pol = b.polarization
 
                 # Load the input burst SLC
                 temp_slc_path = f'{scratch_path}/{out_paths.file_name_pol}_temp.vrt'
-                burst.slc_to_vrt_file(temp_slc_path)
+                #burst.slc_to_vrt_file(temp_slc_path)
 
                 # Apply EAP correction if necessary
                 if check_eap.phase_correction:
@@ -189,13 +191,8 @@ def run(cfg: GeoRunConfig):
             # If needed, perform QA and write results to JSON
             if cfg.quality_assurance_params.perform_qa:
                 cslc_qa = QualityAssuranceCSLC()
-                # if cfg.lut_params.enabled:
-                #     # apply tropo corrections if weather file provided
-                #     apply_tropo_corrections = cfg.weather_model_file is not None
-                #     cslc_qa.compute_correction_stats(
-                #         geo_burst_h5, apply_tropo_corrections,
-                #         cfg.tropo_params.delay_type)
                 cslc_qa.compute_CSLC_raster_stats(geo_burst_h5, bursts)
+                cslc_qa.compute_correction_stats(geo_burst_h5)
                 cslc_qa.populate_rfi_dict(geo_burst_h5)
                 cslc_qa.valid_pixel_percentages(geo_burst_h5)
                 cslc_qa.set_orbit_type(cfg, geo_burst_h5)

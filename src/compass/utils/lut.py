@@ -10,12 +10,12 @@ from scipy.interpolate import RegularGridInterpolator as RGI
 from skimage.transform import resize
 
 from compass.utils.geometry_utils import enu2los, en2az
-from compass.utils.iono import ionosphere_delay
+from compass.utils.h5_helpers import Meta, add_dataset_and_attrs
 from compass.utils.helpers import open_raster
-from compass.utils.helpers import write_raster
+from compass.utils.iono import ionosphere_delay
 
 
-def correction_luts(burst, lut_par, dem_path, tec_path,
+def correction_luts(burst, lut_par, dem_path, tec_path, h5_file_obj,
                     scratch_path=None,
                     weather_model_path=None):
     '''
@@ -80,7 +80,7 @@ def correction_luts(burst, lut_par, dem_path, tec_path,
     rg_data = np.zeros(lut_shape, dtype=np.float32)
     az_data = np.zeros(lut_shape, dtype=np.float32)
 
-    # Initialize data list and description to save corrections
+    # Initialize data list and lut_description to save corrections
     data_dict_key_dscrs = (
         ['doppler', 'Slant range geometry and steering doppler'],
         ['bistatic_delay', 'Bistatic delay'],
@@ -94,23 +94,49 @@ def correction_luts(burst, lut_par, dem_path, tec_path,
     data_dict = {key: (np.zeros_like(rg_data), dscr)
                  for (key, dscr) in data_dict_key_dscrs}
 
+    # Dict of meta correction items to be written to HDF5
+    correction_lut_items = []
+
+    # Common string to all lut_descriptions
+    lut_desc = 'correction as a function of slant range and azimuth time'
+
+    # Dict indicating if a correction item has been applied
+    correction_application_items = []
+
+    # Common string to all lut_descriptions
+    corr_desc = 'correction has been applied'
+
     # Check which corrections are requested and accumulate corresponding data
     # Geometrical and steering doppler
+    correction_application_items.append(
+        Meta('geometry_steering_doppler', lut_par.geometry_steering_doppler,
+             f'Boolean if geometry steering doppler {corr_desc}'))
     if lut_par.geometry_steering_doppler:
         doppler = burst.doppler_induced_range_shift(range_step=rg_step,
                                                     az_step=az_step)
         doppler_meter = doppler.data * isce3.core.speed_of_light * 0.5
         rg_data += doppler_meter
-        data_dict['doppler'][0] = doppler_meter
+        correction_lut_items.append(
+            Meta('geometry_steering_doppler', doppler_meter,
+                 f'geometry steering doppler (range) {lut_desc}',
+                 {'units': 'meters'}))
 
     # Bistatic delay
+    correction_application_items.append(
+        Meta('bistatic_delay', lut_par.bistatic_delay,
+             f'Boolean if bistatic delay {corr_desc}'))
     if lut_par.bistatic_delay:
         bistatic_delay = burst.bistatic_delay(range_step=rg_step,
                                               az_step=az_step).data
         az_data -= bistatic_delay
-        data_dict['bistatic_delay'][0] = -bistatic_delay
+        correction_lut_items.append(
+            Meta('bistatic_delay', bistatic_delay,
+                 f'bistatic delay (azimuth) {lut_desc}', {'units': 'seconds'}))
 
     # Azimuth FM-rate mismatch
+    correction_application_items.append(
+        Meta('azimuth_fm_rate_mismatch', lut_par.azimuth_fm_rate,
+             f'Boolean if azimuth FM rate mismatch mitigation {corr_desc}'))
     if lut_par.azimuth_fm_rate:
         az_fm_rate = burst.az_fm_rate_mismatch_from_llh(lat, lon, height,
                                                         ellipsoid,
@@ -118,9 +144,18 @@ def correction_luts(burst, lut_par, dem_path, tec_path,
                                                             az_step=az_step,
                                                             rg_step=rg_step)).data
         az_data -= az_fm_rate
-        data_dict['azimuth_fm_rate'][0] = -az_fm_rate
+        correction_lut_items.append(
+            Meta('azimuth_fm_rate_mismatch', az_fm_rate,
+                 f'azimuth FM rate mismatch mitigation (azimuth) {lut_desc}',
+                 {'units': 'seconds'}))
 
     # Solid Earth tides
+    correction_application_items.append(
+        Meta('los_solid_earth_tides', lut_par.solid_earth_tides,
+             f'Boolean if LOS solid Earth tides {corr_desc}'))
+    correction_application_items.append(
+        Meta('azimuth_solid_earth_tides', lut_par.solid_earth_tides,
+             f'Boolean if azimuth solid Earth tides {corr_desc}'))
     if lut_par.solid_earth_tides:
         dec_factor = int(np.round(5000.0 / rg_step))
         dec_slice = np.s_[::dec_factor]
@@ -136,30 +171,52 @@ def correction_luts(burst, lut_par, dem_path, tec_path,
         az_set = resize(az_set_temp, lut_shape, **kwargs)
         rg_data += rg_set
         az_data += az_set
-        data_dict['rg_set'][0] = rg_set
-        data_dict['az_set'][0] = az_set
+        correction_lut_items.append(
+            Meta('los_solid_earth_tides', rg_set,
+                 f'Solid Earth tides (range) {lut_desc}', {'units': 'meters'}))
+        correction_lut_items.append(
+            Meta('azimuth_solid_earth_tides', az_set,
+                 f'Solid Earth tides (azimuth) {lut_desc}', {'units': 'seconds'}))
 
     # Static troposphere
+    correction_application_items.append(
+        Meta('static_los_tropospheric_delay', lut_par.static_troposphere,
+             f'Boolean if static tropospheric delay {corr_desc}'))
     if lut_par.static_troposphere:
         los_static_tropo = compute_static_troposphere_delay(inc_angle, height)
         rg_data += los_static_tropo
-        data_dict['static_tropo'][0] = los_static_tropo
+        correction_lut_items.append(
+            Meta('static_los_tropospheric_delay', los_static_tropo,
+                 f'Static tropospheric delay (range) {lut_desc}',
+                 {'units': 'meters'}))
 
     # Ionosphere TEC correction
+    correction_application_items.append(
+        Meta('los_ionospheric_delay', lut_par.ionosphere_tec,
+             f'Boolean if ionospheric delay {corr_desc}'))
     if lut_par.ionosphere_tec:
         los_iono = ionosphere_delay(burst.sensing_mid,
                                     burst.wavelength,
                                     tec_path, lon, lat, inc_angle)
         rg_data += los_iono
-        data_dict['tec_iono'][0] = los_iono
+        correction_lut_items.append(
+            Meta('los_ionospheric_delay', los_iono,
+                 f'Ionospheric delay (range) {lut_desc}', {'units': 'meters'}))
 
     # Weather model troposphere correction
+    tropo_enabled = lut_par.weather_model_troposphere.enabled
+    delay_type = lut_par.weather_model_troposphere.delay_type
+    correction_application_items.append(
+        Meta('wet_los_troposphere_delay', tropo_enabled and 'wet' in delay_type,
+             f'Boolean if wet LOS troposphere delay {corr_desc}'))
+    correction_application_items.append(
+        Meta('dry_los_troposphere_delay', tropo_enabled and 'dry' in delay_type,
+             f'Boolean if dry LOS troposphere delay {corr_desc}'))
     if lut_par.weather_model_troposphere.enabled:
         from RAiDER.delay import tropo_delay
         from RAiDER.llreader import RasterRDR
         from RAiDER.losreader import Zenith
 
-        delay_type = lut_par.weather_model_troposphere.delay_type
         # Instantiate an "aoi" object to read lat/lon/height files
         aoi = RasterRDR(rdr2geo_raster_paths[1], rdr2geo_raster_paths[0],
                         rdr2geo_raster_paths[2])
@@ -172,17 +229,32 @@ def correction_luts(burst, lut_par, dem_path, tec_path,
         zen_wet, zen_dry = tropo_delay(burst.sensing_start,
                                        weather_model_path,
                                        aoi, los)
+
         # RaiDER delay is one-way only. Get the LOS delay my multiplying
         # by the incidence angle
-        wet_los_tropo = 2.0 * zen_wet / np.cos(np.deg2rad(inc_angle))
-        dry_los_tropo = 2.0 * zen_dry / np.cos(np.deg2rad(inc_angle))
-
         if 'wet' in delay_type:
+            wet_los_tropo = 2.0 * zen_wet / np.cos(np.deg2rad(inc_angle))
             rg_data += wet_los_tropo
-            data_dict['wet_tropo'][0] = wet_los_tropo
+            correction_lut_items.append(
+                Meta('wet_los_troposphere_delay', wet_los_tropo,
+                     f'Wet LOS troposphere delay {lut_desc}',
+                     {'units': 'meters'}))
         if 'dry' in delay_type:
+            dry_los_tropo = 2.0 * zen_dry / np.cos(np.deg2rad(inc_angle))
             rg_data += dry_los_tropo
-            data_dict['dry_tropo'][0] = dry_los_tropo
+            correction_lut_items.append(
+                Meta('dry_los_troposphere_delay', dry_los_tropo,
+                     f'Dry LOS troposphere delay {lut_desc}',
+                     {'units': 'meters'}))
+
+    proc_nfo_group = \
+             h5_file_obj.require_group('science/SENTINEL1/CSLC/metadata/processing_information/corrections')
+    for meta_item in correction_application_items:
+        add_dataset_and_attrs(proc_nfo_group, meta_item)
+
+    correction_group = h5_file_obj.require_group('science/SENTINEL1/CSLC/corrections')
+    for meta_item in correction_lut_items:
+        add_dataset_and_attrs(correction_group, meta_item)
 
     # Create the range and azimuth LUT2d
     rg_lut = isce3.core.LUT2d(lut.x_start, lut.y_start,
@@ -191,16 +263,6 @@ def correction_luts(burst, lut_par, dem_path, tec_path,
     az_lut = isce3.core.LUT2d(lut.x_start, lut.y_start,
                               lut.x_spacing, lut.y_spacing,
                               az_data)
-
-    # Save corrections
-    driver = gdal.GetDriverByName('ENVI')
-    out_ds = driver.Create(f'{output_path}/corrections',
-                           lut_shape[1], lut_shape[0], len(data_dict),
-                           gdal.GDT_Float32)
-    for band, (key, (data, desc)) in enumerate(data_dict.items()):
-        raster_band = out_ds.GetRasterBand(band + 1)
-        raster_band.SetDescription(desc)
-        raster_band.WriteArray(data)
 
     return rg_lut, az_lut
 

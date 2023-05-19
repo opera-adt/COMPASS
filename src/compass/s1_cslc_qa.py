@@ -137,8 +137,7 @@ class QualityAssuranceCSLC:
                                                    static_layers)
 
 
-    def compute_correction_stats(self, cslc_h5py_root, apply_tropo_corrections,
-                                 tropo_delay_type):
+    def compute_correction_stats(self, cslc_h5py_root):
         '''
         Compute correction stats. Stats written to HDF5 and saved to class dict
         for later JSON output
@@ -147,26 +146,13 @@ class QualityAssuranceCSLC:
         ----------
         cslc_h5py_root: h5py.File
             Root of CSLC HDF5
-        apply_tropo_corrections: bool
-            Whether or not to compute troposhpere correction stats
-        tropo_delay_type: str
-            Type of troposphere delay. Any between 'dry', or 'wet', or
-            'wet_dry' for the sum of wet and dry troposphere delays. Only used
-            apply_tropo_corrections is true.
         '''
         # path to source group
         corrections_src_path = f'{ROOT_PATH}/corrections'
 
-        # names of datasets to compute stats for
-        corrections = ['bistatic_delay', 'geometry_steering_doppler',
-                       'azimuth_fm_rate_mismatch', 'los_ionospheric_delay',
-                       'los_solid_earth_tides']
-
-        # check if tropo corrections need to be computed and saved
-        if apply_tropo_corrections:
-            for delay_type in ['wet', 'dry']:
-                if delay_type in tropo_delay_type:
-                    corrections.append(f'{delay_type}_los_troposphere_delay')
+        # compute stats for corrections flagged true
+        corrections= [k for k, v in cslc_h5py_root[
+            'science/SENTINEL1/CSLC/metadata/processing_information/corrections'].items() if v]
 
         self.compute_stats_from_float_hdf5_dataset(cslc_h5py_root,
                                                    corrections_src_path,

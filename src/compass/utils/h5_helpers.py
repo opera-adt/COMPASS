@@ -404,9 +404,6 @@ def metadata_to_h5group(parent_group, burst, cfg):
     cfg: types.SimpleNamespace
         SimpleNamespace containing run configuration
     '''
-    if 'metadata' in parent_group:
-        del parent_group['metadata']
-
     # create metadata group to write datasets to
     meta_group = parent_group.require_group('metadata')
 
@@ -626,31 +623,7 @@ def corrections_to_h5group(parent_group, burst, rg_lut,
              {'units': 'seconds'}),
         Meta('zero_doppler_time_spacing',rg_lut.y_spacing,
              'spacing of azimuth time of LUT data', {'units': 'seconds'}),
-        Meta('geometry_steering_doppler', ds.GetRasterBand(1).ReadAsArray(),
-             f'geometry steering doppler (range) {desc}',
-             {'units': 'meters'}),
-        Meta('bistatic_delay', ds.GetRasterBand(2).ReadAsArray(),
-             f'bistatic delay (azimuth) {desc}', {'units': 'seconds'}),
-        Meta('azimuth_fm_rate_mismatch', ds.GetRasterBand(3).ReadAsArray(),
-             f'azimuth FM rate mismatch mitigation (azimuth) {desc}',
-             {'units': 'seconds'}),
-        Meta('los_solid_earth_tides', ds.GetRasterBand(4).ReadAsArray(),
-             f'Solid Earth tides (range) {desc}',
-             {'units': 'meters'}),
-        Meta('azimuth_solid_earth_tides', ds.GetRasterBand(5).ReadAsArray(),
-             f'Solid Earth tides (range) {desc}',
-             {'units': 'seconds'}),
-        Meta('los_ionospheric_delay', ds.GetRasterBand(7).ReadAsArray(),
-             f'Ionospheric delay (range) {desc}',
-             {'units': 'meters'}),
-        Meta('wet_los_troposphere_delay', ds.GetRasterBand(8).ReadAsArray(),
-             f'Wet LOS troposphere delay {desc}',
-             {'units': 'meters'}),
-        Meta('dry_los_troposphere_delay', ds.GetRasterBand(9).ReadAsArray(),
-             f'Dry LOS troposphere delay {desc}',
-             {'units': 'meters'})
     ]
-
     for meta_item in correction_items:
         add_dataset_and_attrs(correction_group, meta_item)
 

@@ -3,6 +3,7 @@ Collection of functions to help write HDF5 datasets and metadata
 '''
 
 from dataclasses import dataclass, field
+from datetime import datetime
 import os
 
 import isce3
@@ -16,9 +17,10 @@ import compass
 
 
 TIME_STR_FMT = '%Y-%m-%d %H:%M:%S.%f'
-ROOT_PATH = '/science/SENTINEL1/CSLC'
-GRID_PATH = f'{ROOT_PATH}/grids'
-QA_PATH = f'{ROOT_PATH}/quality_assurance'
+ROOT_PATH = '/'
+DATA_PATH = '/data'
+QA_PATH = '/quality_assurance'
+METADATA_PATH = '/metadata'
 
 
 @dataclass
@@ -374,15 +376,23 @@ def identity_to_h5group(dst_group, burst, cfg):
              'OGR compatible WKT representation of bounding polygon of the image',
              {'units':'degrees'}),
         Meta('mission_id', burst.platform_id, 'Mission identifier'),
+        Meta('processing_date_time', datetime.now().strftime(TIME_STR_FMT),
+             'Data processing date and time'),
         Meta('product_type', 'CSLC-S1', 'Product type'),
+        Meta('product_level', 'L2', 'L0A: Unprocessed instrument data; L0B: Reformatted, '
+             'unprocessed instrument data; L1: Processed instrument data in radar coordinates system; '
+             'and L2: Processed instrument data in geocoded coordinates system'),
         Meta('look_direction', 'Right', 'Look direction can be left or right'),
+        Meta('instrument_name', 'C-SAR', 'Instrument name'),
         Meta('orbit_pass_direction', burst.orbit_direction,
              'Orbit direction can be ascending or descending'),
+        Meta('radar_band', 'C', 'Radar band'),
         Meta('zero_doppler_start_time', burst.sensing_start.strftime(TIME_STR_FMT),
              'Azimuth start time of product'),
         Meta('zero_doppler_end_time', burst.sensing_stop.strftime(TIME_STR_FMT),
             'Azimuth stop time of product'),
         Meta('is_geocoded', 'True', 'Boolean indicating if product is in radar geometry or geocoded'),
+        Meta('processing_center', 'Jet Propulsion Laboratory', 'Name of the processing center that produced the product')
         ]
     id_group = dst_group.require_group('identification')
     for meta_item in id_meta_items:
@@ -420,7 +430,6 @@ def metadata_to_h5group(parent_group, burst, cfg):
     if burst.burst_calibration is not None:
         cal = burst.burst_calibration
         cal_items = [
-            Meta('basename', cal.basename_cads, ''),
             Meta('azimuth_time', cal.azimuth_time.strftime(TIME_STR_FMT),
                  'Start time', {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
             Meta('beta_naught', cal.beta_naught, 'beta_naught')
@@ -433,7 +442,6 @@ def metadata_to_h5group(parent_group, burst, cfg):
     if burst.burst_noise is not None:
         noise = burst.burst_noise
         noise_items = [
-            Meta('basename', noise.basename_nads, ''),
             Meta('range_azimuth_time',
                  noise.range_azimuth_time.strftime(TIME_STR_FMT),
                  'Start time', {'format': 'YYYY-MM-DD HH:MM:SS.6f'})
@@ -454,7 +462,7 @@ def metadata_to_h5group(parent_group, burst, cfg):
              'Input calibration file used'),
         Meta('noise_file', burst.burst_noise.basename_nads,
              'Input noise file used'),
-        Meta('dem_source', os.path.basename(cfg.dem), 'sorce DEM file'),
+        Meta('dem_source', os.path.basename(cfg.dem), 'source DEM file'),
     ]
     input_group = processing_group.require_group('inputs')
     for meta_item in input_items:
@@ -474,7 +482,7 @@ def metadata_to_h5group(parent_group, burst, cfg):
         Meta('last_valid_line', burst.last_valid_line,
              'Last valid line for burst in measurement tiff')
     ]
-    vrt_group = input_group.require_group('vrt_parameters')
+    vrt_group = input_group.require_group('burst_location_parameters')
     for meta_item in vrt_items:
         add_dataset_and_attrs(vrt_group, meta_item)
 
@@ -551,9 +559,22 @@ def metadata_to_h5group(parent_group, burst, cfg):
         Meta('range_chirp_rate', burst.range_chirp_rate,
              'Range chirp rate', {'units':'Hz'})
     ]
-    burst_meta_group = processing_group.require_group('s1_burst_metadata')
+    burst_meta_group = processing_group.require_group('input_burst_metadata')
     for meta_item in burst_meta_items:
         add_dataset_and_attrs(burst_meta_group, meta_item)
+
+    # Add parameters group in processing information
+    par_meta_items = [
+        Meta('ellipsoidalFlatteningApplied', cfg.geocoding_params.flatten,
+             "If True, CSLC-S1 phase has been flatten with respect to a zero height ellipsoid",
+             {'units':'unitless'}),
+        Meta('topographicFlatteningApplied', cfg.geocoding_params.flatten,
+             "If True, CSLC-S1 phase has been flatten with respect to topographic height using a DEM",
+             {'units': 'unitless'}),
+    ]
+    par_meta_group = processing_group.require_group('parameters')
+    for meta_item in par_meta_items:
+        add_dataset_and_attrs(par_meta_group, meta_item)
 
     def poly1d_to_h5(group, poly1d_name, poly1d):
         '''Write isce3.core.Poly1d properties to hdf5
@@ -602,7 +623,7 @@ def corrections_to_h5group(parent_group, burst, rg_lut,
     # Open GDAL dataset to fetch corrections
     ds = gdal.Open(f'{scratch_path}/corrections/corrections',
                    gdal.GA_ReadOnly)
-    correction_group = parent_group.require_group('corrections')
+    correction_group = parent_group.require_group('timing_corrections')
 
     # create slant range and azimuth vectors shared by the LUTs
     x_end = rg_lut.x_start + rg_lut.width * rg_lut.x_spacing
@@ -696,7 +717,7 @@ def get_cslc_geotransform(filename: str, pol: str = "VV"):
     list
         Geotransform of the geocoded raster
     '''
-    gdal_str = f'NETCDF:{filename}:/{GRID_PATH}/{pol}'
+    gdal_str = f'NETCDF:{filename}:/{DATA_PATH}/{pol}'
     return gdal.Info(gdal_str, format='json')['geoTransform']
 
 
@@ -717,7 +738,7 @@ def get_georaster_bounds(filename: str, pol: str = 'VV'):
         WGS84 coordinates of the geocoded raster boundary given as min_x,
         max_x, min_y, max_y
     '''
-    nfo = gdal.Info(f'NETCDF:{filename}:/{GRID_PATH}/{pol}', format='json')
+    nfo = gdal.Info(f'NETCDF:{filename}:/{DATA_PATH}/{pol}', format='json')
 
     # set extreme initial values for min/max x/y
     min_x = 999999

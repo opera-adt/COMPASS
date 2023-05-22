@@ -7,8 +7,8 @@ from pathlib import Path
 import isce3
 import numpy as np
 
-from compass.utils.h5_helpers import (GRID_PATH, QA_PATH, ROOT_PATH,
-                                      add_dataset_and_attrs, Meta)
+from compass.utils.h5_helpers import (DATA_PATH, METADATA_PATH,
+                                      QA_PATH, add_dataset_and_attrs, Meta)
 
 
 def value_description_dict(val, desc):
@@ -63,7 +63,7 @@ class QualityAssuranceCSLC:
             pol = b.polarization
 
             # get dataset and compute stats according to dtype
-            pol_path = f'{GRID_PATH}/{pol}'
+            pol_path = f'{DATA_PATH}/{pol}'
             pol_ds = cslc_h5py_root[pol_path]
 
             # compute stats for real and complex
@@ -81,7 +81,7 @@ class QualityAssuranceCSLC:
 
                 # create HDF5 group for real/imaginary stats of current
                 # polarization
-                h5_stats_path = f'{QA_PATH}/statistics/grids/{pol}/{real_imag}'
+                h5_stats_path = f'{QA_PATH}/statistics/data/{pol}/{real_imag}'
                 stats_group = cslc_h5py_root.require_group(h5_stats_path)
 
                 # add description for stat items
@@ -117,7 +117,7 @@ class QualityAssuranceCSLC:
             apply_tropo_corrections is true.
         '''
         # path to source group
-        static_layer_path = f'{GRID_PATH}/static_layers'
+        static_layer_path = f'{DATA_PATH}/static_layers'
 
         # Get the static layer to compute stats for
         static_layers_dict = {
@@ -148,7 +148,7 @@ class QualityAssuranceCSLC:
             Root of CSLC HDF5
         '''
         # path to source group
-        corrections_src_path = f'{ROOT_PATH}/corrections'
+        corrections_src_path = f'{METADATA_PATH}/processing_information/timing_corrections'
 
         # compute stats for corrections flagged true
         corrections= [k for k, v in cslc_h5py_root[
@@ -156,7 +156,7 @@ class QualityAssuranceCSLC:
 
         self.compute_stats_from_float_hdf5_dataset(cslc_h5py_root,
                                                    corrections_src_path,
-                                                   'corrections', corrections)
+                                                   'timing_corrections', corrections)
 
 
     def compute_stats_from_float_hdf5_dataset(self, cslc_h5py_root,

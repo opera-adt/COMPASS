@@ -9,7 +9,7 @@ from PIL import Image
 from osgeo import gdal
 
 from compass.utils.geo_runconfig import GeoRunConfig
-from compass.utils.h5_helpers import get_georaster_bounds, GRID_PATH
+from compass.utils.h5_helpers import get_georaster_bounds, DATA_PATH
 
 
 def _scale_to_max_pixel_dimension(orig_shape, max_dim_allowed=2048):
@@ -203,10 +203,10 @@ def make_browse_image(filename, path_h5, bursts, complex_to_real='amplitude', pe
     derived_ds_str = f'DERIVED_SUBDATASET:{complex_to_real.upper()}'
 
     # prepend transform to NETCDF path to grid
-    derived_netcdf_to_grid = f'{derived_ds_str}:NETCDF:{path_h5}:/{GRID_PATH}'
+    derived_netcdf_to_grid = f'{derived_ds_str}:NETCDF:{path_h5}:/{DATA_PATH}'
 
     with h5py.File(path_h5, 'r', swmr=True) as h5_obj:
-        grid_group = h5_obj[GRID_PATH]
+        grid_group = h5_obj[DATA_PATH]
 
         for b in bursts:
             # get polarization to extract geocoded raster
@@ -221,13 +221,22 @@ def make_browse_image(filename, path_h5, bursts, complex_to_real='amplitude', pe
 
             min_x, max_x, min_y, max_y = get_georaster_bounds(path_h5, pol)
 
+            # Check if the raster crosses antimeridian
+            if max_x - min_x > 180.0:
+                gdal.SetConfigOption('CENTER_LONG', '180')
+                # Adjust the min / max in the X direction (longitude)
+                min_x, max_x = max_x, min_x + 360.0
+            else:
+                gdal.SetConfigOption('CENTER_LONG', None)
+
             # gdal warp to right geo extents, image shape and EPSG
             ds_wgs84 = gdal.Warp('', src_raster, format='MEM',
                                  dstSRS='EPSG:4326',
                                  width=browse_w, height=browse_h,
-                                 resampleAlg = gdal.GRIORA_Bilinear,
-                                 outputBounds=(min_x, min_y, max_x, max_y),
-                                 )
+                                 resampleAlg=gdal.GRIORA_Bilinear,
+                                 dstNodata=float('nan'),
+                                 outputBounds=(min_x, min_y, max_x, max_y)
+                                )
             image = ds_wgs84.ReadAsArray()
 
             # get hi/lo values by percentile

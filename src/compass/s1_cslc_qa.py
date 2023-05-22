@@ -7,8 +7,8 @@ from pathlib import Path
 import isce3
 import numpy as np
 
-from compass.utils.h5_helpers import (GRID_PATH, QA_PATH, ROOT_PATH,
-                                      add_dataset_and_attrs, Meta)
+from compass.utils.h5_helpers import (DATA_PATH, METADATA_PATH,
+                                      QA_PATH, add_dataset_and_attrs, Meta)
 
 
 def _compute_slc_array_stats(arr: np.ndarray, pwr_phase: str):
@@ -75,9 +75,10 @@ class QualityAssuranceCSLC:
         for b in bursts:
             pol = b.polarization
 
-            # get dataset as array
-            pol_path = f'{GRID_PATH}/{pol}'
+            # get dataset and compute stats according to dtype
+            pol_path = f'{DATA_PATH}/{pol}'
             pol_arr = cslc_h5py_root[pol_path][()]
+            pol_ds = cslc_h5py_root[pol_path]
 
             # create dict for current polarization
             self.stats_dict[pol] = {}
@@ -122,7 +123,7 @@ class QualityAssuranceCSLC:
             apply_tropo_corrections is true.
         '''
         # path to source group
-        static_layer_path = f'{GRID_PATH}/static_layers'
+        static_layer_path = f'{DATA_PATH}/static_layers'
 
         # Get the static layer to compute stats for
         static_layers_dict = {
@@ -160,7 +161,7 @@ class QualityAssuranceCSLC:
             apply_tropo_corrections is true.
         '''
         # path to source group
-        corrections_src_path = f'{ROOT_PATH}/corrections'
+        corrections_src_path = f'{METADATA_PATH}/processing_information/timing_corrections'
 
         # names of datasets to compute stats for
         corrections = ['bistatic_delay', 'geometry_steering_doppler',
@@ -175,7 +176,7 @@ class QualityAssuranceCSLC:
 
         self.compute_stats_from_float_hdf5_dataset(cslc_h5py_root,
                                                    corrections_src_path,
-                                                   'corrections', corrections)
+                                                   'timing_corrections', corrections)
 
 
     def compute_stats_from_float_hdf5_dataset(self, cslc_h5py_root,

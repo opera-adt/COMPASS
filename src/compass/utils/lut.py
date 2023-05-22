@@ -10,7 +10,8 @@ from scipy.interpolate import RegularGridInterpolator as RGI
 from skimage.transform import resize
 
 from compass.utils.geometry_utils import enu2los, en2az
-from compass.utils.h5_helpers import Meta, add_dataset_and_attrs
+from compass.utils.h5_helpers import (Meta, add_dataset_and_attrs,
+                                      DATA_PATH, PROCESSING_INFO_PATH)
 from compass.utils.helpers import open_raster
 from compass.utils.iono import ionosphere_delay
 
@@ -79,20 +80,6 @@ def correction_luts(burst, lut_par, dem_path, tec_path, h5_file_obj,
     lut_shape = lut.data.shape
     rg_data = np.zeros(lut_shape, dtype=np.float32)
     az_data = np.zeros(lut_shape, dtype=np.float32)
-
-    # Initialize data list and lut_description to save corrections
-    data_dict_key_dscrs = (
-        ['doppler', 'Slant range geometry and steering doppler'],
-        ['bistatic_delay', 'Bistatic delay'],
-        ['azimuth_fm_rate', 'Azimuth FM rate mismatch'],
-        ['rg_set', 'Slant range Solid Earth Tides'],
-        ['az_set', 'Azimuth Solid Earth Tides'],
-        ['static_tropo', 'Static troposphere delay'],
-        ['tec_iono', 'Slant range ionosphere delay'],
-        ['dry_tropo', 'Dry troposphere delay from weather model'],
-        ['wet_tropo', 'Wet troposphere delay from weather model'])
-    data_dict = {key: (np.zeros_like(rg_data), dscr)
-                 for (key, dscr) in data_dict_key_dscrs}
 
     # Dict of meta correction items to be written to HDF5
     correction_lut_items = []
@@ -212,7 +199,7 @@ def correction_luts(burst, lut_par, dem_path, tec_path, h5_file_obj,
     correction_application_items.append(
         Meta('dry_los_troposphere_delay', tropo_enabled and 'dry' in delay_type,
              f'Boolean if dry LOS troposphere delay {corr_desc}'))
-    if lut_par.weather_model_troposphere.enabled:
+    if tropo_enabled:
         from RAiDER.delay import tropo_delay
         from RAiDER.llreader import RasterRDR
         from RAiDER.losreader import Zenith
@@ -248,11 +235,11 @@ def correction_luts(burst, lut_par, dem_path, tec_path, h5_file_obj,
                      {'units': 'meters'}))
 
     proc_nfo_group = \
-             h5_file_obj.require_group('science/SENTINEL1/CSLC/metadata/processing_information/corrections')
+             h5_file_obj.require_group(f'{PROCESSING_INFO_PATH}/corrections')
     for meta_item in correction_application_items:
         add_dataset_and_attrs(proc_nfo_group, meta_item)
 
-    correction_group = h5_file_obj.require_group('science/SENTINEL1/CSLC/corrections')
+    correction_group = h5_file_obj.require_group(f'{DATA_PATH}/timing_corrections')
     for meta_item in correction_lut_items:
         add_dataset_and_attrs(correction_group, meta_item)
 

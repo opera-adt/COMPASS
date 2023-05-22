@@ -21,6 +21,7 @@ ROOT_PATH = '/'
 DATA_PATH = '/data'
 QA_PATH = '/quality_assurance'
 METADATA_PATH = '/metadata'
+PROCESSING_INFO_PATH = f'{METADATA_PATH}/processing_information'
 
 
 @dataclass
@@ -619,10 +620,7 @@ def corrections_to_h5group(parent_group, burst, rg_lut,
     scratch_path: str
         Path to the scratch directory
     '''
-
     # Open GDAL dataset to fetch corrections
-    ds = gdal.Open(f'{scratch_path}/corrections/corrections',
-                   gdal.GA_ReadOnly)
     correction_group = parent_group.require_group('timing_corrections')
 
     # create slant range and azimuth vectors shared by the LUTs
@@ -634,7 +632,6 @@ def corrections_to_h5group(parent_group, burst, rg_lut,
                           az_lut.length, dtype=np.float64)
 
     # correction LUTs axis and doppler correction LUTs
-    desc = 'correction as a function of slant range and azimuth time'
     correction_items = [
         Meta('slant_range', slant_range, 'slant range of LUT data',
             {'units': 'meters'}),

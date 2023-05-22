@@ -107,7 +107,7 @@ def run(cfg: GeoRunConfig):
 
             # add type to root for GDAL recognition of datasets
             ctype = h5py.h5t.py_create(np.complex64)
-            #ctype.commit(geo_burst_h5['/'].id, np.string_('complex64'))
+            ctype.commit(geo_burst_h5['/'].id, np.string_('complex64'))
 
             grid_group = geo_burst_h5.require_group(DATA_PATH)
             check_eap = is_eap_correction_necessary(burst.ipf_version)

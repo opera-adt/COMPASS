@@ -7,7 +7,7 @@ from pathlib import Path
 import isce3
 import numpy as np
 
-from compass.utils.h5_helpers import (DATA_PATH, METADATA_PATH,
+from compass.utils.h5_helpers import (DATA_PATH, PROCESSING_INFO_PATH,
                                       QA_PATH, add_dataset_and_attrs, Meta)
 
 
@@ -148,15 +148,16 @@ class QualityAssuranceCSLC:
             Root of CSLC HDF5
         '''
         # path to source group
-        corrections_src_path = f'{METADATA_PATH}/processing_information/timing_corrections'
+        corrections_src_path = f'{DATA_PATH}/timing_corrections'
 
         # compute stats for corrections flagged true
         corrections= [k for k, v in cslc_h5py_root[
-            'science/SENTINEL1/CSLC/metadata/processing_information/corrections'].items() if v]
+            f'{PROCESSING_INFO_PATH}/corrections'].items() if v[()]]
 
         self.compute_stats_from_float_hdf5_dataset(cslc_h5py_root,
                                                    corrections_src_path,
-                                                   'timing_corrections', corrections)
+                                                   'timing_corrections',
+                                                   corrections)
 
 
     def compute_stats_from_float_hdf5_dataset(self, cslc_h5py_root,
@@ -171,8 +172,13 @@ class QualityAssuranceCSLC:
         cslc_h5py_root: h5py.File
             Root of CSLC HDF5
         src_group_path: str
+            Path to HDF5 group with datasets whose stats are to be computed
         qa_group_name: str
+            Group to be created in QA statistics HDF5 group to contain stats
+            from datasts in src_group_path
         qa_item_names: list[str]
+            Names of datasets in src_group_path path whose stats are to be
+            computed
         '''
         # init dict to save all QA item stats to
         self.stats_dict[qa_group_name] = {}

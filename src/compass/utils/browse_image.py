@@ -94,7 +94,7 @@ def _normalize_apply_gamma(image, vmin, vmax, gamma=1.0):
         Normalized and gamma corrected image
     '''
     if vmax <= vmin:
-        raise ValueError('maximum value not > minimum value')
+        raise ValueError(f'maximum value {vmax} not > minimum value {vmin}')
 
     # scale to 0-1 for gray scale and then apply gamma correction
     image = (image - vmin) / (vmax - vmin)

@@ -11,7 +11,6 @@ import isce3
 from isce3.ext.isce3.geocode import geocode_slc
 import journal
 import numpy as np
-from osgeo import gdal
 from s1reader.s1_reader import is_eap_correction_necessary
 
 from compass import s1_rdr2geo

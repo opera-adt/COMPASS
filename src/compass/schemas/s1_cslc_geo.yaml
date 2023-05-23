@@ -103,7 +103,7 @@ lut_options:
   ionosphere_tec: bool(required=False)
   # Enable/disable static troposphere correction
   static_troposphere: bool(required=False)
-  # Troposphere delay using weather model
+  # Options for troposphere delay using weather model
   weather_model_troposphere: include('troposphere_options', required=False)
 
 troposphere_options:

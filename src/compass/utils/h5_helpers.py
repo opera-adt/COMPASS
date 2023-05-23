@@ -631,8 +631,9 @@ def corrections_to_h5group(parent_group, burst, rg_lut,
     azimuth = np.linspace(az_lut.y_start, y_end,
                           az_lut.length, dtype=np.float64)
 
-    # correction LUTs axis and doppler correction LUTs
-    correction_items = [
+    # correction LUTs axis info only. LUTs written as needed in
+    # compass.utils.lut.correction_luts
+    correction_axis_items = [
         Meta('slant_range', slant_range, 'slant range of LUT data',
             {'units': 'meters'}),
         Meta('slant_range_spacing', rg_lut.x_spacing,
@@ -642,7 +643,7 @@ def corrections_to_h5group(parent_group, burst, rg_lut,
         Meta('zero_doppler_time_spacing',rg_lut.y_spacing,
              'spacing of azimuth time of LUT data', {'units': 'seconds'}),
     ]
-    for meta_item in correction_items:
+    for meta_item in correction_axis_items:
         add_dataset_and_attrs(correction_group, meta_item)
 
     # Extended FM rate and doppler centroid polynomial coefficients for azimuth

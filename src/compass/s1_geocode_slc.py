@@ -23,9 +23,9 @@ from compass.utils.h5_helpers import (DATA_PATH,
                                       corrections_to_h5group,
                                       identity_to_h5group,
                                       init_geocoded_dataset,
-                                      METADATA_PATH,
-                                      metadata_to_h5group,
-                                      ROOT_PATH)
+                                      METADATA_PATH, PROCESSING_INFO_PATH,
+                                      ROOT_PATH, metadata_to_h5group,
+                                      )
 from compass.utils.helpers import bursts_grouping_generator, get_module_name
 from compass.utils.lut import correction_luts
 from compass.utils.yaml_argparse import YamlArgparse
@@ -112,7 +112,7 @@ def run(cfg: GeoRunConfig):
             grid_group = geo_burst_h5.require_group(DATA_PATH)
             check_eap = is_eap_correction_necessary(burst.ipf_version)
 
-            # Compute correction LUTs
+            # Get cumulative correction LUTs and save individual LUTs to HDF5
             rg_lut, az_lut = correction_luts(burst, cfg.lut_params,
                                              dem_path=cfg.dem,
                                              tec_path=cfg.tec_file,
@@ -175,8 +175,7 @@ def run(cfg: GeoRunConfig):
             identity_to_h5group(root_group, burst, cfg)
 
             metadata_to_h5group(root_group, burst, cfg)
-            correction_group = geo_burst_h5.require_group(
-                f'{METADATA_PATH}/processing_information')
+            correction_group = geo_burst_h5.require_group(PROCESSING_INFO_PATH)
             corrections_to_h5group(correction_group, burst, rg_lut, az_lut,
                                    scratch_path)
 

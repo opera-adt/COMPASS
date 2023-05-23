@@ -20,7 +20,8 @@ def correction_luts(burst, lut_par, dem_path, tec_path, h5_file_obj,
                     scratch_path=None,
                     weather_model_path=None):
     '''
-    Compute correction look-up tables (LUTs)
+    Compute correction look-up tables (LUTs), write as needed to HDF5, then
+    return cumulative LUTs
 
     Parameters
     ----------
@@ -234,11 +235,13 @@ def correction_luts(burst, lut_par, dem_path, tec_path, h5_file_obj,
                      f'Dry LOS troposphere delay {lut_desc}',
                      {'units': 'meters'}))
 
+    # Write correction flags to HDF5
     proc_nfo_group = \
              h5_file_obj.require_group(f'{PROCESSING_INFO_PATH}/corrections')
     for meta_item in correction_application_items:
         add_dataset_and_attrs(proc_nfo_group, meta_item)
 
+    # Write LUTs of enabled corrections to HDF5
     correction_group = h5_file_obj.require_group(f'{DATA_PATH}/timing_corrections')
     for meta_item in correction_lut_items:
         add_dataset_and_attrs(correction_group, meta_item)

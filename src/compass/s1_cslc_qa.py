@@ -91,7 +91,7 @@ class QualityAssuranceCSLC:
 
                 # create HDF5 group for power or phase stats of current
                 # polarization
-                h5_stats_path = f'{QA_PATH}/statistics/grids/{pol}/{pwr_phase}'
+                h5_stats_path = f'{QA_PATH}/statistics/data/{pol}/{pwr_phase}'
                 stats_group = cslc_h5py_root.require_group(h5_stats_path)
 
                 # build list of QA stat items for pwr_phase

@@ -10,7 +10,7 @@ def test_qa_power_stats(geocode_slc_params):
     def _phase_test(arr):
         return abs(arr) > np.pi
 
-    # compute power or phase then write stats to HDF5 for CSLC
+    # basic sanity checks of mean, min, and max
     with h5py.File(geocode_slc_params.output_hdf5_path, 'r') as h5_obj:
         for pwr_phase, test in {'power':_power_test,
                                 'phase':_phase_test}.items():

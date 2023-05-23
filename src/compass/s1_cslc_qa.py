@@ -78,7 +78,6 @@ class QualityAssuranceCSLC:
             # get dataset and compute stats according to dtype
             pol_path = f'{DATA_PATH}/{pol}'
             pol_arr = cslc_h5py_root[pol_path][()]
-            pol_ds = cslc_h5py_root[pol_path]
 
             # create dict for current polarization
             self.stats_dict[pol] = {}

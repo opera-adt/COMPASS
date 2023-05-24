@@ -156,7 +156,7 @@ def run(cfg, burst, fetch_from_scratch=False):
 
 
 def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
-                 dec_factor=(40, 10)):
+                 dec_factor=(20, 5)):
     '''
     Geocode the radiometric calibratio paremeters,
     and write them into output HDF5.
@@ -240,21 +240,7 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
         # Define the radargrid for LUT interpolation
         # The resultant radargrid will have
         # the very first and the last LUT values be included.
-
         radargrid_interp = burst.as_isce3_radargrid()
-        # Extract burst boundaries
-        
-        # Create sliced radar grid representing valid region of the burst
-        
-
-        # Method 1: Use multilook()
-        '''radargrid_interp = radargrid_interp.multilook(dec_factor[1], dec_factor[0])
-        range_px_interp_vec = np.linspace(0, burst.width - 1, radargrid_interp.width)
-        azimuth_px_interp_vec = np.linspace(0, burst.length - 1, radargrid_interp.length)'''
-
-        
-
-        # Method 2: Custom calculation of the decimated radargrid
         radargrid_interp.width = int(np.ceil(burst.width / dec_factor[0]))
         range_px_interp_vec = np.linspace(0, burst.width - 1, radargrid_interp.width)
         intv_interp_range = range_px_interp_vec[1] - range_px_interp_vec[0]
@@ -266,15 +252,8 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
         radargrid_interp.range_pixel_spacing *= intv_interp_range
         radargrid_interp.prf /= intv_interp_azimuth
 
-
-
-
         if az_lut_grid is not None:
             azimuth_px_interp_vec += az_lut_grid[0]
-
-
-
-
 
         # Get the interpolated range LUT
         param_interp_obj_rg = InterpolatedUnivariateSpline(rg_lut_grid,
@@ -305,8 +284,6 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
         lut_gdal_raster = None
 
         input_raster = isce3.io.Raster(lut_path)
-
-
 
         # geocode then set transfrom and EPSG in output raster
         geocode_obj.geocode(radar_grid=radargrid_interp,

@@ -19,10 +19,13 @@ from compass.s1_cslc_qa import QualityAssuranceCSLC
 from compass.utils.browse_image import make_browse_image
 from compass.utils.elevation_antenna_pattern import apply_eap_correction
 from compass.utils.geo_runconfig import GeoRunConfig
-from compass.utils.h5_helpers import (corrections_to_h5group,
+from compass.utils.h5_helpers import (DATA_PATH,
+                                      corrections_to_h5group,
                                       identity_to_h5group,
                                       init_geocoded_dataset,
-                                      metadata_to_h5group)
+                                      METADATA_PATH,
+                                      metadata_to_h5group,
+                                      ROOT_PATH)
 from compass.utils.helpers import bursts_grouping_generator, get_module_name
 from compass.utils.lut import cumulative_correction_luts
 from compass.utils.yaml_argparse import YamlArgparse
@@ -82,7 +85,8 @@ def run(cfg: GeoRunConfig):
                                            weather_model_path=cfg.weather_model_file,
                                            rg_step=cfg.lut_params.range_spacing,
                                            az_step=cfg.lut_params.azimuth_spacing,
-                                           delay_type=cfg.tropo_params.delay_type)
+                                           delay_type=cfg.tropo_params.delay_type,
+                                           geo2rdr_params=cfg.geo2rdr_params)
         else:
             rg_lut = isce3.core.LUT2d()
             az_lut = isce3.core.LUT2d()
@@ -108,7 +112,7 @@ def run(cfg: GeoRunConfig):
         sliced_radar_grid = burst.as_isce3_radargrid()[b_bounds]
 
         output_hdf5 = out_paths.hdf5_path
-        root_path = '/science/SENTINEL1'
+
         with h5py.File(output_hdf5, 'w') as geo_burst_h5:
             geo_burst_h5.attrs['Conventions'] = "CF-1.8"
             geo_burst_h5.attrs["contact"] = np.string_("operaops@jpl.nasa.gov")
@@ -121,8 +125,7 @@ def run(cfg: GeoRunConfig):
             ctype = h5py.h5t.py_create(np.complex64)
             ctype.commit(geo_burst_h5['/'].id, np.string_('complex64'))
 
-            grid_path = f'{root_path}/CSLC/grids'
-            grid_group = geo_burst_h5.require_group(grid_path)
+            grid_group = geo_burst_h5.require_group(DATA_PATH)
             check_eap = is_eap_correction_necessary(burst.ipf_version)
             for b in bursts:
                 pol = b.polarization
@@ -175,13 +178,14 @@ def run(cfg: GeoRunConfig):
         # Save burst corrections and metadata with new h5py File instance
         # because io.Raster things
         with h5py.File(output_hdf5, 'a') as geo_burst_h5:
-            root_group = geo_burst_h5[root_path]
+            root_group = geo_burst_h5[ROOT_PATH]
             identity_to_h5group(root_group, burst, cfg)
 
-            cslc_group = geo_burst_h5.require_group(f'{root_path}/CSLC')
-            metadata_to_h5group(cslc_group, burst, cfg)
+            metadata_to_h5group(root_group, burst, cfg)
             if cfg.lut_params.enabled:
-                corrections_to_h5group(cslc_group, burst, cfg, rg_lut, az_lut,
+                correction_group = geo_burst_h5.require_group(
+                    f'{METADATA_PATH}/processing_information')
+                corrections_to_h5group(correction_group, burst, cfg, rg_lut, az_lut,
                                        scratch_path,
                                        weather_model_path=cfg.weather_model_file,
                                        delay_type=cfg.tropo_params.delay_type)

@@ -11,8 +11,9 @@ import shapely.wkt as wkt
 from osgeo import gdal, osr
 from pyproj import CRS, Proj
 from shapely import geometry
-
-dateformat = '%Y-%m-%d %H:%M:%S.%f'
+from compass.utils.h5_helpers import (DATA_PATH,
+                                      METADATA_PATH,
+                                      TIME_STR_FMT)
 
 
 def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
@@ -206,8 +207,8 @@ def correct_cr_tides(cslc_file, cr_lat, cr_lon,
     import pysolid
     # Get geocode SLC sensing start and stop
     if mission_id == 'S1':
-        start_path = '/science/SENTINEL1/CSLC/metadata/processing_information/s1_burst_metadata/sensing_start'
-        stop_path = '/science/SENTINEL1/CSLC/metadata/processing_information/s1_burst_metadata/sensing_stop'
+        start_path = f'{METADATA_PATH}/processing_information/s1_burst_metadata/sensing_start'
+        stop_path = f'{METADATA_PATH}/processing_information/s1_burst_metadata/sensing_stop'
     elif mission_id == 'NI':
         start_path = '/science/LSAR/GSLC/identification/zeroDopplerStartTime'
         stop_path = '/science/LSAR/GSLC/identification/zeroDopplerEndTime'
@@ -220,9 +221,9 @@ def correct_cr_tides(cslc_file, cr_lat, cr_lon,
         stop = h5[stop_path][()]
 
     sensing_start = dt.datetime.strptime(start.decode('UTF-8'),
-                                         dateformat)
+                                         TIME_STR_FMT)
     sensing_stop = dt.datetime.strptime(stop.decode('UTF-8'),
-                                        dateformat)
+                                        TIME_STR_FMT)
 
     # Compute SET in ENU using pySolid
     (_,
@@ -422,7 +423,7 @@ def get_cslc(cslc_file, mission_id='S1', pol='VV') -> np.ndarray :
     '''
 
     if mission_id == 'S1':
-        cslc_path = f'science/SENTINEL1/CSLC/grids/{pol}'
+        cslc_path = f'{DATA_PATH}/{pol}'
     elif mission_id == 'NI':
         with h5py.File(cslc_file, 'r') as h5:
              frequencies = h5["/science/LSAR/identification/listOfFrequencies"][()]
@@ -467,7 +468,7 @@ def get_xy_info(cslc_file, mission_id='S1', pol='VV'):
         CSLC-S1 spacing along Y-direction
     '''
     if mission_id == 'S1':
-        cslc_path = '/science/SENTINEL1/CSLC/grids/'
+        cslc_path = DATA_PATH
     elif mission_id == 'NI':
         cslc_path = '/science/LSAR/GSLC/grids/frequencyA/'
     else:
@@ -535,7 +536,7 @@ def get_cslc_polygon(cslc_file, mission_id='S1'):
         Shapely polygon including CSLC-S1 valid values
     '''
     if mission_id == 'S1':
-        poly_path = 'science/SENTINEL1/identification/bounding_polygon'
+        poly_path = 'identification/bounding_polygon'
     elif mission_id == 'NI':
         poly_path = 'science/LSAR/identification/boundingPolygon'
     else:
@@ -572,7 +573,7 @@ def get_cslc_epsg(cslc_file, mission_id='S1', pol='VV'):
         geocoded SLC product
     '''
     if mission_id == 'S1':
-        epsg_path = '/science/SENTINEL1/CSLC/grids/projection'
+        epsg_path = f'{DATA_PATH}/projection'
         with h5py.File(cslc_file, 'r') as h5:
             epsg = h5[epsg_path][()]
     elif mission_id == 'NI':

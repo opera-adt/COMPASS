@@ -469,13 +469,13 @@ def get_xy_info(cslc_file, mission_id='S1', pol='VV'):
     if mission_id == 'S1':
         cslc_path = DATA_PATH
     elif mission_id == 'NI':
-        cslc_path = '/science/LSAR/GSLC/grids/frequencyA/'
+        cslc_path = '/science/LSAR/GSLC/grids/frequencyA'
     else:
         err_str = f'{mission_id} is not a valid mission identifier'
         raise ValueError(err_str)
 
     # Open geocoded SLC with a NetCDF driver
-    ds_in = gdal.Open(f'NETCDF:{cslc_file}:{cslc_path}{pol}')
+    ds_in = gdal.Open(f'NETCDF:{cslc_file}:{cslc_path}/{pol}')
 
     geo_trans = ds_in.GetGeoTransform()
     x_spac = geo_trans[1]

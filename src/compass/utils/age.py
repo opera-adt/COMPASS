@@ -18,7 +18,7 @@ from compass.utils.h5_helpers import (DATA_PATH,
 
 def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
         correct_set=False, mission_id='S1', pol='VV', ovs_factor=128,
-        margin=32, carrier=True, unflatten=True):
+        margin=32, apply_az_ramp=True, unflatten=True):
     '''
     Compute Absolute Geolocation Error (AGE) for geocoded SLC
     products from Sentinel-1 or NISAR missions. AGE is computed
@@ -54,16 +54,16 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
         the geocoded SLC image. Overall included margin
         is 2*margin from left-to-right and from top-to-bottom
         (default: 32)
-    carrier: bool
-        If set to True, adds back the azimuth carrier ramp prior
-        to detect CR peak. This option should be set to True for
+    apply_az_ramp: bool
+        If set to True, removes the azimuth carrier ramp prior
+        to detect CR peak. Set this option to True for
         S1-A/B data where deramping has an effect on AGE.
-        Azimuth carrier ramp is generated based on the azimuth
-        carrier layer allocated for CSLC-S1 products
+        Azimuth carrier ramp is extracted from CSLC-S1 products
     unflatten: bool
         If set to True, adds back the flatten phase prior to detect
-        CR peak. This option should always be set to True as flattening
-        can drammatically effect AGE
+        CR peak. Set this option to True for AGE computation as it
+        drammatically affect the correct determination of the peak
+        location
     '''
 
     # Check that the CSLC-S1 product file exists
@@ -144,7 +144,7 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
         x_peak, y_peak, snr_cr = find_peak(cslc_file, int(row['CR_X_CSLC']),
                                              int(row['CR_Y_CSLC']), pol=pol,
                                              mission_id=mission_id, ovs_factor=ovs_factor,
-                                             margin=margin, carrier=carrier, unflatten=unflatten)
+                                             margin=margin, apply_az_ramp=apply_az_ramp, unflatten=unflatten)
 
         x_peak_vect.append(x_peak)
         y_peak_vect.append(y_peak)
@@ -251,7 +251,7 @@ def correct_cr_tides(cslc_file, cr_lat, cr_lon,
 
 def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
               ovs_factor=128, margin=32, pol='VV',
-              carrier=True, unflatten=True):
+              apply_az_ramp=True, unflatten=True):
     '''
     Find peak location in 'arr'
     Parameters
@@ -268,16 +268,15 @@ def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
         Oversampling factor
     margin: int
         Margin
-    carrier: bool
-        If set to True, adds back the azimuth carrier ramp prior
-        to detect CR peak. This option should be set to True for
-        S1-A/B data where deramping has an effect on AGE.
-        Azimuth carrier ramp is generated based on the azimuth
-        carrier layer allocated for CSLC-S1 products
+    apply_az_ramp: bool
+        If set to True, removes the azimuth carrier ramp prior
+        to detect CR peak. Set this option to True for AGE analysis
+        with S1-A/B data
     unflatten: bool
         If set to True, adds back the flatten phase prior to detect
-        CR peak. This option should always be set to True as flattening
-        can drammatically effect AGE
+        CR peak. Set this option to True for AGE analyses as it can
+        drammatically affect the correct determination of the CR
+        peak location
 
     Returns
     -------
@@ -291,7 +290,7 @@ def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
                    mission_id=mission_id,
                    pol=pol)
     # If True, remove azimuth carrier ramp
-    if carrier:
+    if apply_az_ramp:
         carrier_phase = get_carrier_phase(cslc_file, mission_id=mission_id)
         arr *= np.exp(-1j*carrier_phase)
 
@@ -668,7 +667,7 @@ def create_parser():
                                'image. Actual margin is 2*margin from left-to-right and from'
                                'top-to-bottom')
     optional.add_argument('-r', '--azimuth-ramp', dest='az_ramp', default=True,
-                          help='If True, adds back azimuth carrier ramp prior to CR peak location. '
+                          help='If True, removes azimuth carrier ramp prior to CR peak location. '
                                'This option should be set to True for S1-A/B AGE analyses')
     optional.add_argument('-u', '--unflatten', dest='unflatten', default=True,
                           help='If True, adds back the flatten phase. This option should be set'
@@ -691,7 +690,7 @@ def main():
         pol=args.pol,
         ovs_factor=args.ovs_factor,
         margin=args.margin,
-        carrier=args.az_ramp,
+        apply_az_ramp=args.az_ramp,
         unflatten=args.unflatten)
 
 

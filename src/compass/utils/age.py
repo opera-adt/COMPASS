@@ -18,7 +18,7 @@ from compass.utils.h5_helpers import (DATA_PATH,
 
 def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
         correct_set=False, mission_id='S1', pol='VV', ovs_factor=128,
-        margin=32):
+        margin=32, apply_az_ramp=True, unflatten=True):
     '''
     Compute Absolute Geolocation Error (AGE) for geocoded SLC
     products from Sentinel-1 or NISAR missions. AGE is computed
@@ -54,6 +54,16 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
         the geocoded SLC image. Overall included margin
         is 2*margin from left-to-right and from top-to-bottom
         (default: 32)
+    apply_az_ramp: bool
+        If set to True, removes the azimuth carrier ramp prior
+        to detect CR peak. Set this option to True for
+        S1-A/B data where deramping has an effect on AGE.
+        Azimuth carrier ramp is extracted from CSLC-S1 products
+    unflatten: bool
+        If set to True, adds back the flatten phase prior to detect
+        CR peak. Set this option to True for AGE computation as it
+        drammatically affect the correct determination of the peak
+        location
     '''
 
     # Check that the CSLC-S1 product file exists
@@ -130,11 +140,26 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
     cr_snr_vect = []
 
     # Find peak location for every corner reflector in DataFrame
+    # Open CSLC and apply deramping and flattening if desired
+    arr = get_cslc(cslc_file,
+                   mission_id=mission_id,
+                   pol=pol)
+    # If True, remove azimuth carrier ramp
+    if apply_az_ramp:
+        carrier_phase = get_carrier_phase(cslc_file, mission_id=mission_id)
+        arr *= np.exp(-1j * carrier_phase)
+
+    # If True, adds back flattening phase
+    if unflatten:
+        flatten_phase = get_flatten_phase(cslc_file, mission_id=mission_id)
+        arr *= np.exp(-1j * flatten_phase)
+
     for idx, row in cr_df.iterrows():
-        x_peak, y_peak, snr_cr = find_peak(cslc_file, int(row['CR_X_CSLC']),
-                                             int(row['CR_Y_CSLC']), pol=pol,
-                                             mission_id=mission_id, ovs_factor=ovs_factor,
-                                             margin=margin)
+        x_peak, y_peak, snr_cr = find_peak(arr, cslc_file, int(row['CR_X_CSLC']),
+                                           int(row['CR_Y_CSLC']), pol=pol,
+                                           mission_id=mission_id, ovs_factor=ovs_factor,
+                                           margin=margin)
+
         x_peak_vect.append(x_peak)
         y_peak_vect.append(y_peak)
         cr_snr_vect.append(snr_cr)
@@ -238,12 +263,14 @@ def correct_cr_tides(cslc_file, cr_lat, cr_lon,
     return x_tide_cr, y_tide_cr
 
 
-def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
-              ovs_factor=128, margin=32, pol='VV'):
+def find_peak(arr, cslc_file, x_loc, y_loc, pol='VV',
+              mission_id='S1', ovs_factor=128, margin=32):
     '''
     Find peak location in 'arr'
     Parameters
     ----------
+    arr: np.ndarray
+        Array to use for peak determination
     cslc_file: str
         File path to CSLC product
     x_loc: np.int
@@ -252,6 +279,8 @@ def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
         First guess of peak location along Y-coordinates
     mission_id: str
         Mission identifier. S1: Sentinel-1 or NI: NISAR
+    pol: str
+        Polarization to use for peak detection
     ovs_factor: np.int
         Oversampling factor
     margin: int
@@ -263,11 +292,10 @@ def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
         Peak location along X-coordinates
     y_peak: np.float
         Peak location along Y-coordinate
+    snr_cr_db: np.float
+        Peak SNR for identified corner reflector
     '''
 
-    arr = get_cslc(cslc_file,
-                   mission_id=mission_id,
-                   pol=pol)
     x_start, x_spac, y_start, y_spac = get_xy_info(cslc_file,
                                                    mission_id=mission_id,
                                                    pol=pol)
@@ -307,6 +335,67 @@ def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
     return x_cr, y_cr, snr_cr_db
 
 
+def get_carrier_phase(cslc_file, mission_id='S1'):
+    '''
+    Get azimuth carrier phase from CSLC product
+    Note, this is implemented only for CSLC-S1
+
+    Parameters
+    ----------
+    cslc_file: str
+        File path to CSLC product
+    mission_id: str
+        Mission identifier. S1: Sentinel-1 or
+        NI: NISAR (default: S1)
+
+    Returns
+    -------
+    carrier_phase: np.ndarray, float64
+        Numpy array containing azimuth carrier phase
+    '''
+
+    if mission_id == 'S1':
+        carrier_path = f'{DATA_PATH}/azimuth_carrier_phase'
+    else:
+        err_str = f"Azimuth carrier phase not present for {mission_id} CSLC product"
+        raise ValueError(err_str)
+
+    with h5py.File(cslc_file, 'r') as h5:
+        carrier_phase = h5[carrier_path][()]
+    return carrier_phase
+
+
+def get_flatten_phase(cslc_file, mission_id='S1'):
+    '''
+    Get flattening phase from CSLC product
+    Note, this is implemented only for CSLC-S1
+
+    Parameters
+    ----------
+    cslc_file: str
+        File path to CSLC product
+    mission_id: str
+        Mission identifier. S1: Sentinel-1 or
+        NI: NISAR (default: S1)
+
+    Returns
+    -------
+    flatten_phase: np.ndarray, float64
+        Numpy array containing flattening phase
+    '''
+
+    if mission_id == 'S1':
+        rg_off_path = f'{DATA_PATH}/flattening_phase'
+    else:
+        err_str = f"Range offsets not present for {mission_id} CSLC product"
+        raise ValueError(err_str)
+
+    with h5py.File(cslc_file, 'r') as h5:
+        flatten_phase = h5[rg_off_path][()]
+
+    return flatten_phase
+
+
 def get_cslc(cslc_file, mission_id='S1', pol='VV') -> np.ndarray :
     '''
     Get CSLC-S1 array associated to 'pol'
@@ -314,7 +403,7 @@ def get_cslc(cslc_file, mission_id='S1', pol='VV') -> np.ndarray :
     Parameters
     ----------
     cslc_file: str
-        File path to CSLC-S1 product
+        File path to CSLC product
     mission_id: str
         Mission identifier. S1: Sentinel-1 or
         NI: NISAR (default: S1)
@@ -377,13 +466,13 @@ def get_xy_info(cslc_file, mission_id='S1', pol='VV'):
     if mission_id == 'S1':
         cslc_path = DATA_PATH
     elif mission_id == 'NI':
-        cslc_path = '/science/LSAR/GSLC/grids/frequencyA/'
+        cslc_path = '/science/LSAR/GSLC/grids/frequencyA'
     else:
         err_str = f'{mission_id} is not a valid mission identifier'
         raise ValueError(err_str)
 
     # Open geocoded SLC with a NetCDF driver
-    ds_in = gdal.Open(f'NETCDF:{cslc_file}:{cslc_path}{pol}')
+    ds_in = gdal.Open(f'NETCDF:{cslc_file}:{cslc_path}/{pol}')
 
     geo_trans = ds_in.GetGeoTransform()
     x_spac = geo_trans[1]
@@ -574,6 +663,12 @@ def create_parser():
                           help='Padding margin around CR position detected in the geocoded SLC '
                                'image. Actual margin is 2*margin from left-to-right and from'
                                'top-to-bottom')
+    optional.add_argument('-r', '--azimuth-ramp', dest='apply_az_ramp', default=True,
+                          help='If True, removes azimuth carrier ramp prior to CR peak location. '
+                               'This option should be set to True for S1-A/B AGE analyses')
+    optional.add_argument('-u', '--unflatten', dest='unflatten', default=True,
+                          help='If True, adds back the flatten phase. This option should be set'
+                               'to True if the geocoded SLC product has not been flattened')
     return parser.parse_args()
 
 
@@ -591,7 +686,9 @@ def main():
         mission_id=args.mission_id,
         pol=args.pol,
         ovs_factor=args.ovs_factor,
-        margin=args.margin)
+        margin=args.margin,
+        apply_az_ramp=args.apply_az_ramp,
+        unflatten=args.unflatten)
 
 
 if __name__ == '__main__':

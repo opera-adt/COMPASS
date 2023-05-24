@@ -292,12 +292,12 @@ def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
     # If True, remove azimuth carrier ramp
     if apply_az_ramp:
         carrier_phase = get_carrier_phase(cslc_file, mission_id=mission_id)
-        arr *= np.exp(-1j*carrier_phase)
+        arr *= np.exp(-1j * carrier_phase)
 
     # If True, adds back flattening phase
     if unflatten:
         flatten_phase = get_flatten_phase(cslc_file, mission_id=mission_id)
-        arr *= np.exp(-1j*flatten_phase)
+        arr *= np.exp(-1j * flatten_phase)
 
     x_start, x_spac, y_start, y_spac = get_xy_info(cslc_file,
                                                    mission_id=mission_id,
@@ -338,7 +338,7 @@ def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
     return x_cr, y_cr, snr_cr_db
 
 
-def get_carrier_phase(cslc_file, mission_id ='S1'):
+def get_carrier_phase(cslc_file, mission_id='S1'):
     '''
     Get azimuth carrier phase from CSLC product
     Note, this is implemented only for CSLC-S1
@@ -358,7 +358,7 @@ def get_carrier_phase(cslc_file, mission_id ='S1'):
     '''
 
     if mission_id == 'S1':
-        carrier_path = 'science/SENTINEL1/CSLC/grids/carrier_phase'
+        carrier_path = f'{DATA_PATH}/azimuth_carrier_phase'
     else:
         err_str = f"Azimuth carrier phase not present for {mission_id} CSLC product"
         raise ValueError(err_str)
@@ -388,7 +388,7 @@ def get_flatten_phase(cslc_file, mission_id='S1'):
     '''
 
     if mission_id == 'S1':
-        rg_off_path = 'science/SENTINEL1/CSLC/grids/range_offset'
+        rg_off_path = f'{DATA_PATH}/flattening_phase'
     else:
         err_str = f"Range offsets not present for {mission_id} CSLC product"
         raise ValueError(err_str)

@@ -78,7 +78,6 @@ class QualityAssuranceCSLC:
             # get dataset and compute stats according to dtype
             pol_path = f'{DATA_PATH}/{pol}'
             pol_arr = cslc_h5py_root[pol_path][()]
-            pol_ds = cslc_h5py_root[pol_path]
 
             # create dict for current polarization
             self.stats_dict[pol] = {}
@@ -91,7 +90,7 @@ class QualityAssuranceCSLC:
 
                 # create HDF5 group for power or phase stats of current
                 # polarization
-                h5_stats_path = f'{QA_PATH}/statistics/grids/{pol}/{pwr_phase}'
+                h5_stats_path = f'{QA_PATH}/statistics/data/{pol}/{pwr_phase}'
                 stats_group = cslc_h5py_root.require_group(h5_stats_path)
 
                 # build list of QA stat items for pwr_phase

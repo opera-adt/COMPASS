@@ -140,11 +140,25 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
     cr_snr_vect = []
 
     # Find peak location for every corner reflector in DataFrame
+    # Open CSLC and apply deramping and flattening if desired
+    arr = get_cslc(cslc_file,
+                   mission_id=mission_id,
+                   pol=pol)
+    # If True, remove azimuth carrier ramp
+    if apply_az_ramp:
+        carrier_phase = get_carrier_phase(cslc_file, mission_id=mission_id)
+        arr *= np.exp(-1j * carrier_phase)
+
+    # If True, adds back flattening phase
+    if unflatten:
+        flatten_phase = get_flatten_phase(cslc_file, mission_id=mission_id)
+        arr *= np.exp(-1j * flatten_phase)
+
     for idx, row in cr_df.iterrows():
-        x_peak, y_peak, snr_cr = find_peak(cslc_file, int(row['CR_X_CSLC']),
-                                             int(row['CR_Y_CSLC']), pol=pol,
-                                             mission_id=mission_id, ovs_factor=ovs_factor,
-                                             margin=margin, apply_az_ramp=apply_az_ramp, unflatten=unflatten)
+        x_peak, y_peak, snr_cr = find_peak(arr, cslc_file, int(row['CR_X_CSLC']),
+                                           int(row['CR_Y_CSLC']), pol=pol,
+                                           mission_id=mission_id, ovs_factor=ovs_factor,
+                                           margin=margin)
 
         x_peak_vect.append(x_peak)
         y_peak_vect.append(y_peak)
@@ -249,13 +263,14 @@ def correct_cr_tides(cslc_file, cr_lat, cr_lon,
     return x_tide_cr, y_tide_cr
 
 
-def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
-              ovs_factor=128, margin=32, pol='VV',
-              apply_az_ramp=True, unflatten=True):
+def find_peak(arr, cslc_file, x_loc, y_loc, pol='VV',
+              mission_id='S1', ovs_factor=128, margin=32):
     '''
     Find peak location in 'arr'
     Parameters
     ----------
+    arr: np.ndarray
+        Array to use for peak determination
     cslc_file: str
         File path to CSLC product
     x_loc: np.int
@@ -264,19 +279,12 @@ def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
         First guess of peak location along Y-coordinates
     mission_id: str
         Mission identifier. S1: Sentinel-1 or NI: NISAR
+    pol: str
+        Polarization to use for peak detection
     ovs_factor: np.int
         Oversampling factor
     margin: int
         Margin
-    apply_az_ramp: bool
-        If set to True, removes the azimuth carrier ramp prior
-        to detect CR peak. Set this option to True for AGE analysis
-        with S1-A/B data
-    unflatten: bool
-        If set to True, adds back the flatten phase prior to detect
-        CR peak. Set this option to True for AGE analyses as it can
-        drammatically affect the correct determination of the CR
-        peak location
 
     Returns
     -------
@@ -284,20 +292,9 @@ def find_peak(cslc_file, x_loc, y_loc, mission_id='S1',
         Peak location along X-coordinates
     y_peak: np.float
         Peak location along Y-coordinate
+    snr_cr_db: np.float
+        Peak SNR for identified corner reflector
     '''
-
-    arr = get_cslc(cslc_file,
-                   mission_id=mission_id,
-                   pol=pol)
-    # If True, remove azimuth carrier ramp
-    if apply_az_ramp:
-        carrier_phase = get_carrier_phase(cslc_file, mission_id=mission_id)
-        arr *= np.exp(-1j * carrier_phase)
-
-    # If True, adds back flattening phase
-    if unflatten:
-        flatten_phase = get_flatten_phase(cslc_file, mission_id=mission_id)
-        arr *= np.exp(-1j * flatten_phase)
 
     x_start, x_spac, y_start, y_spac = get_xy_info(cslc_file,
                                                    mission_id=mission_id,

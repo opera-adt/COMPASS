@@ -256,8 +256,9 @@ def correction_luts(burst, lut_par, dem_path, tec_path, h5_file_obj,
 
     return rg_lut, az_lut
 
-def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, hgt_radar_grid,
-                      ellipsoid, geo2rdr_params=None):
+
+def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, inc_angle,
+                      head_angle):
     '''
     Compute displacement due to Solid Earth Tides (SET)
     in slant range and azimuth directions
@@ -325,9 +326,13 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, hgt_radar_grid,
          for set_enu in [set_e, set_n, set_u]]
 
     # Convert SET from ENU to range/azimuth coordinates
-    set_rg, set_az = enu2rgaz(burst.as_isce3_radargrid(), burst.orbit, ellipsoid,
-             lon_radar_grid, lat_radar_grid, hgt_radar_grid,
-             rdr_set_e, rdr_set_n, rdr_set_u, geo2rdr_params)
+    # Note: rdr2geo heading angle is measured wrt to the East and it is positive
+    # anti-clockwise. To convert ENU to LOS, we need the azimuth angle which is
+    # measured from the north and positive anti-clockwise
+    # azimuth_angle = heading + 90
+    set_rg = enu2los(rdr_set_e, rdr_set_n, rdr_set_u, inc_angle,
+                     az_angle=head_angle + 90.0)
+    set_az = en2az(rdr_set_e, rdr_set_n, head_angle - 90.0)
 
     return set_rg, set_az
 

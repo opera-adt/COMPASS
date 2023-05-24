@@ -3,7 +3,6 @@
 '''wrapper for rdr2geo'''
 
 from datetime import timedelta
-import os
 import time
 
 import isce3

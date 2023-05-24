@@ -186,7 +186,7 @@ def run(cfg: GeoRunConfig):
                 geocode_slc(geo_burst_raster, rdr_burst_raster, dem_raster,
                             radar_grid, sliced_radar_grid, geo_grid, orbit,
                             native_doppler, image_grid_doppler, ellipsoid,
-                            threshold, iters, blocksize, flatten, reramp=False,
+                            threshold, iters, blocksize, flatten, reramp=True,
                             azimuth_carrier=az_carrier_poly2d,
                             az_time_correction=az_lut,
                             srange_correction=rg_lut,

@@ -7,7 +7,7 @@
 
 
 import numpy as np
-
+import isce3
 
 def los2orbit_azimuth_angle(los_az_angle, look_direction='right'):
     """
@@ -265,3 +265,164 @@ def get_unit_vector4component_of_interest(los_inc_angle, los_az_angle, comp='enu
         ]
 
     return unit_vec
+
+
+def enu2rgaz(radargrid_ref, orbit, ellipsoid,
+             lon_arr, lat_arr, hgt_arr,
+             e_arr, n_arr, u_arr,
+             geo2rdr_params=None):
+    '''
+    Convert ENU displacement into range / azimuth displacement,
+    based on the idea mentioned in ETAD ATBD, available in the link below:
+    https://sentinels.copernicus.eu/documents/247904/4629150/ETAD-DLR-DD-0008_Algorithm-Technical-Baseline-Document_2.3.pdf/5cb45b43-76dc-8dec-04ef-ca1252ace434?t=1680181574715 # noqa
+
+    Algorithm description
+    ---------------------
+    For all lon / lat / height of the array;
+    1. Calculate the ECEF coordinates before applying SET
+    2. Calculate the unit vector of east / north / up directions of the point (i.e. ENU vectors)
+    3. Scale the ENU vectors in 2 with ENU displacement to
+       get the displacement in ECEF
+    4. Add the vectors calculated in 3 into 1.
+       This will be the ECEF coordinates after applying SET
+    5. Convert 4 into lat / lon / hgt.
+       This will be LLH coordinates after applying SET
+    6. Calculate the radar coordinate before SET applied using `geo2rdr`
+    7. Calculate the radar coordinate AFTER SET applied using `geo2rdr`
+    8. Calculate the difference between (7) and (6),
+       which will be the displacement in radargrid by SET
+
+    Parameters
+    ----------
+    radargrid_ref: isce3.product.RadarGridParameters
+        Radargrid of the burst
+    orbit: isce3.core.Orbit
+        Orbit of the burst
+    ellipsoid: isce3.core.Ellipsoid
+        Ellipsoid definition
+    lon_arr, lat_arr, hgt_arr: np.nadrray
+        Arrays for longitude, latitude, and height.
+        Units for longitude and latitude are degree; unit for height is meters.
+    e_arr, n_arr, u_arr: np.ndarray
+        Displacement in east, north, and up direction in meters
+    geo2rdr_params: SimpleNameSpace
+        Parameters for geo2rdr
+
+    Returns
+    -------
+    rg_arr: np.ndarray
+        Displacement in slant range direction in meters.
+    az_arr: np.ndarray
+        Displacement in azimuth direction in seconds.
+
+    Notes
+    -----
+    When `geo2rdr_params` is not provided, then the iteration
+    threshold and max # iterations are set to
+    `1.0e-8` and `25` respectively.
+
+    '''
+    if geo2rdr_params is None:
+        # default threshold and # iteration for geo2rdr
+        threshold = 1.0e-8
+        maxiter = 25
+    else:
+        threshold = geo2rdr_params.threshold
+        maxiter = geo2rdr_params.numiter
+
+    shape_arr = lon_arr.shape
+    rg_arr = np.zeros(shape_arr)
+    az_arr = np.zeros(shape_arr)
+
+    # Calculate the ENU vector in ECEF
+    for i, lon_deg in enumerate(np.nditer(lon_arr)):
+        index_arr = np.unravel_index(i, lon_arr.shape)
+        lat_deg = lat_arr[index_arr]
+        hgt = hgt_arr[index_arr]
+
+        vec_e, vec_n, vec_u = get_enu_vector_ecef(lon_deg, lat_deg)
+
+        llh_ref = np.array([np.deg2rad(lon_deg),
+                            np.deg2rad(lat_deg),
+                            hgt])
+
+        xyz_before = ellipsoid.lon_lat_to_xyz(llh_ref)
+        xyz_after_set = (xyz_before
+                         + vec_e * e_arr[index_arr]
+                         + vec_n * n_arr[index_arr]
+                         + vec_u * u_arr[index_arr])
+        llh_displaced = ellipsoid.xyz_to_lon_lat(xyz_after_set)
+
+        aztime_ref, slant_range_ref =\
+            isce3.geometry.geo2rdr(llh_ref,
+                                   ellipsoid,
+                                   orbit,
+                                   isce3.core.LUT2d(),
+                                   radargrid_ref.wavelength,
+                                   radargrid_ref.lookside,
+                                   threshold=threshold,
+                                   maxiter=maxiter)
+
+        aztime_displaced, slant_range_displaced =\
+            isce3.geometry.geo2rdr(llh_displaced,
+                                   ellipsoid,
+                                   orbit,
+                                   isce3.core.LUT2d(),
+                                   radargrid_ref.wavelength,
+                                   radargrid_ref.lookside,
+                                   threshold=threshold,
+                                   maxiter=maxiter)
+
+        rg_arr[index_arr] = slant_range_displaced - slant_range_ref
+        az_arr[index_arr] = aztime_displaced - aztime_ref
+
+    return rg_arr, az_arr
+
+
+def get_enu_vector_ecef(lon, lat, units='degrees'):
+    '''
+    Calculate the east, north, and up vectors in ECEF for lon / lat provided
+
+    Parameters
+    ----------
+    lon: np.ndarray
+        Longitude of the points to calculate ENU vectors
+    lat: np.ndarray
+        Latitude of the points to calculate ENU vectors
+    units: str
+        Units of the `lon` and `lat`.
+        Acceptable units are `radians` or `degrees`, (Default: degrees)
+
+    Returns
+    -------
+    vec_e: np.ndarray
+        unit vector of "east" direction in ECEF
+    vec_n: np.ndarray
+        unit vector of "north" direction in ECEF
+    vec_u: np.ndarray
+        unit vector of "up" direction in ECEF
+    '''
+    if units == 'degrees':
+        lon_rad = np.deg2rad(lon)
+        lat_rad = np.deg2rad(lat)
+    elif units == 'radians':
+        lon_rad = lon
+        lat_rad = lat
+    else:
+        raise ValueError(f'"{units}" was provided for `units`, '
+                         'which needs to be either `degrees` or `radians`')
+
+    # Calculate up, north, and east vectors
+    # reference: https://github.com/isce-framework/isce3/blob/944eba17f4a5b1c88c6a035c2d58ddd0d4f0709c/cxx/isce3/core/Ellipsoid.h#L154-L157 # noqa
+    # https://en.wikipedia.org/wiki/Geographic_coordinate_conversion#From_ECEF_to_ENU # noqa
+    vec_u = np.array([np.cos(lon_rad) * np.cos(lat_rad),
+                      np.sin(lon_rad) * np.cos(lat_rad),
+                      np.sin(lat_rad)])
+
+    vec_n = np.array([-np.cos(lon_rad) * np.sin(lat_rad),
+                      -np.sin(lon_rad) * np.sin(lat_rad),
+                      np.cos(lat_rad)])
+
+    vec_e = np.cross(vec_n, vec_u, axis=0)
+
+    return vec_e, vec_n, vec_u

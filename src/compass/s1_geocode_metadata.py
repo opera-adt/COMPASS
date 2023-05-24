@@ -199,8 +199,8 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
                             geo_grid.start_y,
                             geo_grid.spacing_x * dec_factor[0],
                             geo_grid.spacing_y * dec_factor[1],
-                            geo_grid.width // dec_factor[0] + 1,
-                            geo_grid.length // dec_factor[1] + 1,
+                            geo_grid.width // dec_factor[0],
+                            geo_grid.length // dec_factor[1],
                             geo_grid.epsg)
 
     # initialize geocode object
@@ -240,9 +240,21 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
         # Define the radargrid for LUT interpolation
         # The resultant radargrid will have
         # the very first and the last LUT values be included.
-        radargrid_interp = burst.as_isce3_radargrid()
-        #radargrid_interp = radargrid_interp.multilook(dec_factor[1], dec_factor[0])
 
+        radargrid_interp = burst.as_isce3_radargrid()
+        # Extract burst boundaries
+        
+        # Create sliced radar grid representing valid region of the burst
+        
+
+        # Method 1: Use multilook()
+        '''radargrid_interp = radargrid_interp.multilook(dec_factor[1], dec_factor[0])
+        range_px_interp_vec = np.linspace(0, burst.width - 1, radargrid_interp.width)
+        azimuth_px_interp_vec = np.linspace(0, burst.length - 1, radargrid_interp.length)'''
+
+        
+
+        # Method 2: Custom calculation of the decimated radargrid
         radargrid_interp.width = int(np.ceil(burst.width / dec_factor[0]))
         range_px_interp_vec = np.linspace(0, burst.width - 1, radargrid_interp.width)
         intv_interp_range = range_px_interp_vec[1] - range_px_interp_vec[0]
@@ -251,11 +263,18 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
         azimuth_px_interp_vec = np.linspace(0, burst.length - 1, radargrid_interp.length)
         intv_interp_azimuth = azimuth_px_interp_vec[1] - azimuth_px_interp_vec[0]
 
+        radargrid_interp.range_pixel_spacing *= intv_interp_range
+        radargrid_interp.prf /= intv_interp_azimuth
+
+
+
+
         if az_lut_grid is not None:
             azimuth_px_interp_vec += az_lut_grid[0]
 
-        radargrid_interp.range_pixel_spacing *= intv_interp_range
-        radargrid_interp.prf /= intv_interp_azimuth
+
+
+
 
         # Get the interpolated range LUT
         param_interp_obj_rg = InterpolatedUnivariateSpline(rg_lut_grid,
@@ -287,6 +306,8 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
 
         input_raster = isce3.io.Raster(lut_path)
 
+
+
         # geocode then set transfrom and EPSG in output raster
         geocode_obj.geocode(radar_grid=radargrid_interp,
                             input_raster=input_raster,
@@ -306,7 +327,7 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
 
 
 def geocode_calibration_luts(geo_burst_h5, burst, cfg,
-                             dec_factor=(40, 10)):
+                             dec_factor=(20, 5)):
     '''
     Geocode the radiometric calibratio paremeters,
     and write them into output HDF5.
@@ -348,7 +369,7 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
 
 
 def geocode_noise_luts(geo_burst_h5, burst, cfg,
-                       dec_factor=(40, 10)):
+                       dec_factor=(20, 5)):
     '''
     Geocode the noise LUT, and write that into output HDF5.
 

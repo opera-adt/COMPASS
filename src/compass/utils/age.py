@@ -666,7 +666,7 @@ def create_parser():
                           help='Padding margin around CR position detected in the geocoded SLC '
                                'image. Actual margin is 2*margin from left-to-right and from'
                                'top-to-bottom')
-    optional.add_argument('-r', '--azimuth-ramp', dest='az_ramp', default=True,
+    optional.add_argument('-r', '--azimuth-ramp', dest='apply_az_ramp', default=True,
                           help='If True, removes azimuth carrier ramp prior to CR peak location. '
                                'This option should be set to True for S1-A/B AGE analyses')
     optional.add_argument('-u', '--unflatten', dest='unflatten', default=True,
@@ -690,7 +690,7 @@ def main():
         pol=args.pol,
         ovs_factor=args.ovs_factor,
         margin=args.margin,
-        apply_az_ramp=args.az_ramp,
+        apply_az_ramp=args.apply_az_ramp,
         unflatten=args.unflatten)
 
 

@@ -156,7 +156,7 @@ def run(cfg, burst, fetch_from_scratch=False):
 
 
 def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
-                 dec_factor_x_rng=20 . dec_factor_y_az=5):
+                 dec_factor_x_rng=20, dec_factor_y_az=5):
     '''
     Geocode the radiometric calibratio paremeters,
     and write them into output HDF5.
@@ -200,10 +200,10 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
     decimated_geogrid = isce3.product.GeoGridParameters(
                             geo_grid.start_x,
                             geo_grid.start_y,
-                            geo_grid.spacing_x * dec_factor[0],
-                            geo_grid.spacing_y * dec_factor[1],
-                            geo_grid.width // dec_factor[0],
-                            geo_grid.length // dec_factor[1],
+                            geo_grid.spacing_x * dec_factor_x_rng,
+                            geo_grid.spacing_y * dec_factor_y_az,
+                            int(np.ceil(geo_grid.width // dec_factor_x_rng)),
+                            int(np.ceil(geo_grid.length // dec_factor_y_az)),
                             geo_grid.epsg)
 
     # initialize geocode object
@@ -244,11 +244,11 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
         # The resultant radargrid will have
         # the very first and the last LUT values be included.
         radargrid_interp = burst.as_isce3_radargrid()
-        radargrid_interp.width = int(np.ceil(burst.width / dec_factor[0]))
+        radargrid_interp.width = int(np.ceil(burst.width / dec_factor_x_rng))
         range_px_interp_vec = np.linspace(0, burst.width - 1, radargrid_interp.width)
         intv_interp_range = range_px_interp_vec[1] - range_px_interp_vec[0]
 
-        radargrid_interp.length = int(np.ceil(burst.length / dec_factor[1]))
+        radargrid_interp.length = int(np.ceil(burst.length / dec_factor_y_az))
         azimuth_px_interp_vec = np.linspace(0, burst.length - 1, radargrid_interp.length)
         intv_interp_azimuth = azimuth_px_interp_vec[1] - azimuth_px_interp_vec[0]
 
@@ -307,7 +307,8 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
 
 
 def geocode_calibration_luts(geo_burst_h5, burst, cfg,
-                             dec_factor=(20, 5)):
+                             dec_factor_x_rng=20,
+                             dec_factor_y_az=5):
     '''
     Geocode the radiometric calibratio paremeters,
     and write them into output HDF5.
@@ -320,9 +321,12 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
         Sentinel-1 burst SLC
     cfg: GeoRunConfig
         GeoRunConfig object with user runconfig options
-    dec_factor: tuple
+    dec_factor_x_rg: int
         Decimation factor to downsample the LUT in
-        range and azimuth direction respectively
+        x or range direction
+    dec_factor_y_az: int
+        Decimation factor to downsample the LUT in
+        y or azimuth direction
     '''
     dst_group_path = f'{ROOT_PATH}/metadata/calibration_information'
 
@@ -345,11 +349,13 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
               None]
         }
     geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict_calibration,
-                 dec_factor)
+                 dec_factor_x_rng,
+                 dec_factor_y_az)
 
 
 def geocode_noise_luts(geo_burst_h5, burst, cfg,
-                       dec_factor=(20, 5)):
+                       dec_factor_x_rng=20,
+                       dec_factor_y_az=5):
     '''
     Geocode the noise LUT, and write that into output HDF5.
 
@@ -361,9 +367,12 @@ def geocode_noise_luts(geo_burst_h5, burst, cfg,
         Sentinel-1 burst SLC
     cfg: GeoRunConfig
         GeoRunConfig object with user runconfig options
-    dec_factor: tuple
+    dec_factor_x_rg: int
         Decimation factor to downsample the LUT in
-        range and azimuth direction respectively
+        x or range direction
+    dec_factor_y_az: int
+        Decimation factor to downsample the LUT in
+        y or azimuth direction
     '''
     dst_group_path =  f'{ROOT_PATH}/metadata/noise_information'
     item_dict_noise = {'thermal_noise_lut': [burst.burst_noise.range_pixel,
@@ -372,7 +381,8 @@ def geocode_noise_luts(geo_burst_h5, burst, cfg,
                                        burst.burst_noise.azimuth_lut]
                                        }
     geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict_noise,
-                 dec_factor)
+                 dec_factor_x_rng,
+                 dec_factor_y_az)
 
 
 if __name__ == "__main__":

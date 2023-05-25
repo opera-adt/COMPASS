@@ -149,6 +149,7 @@ class GeoRunConfig(RunConfig):
         burst_id = self.burst_id
         return f'{super().product_path}/{burst_id}/{date_str}'
 
+    @property
     def browse_image_params(self) -> dict:
         return self.groups.quality_assurance.browse_image
 

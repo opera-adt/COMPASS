@@ -17,5 +17,6 @@ def test_qa_power_stats(geocode_slc_params):
             h5_stats_path = f'{QA_PATH}/statistics/data/VV/{pwr_phase}'
             stat_names = ['mean', 'min', 'max']
             for stat_name in stat_names:
-                stat_val =h5_obj[f'{h5_stats_path}/{stat_name}'][()]
+                print(f'Testing: {stat_name} of {pwr_phase}')
+                stat_val = h5_obj[f'{h5_stats_path}/{stat_name}'][()]
                 assert test(stat_val)

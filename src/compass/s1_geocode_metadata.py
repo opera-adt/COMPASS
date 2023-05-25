@@ -156,7 +156,7 @@ def run(cfg, burst, fetch_from_scratch=False):
 
 
 def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
-                 dec_factor=(20, 5)):
+                 dec_factor_x_rng=20 . dec_factor_y_az=5):
     '''
     Geocode the radiometric calibratio paremeters,
     and write them into output HDF5.
@@ -173,9 +173,12 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
         Path in HDF5 where geocode rasters will be placed
     item_dict: dict
         Dict containing item names and values to be geocoded
-    dec_factor: tuple
+    dec_factor_x_rg: int
         Decimation factor to downsample the LUT in
-        range and azimuth direction respectively
+        x or range direction
+    dec_factor_y_az: int
+        Decimation factor to downsample the LUT in
+        y or azimuth direction
     '''
     dem_raster = isce3.io.Raster(cfg.dem)
     epsg = dem_raster.get_epsg()

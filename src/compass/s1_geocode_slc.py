@@ -19,13 +19,11 @@ from compass.utils.browse_image import make_browse_image
 from compass.utils.elevation_antenna_pattern import apply_eap_correction
 from compass.utils.error_codes import ErrorCode
 from compass.utils.geo_runconfig import GeoRunConfig
-from compass.utils.h5_helpers import (get_module_name, DATA_PATH,
-                                      corrections_to_h5group,
+from compass.utils.h5_helpers import (corrections_to_h5group,
                                       identity_to_h5group,
                                       init_geocoded_dataset,
-                                      METADATA_PATH,
                                       metadata_to_h5group,
-                                      ROOT_PATH)
+                                      DATA_PATH, METADATA_PATH, ROOT_PATH)
 from compass.utils.helpers import bursts_grouping_generator, get_module_name
 from compass.utils.logger import Logger
 from compass.utils.lut import cumulative_correction_luts
@@ -258,7 +256,6 @@ def run(cfg: GeoRunConfig):
                 s1_geocode_metadata.geocode_noise_luts(geo_burst_h5,
                                                        burst,
                                                        cfg)
->>>>>>> main
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     logger.info(module_name, ErrorCode.SAS_PROGRAM_COMPLETED,

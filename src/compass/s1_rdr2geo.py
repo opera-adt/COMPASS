@@ -3,7 +3,6 @@
 '''wrapper for rdr2geo'''
 
 from datetime import timedelta
-import os
 import time
 
 import isce3
@@ -16,13 +15,15 @@ from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
 
 
-def run(cfg, save_in_scratch=False):
+def run(cfg, burst=None, save_in_scratch=False):
     '''run rdr2geo with provided runconfig
 
     Parameters
     ----------
     cfg: dict
         Runconfig dictionary with user-defined options
+    burst: Sentinel1BurstSlc
+        Burst to run rdr2geo. If `None`, it will process all bursts in `cfg`
     save_in_scratch: bool
         Flag to save output in scratch dir instead of product dir
     '''
@@ -57,17 +58,23 @@ def run(cfg, save_in_scratch=False):
 
     # run rdr2geo for only once per burst_id
     # save SLC for all bursts
-    for burst in cfg.bursts:
+    if burst is None:
+        bursts = cfg.bursts
+    else:
+        bursts = [burst]
+
+    for burst in bursts:
         # extract date string and create directory
         date_str = burst.sensing_start.strftime("%Y%m%d")
-        burst_id = burst.burst_id
+        burst_id = str(burst.burst_id)
         pol = burst.polarization
 
         # init output directory in product_path
-        output_path = f'{cfg.product_path}/{burst_id}/{date_str}'
+        burst_id_date_key = (burst_id, date_str)
+        out_paths = cfg.output_paths[burst_id_date_key]
+        output_path = out_paths.output_directory
         if save_in_scratch:
-            output_path = f'{cfg.scratch_path}/{burst_id}/{date_str}'
-        os.makedirs(output_path, exist_ok=True)
+            output_path = out_paths.scratch_directory
 
         # save SLC to ENVI for all bursts
         # run rdr2geo for only 1 burst avoid redundancy
@@ -101,12 +108,12 @@ def run(cfg, save_in_scratch=False):
         topo_output = {'x': (rdr2geo_cfg.compute_longitude, gdal.GDT_Float64),
                        'y': (rdr2geo_cfg.compute_latitude, gdal.GDT_Float64),
                        'z': (rdr2geo_cfg.compute_height, gdal.GDT_Float64),
-                       'layoverShadowMask': (
+                       'layover_shadow_mask': (
                        cfg.rdr2geo_params.compute_layover_shadow_mask,
                        gdal.GDT_Byte),
                        'incidence': (rdr2geo_cfg.compute_incidence_angle,
                                      gdal.GDT_Float32),
-                       'localIncidence': (
+                       'local_incidence': (
                        rdr2geo_cfg.compute_local_incidence_angle,
                        gdal.GDT_Float32),
                        'heading': (

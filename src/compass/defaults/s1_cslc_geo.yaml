@@ -10,12 +10,21 @@ runconfig:
           safe_file_path:
           # Required. List of orbit (EOF) files (min=1)
           orbit_file_path:
-          # Required. The unique burst ID to process
+          # The unique burst ID(s) to process. If nothing provided, all bursts
+          # in a SAFE will processed
           burst_id:
 
       dynamic_ancillary_file_group:
           # Digital elevation model
           dem_file:
+          # TEC file in IONEX format for ionosphere correction
+          tec_file:
+          # Troposphere weather model file
+          weather_model_file:
+
+      static_ancillary_file_group:
+          # burst database sqlite file
+          burst_database_file:
 
       product_path_group:
           # Directory where PGE will place results
@@ -25,6 +34,10 @@ runconfig:
           # Intermediate file name. SAS writes the output to this file.
           # PGE may rename the product according to file naming convention
           sas_output_file:
+          # Product version
+          product_version: '0.2'
+          # Product specification document version
+          product_specification_version: '0.1.5'
 
       primary_executable:
           product_type: CSLC_S1
@@ -32,32 +45,31 @@ runconfig:
       processing:
           polarization: co-pol
           geocoding:
-              output_format: ENVI
               flatten: True
-              # Dem margin (in units of input DEM)
               lines_per_block: 1000
-              output_epsg:
               x_posting:
               y_posting:
               x_snap:
               y_snap:
-              top_left:
-                  x:
-                  y:
-              bottom_right:
-                  x:
-                  y:
           geo2rdr:
               lines_per_block: 1000
               threshold: 1.0e-8
               numiter: 25
-          range_split_spectrum:
-              enabled: False
-              lines_per_block: 1000
-              # Low-band bandwidth in Hz
-              low_band_bandwidth: 1e7
-              # High-band bandwidth in Hz
-              high_band_bandwidth: 1e7
+
+          correction_luts:
+              # Boolean flag to activate/deactivate model-based
+              # corrections while geocoding the burst
+              enabled: True
+              # LUT spacing in range direction in meters
+              range_spacing: 120
+              # LUT spacing in azimuth direction in seconds
+              azimuth_spacing: 0.028
+              # Troposphere delay using weather model
+              troposphere:
+                 # Type of troposphere delay. Any of 'dry', 'wet' or 'wet_dry' for
+                 # the sum of wet and dry delays
+                 delay_type: wet_dry
+
           rdr2geo:
               # Enable/disable computation of topo layers
               enabled: False
@@ -98,3 +110,20 @@ runconfig:
           # Optional. Index of GPU to be used for processing. Ignored if
           # *gpu_enabled* is False (default: 0)
           gpu_id: 0
+
+      quality_assurance:
+          browse_image:
+              # Enable/disable generation of CSLC browse image
+              enabled: True
+              # How to convert complex CSLC to real
+              complex_to_real: amplitude
+              # Lower percentile of non-nan pixels to clip
+              percent_low: 0
+              # Higher percentile of non-nan pixels to clip
+              percent_high: 95
+              # Gamma exponent applied to normalized image
+              gamma: 0.5
+              # Enable/disable histogram equalization
+              equalize: False
+          perform_qa: True
+          output_to_json: False

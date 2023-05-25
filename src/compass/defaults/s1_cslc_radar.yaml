@@ -68,6 +68,11 @@ runconfig:
            resample:
                lines_per_block: 1000
                flatten: False
+           correction_luts:
+               # LUT spacing in x/slant range direction in meters
+               x_spacing: 120
+               # LUT spacing in y/azimuth direction in seconds
+               y_spacing: 0.028
 
        worker:
            # OPTIONAL - To prevent downloading DEM / other data automatically. Default True

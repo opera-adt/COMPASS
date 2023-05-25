@@ -10,7 +10,11 @@ jobs:
       - run:
           name: "Build COMPASS docker image"
           command: |
-            docker build . -f docker/Dockerfile
+            docker build . -f docker/Dockerfile -t test_image
+      - run:
+          name: "Run tests"
+          command: |
+            docker run test_image sh -c "cd ~/OPERA/COMPASS && pytest"
 
 workflows:
   build-workflow:

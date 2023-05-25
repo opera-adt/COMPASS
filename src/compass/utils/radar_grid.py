@@ -1,3 +1,4 @@
+import numpy as np
 import isce3
 
 
@@ -35,3 +36,39 @@ def rdr_grid_to_file(ref_grid_path: str,
         f_rdr_grid.write(str(rdr_grid.length) + '\n')
         f_rdr_grid.write(str(rdr_grid.width) + '\n')
         f_rdr_grid.write(str(rdr_grid.ref_epoch) + '\n')
+
+
+def get_decimated_rdr_grd(rdr_grid_original,
+                          dec_factor_rng,
+                          dec_factor_az) -> isce3.product.RadarGridParameters:
+    '''
+    Decimate the `rdr_grid_original` by the factor close to
+    `dec_factor_rng` and `dec_factor_az` in range / azimuth direction respectively,
+    while making sure that the very first / last samples / lines in
+    `rdr_grid_original` gets included in the result.
+
+    Parameters
+    ----------
+    rdr_grid_original: isce3.product.RadarGridParameters
+        The original radargrid as the basis of the decimated radargrid
+    dec_factor_rng: int
+        Decimation factor in range direction
+    dec_factor_az: int
+        Decimation factor in azimuth direction
+
+    Returns
+    -------
+    rdr_grid_decimated: isce3.product.RadarGridParameters
+        Decimated radar grid
+    '''
+    rdr_grid_decimated = rdr_grid_original.copy()
+    rdr_grid_decimated.width = int(np.ceil(rdr_grid_original.width / dec_factor_rng))
+    interval_rng = (rdr_grid_original.width - 1) / (rdr_grid_decimated.width - 1)
+
+    rdr_grid_decimated.length = int(np.ceil(rdr_grid_original.length / dec_factor_az))
+    interval_az = (rdr_grid_original.length - 1) / (rdr_grid_decimated.length - 1)
+
+    rdr_grid_decimated.range_pixel_spacing *= interval_rng
+    rdr_grid_decimated.prf /= interval_az
+
+    return rdr_grid_decimated

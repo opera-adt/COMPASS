@@ -20,6 +20,7 @@ from compass.utils.h5_helpers import (init_geocoded_dataset,
                                       ROOT_PATH)
 from compass.utils.helpers import bursts_grouping_generator, get_module_name
 from compass.utils.yaml_argparse import YamlArgparse
+from compass.utils.radar_grid import get_decimated_rdr_grd
 
 
 def run(cfg, burst, fetch_from_scratch=False):
@@ -224,6 +225,16 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
         geo_burst_h5.require_group(dst_group_path)
 
     gdal_envi_driver = gdal.GetDriverByName('ENVI')
+
+    # Define the radargrid for LUT interpolation
+    # The resultant radargrid will have
+    # the very first and the last LUT values be included in the grid.
+    radargrid_interp = get_decimated_rdr_grd(burst.as_isce3_radargrid(),
+                                             dec_factor_x_rng, dec_factor_y_az)
+
+    range_px_interp_vec = np.linspace(0, burst.width - 1, radargrid_interp.width)
+    azimuth_px_interp_vec = np.linspace(0, burst.length - 1, radargrid_interp.length)
+
     for item_name, (rg_lut_grid, rg_lut_val,
                     az_lut_grid, az_lut_val) in item_dict.items():
         # prepare input dataset in output HDF5
@@ -239,21 +250,6 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
         geocoded_cal_lut_raster =\
             isce3.io.Raster(
                 f"IH5:::ID={dst_dataset.id.id}".encode("utf-8"), update=True)
-
-        # Define the radargrid for LUT interpolation
-        # The resultant radargrid will have
-        # the very first and the last LUT values be included.
-        radargrid_interp = burst.as_isce3_radargrid()
-        radargrid_interp.width = int(np.ceil(burst.width / dec_factor_x_rng))
-        range_px_interp_vec = np.linspace(0, burst.width - 1, radargrid_interp.width)
-        intv_interp_range = range_px_interp_vec[1] - range_px_interp_vec[0]
-
-        radargrid_interp.length = int(np.ceil(burst.length / dec_factor_y_az))
-        azimuth_px_interp_vec = np.linspace(0, burst.length - 1, radargrid_interp.length)
-        intv_interp_azimuth = azimuth_px_interp_vec[1] - azimuth_px_interp_vec[0]
-
-        radargrid_interp.range_pixel_spacing *= intv_interp_range
-        radargrid_interp.prf /= intv_interp_azimuth
 
         if az_lut_grid is not None:
             azimuth_px_interp_vec += az_lut_grid[0]

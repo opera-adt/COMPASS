@@ -16,7 +16,8 @@ from compass import s1_rdr2geo
 from compass.s1_cslc_qa import QualityAssuranceCSLC
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.h5_helpers import (init_geocoded_dataset,
-                                      metadata_to_h5group, GRID_PATH,
+                                      metadata_to_h5group, DATA_PATH,
+                                      METADATA_PATH,
                                       ROOT_PATH)
 from compass.utils.helpers import bursts_grouping_generator, get_module_name
 from compass.utils.yaml_argparse import YamlArgparse
@@ -99,9 +100,9 @@ def run(cfg, burst, fetch_from_scratch=False):
 
     out_h5 = f'{out_paths.output_directory}/static_layers_{burst_id}.h5'
     with h5py.File(out_h5, 'w') as h5_obj:
-        # Create group static_layers group under GRID_PATH for consistency with
+        # Create group static_layers group under DATA_PATH for consistency with
         # CSLC product
-        static_layer_group = h5_obj.require_group(f'{GRID_PATH}/static_layers')
+        static_layer_group = h5_obj.require_group(f'{DATA_PATH}/static_layers')
 
         # Geocode designated layers
         for layer_name, enabled in meta_layers.items():

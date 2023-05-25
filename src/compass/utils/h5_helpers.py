@@ -568,10 +568,10 @@ def metadata_to_h5group(parent_group, burst, cfg):
 
     # Add parameters group in processing information
     par_meta_items = [
-        Meta('ellipsoidalFlatteningApplied', cfg.geocoding_params.flatten,
+        Meta('ellipsoidalFlatteningApplied', bool(cfg.geocoding_params.flatten),
              "If True, CSLC-S1 phase has been flatten with respect to a zero height ellipsoid",
              {'units':'unitless'}),
-        Meta('topographicFlatteningApplied', cfg.geocoding_params.flatten,
+        Meta('topographicFlatteningApplied', bool(cfg.geocoding_params.flatten),
              "If True, CSLC-S1 phase has been flatten with respect to topographic height using a DEM",
              {'units': 'unitless'}),
     ]

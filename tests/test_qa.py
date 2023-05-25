@@ -8,7 +8,7 @@ def test_qa_power_stats(geocode_slc_params):
         return arr > 0.0
 
     def _phase_test(arr):
-        return abs(arr) > np.pi
+        return abs(arr) <= np.pi
 
     # basic sanity checks of mean, min, and max
     with h5py.File(geocode_slc_params.output_hdf5_path, 'r') as h5_obj:

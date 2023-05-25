@@ -399,7 +399,7 @@ def identity_to_h5group(dst_group, burst, cfg):
         add_dataset_and_attrs(id_group, meta_item)
 
 
-def metadata_to_h5group(parent_group, burst, cfg):
+def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True):
     '''
     Write burst metadata to HDF5
 
@@ -413,6 +413,8 @@ def metadata_to_h5group(parent_group, burst, cfg):
         Geo grid object defining the geocoded area
     cfg: types.SimpleNamespace
         SimpleNamespace containing run configuration
+    save_noise_and_cal: bool
+        If true, to save noise and calibration metadata in metadata
     '''
     if 'metadata' in parent_group:
         del parent_group['metadata']
@@ -430,7 +432,7 @@ def metadata_to_h5group(parent_group, burst, cfg):
     processing_group = meta_group.require_group('processing_information')
 
     # write out calibration metadata, if present
-    if burst.burst_calibration is not None:
+    if burst.burst_calibration is not None and save_noise_and_cal:
         cal = burst.burst_calibration
         cal_items = [
             Meta('azimuth_time', cal.azimuth_time.strftime(TIME_STR_FMT),
@@ -442,7 +444,7 @@ def metadata_to_h5group(parent_group, burst, cfg):
             add_dataset_and_attrs(cal_group, meta_item)
 
     # write out noise metadata, if present
-    if burst.burst_noise is not None:
+    if burst.burst_noise is not None and save_noise_and_cal:
         noise = burst.burst_noise
         noise_items = [
             Meta('range_azimuth_time',

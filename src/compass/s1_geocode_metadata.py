@@ -14,7 +14,8 @@ from osgeo import gdal
 from compass import s1_rdr2geo
 from compass.s1_cslc_qa import QualityAssuranceCSLC
 from compass.utils.geo_runconfig import GeoRunConfig
-from compass.utils.h5_helpers import (init_geocoded_dataset,
+from compass.utils.h5_helpers import (identity_to_h5group,
+                                      init_geocoded_dataset,
                                       metadata_to_h5group, DATA_PATH,
                                       METADATA_PATH,
                                       ROOT_PATH)
@@ -98,9 +99,12 @@ def run(cfg, burst, fetch_from_scratch=False):
 
     out_h5 = f'{out_paths.output_directory}/static_layers_{burst_id}.h5'
     with h5py.File(out_h5, 'w') as h5_obj:
+        root_group = h5_obj[ROOT_PATH]
+        identity_to_h5group(root_group, burst, cfg)
+
         # Create group static_layers group under DATA_PATH for consistency with
         # CSLC product
-        static_layer_group = h5_obj.require_group(f'{DATA_PATH}/static_layers')
+        static_layer_data_group = h5_obj.require_group(DATA_PATH)
 
         # Geocode designated layers
         for layer_name, enabled in meta_layers.items():
@@ -115,9 +119,9 @@ def run(cfg, burst, fetch_from_scratch=False):
                 dtype = np.byte
 
             # Create dataset with x/y coords/spacing and projection
-            topo_ds = init_geocoded_dataset(static_layer_group, layer_name,
-                                            geo_grid, dtype,
-                                            np.string_(layer_name))
+            topo_ds = initdata_geocoded_dataset(static_layer_group, layer_name,
+                                                geo_grid, dtype,
+                                                np.string_(layer_name))
 
             # Init output and input isce3.io.Raster objects for geocoding
             output_raster = isce3.io.Raster(f"IH5:::ID={topo_ds.id.id}".encode("utf-8"),
@@ -139,7 +143,8 @@ def run(cfg, burst, fetch_from_scratch=False):
 
             # save metadata
             cslc_group = h5_obj.require_group(ROOT_PATH)
-            metadata_to_h5group(cslc_group, burst, cfg)
+            metadata_to_h5group(cslc_group, burst, cfg,
+                                save_noise_and_cal=False)
 
     if cfg.quality_assurance_params.perform_qa:
         cslc_qa = QualityAssuranceCSLC()

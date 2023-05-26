@@ -363,6 +363,8 @@ def identity_to_h5group(dst_group, burst, cfg, product_type):
         Burst whose metadata is to written to HDF5
     cfg: dict[Namespace]
         Name space dictionary with runconfig parameters
+    product_type: str
+        Type of COMPASS product
     '''
     # identification datasets
     id_meta_items = [
@@ -409,8 +411,6 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True):
         HDF5 group Meta data will be written to
     burst: Sentinel1BurstSlc
         Burst whose metadata is to written to HDF5
-    geogrid: isce3.product.GeoGridParameters
-        Geo grid object defining the geocoded area
     cfg: types.SimpleNamespace
         SimpleNamespace containing run configuration
     save_noise_and_cal: bool
@@ -491,22 +491,6 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True):
     for meta_item in vrt_items:
         add_dataset_and_attrs(vrt_group, meta_item)
 
-    # algorithm items
-    algorithm_items = [
-        Meta('dem_interpolation', 'biquintic', 'DEM interpolation method'),
-        Meta('geocoding_interpolator', 'sinc interpolation',
-             'Geocoding interpolation method'),
-        Meta('ISCE3_version', isce3.__version__,
-             'ISCE3 version used for processing'),
-        Meta('s1Reader_version', s1reader.__version__,
-             'S1-Reader version used for processing'),
-        Meta('COMPASS_version', compass.__version__,
-             'COMPASS (CSLC-S1 processor) version used for processing')
-    ]
-    algorithm_group = processing_group.require_group('algorithms')
-    for meta_item in algorithm_items:
-        add_dataset_and_attrs(algorithm_group, meta_item)
-
     # burst items
     burst_meta_items = [
         Meta('ipf_version', str(burst.ipf_version),
@@ -568,19 +552,6 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True):
     for meta_item in burst_meta_items:
         add_dataset_and_attrs(burst_meta_group, meta_item)
 
-    # Add parameters group in processing information
-    par_meta_items = [
-        Meta('ellipsoidalFlatteningApplied', cfg.geocoding_params.flatten,
-             "If True, CSLC-S1 phase has been flatten with respect to a zero height ellipsoid",
-             {'units':'unitless'}),
-        Meta('topographicFlatteningApplied', cfg.geocoding_params.flatten,
-             "If True, CSLC-S1 phase has been flatten with respect to topographic height using a DEM",
-             {'units': 'unitless'}),
-    ]
-    par_meta_group = processing_group.require_group('parameters')
-    for meta_item in par_meta_items:
-        add_dataset_and_attrs(par_meta_group, meta_item)
-
     def poly1d_to_h5(group, poly1d_name, poly1d):
         '''Write isce3.core.Poly1d properties to hdf5
         Parameters
@@ -604,6 +575,74 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True):
 
     poly1d_to_h5(burst_meta_group, 'azimuth_fm_rate', burst.azimuth_fm_rate)
     poly1d_to_h5(burst_meta_group, 'doppler', burst.doppler.poly1d)
+
+
+def flatten_metadata_to_h5group(parent_group, cfg):
+    '''
+    Write burst flattening metadata to HDF5
+
+    Parameter:
+    ---------
+    parent_group: h5py Group
+        HDF5 group Meta data will be written to
+    cfg: types.SimpleNamespace
+        SimpleNamespace containing run configuration
+    '''
+    # Add parameters group in processing information
+    par_meta_items = [
+        Meta('ellipsoidalFlatteningApplied', cfg.geocoding_params.flatten,
+             "If True, CSLC-S1 phase has been flatten with respect to a zero height ellipsoid",
+             {'units':'unitless'}),
+        Meta('topographicFlatteningApplied', cfg.geocoding_params.flatten,
+             "If True, CSLC-S1 phase has been flatten with respect to topographic height using a DEM",
+             {'units': 'unitless'}),
+    ]
+    par_meta_group = \
+        parent_group.require_group('metadata/processing_information/parameters')
+    for meta_item in par_meta_items:
+        add_dataset_and_attrs(par_meta_group, meta_item)
+
+
+def algorithm_metadata_to_h5group(parent_group, is_static_layers=False):
+    '''
+    Write algorithm information to HDF5
+
+    Parameter:
+    ---------
+    parent_group: h5py Group
+        HDF5 group Meta data will be written to
+    is_static_layers: bool
+        True if writing algorithm metadata for static layer product
+    '''
+    # common algorithm items
+    algorithm_items = [
+        Meta('dem_interpolation', 'biquintic', 'DEM interpolation method'),
+        Meta('float_data_geocoding_interpolator', 'biquintic interpolation',
+             'Geocoding interpolation method'),
+        Meta('ISCE3_version', isce3.__version__,
+             'ISCE3 version used for processing'),
+        Meta('s1Reader_version', s1reader.__version__,
+             'S1-Reader version used for processing'),
+        Meta('COMPASS_version', compass.__version__,
+             'COMPASS (CSLC-S1 processor) version used for processing')
+    ]
+    if is_static_layers:
+        algorithm_items.append(
+            Meta('uint_data_geocoding_interpolator',
+                 'nearest neighbor interpolation',
+                 'Unsigned int geocoding interpolation method'),
+            Meta('topography_algorithm', 'isce3.geometry.topo',
+                 'Topography generation algorithm')
+        )
+    if not is_static_layers:
+        algorithm_items.append(
+            Meta('complex_data_geocoding_interpolator', 'sinc interpolation',
+                 'Complex data geocoding interpolation method'),
+        )
+    algorithm_group = \
+        parent_group.require_group('metadata/processing_information/algorithm')
+    for meta_item in algorithm_items:
+        add_dataset_and_attrs(algorithm_group, meta_item)
 
 
 def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,

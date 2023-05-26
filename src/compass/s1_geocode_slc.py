@@ -212,6 +212,8 @@ def run(cfg: GeoRunConfig):
             identity_to_h5group(root_group, burst, cfg, 'CSLC -S1')
 
             metadata_to_h5group(root_group, burst, cfg)
+            algorithm_metadata_to_h5group(root_group)
+            flatten_metadata_to_h5group(root_group, cfg)
             if cfg.lut_params.enabled:
                 correction_group = geo_burst_h5.require_group(
                     f'{METADATA_PATH}/processing_information')

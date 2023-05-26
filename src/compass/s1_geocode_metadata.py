@@ -91,16 +91,19 @@ def run(cfg, burst, fetch_from_scratch=False):
     meta_layers = {'x': cfg.rdr2geo_params.compute_longitude,
                    'y': cfg.rdr2geo_params.compute_latitude,
                    'z': cfg.rdr2geo_params.compute_height,
-                   'incidence': cfg.rdr2geo_params.compute_incidence_angle,
-                   'local_incidence': cfg.rdr2geo_params.compute_local_incidence_angle,
-                   'heading': cfg.rdr2geo_params.compute_azimuth_angle,
+                   'incidence_angle': cfg.rdr2geo_params.compute_incidence_angle,
+                   'local_incidence_angle': cfg.rdr2geo_params.compute_local_incidence_angle,
+                   'heading_angle': cfg.rdr2geo_params.compute_azimuth_angle,
                    'layover_shadow_mask': cfg.rdr2geo_params.compute_layover_shadow_mask
                    }
 
     out_h5 = f'{out_paths.output_directory}/static_layers_{burst_id}.h5'
     with h5py.File(out_h5, 'w') as h5_obj:
+        # write identity and metadata to HDF5
         root_group = h5_obj[ROOT_PATH]
         identity_to_h5group(root_group, burst, cfg, 'Static layers CSLC-S1')
+        metadata_to_h5group(cslc_group, burst, cfg, save_noise_and_cal=False)
+        algorithm_metadata_to_h5group(root_group, is_static_layers=True)
 
         # Create group static_layers group under DATA_PATH for consistency with
         # CSLC product
@@ -140,11 +143,6 @@ def run(cfg, burst, fetch_from_scratch=False):
             output_raster.set_epsg(output_epsg)
             del input_raster
             del output_raster
-
-            # save metadata
-            cslc_group = h5_obj.require_group(ROOT_PATH)
-            metadata_to_h5group(cslc_group, burst, cfg,
-                                save_noise_and_cal=False)
 
     if cfg.quality_assurance_params.perform_qa:
         cslc_qa = QualityAssuranceCSLC()

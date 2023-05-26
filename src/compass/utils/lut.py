@@ -81,7 +81,7 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
 
     # Invert signs to correct for convention
     # TO DO: add azimuth SET to LUT
-    az_lut_data = -(bistatic_delay.data + az_fm_mismatch.data)
+    az_lut_data = -(bistatic_delay.data + az_fm_mismatch.data + tide_az)
 
     rg_lut = isce3.core.LUT2d(bistatic_delay.x_start,
                               bistatic_delay.y_start,

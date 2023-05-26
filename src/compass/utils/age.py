@@ -221,8 +221,8 @@ def correct_cr_tides(cslc_file, cr_lat, cr_lon,
     import pysolid
     # Get geocode SLC sensing start and stop
     if mission_id == 'S1':
-        start_path = f'{METADATA_PATH}/processing_information/s1_burst_metadata/sensing_start'
-        stop_path = f'{METADATA_PATH}/processing_information/s1_burst_metadata/sensing_stop'
+        start_path = f'{METADATA_PATH}/processing_information/input_burst_metadata/sensing_start'
+        stop_path = f'{METADATA_PATH}/processing_information/input_burst_metadata/sensing_stop'
     elif mission_id == 'NI':
         start_path = '/science/LSAR/GSLC/identification/zeroDopplerStartTime'
         stop_path = '/science/LSAR/GSLC/identification/zeroDopplerEndTime'

@@ -209,7 +209,7 @@ def run(cfg: GeoRunConfig):
         # because io.Raster things
         with h5py.File(output_hdf5, 'a') as geo_burst_h5:
             root_group = geo_burst_h5[ROOT_PATH]
-            identity_to_h5group(root_group, burst, cfg)
+            identity_to_h5group(root_group, burst, cfg, 'CSLC -S1')
 
             metadata_to_h5group(root_group, burst, cfg)
             if cfg.lut_params.enabled:

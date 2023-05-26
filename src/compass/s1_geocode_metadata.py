@@ -100,7 +100,7 @@ def run(cfg, burst, fetch_from_scratch=False):
     out_h5 = f'{out_paths.output_directory}/static_layers_{burst_id}.h5'
     with h5py.File(out_h5, 'w') as h5_obj:
         root_group = h5_obj[ROOT_PATH]
-        identity_to_h5group(root_group, burst, cfg)
+        identity_to_h5group(root_group, burst, cfg, 'Static layers CSLC-S1')
 
         # Create group static_layers group under DATA_PATH for consistency with
         # CSLC product
@@ -119,9 +119,9 @@ def run(cfg, burst, fetch_from_scratch=False):
                 dtype = np.byte
 
             # Create dataset with x/y coords/spacing and projection
-            topo_ds = initdata_geocoded_dataset(static_layer_group, layer_name,
-                                                geo_grid, dtype,
-                                                np.string_(layer_name))
+            topo_ds = init_geocoded_dataset(static_layer_group, layer_name,
+                                            geo_grid, dtype,
+                                            np.string_(layer_name))
 
             # Init output and input isce3.io.Raster objects for geocoding
             output_raster = isce3.io.Raster(f"IH5:::ID={topo_ds.id.id}".encode("utf-8"),

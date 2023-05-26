@@ -351,7 +351,7 @@ def get_polygon_wkt(burst: Sentinel1BurstSlc):
     return geometry_polygon.wkt
 
 
-def identity_to_h5group(dst_group, burst, cfg):
+def identity_to_h5group(dst_group, burst, cfg, product_type):
     '''
     Write burst metadata to HDF5
 
@@ -378,7 +378,7 @@ def identity_to_h5group(dst_group, burst, cfg):
         Meta('mission_id', burst.platform_id, 'Mission identifier'),
         Meta('processing_date_time', datetime.now().strftime(TIME_STR_FMT),
              'Data processing date and time'),
-        Meta('product_type', 'CSLC-S1', 'Product type'),
+        Meta('product_type', product_type, 'Product type'),
         Meta('product_level', 'L2', 'L0A: Unprocessed instrument data; L0B: Reformatted, '
              'unprocessed instrument data; L1: Processed instrument data in radar coordinates system; '
              'and L2: Processed instrument data in geocoded coordinates system'),

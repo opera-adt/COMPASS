@@ -567,13 +567,34 @@ def metadata_to_h5group(parent_group, burst, cfg):
         add_dataset_and_attrs(burst_meta_group, meta_item)
 
     # Add parameters group in processing information
+    dry_tropo_corr = True if (cfg.weather_model_file is not None) and \
+                             ('dry' in cfg.tropo_params.delay_type) else False
+    wet_tropo_corr = True if (cfg.weather_model_file is not None) and \
+                             ('wet' in cfg.tropo_params.delay_type) else False
+    tec_corr = True if cfg.tec_file is not None else False
     par_meta_items = [
-        Meta('ellipsoidalFlatteningApplied', cfg.geocoding_params.flatten,
-             "If True, CSLC-S1 phase has been flatten with respect to a zero height ellipsoid",
-             {'units':'unitless'}),
-        Meta('topographicFlatteningApplied', cfg.geocoding_params.flatten,
-             "If True, CSLC-S1 phase has been flatten with respect to topographic height using a DEM",
-             {'units': 'unitless'}),
+        Meta('ellipsoidal_flattening_applied', bool(cfg.geocoding_params.flatten),
+             "If True, CSLC-S1 phase has been flatten with respect to a zero height ellipsoid"),
+        Meta('topographic_flattening_applied', bool(cfg.geocoding_params.flatten),
+             "If True, CSLC-S1 phase has been flatten with respect to topographic height using a DEM"),
+        Meta('bistatic_delay_applied', bool(cfg.lut_params.enabled),
+             "If True, bistatic delay timing correction has been applied"),
+        Meta('azimuth_fm_rate_applied', bool(cfg.lut_params.enabled),
+             "If True, azimuth FM-rate mismatch timing correction has been applied"),
+        Meta('geometry_doppler_applied', bool(cfg.lut_params.enabled),
+             "If True, geometry steering doppler timing correction has been applied"),
+        Meta('los_solid_earth_tides_applied', bool(cfg.lut_params.enabled),
+             "If True, solid Earth tides correction has been applied in slant range direction"),
+        Meta('azimuth_solid_earth_tides_applied', False,
+             "If True, solid Earth tides correction has been applied in azimuth direction"),
+        Meta('static_troposphere_applied', bool(cfg.lut_params.enabled),
+             "If True, troposphere correction based on a static model has been applied"),
+        Meta('ionosphere_tec_applied', tec_corr,
+             "If True, ionosphere correction based on TEC data has been applied"),
+        Meta('dry_troposphere_weather_model_applied', dry_tropo_corr,
+             "If True, dry troposphere correction based on weather model has been applied"),
+        Meta('wet_troposphere_weather_model_applied', wet_tropo_corr,
+             "If True, wet troposphere correction based on weather model has been applied")
     ]
     par_meta_group = processing_group.require_group('parameters')
     for meta_item in par_meta_items:

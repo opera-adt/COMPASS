@@ -14,11 +14,11 @@ from osgeo import gdal
 from compass import s1_rdr2geo
 from compass.s1_cslc_qa import QualityAssuranceCSLC
 from compass.utils.geo_runconfig import GeoRunConfig
-from compass.utils.h5_helpers import (identity_to_h5group,
+from compass.utils.h5_helpers import (algorithm_metadata_to_h5group,
+                                      identity_to_h5group,
                                       init_geocoded_dataset,
                                       metadata_to_h5group, DATA_PATH,
-                                      METADATA_PATH,
-                                      ROOT_PATH)
+                                      METADATA_PATH, ROOT_PATH)
 from compass.utils.helpers import bursts_grouping_generator, get_module_name
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -102,7 +102,7 @@ def run(cfg, burst, fetch_from_scratch=False):
         # write identity and metadata to HDF5
         root_group = h5_obj[ROOT_PATH]
         identity_to_h5group(root_group, burst, cfg, 'Static layers CSLC-S1')
-        metadata_to_h5group(cslc_group, burst, cfg, save_noise_and_cal=False)
+        metadata_to_h5group(root_group, burst, cfg, save_noise_and_cal=False)
         algorithm_metadata_to_h5group(root_group, is_static_layers=True)
 
         # Create group static_layers group under DATA_PATH for consistency with
@@ -122,8 +122,8 @@ def run(cfg, burst, fetch_from_scratch=False):
                 dtype = np.byte
 
             # Create dataset with x/y coords/spacing and projection
-            topo_ds = init_geocoded_dataset(static_layer_group, layer_name,
-                                            geo_grid, dtype,
+            topo_ds = init_geocoded_dataset(static_layer_data_group,
+                                            layer_name, geo_grid, dtype,
                                             np.string_(layer_name))
 
             # Init output and input isce3.io.Raster objects for geocoding

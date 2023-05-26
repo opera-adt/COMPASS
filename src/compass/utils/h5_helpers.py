@@ -80,7 +80,7 @@ def add_dataset_and_attrs(group, meta_item):
 
 
 def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
-                          description):
+                          description, data=None):
     '''
     Create and allocate dataset for isce.geocode.geocode_slc to write to that
     is NC compliant
@@ -102,8 +102,11 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
         h5py dataset ready to be populated with geocoded dataset
     '''
     shape = (geo_grid.length, geo_grid.width)
-    cslc_ds = grid_group.require_dataset(dataset_name, dtype=dtype,
-                                         shape=shape)
+    if data is None:
+        cslc_ds = grid_group.require_dataset(dataset_name, dtype=dtype,
+                                             shape=shape)
+    else:
+        cslc_ds = grid_group.create_dataset(dataset_name, data=data)
 
     cslc_ds.attrs['description'] = description
 
@@ -306,7 +309,7 @@ def save_orbit(orbit, orbit_direction, orbit_group):
              'Time of the orbit state vectors relative to the reference epoch',
              {'units': 'seconds'}),
         Meta('orbit_direction', orbit_direction,
-             'Direction of sensor orbit ephermerides (e.g., ascending, descending)')
+             'Direction of sensor orbit ephermeris (e.g., ascending, descending)')
     ]
     for i_ax, axis in enumerate('xyz'):
         desc_suffix = f'{axis}-direction with respect to WGS84 G1762 reference frame'
@@ -351,7 +354,8 @@ def get_polygon_wkt(burst: Sentinel1BurstSlc):
     return geometry_polygon.wkt
 
 
-def identity_to_h5group(dst_group, burst, cfg, product_type):
+def identity_to_h5group(dst_group, burst, cfg, product_type,
+                        product_spec_version):
     '''
     Write burst metadata to HDF5
 
@@ -365,14 +369,17 @@ def identity_to_h5group(dst_group, burst, cfg, product_type):
         Name space dictionary with runconfig parameters
     product_type: str
         Type of COMPASS product
+    product_spec_version: std
+        Product specification of given COMPASS product
     '''
     # identification datasets
     id_meta_items = [
         Meta('product_version', f'{cfg.product_group.product_version}', 'CSLC-S1 product version'),
-        Meta('product_specification_version', f'{cfg.product_group.product_specification_version}',
+        Meta('product_specification_version', f'{product_spec_version}',
              'CSLC-S1 product specification version'),
         Meta('absolute_orbit_number', burst.abs_orbit_number, 'Absolute orbit number'),
-        Meta('track_number', burst.burst_id.track_number, 'Track number'),
+        Meta('track_number', burst.burst_id.track_number, 'Track number',
+             {'units': 'unitless'}),
         Meta('burst_id', str(burst.burst_id), 'Burst identification string (burst ID)'),
         Meta('bounding_polygon', get_polygon_wkt(burst),
              'OGR compatible WKT representation of bounding polygon of the image',

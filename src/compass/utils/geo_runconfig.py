@@ -38,9 +38,34 @@ def check_geocode_dict(geocode_cfg: dict) -> None:
         if geocode_cfg[snap_key] is not None:
             snap = geocode_cfg[snap_key]
             if snap <= 0:
-                err_str = '{xy} snap from config of {snap} <= 0'
+                err_str = f'{xy} snap from config of {snap} <= 0'
                 error_channel.log(err_str)
                 raise ValueError(err_str)
+
+
+def check_rdr2geo_dict(rdr2geo_cfg: dict) -> None:
+    error_channel = journal.error('runconfig.check_rdr2geo_dict')
+
+    # skip further checks if not geocoding static layers or layover shadow not
+    # computed
+    if not rdr2geo['geocode_metadata_layers'] or \
+            not rdr2geo['compute_layover_shadow_mask']:
+        return
+
+    # check if any other layer is computed
+    any_other_static_layers = False
+    for static_layer in ['latitude', 'longitude', 'height', 'incidence_angle',
+                         'local_incidence_angle', 'azimuth_angle']:
+        if rdr2geo[f'compute_{static_layer}']:
+            any_other_static_layers = True
+            break
+
+    # raise error if only layover shadow
+    if not any_other_static_layers:
+        err_str = 'can not geocode layover shadow without another layer due '\
+            'to inability to correctly geocoded mask layover shadow'
+        error_channel.log(err_str)
+        raise ValueError(err_str)
 
 
 @dataclass(frozen=True)

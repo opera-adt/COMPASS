@@ -118,7 +118,7 @@ def run(cfg: GeoRunConfig):
 
         # Generate required static layers
         if cfg.rdr2geo_params.enabled:
-            s1_rdr2geo.run(cfg, burst, save_in_scratch=True)
+            #s1_rdr2geo.run(cfg, burst, save_in_scratch=True)
             if cfg.rdr2geo_params.geocode_metadata_layers:
                 s1_geocode_metadata.run(cfg, burst, fetch_from_scratch=True)
 
@@ -135,7 +135,7 @@ def run(cfg: GeoRunConfig):
             geo_burst_h5.attrs['Conventions'] = "CF-1.8"
             geo_burst_h5.attrs["contact"] = np.string_("operaops@jpl.nasa.gov")
             geo_burst_h5.attrs["institution"] = np.string_("NASA JPL")
-            geo_burst_h5.attrs["mission_name"] = np.string_("OPERA")
+            geo_burst_h5.attrs["mission_name"] = np.string_("project_name")
             geo_burst_h5.attrs["reference_document"] = np.string_("TBD")
             geo_burst_h5.attrs["title"] = np.string_("OPERA L2_CSLC_S1 Product")
 
@@ -209,7 +209,8 @@ def run(cfg: GeoRunConfig):
         # because io.Raster things
         with h5py.File(output_hdf5, 'a') as geo_burst_h5:
             root_group = geo_burst_h5[ROOT_PATH]
-            identity_to_h5group(root_group, burst, cfg, 'CSLC -S1')
+            identity_to_h5group(root_group, burst, cfg, 'CSLC -S1',
+                                cfg.product_group.product_specification_version)
 
             metadata_to_h5group(root_group, burst, cfg)
             algorithm_metadata_to_h5group(root_group)

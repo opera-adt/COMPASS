@@ -25,6 +25,40 @@ from compass.utils.yaml_argparse import YamlArgparse
 from compass.utils.radar_grid import get_decimated_rdr_grd
 
 
+def _fix_layover_shadow_mask(static_layers_dict, h5_root, geo_grid):
+    '''
+    kludge correctly mask invalid pixel in geocoded layover shadow to address
+    isce3.geocode.geocodeCov's inability to take an user defined invalid value
+    '''
+    dst_ds_name = 'layover_shadow_mask'
+
+    # find if a correctly masked dataset exists
+    correctly_masked_dataset_name = ''
+    for dataset_name, (enabled, _) in static_layers_dict.items():
+        if enabled and dataset_name != dst_ds_name:
+            correctly_masked_dataset_name = dataset_name
+            break
+
+    if correctly_masked_dataset_name:
+        # get mask from correctly masked dataset
+        correctly_masked_dataset_arr = \
+            h5_root[f'{DATA_PATH}/{correctly_masked_dataset_name}'][()]
+        mask = np.isnan(correctly_masked_dataset_arr)
+
+        # use mask from above to correctly mask shadow layover
+        # save existing to temp with mask
+        layover_shadow_path = f'{DATA_PATH}/{dst_ds_name}'
+        temp_arr = h5_root[layover_shadow_path][()]
+        temp_arr[mask] = 127
+
+        # delete existing and rewrite with masked data
+        del h5_root[layover_shadow_path]
+        _ = init_geocoded_dataset(h5_root[DATA_PATH], dst_ds_name, geo_grid,
+                                  dtype=None,
+                                  description=np.string_(dst_ds_name),
+                                  data=temp_arr)
+
+
 def run(cfg, burst, fetch_from_scratch=False):
     '''
     Geocode metadata layers in single HDF5
@@ -107,16 +141,17 @@ def run(cfg, burst, fetch_from_scratch=False):
          }
 
     out_h5 = f'{out_paths.output_directory}/static_layers_{burst_id}.h5'
-    with h5py.File(out_h5, 'w') as h5_obj:
+    with h5py.File(out_h5, 'w') as h5_root:
         # write identity and metadata to HDF5
-        root_group = h5_obj[ROOT_PATH]
-        identity_to_h5group(root_group, burst, cfg, 'Static layers CSLC-S1')
+        root_group = h5_root[ROOT_PATH]
+        identity_to_h5group(root_group, burst, cfg, 'Static layers CSLC-S1',
+                            '0.1')
         metadata_to_h5group(root_group, burst, cfg, save_noise_and_cal=False)
         algorithm_metadata_to_h5group(root_group, is_static_layers=True)
 
         # Create group static_layers group under DATA_PATH for consistency with
         # CSLC product
-        static_layer_data_group = h5_obj.require_group(DATA_PATH)
+        static_layer_data_group = h5_root.require_group(DATA_PATH)
 
         # Geocode designated layers
         for dataset_name, (enabled, raster_file_name) in static_layers.items():
@@ -153,12 +188,15 @@ def run(cfg, burst, fetch_from_scratch=False):
             del input_raster
             del output_raster
 
+            if dataset_name == 'layover_shadow_mask':
+                _fix_layover_shadow_mask(static_layers, h5_root, geo_grid)
+
     if cfg.quality_assurance_params.perform_qa:
         cslc_qa = QualityAssuranceCSLC()
-        with h5py.File(out_h5, 'a') as h5_obj:
-            cslc_qa.compute_static_layer_stats(h5_obj, cfg.rdr2geo_params)
-            cslc_qa.shadow_pixel_classification(h5_obj)
-            cslc_qa.set_orbit_type(cfg, h5_obj)
+        with h5py.File(out_h5, 'a') as h5_root:
+            cslc_qa.compute_static_layer_stats(h5_root, cfg.rdr2geo_params)
+            cslc_qa.shadow_pixel_classification(h5_root)
+            cslc_qa.set_orbit_type(cfg, h5_root)
             if cslc_qa.output_to_json:
                 cslc_qa.write_qa_dicts_to_json(out_paths.stats_json_path)
 

@@ -15,13 +15,51 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 from compass import s1_rdr2geo
 from compass.s1_cslc_qa import QualityAssuranceCSLC
 from compass.utils.geo_runconfig import GeoRunConfig
-from compass.utils.h5_helpers import (init_geocoded_dataset,
+from compass.utils.h5_helpers import (algorithm_metadata_to_h5group,
+                                      identity_to_h5group,
+                                      init_geocoded_dataset,
                                       metadata_to_h5group, DATA_PATH,
-                                      METADATA_PATH,
-                                      ROOT_PATH)
+                                      METADATA_PATH, ROOT_PATH)
 from compass.utils.helpers import bursts_grouping_generator, get_module_name
 from compass.utils.yaml_argparse import YamlArgparse
 from compass.utils.radar_grid import get_decimated_rdr_grd
+
+
+def _fix_layover_shadow_mask(static_layers_dict, h5_root, geo_grid):
+    '''
+    kludge correctly mask invalid pixel in geocoded layover shadow to address
+    isce3::geocode::geocodeCov's inability to take in an user defined invalid
+    value
+    layover shadow invalid value is 127 but isce3::geocode::geocodeCov uses 0
+    which conflicts with the value for non layover, non shadow pixels
+    '''
+    dst_ds_name = 'layover_shadow_mask'
+
+    # find if a correctly masked dataset exists
+    correctly_masked_dataset_name = ''
+    for dataset_name, (enabled, _) in static_layers_dict.items():
+        if enabled and dataset_name != dst_ds_name:
+            correctly_masked_dataset_name = dataset_name
+            break
+
+    if correctly_masked_dataset_name:
+        # get mask from correctly masked dataset
+        correctly_masked_dataset_arr = \
+            h5_root[f'{DATA_PATH}/{correctly_masked_dataset_name}'][()]
+        mask = np.isnan(correctly_masked_dataset_arr)
+
+        # use mask from above to correctly mask shadow layover
+        # save existing to temp with mask
+        layover_shadow_path = f'{DATA_PATH}/{dst_ds_name}'
+        temp_arr = h5_root[layover_shadow_path][()]
+        temp_arr[mask] = 127
+
+        # delete existing and rewrite with masked data
+        del h5_root[layover_shadow_path]
+        _ = init_geocoded_dataset(h5_root[DATA_PATH], dst_ds_name, geo_grid,
+                                  dtype=None,
+                                  description=np.string_(dst_ds_name),
+                                  data=temp_arr)
 
 
 def run(cfg, burst, fetch_from_scratch=False):
@@ -84,48 +122,62 @@ def run(cfg, burst, fetch_from_scratch=False):
                 geo_grid.spacing_x, geo_grid.spacing_y,
                 geo_grid.width, geo_grid.length, geo_grid.epsg)
 
-    # Geocode list of products
+    # Init geotransform to be set in geocoded product
     geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,
                     geo_grid.start_y, 0, geo_grid.spacing_y]
 
-    # Get the metadata layers to compute
-    meta_layers = {'x': cfg.rdr2geo_params.compute_longitude,
-                   'y': cfg.rdr2geo_params.compute_latitude,
-                   'z': cfg.rdr2geo_params.compute_height,
-                   'incidence': cfg.rdr2geo_params.compute_incidence_angle,
-                   'local_incidence': cfg.rdr2geo_params.compute_local_incidence_angle,
-                   'heading': cfg.rdr2geo_params.compute_azimuth_angle,
-                   'layover_shadow_mask': cfg.rdr2geo_params.compute_layover_shadow_mask
-                   }
+    # Dict containing which layers to geocode and their respective file names
+    # key: dataset name
+    # value: (bool flag if dataset is to written, raster layer name)
+    static_layers = \
+        {'x': (cfg.rdr2geo_params.compute_longitude, 'x'),
+         'y': (cfg.rdr2geo_params.compute_latitude, 'y'),
+         'z': (cfg.rdr2geo_params.compute_height, 'z'),
+         'incidence_angle': (cfg.rdr2geo_params.compute_incidence_angle,
+                             'incidence'),
+         'local_incidence_angle': (cfg.rdr2geo_params.compute_local_incidence_angle,
+                                   'local_incidence'),
+         'heading_angle': (cfg.rdr2geo_params.compute_azimuth_angle,
+                           'heading'),
+         'layover_shadow_mask': (cfg.rdr2geo_params.compute_layover_shadow_mask,
+                                 'layover_shadow_mask')
+         }
 
     out_h5 = f'{out_paths.output_directory}/static_layers_{burst_id}.h5'
-    with h5py.File(out_h5, 'w') as h5_obj:
+    with h5py.File(out_h5, 'w') as h5_root:
+        # write identity and metadata to HDF5
+        root_group = h5_root[ROOT_PATH]
+        identity_to_h5group(root_group, burst, cfg, 'Static layers CSLC-S1',
+                            '0.1')
+        metadata_to_h5group(root_group, burst, cfg, save_noise_and_cal=False)
+        algorithm_metadata_to_h5group(root_group, is_static_layers=True)
+
         # Create group static_layers group under DATA_PATH for consistency with
         # CSLC product
-        static_layer_group = h5_obj.require_group(f'{DATA_PATH}/static_layers')
+        static_layer_data_group = h5_root.require_group(DATA_PATH)
 
         # Geocode designated layers
-        for layer_name, enabled in meta_layers.items():
+        for dataset_name, (enabled, raster_file_name) in static_layers.items():
             if not enabled:
                 continue
 
             dtype = np.single
             # layoverShadowMask is last option, no need to change data type
             # and interpolator afterwards
-            if layer_name == 'layover_shadow_mask':
+            if dataset_name == 'layover_shadow_mask':
                 geocode_obj.data_interpolator = 'NEAREST'
                 dtype = np.byte
 
             # Create dataset with x/y coords/spacing and projection
-            topo_ds = init_geocoded_dataset(static_layer_group, layer_name,
-                                            geo_grid, dtype,
-                                            np.string_(layer_name))
+            topo_ds = init_geocoded_dataset(static_layer_data_group,
+                                            dataset_name, geo_grid, dtype,
+                                            np.string_(dataset_name))
 
             # Init output and input isce3.io.Raster objects for geocoding
             output_raster = isce3.io.Raster(f"IH5:::ID={topo_ds.id.id}".encode("utf-8"),
                                             update=True)
 
-            input_raster = isce3.io.Raster(f'{input_path}/{layer_name}.rdr')
+            input_raster = isce3.io.Raster(f'{input_path}/{raster_file_name}.rdr')
 
             geocode_obj.geocode(radar_grid=radar_grid,
                                 input_raster=input_raster,
@@ -139,16 +191,15 @@ def run(cfg, burst, fetch_from_scratch=False):
             del input_raster
             del output_raster
 
-            # save metadata
-            cslc_group = h5_obj.require_group(ROOT_PATH)
-            metadata_to_h5group(cslc_group, burst, cfg)
+            if dataset_name == 'layover_shadow_mask':
+                _fix_layover_shadow_mask(static_layers, h5_root, geo_grid)
 
     if cfg.quality_assurance_params.perform_qa:
         cslc_qa = QualityAssuranceCSLC()
-        with h5py.File(out_h5, 'a') as h5_obj:
-            cslc_qa.compute_static_layer_stats(h5_obj, cfg.rdr2geo_params)
-            cslc_qa.shadow_pixel_classification(h5_obj)
-            cslc_qa.set_orbit_type(cfg, h5_obj)
+        with h5py.File(out_h5, 'a') as h5_root:
+            cslc_qa.compute_static_layer_stats(h5_root, cfg.rdr2geo_params)
+            cslc_qa.shadow_pixel_classification(h5_root)
+            cslc_qa.set_orbit_type(cfg, h5_root)
             if cslc_qa.output_to_json:
                 cslc_qa.write_qa_dicts_to_json(out_paths.stats_json_path)
 
@@ -188,7 +239,7 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
     ellipsoid = proj.ellipsoid
     burst_id = str(burst.burst_id)
     geo_grid = cfg.geogrids[burst_id]
-    
+
     date_str = burst.sensing_start.strftime("%Y%m%d")
     burst_id_date_key = (burst_id, date_str)
     out_paths = cfg.output_paths[burst_id_date_key]

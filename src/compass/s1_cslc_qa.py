@@ -265,7 +265,7 @@ class QualityAssuranceCSLC:
         '''
         pxl_qa_items = [
             Meta('percent_land_pixels', 0.0,
-                 'Percentage of output pixels labeld as land'),
+                 'Percentage of output pixels labeled as land'),
             Meta('percent_valid_pixels', 0.0,
                  'Percentage of output pixels are valid')
         ]

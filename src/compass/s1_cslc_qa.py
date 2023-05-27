@@ -7,8 +7,21 @@ from pathlib import Path
 import isce3
 import numpy as np
 
-from compass.utils.h5_helpers import (GRID_PATH, QA_PATH, ROOT_PATH,
-                                      add_dataset_and_attrs, Meta)
+from compass.utils.h5_helpers import (DATA_PATH, METADATA_PATH,
+                                      QA_PATH, add_dataset_and_attrs, Meta)
+
+
+def _compute_slc_array_stats(arr: np.ndarray, pwr_phase: str):
+    # internal to function to compute min, max, mean, and std dev of power or
+    # phase of SLC array. Default to phase stat computation.
+    if pwr_phase == 'power':
+        post_op_arr = np.abs(arr)**2
+    else:
+        post_op_arr = np.angle(arr)
+
+    return [np_op(post_op_arr)
+            for np_op in [np.nanmean, np.nanmin, np.nanmax,
+                                      np.nanstd]]
 
 
 def value_description_dict(val, desc):
@@ -63,41 +76,33 @@ class QualityAssuranceCSLC:
             pol = b.polarization
 
             # get dataset and compute stats according to dtype
-            pol_path = f'{GRID_PATH}/{pol}'
-            pol_ds = cslc_h5py_root[pol_path]
-
-            # compute stats for real and complex
-            stat_obj = isce3.math.StatsRealImagFloat32(pol_ds[()])
+            pol_path = f'{DATA_PATH}/{pol}'
+            pol_arr = cslc_h5py_root[pol_path][()]
 
             # create dict for current polarization
             self.stats_dict[pol] = {}
             pol_dict = self.stats_dict[pol]
 
-            # write stats to HDF5
-            for real_imag, cstat_member in zip(['real', 'imaginary'],
-                                               [stat_obj.real, stat_obj.imag]):
+            # compute power or phase then write stats to HDF5 for CSLC
+            for pwr_phase in ['power', 'phase']:
                 # create dict to store real/imaginary stat items
-                pol_dict[real_imag] = {}
+                pol_dict[pwr_phase] = {}
 
-                # create HDF5 group for real/imaginary stats of current
+                # create HDF5 group for power or phase stats of current
                 # polarization
-                h5_stats_path = f'{QA_PATH}/statistics/grids/{pol}/{real_imag}'
+                h5_stats_path = f'{QA_PATH}/statistics/data/{pol}/{pwr_phase}'
                 stats_group = cslc_h5py_root.require_group(h5_stats_path)
 
-                # add description for stat items
-                suffix_qa_item_desc = f'{real_imag} part of geoocoded SLC'
-
-                # build list of QA stat items for real_imag
+                # build list of QA stat items for pwr_phase
                 qa_items = []
-                vals = [cstat_member.mean, cstat_member.min,
-                        cstat_member.max, cstat_member.sample_stddev]
+                vals = _compute_slc_array_stats(pol_arr, pwr_phase)
                 for val_name, val in zip(self.stat_names, vals):
-                    desc = f'{val_name} of {suffix_qa_item_desc}'
+                    desc = f'{val_name} of {pwr_phase} of {pol} geocoded SLC'
                     qa_items.append(Meta(val_name, val, desc))
 
                 # save stats to dict and write to HDF5
-                _qa_items_to_h5_and_dict(stats_group, pol_dict[real_imag],
-                                      qa_items)
+                _qa_items_to_h5_and_dict(stats_group, pol_dict[pwr_phase],
+                                         qa_items)
 
 
     def compute_static_layer_stats(self, cslc_h5py_root, rdr2geo_params):
@@ -117,16 +122,16 @@ class QualityAssuranceCSLC:
             apply_tropo_corrections is true.
         '''
         # path to source group
-        static_layer_path = f'{GRID_PATH}/static_layers'
+        static_layer_path = f'{DATA_PATH}'
 
         # Get the static layer to compute stats for
         static_layers_dict = {
             'x': rdr2geo_params.compute_longitude,
             'y': rdr2geo_params.compute_latitude,
             'z': rdr2geo_params.compute_height,
-            'incidence': rdr2geo_params.compute_incidence_angle,
-            'local_incidence': rdr2geo_params.compute_local_incidence_angle,
-            'heading': rdr2geo_params.compute_azimuth_angle
+            'incidence_angle': rdr2geo_params.compute_incidence_angle,
+            'local_incidence_angle': rdr2geo_params.compute_local_incidence_angle,
+            'heading_angle': rdr2geo_params.compute_azimuth_angle
         }
         static_layers = [key for key, val in static_layers_dict.items()
                          if val]
@@ -155,7 +160,7 @@ class QualityAssuranceCSLC:
             apply_tropo_corrections is true.
         '''
         # path to source group
-        corrections_src_path = f'{ROOT_PATH}/corrections'
+        corrections_src_path = f'{METADATA_PATH}/processing_information/timing_corrections'
 
         # names of datasets to compute stats for
         corrections = ['bistatic_delay', 'geometry_steering_doppler',
@@ -170,7 +175,7 @@ class QualityAssuranceCSLC:
 
         self.compute_stats_from_float_hdf5_dataset(cslc_h5py_root,
                                                    corrections_src_path,
-                                                   'corrections', corrections)
+                                                   'timing_corrections', corrections)
 
 
     def compute_stats_from_float_hdf5_dataset(self, cslc_h5py_root,
@@ -260,7 +265,7 @@ class QualityAssuranceCSLC:
         '''
         pxl_qa_items = [
             Meta('percent_land_pixels', 0.0,
-                 'Percentage of output pixels labeld as land'),
+                 'Percentage of output pixels labeled as land'),
             Meta('percent_valid_pixels', 0.0,
                  'Percentage of output pixels are valid')
         ]

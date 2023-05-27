@@ -7,6 +7,8 @@ import time
 
 import h5py
 import isce3
+# import raster mode geocode_slc. isce3.geocode.geocode_slc is array mode
+from isce3.ext.isce3.geocode import geocode_slc
 import journal
 import numpy as np
 from s1reader.s1_reader import is_eap_correction_necessary
@@ -17,13 +19,34 @@ from compass.s1_cslc_qa import QualityAssuranceCSLC
 from compass.utils.browse_image import make_browse_image
 from compass.utils.elevation_antenna_pattern import apply_eap_correction
 from compass.utils.geo_runconfig import GeoRunConfig
-from compass.utils.h5_helpers import (corrections_to_h5group,
+from compass.utils.h5_helpers import (algorithm_metadata_to_h5group,
+                                      corrections_to_h5group,
+                                      flatten_metadata_to_h5group,
                                       identity_to_h5group,
                                       init_geocoded_dataset,
-                                      metadata_to_h5group)
+                                      metadata_to_h5group,
+                                      DATA_PATH, METADATA_PATH, ROOT_PATH)
 from compass.utils.helpers import bursts_grouping_generator, get_module_name
 from compass.utils.lut import cumulative_correction_luts
 from compass.utils.yaml_argparse import YamlArgparse
+
+
+def _init_geocoded_IH5_raster(dst_group: h5py.Group, dataset_name: str,
+                              geo_grid: isce3.product.GeoGridProduct,
+                              ds_type: str, desc: str):
+    '''
+    Internal convenience function to make a IH5 isce3.io.Raster object that
+    isce3.geocode.geocode_slc can write to
+    '''
+    # Init h5py.Dataset to be converted to IH5 raster object
+    dataset = init_geocoded_dataset(dst_group, dataset_name, geo_grid, ds_type,
+                                    desc)
+
+    # Construct the output raster directly from HDF5 dataset
+    geo_raster = isce3.io.Raster(f"IH5:::ID={dataset.id.id}".encode("utf-8"),
+                                 update=True)
+
+    return geo_raster
 
 
 def run(cfg: GeoRunConfig):
@@ -80,7 +103,8 @@ def run(cfg: GeoRunConfig):
                                            weather_model_path=cfg.weather_model_file,
                                            rg_step=cfg.lut_params.range_spacing,
                                            az_step=cfg.lut_params.azimuth_spacing,
-                                           delay_type=cfg.tropo_params.delay_type)
+                                           delay_type=cfg.tropo_params.delay_type,
+                                           geo2rdr_params=cfg.geo2rdr_params)
         else:
             rg_lut = isce3.core.LUT2d()
             az_lut = isce3.core.LUT2d()
@@ -94,7 +118,7 @@ def run(cfg: GeoRunConfig):
 
         # Generate required static layers
         if cfg.rdr2geo_params.enabled:
-            s1_rdr2geo.run(cfg, save_in_scratch=True)
+            s1_rdr2geo.run(cfg, burst, save_in_scratch=True)
             if cfg.rdr2geo_params.geocode_metadata_layers:
                 s1_geocode_metadata.run(cfg, burst, fetch_from_scratch=True)
 
@@ -106,12 +130,12 @@ def run(cfg: GeoRunConfig):
         sliced_radar_grid = burst.as_isce3_radargrid()[b_bounds]
 
         output_hdf5 = out_paths.hdf5_path
-        root_path = '/science/SENTINEL1'
+
         with h5py.File(output_hdf5, 'w') as geo_burst_h5:
             geo_burst_h5.attrs['Conventions'] = "CF-1.8"
             geo_burst_h5.attrs["contact"] = np.string_("operaops@jpl.nasa.gov")
             geo_burst_h5.attrs["institution"] = np.string_("NASA JPL")
-            geo_burst_h5.attrs["mission_name"] = np.string_("OPERA")
+            geo_burst_h5.attrs["mission_name"] = np.string_("project_name")
             geo_burst_h5.attrs["reference_document"] = np.string_("TBD")
             geo_burst_h5.attrs["title"] = np.string_("OPERA L2_CSLC_S1 Product")
 
@@ -119,8 +143,7 @@ def run(cfg: GeoRunConfig):
             ctype = h5py.h5t.py_create(np.complex64)
             ctype.commit(geo_burst_h5['/'].id, np.string_('complex64'))
 
-            grid_path = f'{root_path}/CSLC/grids'
-            grid_group = geo_burst_h5.require_group(grid_path)
+            grid_group = geo_burst_h5.require_group(DATA_PATH)
             check_eap = is_eap_correction_necessary(burst.ipf_version)
             for b in bursts:
                 pol = b.polarization
@@ -141,48 +164,61 @@ def run(cfg: GeoRunConfig):
                     # Replace the input burst if the correction is applied
                     temp_slc_path = temp_slc_path_corrected
 
-
+                # Init input radar grid raster
                 rdr_burst_raster = isce3.io.Raster(temp_slc_path)
 
-                # Create HDF5 dataset for a given frequency and polarization
-                gslc_dataset = init_geocoded_dataset(grid_group, pol, geo_grid,
-                                                     'complex64',
-                                                     f'{pol} geocoded CSLC image')
+                # Declare names, types, and descriptions of respective outputs
+                ds_names = [pol, 'azimuth_carrier_phase', 'flattening_phase']
+                ds_types = ['complex64', 'float64', 'float64']
+                ds_descrs = [f'{pol} geocoded CSLC image{desc}'
+                             for desc in ['', ' azimuth carrier phase',
+                                          ' flattening phase']]
 
-                # Construct the output raster directly from HDF5 dataset
-                geo_burst_raster = isce3.io.Raster(f"IH5:::ID={gslc_dataset.id.id}".encode("utf-8"),
-                                                   update=True)
+                # Iterate over zipped names, types, and descriptions and create
+                # raster objects
+                geo_burst_raster, carrier_raster, flatten_phase_raster =\
+                    [_init_geocoded_IH5_raster(grid_group, ds_name, geo_grid,
+                                               ds_type, ds_desc)
+                     for ds_name, ds_type, ds_desc in zip(ds_names, ds_types,
+                                                          ds_descrs)]
 
                 # Geocode
-                isce3.geocode.geocode_slc(geo_burst_raster, rdr_burst_raster,
-                                          dem_raster,
-                                          radar_grid, sliced_radar_grid,
-                                          geo_grid, orbit,
-                                          native_doppler,
-                                          image_grid_doppler, ellipsoid, threshold,
-                                          iters, blocksize, flatten,
-                                          azimuth_carrier=az_carrier_poly2d,
-                                          az_time_correction=az_lut,
-                                          srange_correction=rg_lut)
+                geocode_slc(geo_burst_raster, rdr_burst_raster, dem_raster,
+                            radar_grid, sliced_radar_grid, geo_grid, orbit,
+                            native_doppler, image_grid_doppler, ellipsoid,
+                            threshold, iters, blocksize, flatten, reramp=True,
+                            azimuth_carrier=az_carrier_poly2d,
+                            az_time_correction=az_lut,
+                            srange_correction=rg_lut,
+                            carrier_phase_raster=carrier_raster,
+                            flatten_phase_raster=flatten_phase_raster)
 
             # Set geo transformation
             geotransform = [geo_grid.start_x, geo_grid.spacing_x, 0,
                             geo_grid.start_y, 0, geo_grid.spacing_y]
             geo_burst_raster.set_geotransform(geotransform)
             geo_burst_raster.set_epsg(epsg)
+
+            # ISCE3 raster IH5 cleanup
             del geo_burst_raster
+            del carrier_raster
+            del flatten_phase_raster
             del dem_raster # modified in geocodeSlc
 
         # Save burst corrections and metadata with new h5py File instance
         # because io.Raster things
         with h5py.File(output_hdf5, 'a') as geo_burst_h5:
-            root_group = geo_burst_h5[root_path]
-            identity_to_h5group(root_group, burst, cfg)
+            root_group = geo_burst_h5[ROOT_PATH]
+            identity_to_h5group(root_group, burst, cfg, 'CSLC -S1',
+                                cfg.product_group.product_specification_version)
 
-            cslc_group = geo_burst_h5.require_group(f'{root_path}/CSLC')
-            metadata_to_h5group(cslc_group, burst, cfg)
+            metadata_to_h5group(root_group, burst, cfg)
+            algorithm_metadata_to_h5group(root_group)
+            flatten_metadata_to_h5group(root_group, cfg)
             if cfg.lut_params.enabled:
-                corrections_to_h5group(cslc_group, burst, cfg, rg_lut, az_lut,
+                correction_group = geo_burst_h5.require_group(
+                    f'{METADATA_PATH}/processing_information')
+                corrections_to_h5group(correction_group, burst, cfg, rg_lut, az_lut,
                                        scratch_path,
                                        weather_model_path=cfg.weather_model_file,
                                        delay_type=cfg.tropo_params.delay_type)
@@ -191,7 +227,7 @@ def run(cfg: GeoRunConfig):
             browse_params = cfg.browse_image_params
             if browse_params.enabled:
                 make_browse_image(out_paths.browse_path, output_hdf5,
-                                  cfg.bursts, browse_params.complex_to_real,
+                                  bursts, browse_params.complex_to_real,
                                   browse_params.percent_low,
                                   browse_params.percent_high,
                                   browse_params.gamma, browse_params.equalize)

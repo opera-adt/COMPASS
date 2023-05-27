@@ -3,11 +3,13 @@ import csv
 import h5py
 import isce3
 import numpy as np
+import pytest
 
 from compass import s1_geocode_slc
 from compass.utils.geo_runconfig import GeoRunConfig
 
 
+@pytest.mark.order(1)
 def test_geocode_slc_run(geocode_slc_params):
     '''
     Run s1_geocode_slc to ensure it does not crash

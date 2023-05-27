@@ -9,20 +9,18 @@ import pysolid
 from scipy.interpolate import RegularGridInterpolator as RGI
 from skimage.transform import resize
 
-from compass.utils.geometry_utils import enu2los, en2az
+from compass.utils.geometry_utils import enu2rgaz
 from compass.utils.iono import ionosphere_delay
 from compass.utils.helpers import open_raster
 from compass.utils.helpers import write_raster
-from RAiDER.delay import tropo_delay
-from RAiDER.llreader import RasterRDR
-from RAiDER.losreader import Zenith
 
 
 def cumulative_correction_luts(burst, dem_path, tec_path,
                                scratch_path=None,
                                weather_model_path=None,
                                rg_step=200, az_step=0.25,
-                               delay_type='dry'):
+                               delay_type='dry',
+                               geo2rdr_params=None):
     '''
     Sum correction LUTs and returns cumulative correction LUT in slant range
     and azimuth directions
@@ -60,7 +58,7 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
         and slant range
     '''
     # Get individual LUTs
-    geometrical_steer_doppler, bistatic_delay, az_fm_mismatch, [tide_rg, _], \
+    geometrical_steer_doppler, bistatic_delay, az_fm_mismatch, [tide_rg, tide_az], \
         los_ionosphere, [wet_los_tropo, dry_los_tropo], los_static_tropo = \
         compute_geocoding_correction_luts(burst,
                                           dem_path=dem_path,
@@ -68,7 +66,8 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
                                           scratch_path=scratch_path,
                                           weather_model_path=weather_model_path,
                                           rg_step=rg_step,
-                                          az_step=az_step)
+                                          az_step=az_step,
+                                          geo2rdr_params=geo2rdr_params)
 
     # Convert to geometrical doppler from range time (seconds) to range (m)
     geometry_doppler = geometrical_steer_doppler.data * isce3.core.speed_of_light * 0.5
@@ -101,9 +100,10 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
     output_path = f'{scratch_path}/corrections'
     os.makedirs(output_path, exist_ok=True)
     data_list = [geometry_doppler, bistatic_delay.data, az_fm_mismatch.data,
-                 tide_rg, los_ionosphere]
-    descr = ['slant range geometrical doppler', 'azimuth bistatic delay', 'azimuth FM rate mismatch',
-             'slant range Solid Earth tides', 'line-of-sight ionospheric delay']
+                 tide_rg, tide_az, los_ionosphere]
+    descr = ['slant range geometrical doppler', 'azimuth bistatic delay',
+             'azimuth FM rate mismatch', 'slant range Solid Earth tides',
+             'azimuth time Solid Earth tides', 'line-of-sight ionospheric delay']
 
     if weather_model_path is not None:
         if 'wet' in delay_type:
@@ -121,7 +121,8 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
 def compute_geocoding_correction_luts(burst, dem_path, tec_path,
                                       scratch_path=None,
                                       weather_model_path=None,
-                                      rg_step=200, az_step=0.25):
+                                      rg_step=200, az_step=0.25,
+                                      geo2rdr_params=None):
     '''
     Compute slant range and azimuth LUTs corrections
     to be applied during burst geocoding
@@ -221,11 +222,13 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
     # compute Solid Earth Tides using pySolid. Decimate the rdr2geo layers.
     # compute decimation factor assuming a 5 km spacing along slant range
     dec_factor = int(np.round(5000.0 / rg_step))
-    dec_slice = np.s_[::dec_factor]
-    rg_set_temp, az_set_temp = solid_earth_tides(burst, lat[dec_slice],
+    dec_slice = np.s_[::dec_factor, ::dec_factor]
+    rg_set_temp, az_set_temp = solid_earth_tides(burst,
+                                                 lat[dec_slice],
                                                  lon[dec_slice],
-                                                 inc_angle[dec_slice],
-                                                 head_angle[dec_slice])
+                                                 height[dec_slice],
+                                                 ellipsoid,
+                                                 geo2rdr_params)
 
     # Resize SET to the size of the correction grid
     out_shape = bistatic_delay.data.shape
@@ -248,6 +251,9 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
         los_static_tropo = compute_static_troposphere_delay(inc_angle, height)
 
     else:
+        from RAiDER.delay import tropo_delay
+        from RAiDER.llreader import RasterRDR
+        from RAiDER.losreader import Zenith
         # Instantiate an "aoi" object to read lat/lon/height files
         aoi = RasterRDR(rdr2geo_raster_paths[1], rdr2geo_raster_paths[0],
                         rdr2geo_raster_paths[2])
@@ -266,13 +272,15 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
         wet_los_tropo = 2.0 * zen_wet / np.cos(np.deg2rad(inc_angle))
         dry_los_tropo = 2.0 * zen_dry / np.cos(np.deg2rad(inc_angle))
 
-    return geometrical_steering_doppler, bistatic_delay, az_fm_mismatch, [
-        rg_set, az_set], los_ionosphere, [wet_los_tropo, dry_los_tropo], los_static_tropo
+    return (
+        geometrical_steering_doppler, bistatic_delay, az_fm_mismatch,
+        [rg_set, az_set], los_ionosphere,
+        [wet_los_tropo, dry_los_tropo], los_static_tropo
+    )
 
 
-
-def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, inc_angle,
-                      head_angle):
+def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, hgt_radar_grid,
+                      ellipsoid, geo2rdr_params=None):
     '''
     Compute displacement due to Solid Earth Tides (SET)
     in slant range and azimuth directions
@@ -340,13 +348,9 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, inc_angle,
          for set_enu in [set_e, set_n, set_u]]
 
     # Convert SET from ENU to range/azimuth coordinates
-    # Note: rdr2geo heading angle is measured wrt to the East and it is positive
-    # anti-clockwise. To convert ENU to LOS, we need the azimuth angle which is
-    # measured from the north and positive anti-clockwise
-    # azimuth_angle = heading + 90
-    set_rg = enu2los(rdr_set_e, rdr_set_n, rdr_set_u, inc_angle,
-                     az_angle=head_angle + 90.0)
-    set_az = en2az(rdr_set_e, rdr_set_n, head_angle - 90.0)
+    set_rg, set_az = enu2rgaz(burst.as_isce3_radargrid(), burst.orbit, ellipsoid,
+             lon_radar_grid, lat_radar_grid, hgt_radar_grid,
+             rdr_set_e, rdr_set_n, rdr_set_u, geo2rdr_params)
 
     return set_rg, set_az
 

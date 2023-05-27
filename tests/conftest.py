@@ -93,8 +93,8 @@ def geocode_slc_params():
     test_params.output_hdf5_path = f'{output_path}/{output_file_name}'
 
     # path to groups and datasets in output HDF5
-    test_params.grid_group_path = DATA_PATH
-    test_params.raster_path = f'{test_params.grid_group_path}/VV'
+    test_params.data_group_path = DATA_PATH
+    test_params.raster_path = f'{test_params.data_group_path}/VV'
 
     return test_params
 

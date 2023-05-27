@@ -7,7 +7,7 @@ from pathlib import Path
 import isce3
 import numpy as np
 
-from compass.utils.h5_helpers import (DATA_PATH, METADATA_PATH,
+from compass.utils.h5_helpers import (DATA_PATH, PROCESSING_INFO_PATH,
                                       QA_PATH, add_dataset_and_attrs, Meta)
 
 
@@ -142,8 +142,7 @@ class QualityAssuranceCSLC:
                                                    static_layers)
 
 
-    def compute_correction_stats(self, cslc_h5py_root, apply_tropo_corrections,
-                                 tropo_delay_type):
+    def compute_correction_stats(self, cslc_h5py_root):
         '''
         Compute correction stats. Stats written to HDF5 and saved to class dict
         for later JSON output
@@ -152,30 +151,18 @@ class QualityAssuranceCSLC:
         ----------
         cslc_h5py_root: h5py.File
             Root of CSLC HDF5
-        apply_tropo_corrections: bool
-            Whether or not to compute troposhpere correction stats
-        tropo_delay_type: str
-            Type of troposphere delay. Any between 'dry', or 'wet', or
-            'wet_dry' for the sum of wet and dry troposphere delays. Only used
-            apply_tropo_corrections is true.
         '''
         # path to source group
-        corrections_src_path = f'{METADATA_PATH}/processing_information/timing_corrections'
+        corrections_src_path = f'{DATA_PATH}/timing_corrections'
 
-        # names of datasets to compute stats for
-        corrections = ['bistatic_delay', 'geometry_steering_doppler',
-                       'azimuth_fm_rate_mismatch', 'los_ionospheric_delay',
-                       'los_solid_earth_tides']
-
-        # check if tropo corrections need to be computed and saved
-        if apply_tropo_corrections:
-            for delay_type in ['wet', 'dry']:
-                if delay_type in tropo_delay_type:
-                    corrections.append(f'{delay_type}_los_troposphere_delay')
+        # compute stats for corrections flagged true
+        corrections= [k for k, v in cslc_h5py_root[
+            f'{PROCESSING_INFO_PATH}/corrections'].items() if v[()]]
 
         self.compute_stats_from_float_hdf5_dataset(cslc_h5py_root,
                                                    corrections_src_path,
-                                                   'timing_corrections', corrections)
+                                                   'timing_corrections',
+                                                   corrections)
 
 
     def compute_stats_from_float_hdf5_dataset(self, cslc_h5py_root,
@@ -190,8 +177,13 @@ class QualityAssuranceCSLC:
         cslc_h5py_root: h5py.File
             Root of CSLC HDF5
         src_group_path: str
+            Path to HDF5 group with datasets whose stats are to be computed
         qa_group_name: str
+            Group to be created in QA statistics HDF5 group to contain stats
+            from datasts in src_group_path
         qa_item_names: list[str]
+            Names of datasets in src_group_path path whose stats are to be
+            computed
         '''
         # init dict to save all QA item stats to
         self.stats_dict[qa_group_name] = {}

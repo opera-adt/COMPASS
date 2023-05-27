@@ -57,18 +57,26 @@ runconfig:
               numiter: 25
 
           correction_luts:
-              # Boolean flag to activate/deactivate model-based
-              # corrections while geocoding the burst
-              enabled: True
               # LUT spacing in range direction in meters
               range_spacing: 120
               # LUT spacing in azimuth direction in seconds
               azimuth_spacing: 0.028
+              # Enable/disable geometry steering doppler correction
+              geometry_steering_doppler: True
+              # Enable/disable bistatic delay correction
+              bistatic_delay: True
+              # Enable/disable azimuth FM rate mismatch correction
+              azimuth_fm_rate: True
+              # Enable/disable Solid Earth tides correction
+              solid_earth_tides: True
+              # Enable/disable ionosphere TEC correction
+              ionosphere_tec: True
+              # Enable/disable static troposphere correction
+              static_troposphere: True
               # Troposphere delay using weather model
-              troposphere:
-                 # Type of troposphere delay. Any of 'dry', 'wet' or 'wet_dry' for
-                 # the sum of wet and dry delays
-                 delay_type: wet_dry
+              weather_model_troposphere:
+                  enabled: False
+                  delay_type: wet_dry
 
           rdr2geo:
               # Enable/disable computation of topo layers

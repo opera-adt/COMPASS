@@ -87,17 +87,27 @@ geo2rdr_options:
     lines_per_block: int(min=1, required=False)
 
 lut_options:
-  # Boolean flag to activate/deactivate model-based
-  # corrections while geocoding the burst
-  enabled: bool(required=False)
   # LUT spacing in range direction in meters
   range_spacing: num(min=0, required=False)
   # LUT spacing in azimuth direction in seconds
   azimuth_spacing: num(min=0, required=False)
-  # Troposphere delay using weather model
-  troposphere: include('troposphere_options', required=False)
+  # Enable/disable geometry steering doppler correction
+  geometry_steering_doppler: bool(required=False)
+  # Enable/disable bistatic delay correction
+  bistatic_delay: bool(required=False)
+  # Enable/disable azimuth FM rate mismatch correction
+  azimuth_fm_rate: bool(required=False)
+  # Enable/disable Solid Earth tides correction
+  solid_earth_tides: bool(required=False)
+  # Enable/disable ionosphere TEC correction
+  ionosphere_tec: bool(required=False)
+  # Enable/disable static troposphere correction
+  static_troposphere: bool(required=False)
+  # Options for troposphere delay using weather model
+  weather_model_troposphere: include('troposphere_options', required=False)
 
 troposphere_options:
+  enabled: bool(required=False)
   # Type of troposphere delay. Any of 'dry', 'wet' or 'wet_dry' for
   # the sum of wet and dry delays
   delay_type: enum('dry', 'wet', 'wet_dry', required=False)

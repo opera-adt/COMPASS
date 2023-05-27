@@ -58,7 +58,7 @@ def _get_reflectors_bounding_slice(geocode_slc_params):
     '''
     # extract from HDF5
     with h5py.File(geocode_slc_params.output_hdf5_path, 'r') as h5_obj:
-        grid_group = h5_obj[geocode_slc_params.grid_group_path]
+        grid_group = h5_obj[geocode_slc_params.data_group_path]
 
         # create projection to covert from UTM to LLH
         epsg = int(grid_group['projection'][()])

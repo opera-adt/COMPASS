@@ -43,27 +43,33 @@ def check_geocode_dict(geocode_cfg: dict) -> None:
                 raise ValueError(err_str)
 
 
-def check_rdr2geo_dict(rdr2geo_cfg: dict) -> None:
+def check_rdr2geo_dict(rdr2geo_dict: dict) -> None:
     error_channel = journal.error('runconfig.check_rdr2geo_dict')
 
     # skip further checks if not geocoding static layers or layover shadow not
     # computed
-    if not rdr2geo['geocode_metadata_layers'] or \
-            not rdr2geo['compute_layover_shadow_mask']:
+    if not rdr2geo_dict['geocode_metadata_layers'] or \
+            not rdr2geo_dict['compute_layover_shadow_mask']:
         return
 
-    # check if any other layer is computed
-    any_other_static_layers = False
-    for static_layer in ['latitude', 'longitude', 'height', 'incidence_angle',
-                         'local_incidence_angle', 'azimuth_angle']:
-        if rdr2geo[f'compute_{static_layer}']:
-            any_other_static_layers = True
-            break
+    # layover shadow requires latitude/y, longitude/x, and incidence angle
+    # check if all three exist
+    # this also ensures that a CPU geocoded raster with correctly set invalid
+    # values exists, so it can used to mask geocoded layer shadow raster since
+    # CPU isce3.geocode.geocode can not set a user defined invalid value
+    # layover shadow invalid needs to be 127 but CPU isce3.geocode.geocode
+    # sets it to 0 (which conflicts with the non layover, non shadow value)
+    layers_for_layer_shadow = {
+        layer: rdr2geo_dict[f'compute_{layer}']
+        for layer in ['latitude', 'longitude', 'incidence_angle']}
 
-    # raise error if only layover shadow
-    if not any_other_static_layers:
-        err_str = 'can not geocode layover shadow without another layer due '\
-            'to inability to correctly geocoded mask layover shadow'
+    # raise error if required layers do not exist
+    if not all(layers_for_layer_shadow.values()):
+        # get names of missing layers for error string
+        missing_layers = ', '.join([k
+                                    for k, v in layers_for_layer_shadow.items()
+                                    if not v])
+        err_str = f'Can not generate layover shadow. Missing: {missing_layers}'
         error_channel.log(err_str)
         raise ValueError(err_str)
 
@@ -98,6 +104,9 @@ class GeoRunConfig(RunConfig):
 
         geocoding_dict = groups_cfg['processing']['geocoding']
         check_geocode_dict(geocoding_dict)
+
+        rdr2geo_dict = groups_cfg['processing']['rdr2geo']
+        check_rdr2geo_dict(rdr2geo_dict)
 
         # Check TEC file if not None.
         # The ionosphere correction will be applied only if

@@ -28,7 +28,10 @@ from compass.utils.radar_grid import get_decimated_rdr_grd
 def _fix_layover_shadow_mask(static_layers_dict, h5_root, geo_grid):
     '''
     kludge correctly mask invalid pixel in geocoded layover shadow to address
-    isce3.geocode.geocodeCov's inability to take an user defined invalid value
+    isce3::geocode::geocodeCov's inability to take in an user defined invalid
+    value
+    layover shadow invalid value is 127 but isce3::geocode::geocodeCov uses 0
+    which conflicts with the value for non layover, non shadow pixels
     '''
     dst_ds_name = 'layover_shadow_mask'
 

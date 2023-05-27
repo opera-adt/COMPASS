@@ -568,7 +568,7 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True):
     par_meta_items = [
         Meta('ellipsoidal_flattening_applied', bool(cfg.geocoding_params.flatten),
              "If True, CSLC-S1 phase has been flattened with respect to a zero height ellipsoid"),
-        Meta('topographic_flattenlied', bool(cfg.geocoding_params.flatten),
+        Meta('topographic_flattening_applied', bool(cfg.geocoding_params.flatten),
              "If True, CSLC-S1 phase has been flattened with respect to topographic height using a DEM"),
         Meta('bistatic_delay_applied', bool(cfg.lut_params.enabled),
              "If True, bistatic delay timing correction has been applied"),

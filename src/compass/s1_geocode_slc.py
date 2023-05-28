@@ -3,6 +3,7 @@
 '''wrapper for geocoded CSLC'''
 
 from datetime import timedelta
+import re
 import time
 
 import h5py
@@ -29,6 +30,24 @@ from compass.utils.h5_helpers import (algorithm_metadata_to_h5group,
 from compass.utils.helpers import bursts_grouping_generator, get_module_name
 from compass.utils.lut import cumulative_correction_luts
 from compass.utils.yaml_argparse import YamlArgparse
+
+
+def _make_rdr2geo_cfg(yaml_runconfig_str):
+    '''
+    Make a rdr2geo specific runconfig with latitude, longitude, and height
+    layers enabled for static layer product generation while preserving all
+    other rdr2geo config settings
+    '''
+    # If any of the requisite layers are false, make them true in yaml cfg str
+    for layer in ['latitude', 'longitude', 'incidence_angle']:
+        re.sub(f'compute_{layer}:\s+[Ff]alse', f'compute_{layer}: true',
+               yaml_runconfig_str)
+
+    # Load a GeoRunConfig from modified yaml cfg string
+    rdr2geo_cfg = GeoRunConfig.load_from_yaml(yaml_runconfig_str,
+                                              workflow_name='s1_cslc_geo')
+
+    return rdr2geo_cfg
 
 
 def _init_geocoded_IH5_raster(dst_group: h5py.Group, dataset_name: str,
@@ -118,7 +137,8 @@ def run(cfg: GeoRunConfig):
 
         # Generate required static layers
         if cfg.rdr2geo_params.enabled:
-            s1_rdr2geo.run(cfg, burst, save_in_scratch=True)
+            rdr2geo_cfg = _make_rdr2geo_cfg(cfg.yaml_string)
+            #s1_rdr2geo.run(rdr2geo_cfg, burst, save_in_scratch=True)
             if cfg.rdr2geo_params.geocode_metadata_layers:
                 s1_geocode_metadata.run(cfg, burst, fetch_from_scratch=True)
 

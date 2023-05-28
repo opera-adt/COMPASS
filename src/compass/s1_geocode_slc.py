@@ -138,7 +138,7 @@ def run(cfg: GeoRunConfig):
         # Generate required static layers
         if cfg.rdr2geo_params.enabled:
             rdr2geo_cfg = _make_rdr2geo_cfg(cfg.yaml_string)
-            #s1_rdr2geo.run(rdr2geo_cfg, burst, save_in_scratch=True)
+            s1_rdr2geo.run(rdr2geo_cfg, burst, save_in_scratch=True)
             if cfg.rdr2geo_params.geocode_metadata_layers:
                 s1_geocode_metadata.run(cfg, burst, fetch_from_scratch=True)
 

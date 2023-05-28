@@ -123,16 +123,16 @@ class QualityAssuranceCSLC:
             apply_tropo_corrections is true.
         '''
         # path to source group
-        static_layer_path = f'{DATA_PATH}/static_layers'
+        static_layer_path = f'{DATA_PATH}'
 
         # Get the static layer to compute stats for
         static_layers_dict = {
             'x': rdr2geo_params.compute_longitude,
             'y': rdr2geo_params.compute_latitude,
             'z': rdr2geo_params.compute_height,
-            'incidence': rdr2geo_params.compute_incidence_angle,
-            'local_incidence': rdr2geo_params.compute_local_incidence_angle,
-            'heading': rdr2geo_params.compute_azimuth_angle
+            'incidence_angle': rdr2geo_params.compute_incidence_angle,
+            'local_incidence_angle': rdr2geo_params.compute_local_incidence_angle,
+            'heading_angle': rdr2geo_params.compute_azimuth_angle
         }
         static_layers = [key for key, val in static_layers_dict.items()
                          if val]
@@ -266,7 +266,7 @@ class QualityAssuranceCSLC:
         '''
         pxl_qa_items = [
             Meta('percent_land_pixels', 0.0,
-                 'Percentage of output pixels labeld as land'),
+                 'Percentage of output pixels labeled as land'),
             Meta('percent_valid_pixels', 0.0,
                  'Percentage of output pixels are valid')
         ]

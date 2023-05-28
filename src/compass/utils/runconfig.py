@@ -50,14 +50,14 @@ def load_validate_yaml(yaml_runconfig: str, workflow_name: str) -> dict:
         raise ValueError(err_str)
 
     # Determine run config type based on existence of newlines
-    run_config_is_txt = '\n' in yaml_runconfig:
+    run_config_is_txt = '\n' in yaml_runconfig
 
     if not run_config_is_txt and not os.path.isfile(yaml_runconfig):
         raise FileNotFoundError(f'Yaml file {yaml_runconfig} not found.')
 
     # load yaml file or string from command line
     try:
-        if run_config_is_txt
+        if run_config_is_txt:
             data = yamale.make_data(content=yaml_runconfig,
                                     parser='ruamel')
         else:

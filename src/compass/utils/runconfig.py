@@ -52,6 +52,10 @@ def load_validate_yaml(yaml_runconfig: str, workflow_name: str) -> dict:
     # Determine run config type based on existence of newlines
     run_config_is_txt = '\n' in yaml_runconfig
 
+    # Prepare part of load and validation error message just in case
+    what_is_broken = 'from runconfig string' if run_config_is_txt \
+        else yaml_runconfig
+
     if not run_config_is_txt and not os.path.isfile(yaml_runconfig):
         raise FileNotFoundError(f'Yaml file {yaml_runconfig} not found.')
 
@@ -63,7 +67,7 @@ def load_validate_yaml(yaml_runconfig: str, workflow_name: str) -> dict:
         else:
             data = yamale.make_data(yaml_runconfig, parser='ruamel')
     except yamale.YamaleError as yamale_err:
-        err_str = f'Yamale unable to load {workflow_name} runconfig yaml {yaml_runconfig} for validation.'
+        err_str = f'Yamale unable to load {workflow_name} runconfig yaml {what_is_broken} for validation.'
         error_channel.log(err_str)
         raise yamale.YamaleError(err_str) from yamale_err
 
@@ -71,7 +75,7 @@ def load_validate_yaml(yaml_runconfig: str, workflow_name: str) -> dict:
     try:
         yamale.validate(schema, data)
     except yamale.YamaleError as yamale_err:
-        err_str = f'Validation fail for {workflow_name} runconfig yaml {yaml_runconfig}.'
+        err_str = f'Validation fail for {workflow_name} runconfig yaml {what_is_broken}.'
         error_channel.log(err_str)
         raise yamale.YamaleError(err_str) from yamale_err
 
@@ -347,17 +351,19 @@ class RunConfig:
     output_paths: dict[tuple[str, str], SimpleNamespace]
 
     @classmethod
-    def load_from_yaml(cls, yaml_path: str, workflow_name: str) -> RunConfig:
+    def load_from_yaml(cls, yaml_runconfig: str,
+                       workflow_name: str) -> RunConfig:
         """Initialize RunConfig class with options from given yaml file.
 
         Parameters
         ----------
-        yaml_path : str
-            Path to yaml file containing the options to load
+        yaml_runconfig : str
+            Path to yaml file containing the options to load or string contents
+            of a runconfig
         workflow_name: str
             Name of the workflow for which uploading default options
         """
-        cfg = load_validate_yaml(yaml_path, workflow_name)
+        cfg = load_validate_yaml(yaml_runconfig, workflow_name)
 
         # Convert runconfig dict to SimpleNamespace
         sns = wrap_namespace(cfg['runconfig']['groups'])

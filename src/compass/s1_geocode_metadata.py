@@ -200,7 +200,7 @@ def run(cfg, burst, fetch_from_scratch=False):
             cslc_qa.compute_static_layer_stats(h5_root, cfg.rdr2geo_params)
             cslc_qa.shadow_pixel_classification(h5_root)
             cslc_qa.set_orbit_type(cfg, h5_root)
-            if cslc_qa.output_to_json:
+            if cfg.quality_assurance_params.output_to_json:
                 cslc_qa.write_qa_dicts_to_json(out_paths.stats_json_path)
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]

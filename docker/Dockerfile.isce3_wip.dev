@@ -53,6 +53,14 @@ RUN mkdir -p /home/compass_user/OPERA/ISCE3/install &&\
     cd `find $CONDA_PREFIX -name "site-packages"|sort|tail -1` &&\
     find /home/compass_user/OPERA/ISCE3/install/packages -maxdepth 1 -type d|sort|awk 'NR>1'|xargs -I{} ln -s {}
 
+# installing RAiDER
+RUN mkdir RAiDER &&\
+    git clone https://github.com/dbekaert/RAiDER.git RAiDER &&\
+    cd RAiDER &&\
+    git checkout tags/v0.4.2 &&\
+    cd .. &&\
+    python -m pip install ./RAiDER
+
 
 
 WORKDIR /home/compass_user/OPERA

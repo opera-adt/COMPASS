@@ -317,7 +317,7 @@ class QualityAssuranceCSLC:
             _qa_items_to_h5_and_dict(rfi_group, self.rfi_dict, rfi_qa_items_pol)
 
             # Take care of the burst RFI report information            
-            if not burst.burst_rfi_info.rfi_burst_report:
+            if not is_rfi_info_available:
                 return
 
             # Alias for readability
@@ -344,7 +344,7 @@ class QualityAssuranceCSLC:
                                      rfi_burst_report_list)
 
             # Take care of the time domain portion of the burst report
-            if rfi_burst_report['timeDomainRfiReport']:
+            if 'timeDomainRfiReport' in rfi_burst_report.keys():
                 time_domain_report = rfi_burst_report['timeDomainRfiReport']
                 # ['percentageAffectedLines', 'avgPercentageAffectedSamples', 'maxPercentageAffectedSamples']
                 burst_time_domain_report_item = [
@@ -365,7 +365,7 @@ class QualityAssuranceCSLC:
                                         burst_time_domain_report_item)
 
             # Take care of the frequency time domain portion of the burst report
-            if rfi_burst_report['frequencyDomainRfiBurstReport']:
+            if 'frequencyDomainRfiBurstReport' in rfi_burst_report.keys():
                 freq_domain_report = rfi_burst_report['frequencyDomainRfiBurstReport']
                 #['numSubBlocks', 'subBlockSize', 'isolatedRfiReport', 'percentageBlocksPersistentRfi', 'maxPercentageBWAffectedPersistentRfi']
                 burst_freq_domain_report_item = [

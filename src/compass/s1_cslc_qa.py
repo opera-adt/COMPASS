@@ -316,7 +316,7 @@ class QualityAssuranceCSLC:
             # write items to HDF5 and dict
             _qa_items_to_h5_and_dict(rfi_group, self.rfi_dict, rfi_qa_items_pol)
 
-            # Take care of the burst RFI report information            
+            # Take care of the burst RFI report information
             if not is_rfi_info_available:
                 return
 
@@ -390,7 +390,7 @@ class QualityAssuranceCSLC:
                 _qa_items_to_h5_and_dict(rfi_burst_report_freq_domain_group,
                                         self.rfi_dict['rfi_burst_report']['frequency_domain_rfi_report'],
                                         burst_freq_domain_report_item)
-                
+
                 # Take care of isolated RFI report inside frequency burst RFI report
                 isolated_rfi_report = freq_domain_report['isolatedRfiReport']
                 # ['percentageAffectedLines', 'maxPercentageAffectedBW']

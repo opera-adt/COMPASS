@@ -346,7 +346,6 @@ class QualityAssuranceCSLC:
             # Take care of the time domain portion of the burst report
             if 'timeDomainRfiReport' in rfi_burst_report.keys():
                 time_domain_report = rfi_burst_report['timeDomainRfiReport']
-                # ['percentageAffectedLines', 'avgPercentageAffectedSamples', 'maxPercentageAffectedSamples']
                 burst_time_domain_report_item = [
                     Meta('percentage_affected_lines',
                          time_domain_report['percentageAffectedLines'],
@@ -359,7 +358,8 @@ class QualityAssuranceCSLC:
                          'Maximum percentage of level-0 samples affected by RFI in the same line'),
                 ]
                 self.rfi_dict['rfi_burst_report']['time_domain_rfi_report'] = {}
-                rfi_burst_report_time_domain_group = rfi_burst_report_group.require_group('time_domain_rfi_report')
+                rfi_burst_report_time_domain_group =\
+                    rfi_burst_report_group.require_group('time_domain_rfi_report')
                 _qa_items_to_h5_and_dict(rfi_burst_report_time_domain_group,
                                         self.rfi_dict['rfi_burst_report']['time_domain_rfi_report'],
                                         burst_time_domain_report_item)
@@ -367,7 +367,6 @@ class QualityAssuranceCSLC:
             # Take care of the frequency time domain portion of the burst report
             if 'frequencyDomainRfiBurstReport' in rfi_burst_report.keys():
                 freq_domain_report = rfi_burst_report['frequencyDomainRfiBurstReport']
-                #['numSubBlocks', 'subBlockSize', 'isolatedRfiReport', 'percentageBlocksPersistentRfi', 'maxPercentageBWAffectedPersistentRfi']
                 burst_freq_domain_report_item = [
                     Meta('num_sub_blocks',
                          freq_domain_report['numSubBlocks'],
@@ -377,10 +376,13 @@ class QualityAssuranceCSLC:
                          'Number of lines in each sub-block'),
                     Meta('percentage_blocks_persistent_rfi',
                          freq_domain_report['percentageBlocksPersistentRfi'],
-                         'Percentage of processing blocks affected by persistent RFI. In this case the RFI detection is performed on the mean PSD of each processing block'),
+                         ('Percentage of processing blocks affected by persistent RFI. '
+                          'In this case the RFI detection is performed on the mean PSD of '
+                          'each processing block')),
                     Meta('max_percentage_bw_affected_persistent_rfi',
                          freq_domain_report['maxPercentageBWAffectedPersistentRfi'],
-                         'Max percentage bandwidth affected by persistent RFI in a single processing block.')
+                         ('Max percentage bandwidth affected by '
+                          'persistent RFI in a single processing block.'))
                 ]
 
                 self.rfi_dict['rfi_burst_report']['frequency_domain_rfi_report'] = {}

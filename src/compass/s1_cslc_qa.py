@@ -20,7 +20,7 @@ def _compute_slc_array_stats(arr: np.ndarray, pwr_phase: str):
     else:
         post_op_arr = np.angle(arr)
 
-    return [np_op(post_op_arr)
+    return [float(np_op(post_op_arr))
             for np_op in [np.nanmean, np.nanmin, np.nanmax,
                                       np.nanstd]]
 

@@ -49,11 +49,8 @@ def load_validate_yaml(yaml_runconfig: str, workflow_name: str) -> dict:
         error_channel.log(err_str)
         raise ValueError(err_str)
 
-    # set run config type
-    run_config_is_txt = False
-    # if newlines then run_config is YAML string
-    if '\n' in yaml_runconfig:
-        run_config_is_txt = True
+    # Determine run config type based on existence of newlines
+    run_config_is_txt = '\n' in yaml_runconfig:
 
     if not run_config_is_txt and not os.path.isfile(yaml_runconfig):
         raise FileNotFoundError(f'Yaml file {yaml_runconfig} not found.')

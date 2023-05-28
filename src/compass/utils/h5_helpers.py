@@ -681,7 +681,7 @@ def algorithm_metadata_to_h5group(parent_group, is_static_layers=False):
                  'Complex data geocoding interpolation method'),
         )
     algorithm_group = \
-        parent_group.require_group('metadata/processing_information/algorithm')
+        parent_group.require_group('metadata/processing_information/algorithms')
     for meta_item in algorithm_items:
         add_dataset_and_attrs(algorithm_group, meta_item)
 

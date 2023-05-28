@@ -303,13 +303,13 @@ class QualityAssuranceCSLC:
                 rfi_info_list = [Meta('rfi_mitigation_performed',
                                       burst.burst_rfi_info.rfi_mitigation_performed,
                                       ('Activation strategy of RFI mitigation'
-                                      '["never", "BasedOnNoiseMeas","always"]')),
+                                      '["never", "BasedOnNoiseMeas", "always"]')),
                                  Meta('rfi_mitigation_domain',
                                       burst.burst_rfi_info.rfi_mitigation_domain,
                                       'Domain the RFI mitigation step was performed')]
                 rfi_qa_items_pol += rfi_info_list
 
-            # create HDF5 group for RFI info
+            # create HDF5 group for RFI info for current polarization
             h5_rfi_path = f'{QA_PATH}/rfi_information/{burst.polarization}'
             rfi_group = cslc_h5py_root.require_group(h5_rfi_path)
 
@@ -357,6 +357,7 @@ class QualityAssuranceCSLC:
                          time_domain_report['maxPercentageAffectedSamples'],
                          'Maximum percentage of level-0 samples affected by RFI in the same line'),
                 ]
+
                 self.rfi_dict['rfi_burst_report']['time_domain_rfi_report'] = {}
                 rfi_burst_report_time_domain_group =\
                     rfi_burst_report_group.require_group('time_domain_rfi_report')
@@ -393,7 +394,6 @@ class QualityAssuranceCSLC:
 
                 # Take care of isolated RFI report inside frequency burst RFI report
                 isolated_rfi_report = freq_domain_report['isolatedRfiReport']
-                # ['percentageAffectedLines', 'maxPercentageAffectedBW']
                 isolated_report_item = [
                     Meta('percentage_affected_lines',
                          isolated_rfi_report['percentageAffectedLines'],

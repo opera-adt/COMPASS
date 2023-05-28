@@ -57,7 +57,7 @@ def load_validate_yaml(yaml_runconfig: str, workflow_name: str) -> dict:
 
     # load yaml file or string from command line
     try:
-        if run_config_is_txt:
+        if run_config_is_txt
             data = yamale.make_data(content=yaml_runconfig,
                                     parser='ruamel')
         else:

@@ -300,13 +300,15 @@ class QualityAssuranceCSLC:
 
             if is_rfi_info_available:
                 # Follow key/values only assigned if RFI info is avaiable
-                rfi_info_list = [Meta('rfi_mitigation_performed',
-                                      burst.burst_rfi_info.rfi_mitigation_performed,
-                                      ('Activation strategy of RFI mitigation'
-                                      '["never", "BasedOnNoiseMeas", "always"]')),
-                                 Meta('rfi_mitigation_domain',
-                                      burst.burst_rfi_info.rfi_mitigation_domain,
-                                      'Domain the RFI mitigation step was performed')]
+                rfi_info_list = [
+                    Meta('rfi_mitigation_performed',
+                         burst.burst_rfi_info.rfi_mitigation_performed,
+                         ('Activation strategy of RFI mitigation'
+                          '["never", "BasedOnNoiseMeas", "always"]')),
+                    Meta('rfi_mitigation_domain',
+                         burst.burst_rfi_info.rfi_mitigation_domain,
+                         'Domain the RFI mitigation step was performed')
+                ]
                 rfi_qa_items_pol += rfi_info_list
 
             # create HDF5 group for RFI info for current polarization
@@ -328,11 +330,11 @@ class QualityAssuranceCSLC:
                 Meta('swath',
                      rfi_burst_report['swath'],
                      'Swath of the burst'),
-                     Meta('azimuth_time',
-                          datetime.datetime.strftime(rfi_burst_report['azimuthTime'],
-                                                     TIME_STR_FMT),
-                          'Azimuth time of the burst report'),
-                     Meta('in_band_out_band_power_ratio',
+                Meta('azimuth_time',
+                     datetime.datetime.strftime(rfi_burst_report['azimuthTime'],
+                                                TIME_STR_FMT),
+                    'Azimuth time of the burst report'),
+                Meta('in_band_out_band_power_ratio',
                           rfi_burst_report['inBandOutBandPowerRatio'],
                           'Ratio between the in-band and out-of-band power of the burst')
             ]
@@ -362,8 +364,8 @@ class QualityAssuranceCSLC:
                 rfi_burst_report_time_domain_group =\
                     rfi_burst_report_group.require_group('time_domain_rfi_report')
                 _qa_items_to_h5_and_dict(rfi_burst_report_time_domain_group,
-                                        self.rfi_dict['rfi_burst_report']['time_domain_rfi_report'],
-                                        burst_time_domain_report_item)
+                                         self.rfi_dict['rfi_burst_report']['time_domain_rfi_report'],
+                                         burst_time_domain_report_item)
 
             # Take care of the frequency time domain portion of the burst report
             if 'frequencyDomainRfiBurstReport' in rfi_burst_report.keys():

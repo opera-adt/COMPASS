@@ -1,13 +1,14 @@
 '''
 Class to compute stats for geocoded raster and corrections
 '''
+import datetime
 import json
 from pathlib import Path
 
 import isce3
 import numpy as np
 
-from compass.utils.h5_helpers import (DATA_PATH, METADATA_PATH,
+from compass.utils.h5_helpers import (DATA_PATH, METADATA_PATH, TIME_STR_FMT,
                                       QA_PATH, add_dataset_and_attrs, Meta)
 
 
@@ -279,7 +280,7 @@ class QualityAssuranceCSLC:
                                  pxl_qa_items)
 
 
-    def populate_rfi_dict(self, cslc_h5py_root):
+    def populate_rfi_dict(self, cslc_h5py_root, bursts):
         '''
         Place holder for populating SAFE RFI information
 
@@ -287,24 +288,124 @@ class QualityAssuranceCSLC:
         ----------
         cslc_h5py_root: h5py.File
             Root of CSLC HDF5
+        bursts: list[Sentinel1BurstSlc]
+            List of burst SLC object with RFI info
         '''
-        rfi_qa_items = [
-            Meta('is_rfi_info_available',True,
-                 'Whether or not RFI information is available'),
-            # Follow key/values only assigned if RFI info is avaiable
-            Meta('rfi_mitigation_performed', True,
-                 'Whether or not the RFI mitigation step was performed'),
-            Meta('rfi_mitigation_domain', '',
-                 'Domain the RFI mitigation step was performed'),
-            Meta('rfi_burst_report', '', 'Burst RFI report')
-        ]
 
-        # create HDF5 group for RFI info
-        h5_rfi_path = f'{QA_PATH}/rfi_information'
-        rfi_group = cslc_h5py_root.require_group(h5_rfi_path)
+        for burst in bursts:
+            is_rfi_info_available = burst.burst_rfi_info is not None
+            rfi_qa_items_pol = [Meta('is_rfi_info_available',
+                                is_rfi_info_available,
+                                'Whether or not RFI information is available')]
 
-        # write items to HDF5 and dict
-        _qa_items_to_h5_and_dict(rfi_group, self.rfi_dict, rfi_qa_items)
+            if is_rfi_info_available:
+                # Follow key/values only assigned if RFI info is avaiable
+                rfi_info_list = [Meta('rfi_mitigation_performed',
+                                      burst.burst_rfi_info.rfi_mitigation_performed,
+                                      ('Activation strategy of RFI mitigation'
+                                      '["never", "BasedOnNoiseMeas","always"]')),
+                                 Meta('rfi_mitigation_domain',
+                                      burst.burst_rfi_info.rfi_mitigation_domain,
+                                      'Domain the RFI mitigation step was performed')]
+                rfi_qa_items_pol += rfi_info_list
+
+            # create HDF5 group for RFI info
+            h5_rfi_path = f'{QA_PATH}/rfi_information/{burst.polarization}'
+            rfi_group = cslc_h5py_root.require_group(h5_rfi_path)
+
+            # write items to HDF5 and dict
+            _qa_items_to_h5_and_dict(rfi_group, self.rfi_dict, rfi_qa_items_pol)
+
+            # Take care of the burst RFI report information            
+            if not burst.burst_rfi_info.rfi_burst_report:
+                return
+
+            # Alias for readability
+            rfi_burst_report = burst.burst_rfi_info.rfi_burst_report
+
+            # Add the metadate of the burst RFI report
+            rfi_burst_report_list = [
+                Meta('swath',
+                     rfi_burst_report['swath'],
+                     'Swath of the burst'),
+                     Meta('azimuth_time',
+                          datetime.datetime.strftime(rfi_burst_report['azimuthTime'],
+                                                     TIME_STR_FMT),
+                          'Azimuth time of the burst report'),
+                     Meta('in_band_out_band_power_ratio',
+                          rfi_burst_report['inBandOutBandPowerRatio'],
+                          'Ratio between the in-band and out-of-band power of the burst')
+            ]
+
+            self.rfi_dict['rfi_burst_report'] = {}
+            rfi_burst_report_group = rfi_group.require_group('rfi_burst_report')
+            _qa_items_to_h5_and_dict(rfi_burst_report_group,
+                                     self.rfi_dict['rfi_burst_report'],
+                                     rfi_burst_report_list)
+
+            # Take care of the time domain portion of the burst report
+            if rfi_burst_report['timeDomainRfiReport']:
+                time_domain_report = rfi_burst_report['timeDomainRfiReport']
+                # ['percentageAffectedLines', 'avgPercentageAffectedSamples', 'maxPercentageAffectedSamples']
+                burst_time_domain_report_item = [
+                    Meta('percentage_affected_lines',
+                         time_domain_report['percentageAffectedLines'],
+                         'Percentage of level-0 lines affected by RFI.'),
+                    Meta('avg_percentage_affected_samples',
+                         time_domain_report['avgPercentageAffectedSamples'],
+                         'Average percentage of affected level-0 samples in the lines containing RFI'),
+                    Meta('max_percentage_affected_samples',
+                         time_domain_report['maxPercentageAffectedSamples'],
+                         'Maximum percentage of level-0 samples affected by RFI in the same line'),
+                ]
+                self.rfi_dict['rfi_burst_report']['time_domain_rfi_report'] = {}
+                rfi_burst_report_time_domain_group = rfi_burst_report_group.require_group('time_domain_rfi_report')
+                _qa_items_to_h5_and_dict(rfi_burst_report_time_domain_group,
+                                        self.rfi_dict['rfi_burst_report']['time_domain_rfi_report'],
+                                        burst_time_domain_report_item)
+
+            # Take care of the frequency time domain portion of the burst report
+            if rfi_burst_report['frequencyDomainRfiBurstReport']:
+                freq_domain_report = rfi_burst_report['frequencyDomainRfiBurstReport']
+                #['numSubBlocks', 'subBlockSize', 'isolatedRfiReport', 'percentageBlocksPersistentRfi', 'maxPercentageBWAffectedPersistentRfi']
+                burst_freq_domain_report_item = [
+                    Meta('num_sub_blocks',
+                         freq_domain_report['numSubBlocks'],
+                         'Number of sub-blocks in the current burst'),
+                    Meta('sub_block_size',
+                         freq_domain_report['subBlockSize'],
+                         'Number of lines in each sub-block'),
+                    Meta('percentage_blocks_persistent_rfi',
+                         freq_domain_report['percentageBlocksPersistentRfi'],
+                         'Percentage of processing blocks affected by persistent RFI. In this case the RFI detection is performed on the mean PSD of each processing block'),
+                    Meta('max_percentage_bw_affected_persistent_rfi',
+                         freq_domain_report['maxPercentageBWAffectedPersistentRfi'],
+                         'Max percentage bandwidth affected by persistent RFI in a single processing block.')
+                ]
+
+                self.rfi_dict['rfi_burst_report']['frequency_domain_rfi_report'] = {}
+                rfi_burst_report_freq_domain_group = rfi_burst_report_group.require_group('frequency_domain_rfi_report')
+                _qa_items_to_h5_and_dict(rfi_burst_report_freq_domain_group,
+                                        self.rfi_dict['rfi_burst_report']['frequency_domain_rfi_report'],
+                                        burst_freq_domain_report_item)
+                
+                # Take care of isolated RFI report inside frequency burst RFI report
+                isolated_rfi_report = freq_domain_report['isolatedRfiReport']
+                # ['percentageAffectedLines', 'maxPercentageAffectedBW']
+                isolated_report_item = [
+                    Meta('percentage_affected_lines',
+                         isolated_rfi_report['percentageAffectedLines'],
+                         'Percentage of level-0 lines affected by isolated RFI'),
+                    Meta('max_percentage_affected_bw',
+                         isolated_rfi_report['maxPercentageAffectedBW'],
+                         'Max. percentage of bandwidth affected by isolated RFI in a single line')
+                ]
+
+                self.rfi_dict['rfi_burst_report']['time_domain_rfi_report']['isolated_rfi_report'] = {}
+                isolated_rfi_report_group = rfi_burst_report_freq_domain_group.require_group('isolated_rfi_report')
+                _qa_items_to_h5_and_dict(isolated_rfi_report_group,
+                                        self.rfi_dict['rfi_burst_report']['time_domain_rfi_report']['isolated_rfi_report'],
+                                        isolated_report_item)
 
 
     def set_orbit_type(self, cfg, cslc_h5py_root):

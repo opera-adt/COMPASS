@@ -17,11 +17,13 @@ RUN yum -y update &&\
 USER compass_user
 
 RUN mkdir -p /home/compass_user/OPERA &&\
-    chmod -R 755 /home/compass_user
+    chmod -R 755 /home/compass_user &&\
+    mkdir -p /.config && chmod 777 /.config &&\
+    mkdir -p /.cache && chmod 777 /.cache &&\
 
-#RUN chown -R compass_user:compass_user /home/compass_user/OPERA &&\
+    #RUN chown -R compass_user:compass_user /home/compass_user/OPERA &&\
 
-ENV CONDA_PREFIX=/home/compass_user/miniconda3
+    ENV CONDA_PREFIX=/home/compass_user/miniconda3
 
 # install Miniconda
 WORKDIR /home/compass_user
@@ -71,10 +73,12 @@ RUN mkdir RAiDER &&\
     cd RAiDER &&\
     git checkout tags/v0.4.2 &&\
     cd .. &&\
-    python -m pip install ./RAiDER
+    python -m pip install ./RAiDER &&\
 
-# installing OPERA COMPASS
-RUN python -m pip install ./COMPASS &&\
+
+
+    # installing OPERA COMPASS
+    RUN python -m pip install ./COMPASS &&\
     echo "conda activate COMPASS" >> /home/compass_user/.bashrc
 
 WORKDIR /home/compass_user/scratch

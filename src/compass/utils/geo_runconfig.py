@@ -43,37 +43,6 @@ def check_geocode_dict(geocode_cfg: dict) -> None:
                 raise ValueError(err_str)
 
 
-def check_rdr2geo_dict(rdr2geo_dict: dict) -> None:
-    error_channel = journal.error('runconfig.check_rdr2geo_dict')
-
-    # skip further checks if not geocoding static layers or layover shadow not
-    # computed
-    if not rdr2geo_dict['geocode_metadata_layers'] or \
-            not rdr2geo_dict['compute_layover_shadow_mask']:
-        return
-
-    # layover shadow requires latitude/y, longitude/x, and incidence angle
-    # check if all three exist
-    # this also ensures that a CPU geocoded raster with correctly set invalid
-    # values exists, so it can used to mask geocoded layer shadow raster since
-    # CPU isce3.geocode.geocode can not set a user defined invalid value
-    # layover shadow invalid needs to be 127 but CPU isce3.geocode.geocode
-    # sets it to 0 (which conflicts with the non layover, non shadow value)
-    layers_for_layer_shadow = {
-        layer: rdr2geo_dict[f'compute_{layer}']
-        for layer in ['latitude', 'longitude', 'incidence_angle']}
-
-    # raise error if required layers do not exist
-    if not all(layers_for_layer_shadow.values()):
-        # get names of missing layers for error string
-        missing_layers = ', '.join([k
-                                    for k, v in layers_for_layer_shadow.items()
-                                    if not v])
-        err_str = f'Can not generate layover shadow. Missing: {missing_layers}'
-        error_channel.log(err_str)
-        raise ValueError(err_str)
-
-
 @dataclass(frozen=True)
 class GeoRunConfig(RunConfig):
     '''dataclass containing GSLC runconfig'''
@@ -81,19 +50,20 @@ class GeoRunConfig(RunConfig):
     geogrids: dict[str, GeoGridParameters]
 
     @classmethod
-    def load_from_yaml(cls, yaml_path: str, workflow_name: str) -> GeoRunConfig:
+    def load_from_yaml(cls, yaml_runconfig: str, workflow_name: str) -> GeoRunConfig:
         """Initialize RunConfig class with options from given yaml file.
 
         Parameters
         ----------
-        yaml_path : str
-            Path to yaml file containing the options to load
+        yaml_runconfig : str
+            Path to yaml file containing the options to load or string contents
+            of a runconfig
         workflow_name: str
             Name of the workflow for which uploading default options
         """
         error_channel = journal.error('runconfig.load_from_yaml')
 
-        cfg = load_validate_yaml(yaml_path, workflow_name)
+        cfg = load_validate_yaml(yaml_runconfig, workflow_name)
         groups_cfg = cfg['runconfig']['groups']
 
         burst_database_file = groups_cfg['static_ancillary_file_group']['burst_database_file']
@@ -104,9 +74,6 @@ class GeoRunConfig(RunConfig):
 
         geocoding_dict = groups_cfg['processing']['geocoding']
         check_geocode_dict(geocoding_dict)
-
-        rdr2geo_dict = groups_cfg['processing']['rdr2geo']
-        check_rdr2geo_dict(rdr2geo_dict)
 
         # Check TEC file if not None.
         # The ionosphere correction will be applied only if

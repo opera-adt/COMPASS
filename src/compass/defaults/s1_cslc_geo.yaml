@@ -86,7 +86,7 @@ runconfig:
               # Enable/disable computation of longitude raster
               compute_longitude: False
               # Enable/disable computation of height raster
-              compute_height: True
+              compute_height: False
               # Enable/disable layover shadow mask output
               compute_layover_shadow_mask: True
               # Enable/disable incidence angle output

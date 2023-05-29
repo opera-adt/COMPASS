@@ -51,12 +51,9 @@ RUN mkdir -p /home/compass_user/OPERA/ISCE3/install &&\
     cd $CONDA_PREFIX/lib &&\
     find /home/compass_user/OPERA/ISCE3/install/lib64 -name "*.so*" -exec ln -s {} \; &&\
     cd `find $CONDA_PREFIX -name "site-packages"|sort|tail -1` &&\
-    find /home/compass_user/OPERA/ISCE3/install/packages -maxdepth 1 -type d|sort|awk 'NR>1'|xargs -I{} ln -s {}
-
-
-
+    find /home/compass_user/OPERA/ISCE3/install/packages -maxdepth 1 -type d|sort|awk 'NR>1'|xargs -I{} ln -s {} &&\
+    rm -rf /home/compass_user/OPERA/ISCE3/buildWORKDIR /home/compass_user/OPERA
 WORKDIR /home/compass_user/OPERA
-
 # Install ISCE3
 
 
@@ -68,12 +65,12 @@ RUN curl -sSL https://github.com/opera-adt/s1-reader/archive/refs/tags/v0.1.7.ta
     python -m pip install ./s1-reader
 
 # installing RAiDER
-#RUN mkdir RAiDER &&\
-#    git clone https://github.com/dbekaert/RAiDER.git RAiDER &&\
-#    cd RAiDER &&\
-#    git checkout tags/v0.4.2 &&\
-#    cd .. &&\
-#    python -m pip install ./RAiDER
+RUN mkdir RAiDER &&\
+    git clone https://github.com/dbekaert/RAiDER.git RAiDER &&\
+    cd RAiDER &&\
+    git checkout tags/v0.4.2 &&\
+    cd .. &&\
+    python -m pip install ./RAiDER
 
 # installing OPERA COMPASS
 RUN python -m pip install ./COMPASS &&\

@@ -52,7 +52,8 @@ RUN mkdir -p /home/compass_user/OPERA/ISCE3/install &&\
     find /home/compass_user/OPERA/ISCE3/install/lib64 -name "*.so*" -exec ln -s {} \; &&\
     cd `find $CONDA_PREFIX -name "site-packages"|sort|tail -1` &&\
     find /home/compass_user/OPERA/ISCE3/install/packages -maxdepth 1 -type d|sort|awk 'NR>1'|xargs -I{} ln -s {} &&\
-    rm -rf /home/compass_user/OPERA/ISCE3/buildWORKDIR /home/compass_user/OPERA
+    rm -rf /home/compass_user/OPERA/ISCE3/build
+
 WORKDIR /home/compass_user/OPERA
 # Install ISCE3
 

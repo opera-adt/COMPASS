@@ -6,7 +6,9 @@ LABEL author="OPERA ADT" \
 
 RUN yum -y update &&\
     yum -y install curl git &&\
-    adduser compass_user
+    adduser compass_user &&\
+    mkdir -p /.config && chmod -R 777 /.config &&\
+    mkdir -p /.cache && chmod -R 777 /.cache
 
 RUN mkdir -p /home/compass_user/OPERA
 

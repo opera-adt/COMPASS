@@ -1,8 +1,8 @@
 FROM oraclelinux:8
 
 LABEL author="OPERA ADT" \
-    description="s1 cslc 0.2 Gamma release" \
-    version="0.2-gamma"
+    description="s1 cslc 0.3 Gamma release" \
+    version="0.3-gamma"
 
 RUN yum -y update &&\
     yum -y install curl git &&\

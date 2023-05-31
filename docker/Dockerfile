@@ -4,6 +4,8 @@ LABEL author="OPERA ADT" \
     description="s1 cslc 0.3 Gamma release" \
     version="0.3-gamma"
 
+# Update the base linux image to date
+# Create cache and config directory to be used for the dependencies
 RUN yum -y update &&\
     yum -y install curl git &&\
     adduser compass_user &&\

@@ -147,9 +147,10 @@ def run(cfg, burst, fetch_from_scratch=False):
     with h5py.File(out_h5, 'w') as h5_root:
         # write identity and metadata to HDF5
         root_group = h5_root[ROOT_PATH]
+        metadata_to_h5group(root_group, burst, cfg, save_noise_and_cal=False,
+                            save_processing_parameters=False)
         identity_to_h5group(root_group, burst, cfg, 'Static layers CSLC-S1',
                             '0.1')
-        metadata_to_h5group(root_group, burst, cfg, save_noise_and_cal=False)
         algorithm_metadata_to_h5group(root_group, is_static_layers=True)
 
         # Create group static_layers group under DATA_PATH for consistency with
@@ -200,7 +201,7 @@ def run(cfg, burst, fetch_from_scratch=False):
             cslc_qa.compute_static_layer_stats(h5_root, cfg.rdr2geo_params)
             cslc_qa.shadow_pixel_classification(h5_root)
             cslc_qa.set_orbit_type(cfg, h5_root)
-            if cslc_qa.output_to_json:
+            if cfg.quality_assurance_params.output_to_json:
                 cslc_qa.write_qa_dicts_to_json(out_paths.stats_json_path)
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]

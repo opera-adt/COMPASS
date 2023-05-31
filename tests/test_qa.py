@@ -3,12 +3,14 @@ import numpy as np
 
 from compass.utils.h5_helpers import QA_PATH
 
+TOLERANCE_TRUNCATION_ERR = 1.0e-7
+
 def test_qa_power_stats(geocode_slc_params):
     def _power_test(arr):
         return arr > 0.0
 
     def _phase_test(arr):
-        return abs(arr) <= np.pi
+        return abs(arr) <= np.pi + TOLERANCE_TRUNCATION_ERR
 
     # basic sanity checks of mean, min, and max
     with h5py.File(geocode_slc_params.output_hdf5_path, 'r') as h5_obj:

@@ -17,7 +17,7 @@ from compass.s1_cslc_qa import QualityAssuranceCSLC
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.h5_helpers import (algorithm_metadata_to_h5group,
                                       identity_to_h5group,
-                                      init_geocoded_dataset,
+                                      create_geocoded_dataset,
                                       metadata_to_h5group, DATA_PATH,
                                       METADATA_PATH, ROOT_PATH)
 from compass.utils.helpers import bursts_grouping_generator, get_module_name
@@ -56,10 +56,10 @@ def _fix_layover_shadow_mask(static_layers_dict, h5_root, geo_grid):
 
         # delete existing and rewrite with masked data
         del h5_root[layover_shadow_path]
-        _ = init_geocoded_dataset(h5_root[DATA_PATH], dst_ds_name, geo_grid,
-                                  dtype=None,
-                                  description=np.string_(dst_ds_name),
-                                  data=temp_arr)
+        _ = create_geocoded_dataset(h5_root[DATA_PATH], dst_ds_name, geo_grid,
+                                    dtype=None,
+                                    description=np.string_(dst_ds_name),
+                                    data=temp_arr)
 
 
 def run(cfg, burst, fetch_from_scratch=False):
@@ -170,9 +170,9 @@ def run(cfg, burst, fetch_from_scratch=False):
                 dtype = np.byte
 
             # Create dataset with x/y coords/spacing and projection
-            topo_ds = init_geocoded_dataset(static_layer_data_group,
-                                            dataset_name, geo_grid, dtype,
-                                            np.string_(dataset_name))
+            topo_ds = create_geocoded_dataset(static_layer_data_group,
+                                              dataset_name, geo_grid, dtype,
+                                              np.string_(dataset_name))
 
             # Init output and input isce3.io.Raster objects for geocoding
             output_raster = isce3.io.Raster(f"IH5:::ID={topo_ds.id.id}".encode("utf-8"),
@@ -291,13 +291,11 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
     for item_name, (rg_lut_grid, rg_lut_val,
                     az_lut_grid, az_lut_val) in item_dict.items():
         # prepare input dataset in output HDF5
-        init_geocoded_dataset(dst_group,
-                              item_name,
-                              decimated_geogrid,
-                              'float32',
-                              f'geocoded {item_name}')
-
-        dst_dataset = geo_burst_h5[f'{dst_group_path}/{item_name}']
+        dst_dataset = create_geocoded_dataset(dst_group,
+                                              item_name,
+                                              decimated_geogrid,
+                                              'float32',
+                                              f'geocoded {item_name}')
 
         # prepare output raster
         geocoded_cal_lut_raster =\

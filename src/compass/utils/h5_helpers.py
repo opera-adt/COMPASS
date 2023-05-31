@@ -79,11 +79,12 @@ def add_dataset_and_attrs(group, meta_item):
         val_ds.attrs[key] = _as_np_string_if_needed(val)
 
 
-def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
-                          description, data=None):
+def create_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
+                            description, data=None):
     '''
-    Create and allocate dataset for isce.geocode.geocode_slc to write to that
-    is NC compliant
+    Create NC compliant dataset for isce.geocode.geocode_slc to write to, if
+    no data is provided, and if data is provided, then poplulate dataset with
+    said data.
 
     grid_group: h5py.Group
         h5py group where geocoded dataset will be created in

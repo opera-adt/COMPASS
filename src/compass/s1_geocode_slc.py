@@ -24,7 +24,7 @@ from compass.utils.h5_helpers import (algorithm_metadata_to_h5group,
                                       corrections_to_h5group,
                                       flatten_metadata_to_h5group,
                                       identity_to_h5group,
-                                      init_geocoded_dataset,
+                                      create_geocoded_dataset,
                                       metadata_to_h5group,
                                       DATA_PATH, METADATA_PATH, ROOT_PATH)
 from compass.utils.helpers import bursts_grouping_generator, get_module_name
@@ -58,8 +58,8 @@ def _init_geocoded_IH5_raster(dst_group: h5py.Group, dataset_name: str,
     isce3.geocode.geocode_slc can write to
     '''
     # Init h5py.Dataset to be converted to IH5 raster object
-    dataset = init_geocoded_dataset(dst_group, dataset_name, geo_grid, ds_type,
-                                    desc)
+    dataset = create_geocoded_dataset(dst_group, dataset_name, geo_grid, ds_type,
+                                      desc)
 
     # Construct the output raster directly from HDF5 dataset
     geo_raster = isce3.io.Raster(f"IH5:::ID={dataset.id.id}".encode("utf-8"),

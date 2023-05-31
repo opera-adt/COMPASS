@@ -338,9 +338,13 @@ def open_raster(filename, band=1):
     raster: np.ndarray
         Numpy array containing the raster band to open
     '''
-
-    ds = gdal.Open(filename, gdal.GA_ReadOnly)
-    raster = ds.GetRasterBand(band).ReadAsArray()
+    try:
+        ds = gdal.Open(filename, gdal.GA_ReadOnly)
+        raster = ds.GetRasterBand(band).ReadAsArray()
+    except ValueError:
+        err_str = f'{filename} cannot be opened by GDAL'
+        error_channel.log(err_str)
+        raise ValueError(err_str)
 
     return raster
 

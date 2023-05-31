@@ -38,7 +38,7 @@ def check_geocode_dict(geocode_cfg: dict) -> None:
         if geocode_cfg[snap_key] is not None:
             snap = geocode_cfg[snap_key]
             if snap <= 0:
-                err_str = '{xy} snap from config of {snap} <= 0'
+                err_str = f'{xy} snap from config of {snap} <= 0'
                 error_channel.log(err_str)
                 raise ValueError(err_str)
 
@@ -50,19 +50,20 @@ class GeoRunConfig(RunConfig):
     geogrids: dict[str, GeoGridParameters]
 
     @classmethod
-    def load_from_yaml(cls, yaml_path: str, workflow_name: str) -> GeoRunConfig:
+    def load_from_yaml(cls, yaml_runconfig: str, workflow_name: str) -> GeoRunConfig:
         """Initialize RunConfig class with options from given yaml file.
 
         Parameters
         ----------
-        yaml_path : str
-            Path to yaml file containing the options to load
+        yaml_runconfig : str
+            Path to yaml file containing the options to load or string contents
+            of a runconfig
         workflow_name: str
             Name of the workflow for which uploading default options
         """
         error_channel = journal.error('runconfig.load_from_yaml')
 
-        cfg = load_validate_yaml(yaml_path, workflow_name)
+        cfg = load_validate_yaml(yaml_runconfig, workflow_name)
         groups_cfg = cfg['runconfig']['groups']
 
         burst_database_file = groups_cfg['static_ancillary_file_group']['burst_database_file']

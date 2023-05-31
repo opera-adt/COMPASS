@@ -37,7 +37,7 @@ runconfig:
           # Product version
           product_version: '0.2'
           # Product specification document version
-          product_specification_version: '0.1.5'
+          product_specification_version: '0.1'
 
       primary_executable:
           product_type: CSLC_S1

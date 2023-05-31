@@ -3,6 +3,7 @@
 '''wrapper for geocoded CSLC'''
 
 from datetime import timedelta
+import re
 import time
 
 import h5py
@@ -19,7 +20,9 @@ from compass.utils.browse_image import make_browse_image
 from compass.utils.elevation_antenna_pattern import apply_eap_correction
 from compass.utils.error_codes import ErrorCode
 from compass.utils.geo_runconfig import GeoRunConfig
-from compass.utils.h5_helpers import (corrections_to_h5group,
+from compass.utils.h5_helpers import (algorithm_metadata_to_h5group,
+                                      corrections_to_h5group,
+                                      flatten_metadata_to_h5group,
                                       identity_to_h5group,
                                       init_geocoded_dataset,
                                       metadata_to_h5group,
@@ -28,6 +31,24 @@ from compass.utils.helpers import bursts_grouping_generator, get_module_name
 from compass.utils.logger import Logger
 from compass.utils.lut import cumulative_correction_luts
 from compass.utils.yaml_argparse import YamlArgparse
+
+
+def _make_rdr2geo_cfg(yaml_runconfig_str):
+    '''
+    Make a rdr2geo specific runconfig with latitude, longitude, and height
+    layers enabled for static layer product generation while preserving all
+    other rdr2geo config settings
+    '''
+    # If any of the requisite layers are false, make them true in yaml cfg str
+    for layer in ['latitude', 'longitude', 'incidence_angle']:
+        re.sub(f'compute_{layer}:\s+[Ff]alse', f'compute_{layer}: true',
+               yaml_runconfig_str)
+
+    # Load a GeoRunConfig from modified yaml cfg string
+    rdr2geo_cfg = GeoRunConfig.load_from_yaml(yaml_runconfig_str,
+                                              workflow_name='s1_cslc_geo')
+
+    return rdr2geo_cfg
 
 
 def _init_geocoded_IH5_raster(dst_group: h5py.Group, dataset_name: str,
@@ -118,7 +139,8 @@ def run(cfg: GeoRunConfig):
 
         # Generate required static layers
         if cfg.rdr2geo_params.enabled:
-            s1_rdr2geo.run(cfg, burst, save_in_scratch=True)
+            rdr2geo_cfg = _make_rdr2geo_cfg(cfg.yaml_string)
+            s1_rdr2geo.run(rdr2geo_cfg, burst, save_in_scratch=True)
             if cfg.rdr2geo_params.geocode_metadata_layers:
                 s1_geocode_metadata.run(cfg, burst, fetch_from_scratch=True)
 
@@ -135,7 +157,7 @@ def run(cfg: GeoRunConfig):
             geo_burst_h5.attrs['Conventions'] = "CF-1.8"
             geo_burst_h5.attrs["contact"] = np.string_("operaops@jpl.nasa.gov")
             geo_burst_h5.attrs["institution"] = np.string_("NASA JPL")
-            geo_burst_h5.attrs["mission_name"] = np.string_("OPERA")
+            geo_burst_h5.attrs["mission_name"] = np.string_("project_name")
             geo_burst_h5.attrs["reference_document"] = np.string_("TBD")
             geo_burst_h5.attrs["title"] = np.string_("OPERA L2_CSLC_S1 Product")
 
@@ -209,9 +231,12 @@ def run(cfg: GeoRunConfig):
         # because io.Raster things
         with h5py.File(output_hdf5, 'a') as geo_burst_h5:
             root_group = geo_burst_h5[ROOT_PATH]
-            identity_to_h5group(root_group, burst, cfg)
+            identity_to_h5group(root_group, burst, cfg, 'CSLC -S1',
+                                cfg.product_group.product_specification_version)
 
             metadata_to_h5group(root_group, burst, cfg)
+            algorithm_metadata_to_h5group(root_group)
+            flatten_metadata_to_h5group(root_group, cfg)
             if cfg.lut_params.enabled:
                 correction_group = geo_burst_h5.require_group(
                     f'{METADATA_PATH}/processing_information')
@@ -239,10 +264,10 @@ def run(cfg: GeoRunConfig):
                         geo_burst_h5, apply_tropo_corrections,
                         cfg.tropo_params.delay_type)
                 cslc_qa.compute_CSLC_raster_stats(geo_burst_h5, bursts)
-                cslc_qa.populate_rfi_dict(geo_burst_h5)
+                cslc_qa.populate_rfi_dict(geo_burst_h5, bursts)
                 cslc_qa.valid_pixel_percentages(geo_burst_h5)
                 cslc_qa.set_orbit_type(cfg, geo_burst_h5)
-                if cslc_qa.output_to_json:
+                if cfg.quality_assurance_params.output_to_json:
                     cslc_qa.write_qa_dicts_to_json(out_paths.stats_json_path)
 
             if burst.burst_calibration is not None:

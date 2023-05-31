@@ -342,6 +342,7 @@ def open_raster(filename, band=1):
         ds = gdal.Open(filename, gdal.GA_ReadOnly)
         raster = ds.GetRasterBand(band).ReadAsArray()
     except ValueError:
+        error_channel = journal.error('helpers.check_dem')
         err_str = f'{filename} cannot be opened by GDAL'
         error_channel.log(err_str)
         raise ValueError(err_str)

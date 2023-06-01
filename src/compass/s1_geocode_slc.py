@@ -95,15 +95,17 @@ def run(cfg: GeoRunConfig):
     for burst_id, bursts in bursts_grouping_generator(cfg.bursts):
         burst = bursts[0]
 
+        date_str = burst.sensing_start.strftime("%Y%m%d")
+        geo_grid = cfg.geogrids[burst_id]
+
+        info_channel.log(f'Starting geocoding of {burst_id} for {date_str}')
+
         # Reinitialize the dem raster per burst to prevent raster artifacts
         # caused by modification in geocodeSlc
         dem_raster = isce3.io.Raster(cfg.dem)
         epsg = dem_raster.get_epsg()
         proj = isce3.core.make_projection(epsg)
         ellipsoid = proj.ellipsoid
-
-        date_str = burst.sensing_start.strftime("%Y%m%d")
-        geo_grid = cfg.geogrids[burst_id]
 
         # Get output paths for current burst
         burst_id_date_key = (burst_id, date_str)

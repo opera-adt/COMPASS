@@ -340,14 +340,76 @@ def open_raster(filename, band=1):
     '''
     try:
         ds = gdal.Open(filename, gdal.GA_ReadOnly)
-        raster = ds.GetRasterBand(band).ReadAsArray()
-    except ValueError:
-        error_channel = journal.error('helpers.check_dem')
-        err_str = f'{filename} cannot be opened by GDAL'
+        arr = ds.GetRasterBand(band).ReadAsArray()
+        return arr
+    except:
+        # GDAL reads 1st 2 bytes of ENVI binary to determine type. If 1st bytes
+        # of flat binary is that of a jpeg but the binary is not then GDAL
+        # throws a libjpeg runtime error. Kluge that follows is a workaround.
+        pass
+
+    # If GDAL load fails, if ENVI and try to load binary raster with numpy
+    # Following bool will be True if kluge works. Will be checked in try/except
+    kluge_load_success = False
+    arr = []
+
+    # Get header name from filename
+    header_file = os.path.splitext(filename)[0] + '.hdr'
+    if not os.path.isfile(header_file):
+        err_append = "no ENVI header found"
+    else:
+        with open(header_file, 'r') as fh_header:
+            # Load all header lines
+            hdr_info = [line[:-1] for line in fh_header.readlines()]
+
+            # Check if file type is ENVI
+            is_envi = hdr_info[0] == 'ENVI'
+            if not is_envi and len(hdr_info) != 9:
+                if not is_envi:
+                    err_append = "GDAL unable to load raster file"
+                else:
+                    err_append = "not correct number lines in ENVI header"
+            else:
+                def _get_int_from_envi_hdr_line(line, name):
+                    # Check and get int value of element name
+                    # If name in line, then get int value at end
+                    if f'{name}' in line:
+                        return int(line.split()[-1])
+
+                    # Return invalid value of -1
+                    return -1
+
+                # Get values for elements needed by np.fromfile
+                inds_of_interest = [1, 2, 6]
+                names_of_interest = ['samples', 'lines' ,'data type']
+                arr_params = [_get_int_from_envi_hdr_line(hdr_info[i],
+                                                          element_name)
+                              for i, element_name in zip(inds_of_interest,
+                                                         names_of_interest)]
+
+                # Check all values > 0 i.e. valid
+                if not all([x > 0 for x in arr_params]):
+                    err_append = "ENVI header array params bad"
+                else:
+                    samples, lines, dtype_envi = arr_params
+
+                    # Covert ENVI type to numpy type
+                    dtype_dict ={1: np.byte, 2: np.intc, 3: np.int_,
+                                 4: np.single, 5: np.double}
+                    dtype = dtype_dict[dtype_envi]
+
+                    arr = np.fromfile(filename, dtype=dtype).reshape(lines,
+                                                                     samples)
+                    kluge_load_success = True
+
+    try:
+        assert kluge_load_success
+        return arr
+    except:
+        error_channel = journal.error('helpers.open_raster')
+        err_str = f'{filename} cannot be opened by GDAL nor numpy: {err_append}'
         error_channel.log(err_str)
         raise ValueError(err_str)
-
-    return raster
 
 
 def write_raster(filename, data_list, descriptions,

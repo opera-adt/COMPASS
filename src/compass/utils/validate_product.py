@@ -55,8 +55,6 @@ def _grid_info_retrieve(path_h5, dataset_names, is_static_layer):
         Map projection of the raster in WKT
     """
     data_path = DATA_PATH
-    if is_static_layer:
-        data_path += '/static_layers'
 
     # Extract existing dataset names with h5py
     with h5py.File(path_h5, 'r') as h:

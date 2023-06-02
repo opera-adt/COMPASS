@@ -58,8 +58,8 @@ def _init_geocoded_IH5_raster(dst_group: h5py.Group, dataset_name: str,
     isce3.geocode.geocode_slc can write to
     '''
     # Init h5py.Dataset to be converted to IH5 raster object
-    dataset = create_geocoded_dataset(dst_group, dataset_name, geo_grid, ds_type,
-                                      desc)
+    dataset = create_geocoded_dataset(dst_group, dataset_name, geo_grid,
+                                      ds_type, desc)
 
     # Construct the output raster directly from HDF5 dataset
     geo_raster = isce3.io.Raster(f"IH5:::ID={dataset.id.id}".encode("utf-8"),
@@ -165,7 +165,7 @@ def run(cfg: GeoRunConfig):
             ctype = h5py.h5t.py_create(np.complex64)
             ctype.commit(geo_burst_h5['/'].id, np.string_('complex64'))
 
-            grid_group = geo_burst_h5.require_group(DATA_PATH)
+            data_group = geo_burst_h5.require_group(DATA_PATH)
             check_eap = is_eap_correction_necessary(burst.ipf_version)
             for b in bursts:
                 pol = b.polarization
@@ -199,7 +199,7 @@ def run(cfg: GeoRunConfig):
                 # Iterate over zipped names, types, and descriptions and create
                 # raster objects
                 geo_burst_raster, carrier_raster, flatten_phase_raster =\
-                    [_init_geocoded_IH5_raster(grid_group, ds_name, geo_grid,
+                    [_init_geocoded_IH5_raster(data_group, ds_name, geo_grid,
                                                ds_type, ds_desc)
                      for ds_name, ds_type, ds_desc in zip(ds_names, ds_types,
                                                           ds_descrs)]

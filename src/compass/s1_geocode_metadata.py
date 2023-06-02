@@ -57,7 +57,7 @@ def _fix_layover_shadow_mask(static_layers_dict, h5_root, geo_grid):
         # delete existing and rewrite with masked data
         del h5_root[layover_shadow_path]
         _ = create_geocoded_dataset(h5_root[DATA_PATH], dst_ds_name, geo_grid,
-                                    dtype=None,
+                                    dtype=temp_arr.dtype,
                                     description=np.string_(dst_ds_name),
                                     data=temp_arr)
 

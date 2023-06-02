@@ -79,14 +79,41 @@ def add_dataset_and_attrs(group, meta_item):
         val_ds.attrs[key] = _as_np_string_if_needed(val)
 
 
-def create_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
+def _determine_fill_value(dtype):
+    '''
+    Helper function to determine COMPASS specific fill values based on h5py
+    Dataset type (dtype)
+    '''
+    # Possible float types and float fill
+    float_types = [np.double, np.single, np.float32, np.float64, 'float32',
+                   'float64']
+    float_fill = np.nan
+
+    # Possible complex types and complex fill
+    complex_types = [np.complex128, 'complex64', np.complex64, 'complex32']
+    complex_fill = np.nan * (0 + 1j)
+
+    # Possible int types and int fill
+    int_types = [np.byte, np.int8]
+    int_fill = 127
+
+    # Iterate through all types and their fill values, then return the fill
+    # value when a match is found
+    for types, fill_val in zip([float_types, complex_types, int_types],
+                               [float_fill, complex_fill, int_fill]):
+        if any([dtype == t for t in types]):
+            print(dtype)
+            return fill_val
+
+
+def create_geocoded_dataset(data_group, dataset_name, geo_grid, dtype,
                             description, data=None):
     '''
     Create NC compliant dataset for isce.geocode.geocode_slc to write to, if
     no data is provided, and if data is provided, then poplulate dataset with
     said data.
 
-    grid_group: h5py.Group
+    data_group: h5py.Group
         h5py group where geocoded dataset will be created in
     dataset_name: str
         Name of dataset to be created
@@ -102,12 +129,18 @@ def create_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
     cslc_ds: h5py.Dataset
         h5py dataset ready to be populated with geocoded dataset
     '''
+    # Determine fill value of dataset
+    fill_val = _determine_fill_value(dtype)
+    if fill_val is None:
+        raise ValueError(f'Unexpected COMPASS geocoded dataset type: {dtype}')
+
     shape = (geo_grid.length, geo_grid.width)
     if data is None:
-        cslc_ds = grid_group.require_dataset(dataset_name, dtype=dtype,
-                                             shape=shape)
+        cslc_ds = data_group.require_dataset(dataset_name, dtype=dtype,
+                                             shape=shape, fillvalue=fill_val)
     else:
-        cslc_ds = grid_group.create_dataset(dataset_name, data=data)
+        cslc_ds = data_group.create_dataset(dataset_name, data=data,
+                                            fillvalue=fill_val)
 
     cslc_ds.attrs['description'] = description
 
@@ -125,9 +158,9 @@ def create_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
 
     # following copied and pasted (and slightly modified) from:
     # https://github-fn.jpl.nasa.gov/isce-3/isce/wiki/CF-Conventions-and-Map-Projections
-    x_ds = grid_group.require_dataset('x_coordinates', dtype='float64',
+    x_ds = data_group.require_dataset('x_coordinates', dtype='float64',
                                       data=x_vect, shape=x_vect.shape)
-    y_ds = grid_group.require_dataset('y_coordinates', dtype='float64',
+    y_ds = data_group.require_dataset('y_coordinates', dtype='float64',
                                       data=y_vect, shape=y_vect.shape)
 
     # Mapping of dimension scales to datasets is not done automatically in HDF5
@@ -141,6 +174,7 @@ def create_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
     # Associate grid mapping with data - projection created later
     cslc_ds.attrs['grid_mapping'] = np.string_("projection")
 
+    # Build list of metadata to be inserted to accompany dataset
     grid_meta_items = [
         Meta('x_spacing', geo_grid.spacing_x,
              'Spacing of the geographical grid along X-direction',
@@ -150,14 +184,14 @@ def create_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
              {'units': 'meters'})
     ]
     for meta_item in grid_meta_items:
-        add_dataset_and_attrs(grid_group, meta_item)
+        add_dataset_and_attrs(data_group, meta_item)
 
     # Set up osr for wkt
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(geo_grid.epsg)
 
     #Create a new single int dataset for projections
-    projection_ds = grid_group.require_dataset('projection', (), dtype='i')
+    projection_ds = data_group.require_dataset('projection', (), dtype='i')
     projection_ds[()] = geo_grid.epsg
 
     # WGS84 ellipsoid

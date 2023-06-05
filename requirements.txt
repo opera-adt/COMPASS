@@ -8,7 +8,7 @@ pandas
 pyproj
 pysolid
 pytest
-raider
+pytest-order
 ruamel.yaml
 scipy
 yamale

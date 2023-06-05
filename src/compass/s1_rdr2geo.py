@@ -3,7 +3,6 @@
 '''wrapper for rdr2geo'''
 
 from datetime import timedelta
-import os
 import time
 
 import isce3
@@ -16,13 +15,15 @@ from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
 
 
-def run(cfg, save_in_scratch=False):
+def run(cfg, burst=None, save_in_scratch=False):
     '''run rdr2geo with provided runconfig
 
     Parameters
     ----------
     cfg: dict
         Runconfig dictionary with user-defined options
+    burst: Sentinel1BurstSlc
+        Burst to run rdr2geo. If `None`, it will process all bursts in `cfg`
     save_in_scratch: bool
         Flag to save output in scratch dir instead of product dir
     '''
@@ -57,7 +58,12 @@ def run(cfg, save_in_scratch=False):
 
     # run rdr2geo for only once per burst_id
     # save SLC for all bursts
-    for burst in cfg.bursts:
+    if burst is None:
+        bursts = cfg.bursts
+    else:
+        bursts = [burst]
+
+    for burst in bursts:
         # extract date string and create directory
         date_str = burst.sensing_start.strftime("%Y%m%d")
         burst_id = str(burst.burst_id)

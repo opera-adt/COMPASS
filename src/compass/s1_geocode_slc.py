@@ -3,10 +3,13 @@
 '''wrapper for geocoded CSLC'''
 
 from datetime import timedelta
+import re
 import time
 
 import h5py
 import isce3
+# import raster mode geocode_slc. isce3.geocode.geocode_slc is array mode
+from isce3.ext.isce3.geocode import geocode_slc
 import journal
 import numpy as np
 from osgeo import gdal
@@ -18,18 +21,52 @@ from compass.s1_cslc_qa import QualityAssuranceCSLC
 from compass.utils.browse_image import make_browse_image
 from compass.utils.elevation_antenna_pattern import apply_eap_correction
 from compass.utils.geo_runconfig import GeoRunConfig
-from compass.utils.h5_helpers import (corrections_to_h5group,
+from compass.utils.h5_helpers import (algorithm_metadata_to_h5group,
+                                      corrections_to_h5group,
+                                      flatten_metadata_to_h5group,
                                       identity_to_h5group,
                                       init_geocoded_dataset,
-                                      metadata_to_h5group)
+                                      metadata_to_h5group,
+                                      DATA_PATH, METADATA_PATH, ROOT_PATH)
 from compass.utils.helpers import bursts_grouping_generator, get_module_name
 from compass.utils.lut import cumulative_correction_luts
 from compass.utils.yaml_argparse import YamlArgparse
 
 
-def _slice_to_start_and_size(grid_slice):
-    size = grid_slice.stop - grid_slice.start
-    return grid_slice.start, size
+def _make_rdr2geo_cfg(yaml_runconfig_str):
+    '''
+    Make a rdr2geo specific runconfig with latitude, longitude, and height
+    layers enabled for static layer product generation while preserving all
+    other rdr2geo config settings
+    '''
+    # If any of the requisite layers are false, make them true in yaml cfg str
+    for layer in ['latitude', 'longitude', 'incidence_angle']:
+        re.sub(f'compute_{layer}:\s+[Ff]alse', f'compute_{layer}: true',
+               yaml_runconfig_str)
+
+    # Load a GeoRunConfig from modified yaml cfg string
+    rdr2geo_cfg = GeoRunConfig.load_from_yaml(yaml_runconfig_str,
+                                              workflow_name='s1_cslc_geo')
+
+    return rdr2geo_cfg
+
+
+def _init_geocoded_IH5_raster(dst_group: h5py.Group, dataset_name: str,
+                              geo_grid: isce3.product.GeoGridProduct,
+                              ds_type: str, desc: str):
+    '''
+    Internal convenience function to make a IH5 isce3.io.Raster object that
+    isce3.geocode.geocode_slc can write to
+    '''
+    # Init h5py.Dataset to be converted to IH5 raster object
+    dataset = init_geocoded_dataset(dst_group, dataset_name, geo_grid, ds_type,
+                                    desc)
+
+    # Construct the output raster directly from HDF5 dataset
+    geo_raster = isce3.io.Raster(f"IH5:::ID={dataset.id.id}".encode("utf-8"),
+                                 update=True)
+
+    return geo_raster
 
 
 def run(cfg: GeoRunConfig):
@@ -61,15 +98,17 @@ def run(cfg: GeoRunConfig):
     for burst_id, bursts in bursts_grouping_generator(cfg.bursts):
         burst = bursts[0]
 
+        date_str = burst.sensing_start.strftime("%Y%m%d")
+        geo_grid = cfg.geogrids[burst_id]
+
+        info_channel.log(f'Starting geocoding of {burst_id} for {date_str}')
+
         # Reinitialize the dem raster per burst to prevent raster artifacts
         # caused by modification in geocodeSlc
         dem_raster = isce3.io.Raster(cfg.dem)
         epsg = dem_raster.get_epsg()
         proj = isce3.core.make_projection(epsg)
         ellipsoid = proj.ellipsoid
-
-        date_str = burst.sensing_start.strftime("%Y%m%d")
-        geo_grid = cfg.geogrids[burst_id]
 
         # Get output paths for current burst
         burst_id_date_key = (burst_id, date_str)
@@ -89,7 +128,8 @@ def run(cfg: GeoRunConfig):
                                            weather_model_path=cfg.weather_model_file,
                                            rg_step=cfg.lut_params.range_spacing,
                                            az_step=cfg.lut_params.azimuth_spacing,
-                                           delay_type=cfg.tropo_params.delay_type)
+                                           delay_type=cfg.tropo_params.delay_type,
+                                           geo2rdr_params=cfg.geo2rdr_params)
         else:
             rg_lut = isce3.core.LUT2d()
             az_lut = isce3.core.LUT2d()
@@ -104,7 +144,8 @@ def run(cfg: GeoRunConfig):
 
         # Generate required static layers
         if cfg.rdr2geo_params.enabled:
-            s1_rdr2geo.run(cfg, save_in_scratch=True)
+            rdr2geo_cfg = _make_rdr2geo_cfg(cfg.yaml_string)
+            s1_rdr2geo.run(rdr2geo_cfg, burst, save_in_scratch=True)
             if cfg.rdr2geo_params.geocode_metadata_layers:
                 s1_geocode_metadata.run(cfg, burst, fetch_from_scratch=True)
 
@@ -116,12 +157,12 @@ def run(cfg: GeoRunConfig):
         sliced_radar_grid = burst.as_isce3_radargrid()[b_bounds]
 
         output_hdf5 = out_paths.hdf5_path
-        root_path = '/science/SENTINEL1'
+
         with h5py.File(output_hdf5, 'w') as geo_burst_h5:
             geo_burst_h5.attrs['Conventions'] = "CF-1.8"
             geo_burst_h5.attrs["contact"] = np.string_("operaops@jpl.nasa.gov")
             geo_burst_h5.attrs["institution"] = np.string_("NASA JPL")
-            geo_burst_h5.attrs["mission_name"] = np.string_("OPERA")
+            geo_burst_h5.attrs["mission_name"] = np.string_("project_name")
             geo_burst_h5.attrs["reference_document"] = np.string_("TBD")
             geo_burst_h5.attrs["title"] = np.string_("OPERA L2_CSLC_S1 Product")
 
@@ -129,8 +170,7 @@ def run(cfg: GeoRunConfig):
             ctype = h5py.h5t.py_create(np.complex64)
             ctype.commit(geo_burst_h5['/'].id, np.string_('complex64'))
 
-            grid_path = f'{root_path}/CSLC/grids'
-            grid_group = geo_burst_h5.require_group(grid_path)
+            grid_group = geo_burst_h5.require_group(DATA_PATH)
             check_eap = is_eap_correction_necessary(burst.ipf_version)
 
             # Initialize source/radar and destination/geo dataset into lists
@@ -166,8 +206,7 @@ def run(cfg: GeoRunConfig):
                 # Prepare output dataset of current polarization in HDF5
                 geo_ds = init_geocoded_dataset(grid_group, pol, geo_grid,
                                                'complex64',
-                                               f'{pol} geocoded CSLC image',
-                                               np.nan + np.nan * 1j)
+                                               f'{pol} geocoded CSLC image')
                 geo_datasets.append(geo_ds)
             dt_prep = str(timedelta(seconds=time.perf_counter() - t_prep)).split(".")[0]
 
@@ -210,13 +249,17 @@ def run(cfg: GeoRunConfig):
         # because io.Raster things
         t_qa_meta = time.perf_counter()
         with h5py.File(output_hdf5, 'a') as geo_burst_h5:
-            root_group = geo_burst_h5[root_path]
-            identity_to_h5group(root_group, burst, cfg)
+            root_group = geo_burst_h5[ROOT_PATH]
+            identity_to_h5group(root_group, burst, cfg, 'CSLC -S1',
+                                cfg.product_group.product_specification_version)
 
-            cslc_group = geo_burst_h5.require_group(f'{root_path}/CSLC')
-            metadata_to_h5group(cslc_group, burst, cfg)
+            metadata_to_h5group(root_group, burst, cfg)
+            algorithm_metadata_to_h5group(root_group)
+            flatten_metadata_to_h5group(root_group, cfg)
             if cfg.lut_params.enabled:
-                corrections_to_h5group(cslc_group, burst, cfg, rg_lut, az_lut,
+                correction_group = geo_burst_h5.require_group(
+                    f'{METADATA_PATH}/processing_information')
+                corrections_to_h5group(correction_group, burst, cfg, rg_lut, az_lut,
                                        scratch_path,
                                        weather_model_path=cfg.weather_model_file,
                                        delay_type=cfg.tropo_params.delay_type)
@@ -225,7 +268,7 @@ def run(cfg: GeoRunConfig):
             browse_params = cfg.browse_image_params
             if browse_params.enabled:
                 make_browse_image(out_paths.browse_path, output_hdf5,
-                                  cfg.bursts, browse_params.complex_to_real,
+                                  bursts, browse_params.complex_to_real,
                                   browse_params.percent_low,
                                   browse_params.percent_high,
                                   browse_params.gamma, browse_params.equalize)
@@ -240,10 +283,10 @@ def run(cfg: GeoRunConfig):
                         geo_burst_h5, apply_tropo_corrections,
                         cfg.tropo_params.delay_type)
                 cslc_qa.compute_CSLC_raster_stats(geo_burst_h5, bursts)
-                cslc_qa.populate_rfi_dict(geo_burst_h5)
+                cslc_qa.populate_rfi_dict(geo_burst_h5, bursts)
                 cslc_qa.valid_pixel_percentages(geo_burst_h5)
                 cslc_qa.set_orbit_type(cfg, geo_burst_h5)
-                if cslc_qa.output_to_json:
+                if cfg.quality_assurance_params.output_to_json:
                     cslc_qa.write_qa_dicts_to_json(out_paths.stats_json_path)
 
             if burst.burst_calibration is not None:

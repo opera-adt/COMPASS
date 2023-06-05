@@ -2,17 +2,16 @@ name: compass-docs-env
 channels:
   - conda-forge
 dependencies:
-  - python[version='>=3.9']
-  - numpy
-  - lxml
-  - gdal[version='>=3']
-  - pandas
-  - pyproj
-  - pysolid
-  - pytest
-  - ruamel.yaml
-  - scipy
-  - yamale
-  - h5py
-  - shapely
-  - requests
+  - python[version='>=3.8']
+  - numpy=1.24
+  - lxml=4.9
+  - gdal=3.6
+  - pandas=2.0
+  - pyproj=3.5
+  - pysolid=0.3
+  - ruamel.yaml=0.17
+  - scipy=1.10
+  - yamale=4.0
+  - h5py=3.8
+  - shapely=2.0
+  - requests=2.31

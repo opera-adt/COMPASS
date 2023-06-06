@@ -141,6 +141,16 @@ class GeoRunConfig(RunConfig):
         return self.groups.quality_assurance
 
     @property
+    def logging_params(self) -> dict:
+        return self.groups.logging
+
+    @property
+    def output_dir(self) -> str:
+        date_str = self.sensing_start.strftime("%Y%m%d")
+        burst_id = self.burst_id
+        return f'{super().product_path}/{burst_id}/{date_str}'
+
+    @property
     def browse_image_params(self) -> dict:
         return self.groups.quality_assurance.browse_image
 

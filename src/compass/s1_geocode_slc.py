@@ -10,7 +10,6 @@ import h5py
 import isce3
 # import raster mode geocode_slc. isce3.geocode.geocode_slc is array mode
 from isce3.ext.isce3.geocode import geocode_slc
-import journal
 import numpy as np
 from s1reader.s1_reader import is_eap_correction_necessary
 
@@ -19,6 +18,7 @@ from compass import s1_geocode_metadata
 from compass.s1_cslc_qa import QualityAssuranceCSLC
 from compass.utils.browse_image import make_browse_image
 from compass.utils.elevation_antenna_pattern import apply_eap_correction
+from compass.utils.error_codes import ErrorCode
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.h5_helpers import (algorithm_metadata_to_h5group,
                                       corrections_to_h5group,
@@ -28,6 +28,7 @@ from compass.utils.h5_helpers import (algorithm_metadata_to_h5group,
                                       metadata_to_h5group,
                                       DATA_PATH, METADATA_PATH, ROOT_PATH)
 from compass.utils.helpers import bursts_grouping_generator, get_module_name
+from compass.utils.logger import Logger
 from compass.utils.lut import cumulative_correction_luts
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -79,8 +80,9 @@ def run(cfg: GeoRunConfig):
         GeoRunConfig object with user runconfig options
     '''
     module_name = get_module_name(__file__)
-    info_channel = journal.info(f"{module_name}.run")
-    info_channel.log(f"Starting {module_name} burst")
+    logger = Logger(workflow='CSLC-S1', log_filename=cfg.logging_params.path)
+    logger.info(module_name, ErrorCode.SAS_PROGRAM_STARTING,
+                f"Starting {module_name} burst")
 
     # Start tracking processing time
     t_start = time.time()
@@ -283,7 +285,10 @@ def run(cfg: GeoRunConfig):
                                                        cfg)
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
-    info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
+    logger.info(module_name, ErrorCode.SAS_PROGRAM_COMPLETED,
+                f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
+    # Close log file
+    logger.close_log_stream()
 
 
 if __name__ == "__main__":

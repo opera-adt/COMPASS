@@ -7,6 +7,7 @@ import time
 
 import h5py
 import isce3
+
 import journal
 import numpy as np
 from osgeo import gdal
@@ -14,6 +15,7 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 
 from compass import s1_rdr2geo
 from compass.s1_cslc_qa import QualityAssuranceCSLC
+from compass.utils.error_codes import ErrorCode
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.h5_helpers import (algorithm_metadata_to_h5group,
                                       identity_to_h5group,
@@ -21,6 +23,7 @@ from compass.utils.h5_helpers import (algorithm_metadata_to_h5group,
                                       metadata_to_h5group, DATA_PATH,
                                       METADATA_PATH, ROOT_PATH)
 from compass.utils.helpers import bursts_grouping_generator, get_module_name
+from compass.utils.logger import Logger
 from compass.utils.yaml_argparse import YamlArgparse
 from compass.utils.radar_grid import get_decimated_rdr_grd
 
@@ -62,7 +65,7 @@ def _fix_layover_shadow_mask(static_layers_dict, h5_root, geo_grid):
                                   data=temp_arr)
 
 
-def run(cfg, burst, fetch_from_scratch=False):
+def run(cfg, fetch_from_scratch=False, logger=None):
     '''
     Geocode metadata layers in single HDF5
 
@@ -74,10 +77,14 @@ def run(cfg, burst, fetch_from_scratch=False):
         Object containing burst parameters needed for geocoding
     fetch_from_scratch: bool
         If True grabs metadata layers from scratch dir
+    logger: Logger
+        Object to handle logging
     '''
     module_name = get_module_name(__file__)
-    info_channel = journal.info(f"{module_name}.run")
-    info_channel.log(f"Starting {module_name} burst")
+    if logger is None:
+        logger = Logger(workflow='CSLC-S1', log_filename=cfg.logging_params.path)
+        logger.info(module_name, ErrorCode.SAS_PROGRAM_STARTING,
+                    f"Starting {module_name} burst")
 
     # Start tracking processing time
     t_start = time.time()
@@ -205,8 +212,8 @@ def run(cfg, burst, fetch_from_scratch=False):
                 cslc_qa.write_qa_dicts_to_json(out_paths.stats_json_path)
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
-    info_channel.log(
-        f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
+    logger.info(module_name, ErrorCode.SAS_PROGRAM_COMPLETED,
+                f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
 
 
 def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,

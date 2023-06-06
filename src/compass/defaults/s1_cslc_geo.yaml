@@ -98,6 +98,10 @@ runconfig:
               # Enable/disable generation of the topo layers
               geocode_metadata_layers: True
 
+      logging:
+          # Path where to store the log file
+          path: cslc_s1.log
+
       worker:
           # Optional. To prevent downloading DEM or other data (default: False)
           internet_access: False

@@ -2,7 +2,6 @@
 
 '''wrapper to geocode metadata layers'''
 
-from datetime import timedelta
 import time
 
 import h5py
@@ -207,7 +206,7 @@ def run(cfg, burst, fetch_from_scratch=False):
             if cfg.quality_assurance_params.output_to_json:
                 cslc_qa.write_qa_dicts_to_json(out_paths.stats_json_path)
 
-    dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
+    dt = get_time_delta_str(t_start)
     info_channel.log(
         f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
 

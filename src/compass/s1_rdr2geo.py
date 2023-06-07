@@ -2,7 +2,6 @@
 
 '''wrapper for rdr2geo'''
 
-from datetime import timedelta
 import time
 
 import isce3
@@ -143,7 +142,7 @@ def run(cfg, burst=None, save_in_scratch=False):
         output_vrt = isce3.io.Raster(f'{output_path}/topo.vrt', raster_list)
         output_vrt.set_epsg(rdr2geo_obj.epsg_out)
 
-    dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
+    dt = get_time_delta_str(t_start)
     info_channel.log(
         f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
 

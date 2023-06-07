@@ -2,7 +2,6 @@
 
 '''wrapper for geo2rdr'''
 
-from datetime import timedelta
 import os
 import time
 
@@ -85,7 +84,7 @@ def run(cfg: dict):
         # Execute geo2rdr
         geo2rdr_obj.geo2rdr(topo_raster, out_paths.output_directory)
 
-    dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
+    dt = get_time_delta_str(t_start)
     info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
 
 

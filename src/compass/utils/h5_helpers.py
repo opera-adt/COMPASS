@@ -473,12 +473,12 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
     # input items
     orbit_files = [os.path.basename(f) for f in cfg.orbit_path]
     input_items = [
-        Meta('l1_slc_files', burst.safe_filename, 'Input L1 RSLC file used'),
-        Meta('orbit_files', orbit_files, 'List of input orbit files used'),
-        Meta('calibration_file', burst.burst_calibration.basename_cads,
-             'Input calibration file used'),
-        Meta('noise_file', burst.burst_noise.basename_nads,
-             'Input noise file used'),
+        Meta('l1_slc_files', burst.safe_filename, 'List of input L1 RSLC files used for processing'),
+        Meta('orbit_files', orbit_files, 'List of input orbit files used for processing'),
+        Meta('calibration_files', burst.burst_calibration.basename_cads,
+             'List of input calibration files used for processing'),
+        Meta('noise_files', burst.burst_noise.basename_nads,
+             'List of input noise files used for processing'),
         Meta('dem_source', os.path.basename(cfg.dem), 'source DEM file'),
     ]
     input_group = processing_group.require_group('inputs')

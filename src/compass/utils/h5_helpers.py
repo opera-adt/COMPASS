@@ -197,13 +197,15 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
         projection_ds.attrs['utm_zone_number'] = geo_grid.epsg % 100
 
         #Setup units for x and y
+        x_ds.attrs['description'] = np.string_("CF compliant dimension associated with the X coordinate")
         x_ds.attrs['standard_name'] = np.string_("projection_x_coordinate")
         x_ds.attrs['long_name'] = np.string_("x coordinate of projection")
-        x_ds.attrs['units'] = np.string_("m")
+        x_ds.attrs['units'] = np.string_("meters")
 
+        y_ds.attrs['description'] = np.string_("CF compliant dimension associated with the Y coordinate")
         y_ds.attrs['standard_name'] = np.string_("projection_y_coordinate")
         y_ds.attrs['long_name'] = np.string_("y coordinate of projection")
-        y_ds.attrs['units'] = np.string_("m")
+        y_ds.attrs['units'] = np.string_("meters")
 
     # Polar Stereo North
     elif geo_grid.epsg == 3413:

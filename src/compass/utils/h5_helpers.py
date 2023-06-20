@@ -678,8 +678,8 @@ def algorithm_metadata_to_h5group(parent_group, is_static_layers=False):
              'Floating-point data geocoding interpolation method'),
         Meta('ISCE3_version', isce3.__version__,
              'ISCE3 version used for processing'),
-        Meta('s1Reader_version', s1reader.__version__,
-             'S1-Reader version used for processing'),
+        Meta('s1_reader_version', s1reader.__version__,
+             'S1 reader version used for processing'),
         Meta('COMPASS_version', compass.__version__,
              'COMPASS (CSLC-S1 processor) version used for processing')
     ]

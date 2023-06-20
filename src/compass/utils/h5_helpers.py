@@ -506,7 +506,7 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
     # burst items
     burst_meta_items = [
         Meta('ipf_version', str(burst.ipf_version),
-             'Image Processing Facility software version'),
+             'ESA Instrument Processing Facility software version'),
         Meta('sensing_start', burst.sensing_start.strftime(TIME_STR_FMT),
              'Sensing start time of the burst',
              {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),

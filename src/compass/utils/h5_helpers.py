@@ -311,7 +311,7 @@ def save_orbit(orbit, orbit_direction, orbit_group):
              'Time of the orbit state vectors relative to the reference epoch',
              {'units': 'seconds'}),
         Meta('orbit_direction', orbit_direction,
-             'Direction of sensor orbit ephermeris (e.g., ascending, descending)')
+             'Direction of sensor orbit ephemeris (e.g., ascending, descending)')
     ]
     for i_ax, axis in enumerate('xyz'):
         desc_suffix = f'{axis}-direction with respect to WGS84 G1762 reference frame'

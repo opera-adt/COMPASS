@@ -289,7 +289,7 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
     return cslc_ds
 
 
-def save_orbit(orbit, orbit_direction, orbit_group):
+def save_orbit(orbit, orbit_direction, orbit_type, orbit_group):
     '''
     Write burst to HDF5
 
@@ -297,6 +297,10 @@ def save_orbit(orbit, orbit_direction, orbit_group):
     ---------
     orbit: isce3.core.Orbit
         ISCE3 orbit object
+    orbit_direction: string
+        Orbit direction: ascending or descending
+    orbit_type: string
+        Type of orbit: RESORB or POEORB
     orbit_group: h5py.Group
         HDF5 group where orbit parameters will be written
     '''
@@ -325,9 +329,8 @@ def save_orbit(orbit, orbit_direction, orbit_group):
         add_dataset_and_attrs(orbit_group, meta_item)
 
     orbit_ds = orbit_group.require_dataset("orbit_type", (), "S10",
-                                           data=np.string_("POE"))
-    orbit_ds.attrs["description"] = np.string_("PrOE (or) NOE (or) MOE (or) POE"
-                                        " (or) Custom")
+                                           data=np.string_(orbit_type))
+    orbit_ds.attrs["description"] = np.string_("RESORB: restituted orbit ephemeris or POEORB: precise orbit ephemeris")
 
 
 def get_polygon_wkt(burst: Sentinel1BurstSlc):
@@ -438,7 +441,16 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
     if 'orbit' in meta_group:
         del meta_group['orbit']
     orbit_group = meta_group.require_group('orbit')
-    save_orbit(burst.orbit, burst.orbit_direction, orbit_group)
+
+    # Get orbit type
+    orbit_file_path = os.path.basename(cfg.orbit_path[0])
+    if 'RESORB' in orbit_file_path:
+        orbit_type = 'RESORB'
+    if 'POEORB' in orbit_file_path:
+        orbit_type = 'POEORB'
+
+    save_orbit(burst.orbit, burst.orbit_direction,
+               orbit_type, orbit_group)
 
     # create metadata group to write datasets to
     processing_group = meta_group.require_group('processing_information')

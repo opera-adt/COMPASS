@@ -215,7 +215,7 @@ def snap_geogrid(geo_grid, x_snap, y_snap, x_end, y_end):
     Parameters
     ----------
     geo_grid: isce3.product.geogrid
-        ISCE3 object definining the geogrid
+        ISCE3 object defining the geogrid
     x_snap: float
         Snap value along X-direction
     y_snap: float

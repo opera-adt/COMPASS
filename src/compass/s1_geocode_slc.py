@@ -182,7 +182,7 @@ def run(cfg: GeoRunConfig):
 
                 # Load the input burst SLC
                 temp_slc_path = f'{scratch_path}/{out_paths.file_name_pol}_temp.vrt'
-                #burst.slc_to_vrt_file(temp_slc_path)
+                burst.slc_to_vrt_file(temp_slc_path)
 
                 # Apply EAP correction if necessary
                 if check_eap.phase_correction:

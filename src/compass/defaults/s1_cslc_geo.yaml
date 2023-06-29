@@ -46,8 +46,6 @@ runconfig:
           polarization: co-pol
           geocoding:
               flatten: True
-              lines_per_block: 200
-              columns_per_block: 200
               x_posting:
               y_posting:
               x_snap:

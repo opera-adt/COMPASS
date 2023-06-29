@@ -19,7 +19,8 @@ from compass.utils.h5_helpers import (algorithm_metadata_to_h5group,
                                       init_geocoded_dataset,
                                       metadata_to_h5group, DATA_PATH,
                                       METADATA_PATH, ROOT_PATH)
-from compass.utils.helpers import bursts_grouping_generator, get_module_name
+from compass.utils.helpers import (bursts_grouping_generator, get_module_name,
+                                   get_time_delta_str)
 from compass.utils.yaml_argparse import YamlArgparse
 from compass.utils.radar_grid import get_decimated_rdr_grd
 

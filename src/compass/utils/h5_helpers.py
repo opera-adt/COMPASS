@@ -702,7 +702,8 @@ def algorithm_metadata_to_h5group(parent_group, is_static_layers=False):
 
 def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,
                            scratch_path, weather_model_path=None,
-                           delay_type='dry'):
+                           delay_type='dry',
+                           flag_antenna_pattern_by_sas=False):
     '''
     Write azimuth, slant range, and EAP (if needed) correction LUT2ds to HDF5
 
@@ -821,9 +822,13 @@ def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,
         add_dataset_and_attrs(extended_coeffs_group, meta_item)
 
     # write out EAP metadata, if present
+    eap_items = [
+        Meta('correction_applied_by_sas', flag_antenna_pattern_by_sas,
+             'Flag to indicate whether SAS applied EAP correction', { 'units': 'N/A'})
+    ]
     if burst.burst_eap is not None:
         eap = burst.burst_eap
-        eap_items = [
+        eap_items += [
             Meta('sampling_frequency', eap.freq_sampling,
                  'range sampling frequency', { 'units': 'Hz'}),
             Meta('eta_start', eap.eta_start.strftime(TIME_STR_FMT),
@@ -839,9 +844,9 @@ def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,
                  'Ascending node crossing time (ANX)',
                  {'format': 'YYYY-MM-DD HH:MM:SS.6f'})
         ]
-        eap_group = correction_group.require_group('elevation_antenna_pattern')
-        for meta_item in eap_items:
-            add_dataset_and_attrs(eap_group, meta_item)
+    eap_group = parent_group.require_group('elevation_antenna_pattern_correction')
+    for meta_item in eap_items:
+        add_dataset_and_attrs(eap_group, meta_item)
 
 
 def get_cslc_geotransform(filename: str, pol: str = "VV"):

@@ -175,6 +175,7 @@ def run(cfg: GeoRunConfig):
                 burst.slc_to_vrt_file(temp_slc_path)
 
                 # Apply EAP correction if necessary
+                flag_antenna_pattern_by_sas = False
                 if check_eap.phase_correction:
                     temp_slc_path_corrected = temp_slc_path.replace('_temp.vrt',
                                                                     '_corrected_temp.rdr')
@@ -182,6 +183,7 @@ def run(cfg: GeoRunConfig):
                                          temp_slc_path,
                                          temp_slc_path_corrected,
                                          check_eap)
+                    flag_antenna_pattern_by_sas = True
 
                     # Replace the input burst if the correction is applied
                     temp_slc_path = temp_slc_path_corrected
@@ -243,7 +245,8 @@ def run(cfg: GeoRunConfig):
                 corrections_to_h5group(correction_group, burst, cfg, rg_lut, az_lut,
                                        scratch_path,
                                        weather_model_path=cfg.weather_model_file,
-                                       delay_type=cfg.tropo_params.delay_type)
+                                       delay_type=cfg.tropo_params.delay_type,
+                                       flag_antenna_pattern_by_sas=flag_antenna_pattern_by_sas)
 
             # If needed, make browse image and compute CSLC raster stats
             browse_params = cfg.browse_image_params

@@ -80,7 +80,7 @@ def run(cfg: dict):
         burst.slc_to_vrt_file(sec_burst_path)
         original_raster = isce3.io.Raster(sec_burst_path)
 
-        # Prepare resamled SLC as raster object
+        # Prepare resampled SLC as raster object
         coreg_burst_path = f'{out_paths.output_directory}/{out_paths.file_name_stem}.slc'
         resampled_raster = isce3.io.Raster(coreg_burst_path,
                                            rg_off_raster.width,

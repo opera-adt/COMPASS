@@ -25,7 +25,8 @@ from compass.utils.yaml_argparse import YamlArgparse
 from compass.utils.radar_grid import get_decimated_rdr_grd
 
 
-def _fix_layover_shadow_mask(static_layers_dict, h5_root, geo_grid):
+def _fix_layover_shadow_mask(static_layers_dict, h5_root, geo_grid,
+                             output_params):
     '''
     kludge correctly mask invalid pixel in geocoded layover shadow to address
     isce3::geocode::geocodeCov's inability to take in an user defined invalid
@@ -59,7 +60,7 @@ def _fix_layover_shadow_mask(static_layers_dict, h5_root, geo_grid):
         _ = init_geocoded_dataset(h5_root[DATA_PATH], dst_ds_name, geo_grid,
                                   dtype=None,
                                   description=np.string_(dst_ds_name),
-                                  data=temp_arr)
+                                  data=temp_arr, output_cfg=output_params)
 
 
 def run(cfg, burst, fetch_from_scratch=False):
@@ -175,7 +176,8 @@ def run(cfg, burst, fetch_from_scratch=False):
             # Create dataset with x/y coords/spacing and projection
             topo_ds = init_geocoded_dataset(static_layer_data_group,
                                             dataset_name, geo_grid, dtype,
-                                            np.string_(dataset_name))
+                                            np.string_(dataset_name),
+                                            output_cfg=cfg.output_params)
 
             # Init output and input isce3.io.Raster objects for geocoding
             output_raster = isce3.io.Raster(f"IH5:::ID={topo_ds.id.id}".encode("utf-8"),
@@ -196,7 +198,8 @@ def run(cfg, burst, fetch_from_scratch=False):
             del output_raster
 
             if dataset_name == 'layover_shadow_mask':
-                _fix_layover_shadow_mask(static_layers, h5_root, geo_grid)
+                _fix_layover_shadow_mask(static_layers, h5_root, geo_grid,
+                                         cfg.output_params)
 
     if cfg.quality_assurance_params.perform_qa:
         cslc_qa = QualityAssuranceCSLC()
@@ -213,7 +216,7 @@ def run(cfg, burst, fetch_from_scratch=False):
 
 
 def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
-                 dec_factor_x_rng=20, dec_factor_y_az=5):
+                 output_params, dec_factor_x_rng=20, dec_factor_y_az=5):
     '''
     Geocode the radiometric calibratio paremeters,
     and write them into output HDF5.
@@ -298,7 +301,8 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
                               item_name,
                               decimated_geogrid,
                               'float32',
-                              f'geocoded {item_name}')
+                              f'geocoded {item_name}',
+                              output_cfg=cfg.output_params)
 
         dst_dataset = geo_burst_h5[f'{dst_group_path}/{item_name}']
 
@@ -401,8 +405,7 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
               None]
         }
     geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict_calibration,
-                 dec_factor_x_rng,
-                 dec_factor_y_az)
+                 cfg.output_params, dec_factor_x_rng, dec_factor_y_az, )
 
 
 def geocode_noise_luts(geo_burst_h5, burst, cfg,
@@ -433,8 +436,7 @@ def geocode_noise_luts(geo_burst_h5, burst, cfg,
                                        burst.burst_noise.azimuth_lut]
                                        }
     geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict_noise,
-                 dec_factor_x_rng,
-                 dec_factor_y_az)
+                 cfg.output_params, dec_factor_x_rng, dec_factor_y_az)
 
 
 if __name__ == "__main__":

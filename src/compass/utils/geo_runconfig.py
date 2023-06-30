@@ -117,7 +117,7 @@ class GeoRunConfig(RunConfig):
                    user_plus_default_yaml_str, output_paths, geogrids)
 
     @property
-    def product_group(self) -> dict:
+    def product_group(self) -> types.SimpleNamespace:
         return self.groups.product_path_group
 
     @property
@@ -125,28 +125,32 @@ class GeoRunConfig(RunConfig):
         return self.groups.dynamic_ancillary_file_group.weather_model_file
 
     @property
-    def geocoding_params(self) -> dict:
+    def geocoding_params(self) -> types.SimpleNamespace:
         return self.groups.processing.geocoding
 
     @property
-    def rdr2geo_params(self) -> dict:
+    def rdr2geo_params(self) -> types.SimpleNamespace:
         return self.groups.processing.rdr2geo
 
     @property
-    def lut_params(self) -> dict:
+    def lut_params(self) -> types.SimpleNamespace:
         return self.groups.processing.correction_luts
 
     @property
-    def quality_assurance_params(self) -> dict:
+    def quality_assurance_params(self) -> types.SimpleNamespace:
         return self.groups.quality_assurance
 
     @property
-    def browse_image_params(self) -> dict:
+    def browse_image_params(self) -> types.SimpleNamespace:
         return self.groups.quality_assurance.browse_image
 
     @property
-    def tropo_params(self) -> dict:
+    def tropo_params(self) -> types.SimpleNamespace:
         return self.groups.processing.correction_luts.troposphere
+
+    @property
+    def output_params(self) -> types.SimpleNamespace:
+        return self.groups.output
 
     def as_dict(self):
         ''' Convert self to dict for write to YAML/JSON

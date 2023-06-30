@@ -50,6 +50,10 @@ runconfig:
 
         # Quality assurance options
         quality_assurance: include('quality_assurance_options', required=False)
+
+        # Output options for geocoded rasters (CSLC datatype, compression, chunking, shuffle filter)
+        output: include('output_options', required=False)
+
 ---
 # Group of processing options
 processing_options:
@@ -158,3 +162,16 @@ browse_image_options:
     gamma: num(min=0, required=False)
     # Enable/disable histogram equalization
     equalize: bool(required=False)
+
+output_options:
+    # Data type of CSLC raster (default complex64_zero_mantissa)
+    cslc_data_type: enum('complex32', 'complex64', 'complex64_zero_mantissa', required=False)
+    # Enable/disable gzip compression of raster (default True)
+    compression_enabled: bool(required=False)
+    # Level of compression applied to raster (default 4)
+    # 1 - least compression, 9 - best compresssion
+    compression_level: int(min=1, max=9, required=False)
+    # Chunk size of raster (default [128, 128])
+    chunk_size: list(int(min=4), min=2, max=2, required=False)
+    # Enable/disable shuffle filtering of rasters (default True)
+    shuffle: bool(required=False)

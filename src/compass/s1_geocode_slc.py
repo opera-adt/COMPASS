@@ -30,6 +30,8 @@ from compass.utils.helpers import (bursts_grouping_generator,
 from compass.utils.lut import cumulative_correction_luts
 from compass.utils.yaml_argparse import YamlArgparse
 
+# TEMPORARY MEASURE TODO refactor types functions to isce3 namespace
+from nisar.types import (truncate_mantissa, to_complex32)
 
 def _make_rdr2geo_cfg(yaml_runconfig_str):
     '''
@@ -47,24 +49,6 @@ def _make_rdr2geo_cfg(yaml_runconfig_str):
                                               workflow_name='s1_cslc_geo')
 
     return rdr2geo_cfg
-
-
-def _init_geocoded_IH5_raster(dst_group: h5py.Group, dataset_name: str,
-                              geo_grid: isce3.product.GeoGridProduct,
-                              ds_type: str, desc: str):
-    '''
-    Internal convenience function to make a IH5 isce3.io.Raster object that
-    isce3.geocode.geocode_slc can write to
-    '''
-    # Init h5py.Dataset to be converted to IH5 raster object
-    dataset = init_geocoded_dataset(dst_group, dataset_name, geo_grid, ds_type,
-                                    desc)
-
-    # Construct the output raster directly from HDF5 dataset
-    geo_raster = isce3.io.Raster(f"IH5:::ID={dataset.id.id}".encode("utf-8"),
-                                 update=True)
-
-    return geo_raster
 
 
 def run(cfg: GeoRunConfig):
@@ -186,8 +170,10 @@ def run(cfg: GeoRunConfig):
 
                 # Apply EAP correction if necessary
                 if check_eap.phase_correction:
-                    temp_slc_path_corrected = temp_slc_path.replace('_temp.vrt',
-                                                                    '_corrected_temp.rdr')
+                    temp_slc_path_corrected = \
+                        temp_slc_path.replace('_temp.vrt',
+                                              '_corrected_temp.rdr')
+
                     apply_eap_correction(burst,
                                          temp_slc_path,
                                          temp_slc_path_corrected,
@@ -204,11 +190,13 @@ def run(cfg: GeoRunConfig):
                 # Prepare output dataset of current polarization in HDF5
                 geo_ds = init_geocoded_dataset(grid_group, pol, geo_grid,
                                                'complex64',
-                                               f'{pol} geocoded CSLC image')
+                                               f'{pol} geocoded CSLC image',
+                                               output_cfg=cfg.output_params)
                 geo_datasets.append(geo_ds)
 
                 # Init geocoded output blocks/arrays lists to NaN
-                geo_data_blks.append(np.full(out_shape, np.nan + 1j * np.nan).astype(np.complex64))
+                geo_data_blks.append(
+                    np.full(out_shape, np.nan + 1j * np.nan).astype(np.complex64))
 
             dt_prep = get_time_delta_str(t_prep)
 
@@ -227,7 +215,8 @@ def run(cfg: GeoRunConfig):
              (flatten_phase_data_blk, flatten_phase_ds)) = \
             [(np.full(out_shape, np.nan).astype(np.float64),
                   init_geocoded_dataset(grid_group, ds_name, geo_grid,
-                                        np.float64, ds_desc))
+                                        np.float64, ds_desc,
+                                        output_cfg=cfg.output_params))
                  for ds_name, ds_desc in zip(phase_names, phase_descrs)]
 
             # Geocode
@@ -257,9 +246,19 @@ def run(cfg: GeoRunConfig):
                                                flatten_phase_ds])
             geo_data_blks.extend([carrier_phase_data_blk,
                                               flatten_phase_data_blk])
-            for h5_dataset, data_blk in zip(geo_datasets, geo_data_blks):
+            for cslc_dataset, cslc_data_blk in zip(geo_datasets,
+                                                   geo_data_blks):
+                # only convert/modify output if type not 'complex64'
+                # do nothing if type is 'complex64'
+                output_type = cfg.output_params.cslc_data_type
+                if output_type == 'complex32':
+                    cslc_data_blk = nisar.types.to_complex32(cslc_data_blk)
+                if output_type == 'complex64_zero_mantissa':
+                    # use default nonzero_mantissa_bits = 10 below
+                    truncate_mantissa(cslc_data_blk)
+
                 # write to data block HDF5
-                h5_dataset.write_direct(data_blk)
+                cslc_dataset.write_direct(cslc_data_blk)
 
             del dem_raster # modified in geocodeSlc
             dt_geocoding = get_time_delta_str(t_geocoding)

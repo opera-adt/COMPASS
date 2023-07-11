@@ -62,7 +62,7 @@ def run(cslc_file, cr_file, csv_output_file=None, plot_age=False,
     unflatten: bool
         If set to True, adds back the flatten phase prior to detect
         CR peak. Set this option to True for AGE computation as it
-        drammatically affect the correct determination of the peak
+        dramatically affect the correct determination of the peak
         location
     '''
 

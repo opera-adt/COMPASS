@@ -116,7 +116,7 @@ class QualityAssuranceCSLC:
         cslc_h5py_root: h5py.File
             Root of CSLC HDF5
         apply_tropo_corrections: bool
-            Whether or not to compute troposhpere correction stats
+            Whether or not to compute troposphere correction stats
         tropo_delay_type: str
             Type of troposphere delay. Any between 'dry', or 'wet', or
             'wet_dry' for the sum of wet and dry troposphere delays. Only used
@@ -154,7 +154,7 @@ class QualityAssuranceCSLC:
         cslc_h5py_root: h5py.File
             Root of CSLC HDF5
         apply_tropo_corrections: bool
-            Whether or not to compute troposhpere correction stats
+            Whether or not to compute troposphere correction stats
         tropo_delay_type: str
             Type of troposphere delay. Any between 'dry', or 'wet', or
             'wet_dry' for the sum of wet and dry troposphere delays. Only used
@@ -299,7 +299,7 @@ class QualityAssuranceCSLC:
                                 'Whether or not RFI information is available')]
 
             if is_rfi_info_available:
-                # Follow key/values only assigned if RFI info is avaiable
+                # Follow key/values only assigned if RFI info is available
                 rfi_info_list = [
                     Meta('rfi_mitigation_performed',
                          burst.burst_rfi_info.rfi_mitigation_performed,
@@ -325,7 +325,7 @@ class QualityAssuranceCSLC:
             # Alias for readability
             rfi_burst_report = burst.burst_rfi_info.rfi_burst_report
 
-            # Add the metadate of the burst RFI report
+            # Add the metadata of the burst RFI report
             rfi_burst_report_list = [
                 Meta('swath',
                      rfi_burst_report['swath'],

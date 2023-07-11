@@ -19,7 +19,7 @@ from compass.utils.h5_helpers import (algorithm_metadata_to_h5group,
                                       identity_to_h5group,
                                       create_geocoded_dataset,
                                       metadata_to_h5group, DATA_PATH,
-                                      METADATA_PATH, ROOT_PATH)
+                                      ROOT_PATH)
 from compass.utils.helpers import bursts_grouping_generator, get_module_name
 from compass.utils.yaml_argparse import YamlArgparse
 from compass.utils.radar_grid import get_decimated_rdr_grd
@@ -212,7 +212,7 @@ def run(cfg, burst, fetch_from_scratch=False):
 def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
                  dec_factor_x_rng=20, dec_factor_y_az=5):
     '''
-    Geocode the radiometric calibratio paremeters,
+    Geocode the radiometric calibration parameters,
     and write them into output HDF5.
 
     Parameters
@@ -335,7 +335,7 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
 
         input_raster = isce3.io.Raster(lut_path)
 
-        # geocode then set transfrom and EPSG in output raster
+        # geocode then set transform and EPSG in output raster
         geocode_obj.geocode(radar_grid=radargrid_interp,
                             input_raster=input_raster,
                             output_raster=geocoded_cal_lut_raster,
@@ -357,7 +357,7 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
                              dec_factor_x_rng=20,
                              dec_factor_y_az=5):
     '''
-    Geocode the radiometric calibratio paremeters,
+    Geocode the radiometric calibration parameters,
     and write them into output HDF5.
 
     Parameters

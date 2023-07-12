@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 import os
+import types
 import yaml
 
 import isce3

@@ -252,7 +252,7 @@ def run(cfg: GeoRunConfig):
                 # do nothing if type is 'complex64'
                 output_type = cfg.output_params.cslc_data_type
                 if output_type == 'complex32':
-                    cslc_data_blk = nisar.types.to_complex32(cslc_data_blk)
+                    cslc_data_blk = to_complex32(cslc_data_blk)
                 if output_type == 'complex64_zero_mantissa':
                     # use default nonzero_mantissa_bits = 10 below
                     truncate_mantissa(cslc_data_blk)

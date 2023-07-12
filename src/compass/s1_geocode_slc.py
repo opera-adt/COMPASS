@@ -51,6 +51,11 @@ def _make_rdr2geo_cfg(yaml_runconfig_str):
     return rdr2geo_cfg
 
 
+def _wrap_phase(phase_arr):
+    # convenience function to wrap phase
+    return (phase_arr + np.pi) % (2 * np.pi) - np.pi
+
+
 def run(cfg: GeoRunConfig):
     '''
     Run geocode burst workflow with user-defined
@@ -238,14 +243,14 @@ def run(cfg: GeoRunConfig):
                                       rg_carrier=isce3.core.Poly2d(np.array([0])),
                                       az_time_correction=az_lut,
                                       srange_correction=rg_lut,
-                                      carrier_phase_block=carrier_phase_data_blk,
-                                      flatten_phase_block=flatten_phase_data_blk)
+                                      carrier_phase_block=_wrap_phase(carrier_phase_data_blk),
+                                      flatten_phase_block=_wrap_phase(flatten_phase_data_blk))
 
             # write geocoded data blocks to respective HDF5 datasets
             geo_datasets.extend([carrier_phase_ds,
-                                               flatten_phase_ds])
+                                 flatten_phase_ds])
             geo_data_blks.extend([carrier_phase_data_blk,
-                                              flatten_phase_data_blk])
+                                  flatten_phase_data_blk])
             for cslc_dataset, cslc_data_blk in zip(geo_datasets,
                                                    geo_data_blks):
                 # only convert/modify output if type not 'complex64'

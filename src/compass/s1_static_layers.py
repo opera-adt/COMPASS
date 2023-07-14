@@ -63,7 +63,6 @@ def run(cfg: GeoRunConfig):
 
 
 if __name__ == "__main__":
-    '''Run CSLC static layers workflow from command line'''
     # load arguments from command line
     parser = YamlArgparse()
 

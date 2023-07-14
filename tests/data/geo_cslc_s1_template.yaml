@@ -17,8 +17,6 @@ runconfig:
     primary_executable:
       product_type: CSLC_S1
     processing:
-      rdr2geo:
-        enabled: false
       geo2rdr:
         lines_per_block: 1000
         numiter: 25

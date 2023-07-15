@@ -18,7 +18,7 @@ from compass.utils.h5_helpers import (algorithm_metadata_to_h5group,
                                       identity_to_h5group,
                                       init_geocoded_dataset,
                                       metadata_to_h5group, DATA_PATH,
-                                      METADATA_PATH, ROOT_PATH)
+                                      ROOT_PATH)
 from compass.utils.helpers import (bursts_grouping_generator, get_module_name,
                                    get_time_delta_str)
 from compass.utils.yaml_argparse import YamlArgparse
@@ -405,7 +405,7 @@ def geocode_calibration_luts(geo_burst_h5, burst, cfg,
               None]
         }
     geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict_calibration,
-                 cfg.output_params, dec_factor_x_rng, dec_factor_y_az, )
+                 cfg.output_params, dec_factor_x_rng, dec_factor_y_az)
 
 
 def geocode_noise_luts(geo_burst_h5, burst, cfg,

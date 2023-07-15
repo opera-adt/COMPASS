@@ -26,7 +26,7 @@ from compass.utils.h5_helpers import (algorithm_metadata_to_h5group,
                                       metadata_to_h5group,
                                       DATA_PATH, METADATA_PATH, ROOT_PATH)
 from compass.utils.helpers import (bursts_grouping_generator,
-                                   get_time_delta_str,  get_module_name)
+                                   get_time_delta_str, get_module_name)
 from compass.utils.lut import cumulative_correction_luts
 from compass.utils.yaml_argparse import YamlArgparse
 

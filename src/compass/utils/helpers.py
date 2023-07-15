@@ -1,8 +1,10 @@
 '''collection of useful functions used across workflows'''
 
+from datetime import timedelta
 import itertools
 import os
 import sqlite3
+import time
 
 import isce3
 import journal
@@ -434,3 +436,20 @@ def bursts_grouping_generator(bursts):
 
     for k, v in grouped_bursts:
         yield k, list(v)
+
+
+def get_time_delta_str(t_prev: time) -> str:
+    '''
+    Helper function that computes difference between current time and a given
+    time object and returns it as a str
+
+    Parameters
+    ----------
+    t_prev: time
+        Date and time where a difference is to be computed from
+
+    _: str
+        Difference from current time and t_prev represented as a string
+    '''
+    return str(timedelta(seconds=time.perf_counter()
+                         - t_prev)).split(".", maxsplit=1)[0]

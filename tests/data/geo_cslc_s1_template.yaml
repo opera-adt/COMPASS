@@ -25,7 +25,6 @@ runconfig:
         threshold: 1.0e-08
       geocoding:
         flatten: true
-        lines_per_block: 1000
         x_posting: 5
         x_snap: null
         y_posting: 10

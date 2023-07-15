@@ -80,11 +80,13 @@ def add_dataset_and_attrs(group, meta_item):
 
 
 def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
-                          description, data=None):
+                          description, data=None, output_cfg=None):
     '''
     Create and allocate dataset for isce.geocode.geocode_slc to write to that
-    is NC compliant
+    is CF-compliant
 
+    Parameters
+    ----------
     grid_group: h5py.Group
         h5py group where geocoded dataset will be created in
     dataset_name: str
@@ -95,18 +97,36 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
         Data type of dataset to be geocoded
     description: str
         Description of dataset to be geocoded
+    data: np.ndarray
+        Array to set dataset raster with
+    output_cfg: dict
+        Optional dict containing output options in runconfig to apply to
+        created datasets
 
     Returns
     -------
     cslc_ds: h5py.Dataset
-        h5py dataset ready to be populated with geocoded dataset
+        NCDF compliant h5py dataset ready to be populated with geocoded raster
     '''
+    # Default to no dataset keyword args
+    output_kwargs = {}
+
+    # Always set chunks kwarg
+    output_kwargs['chunks'] = tuple(output_cfg.chunk_size)
+
+    # If compression is enabled, populate kwargs from runconfig contents
+    if output_cfg.compression_enabled:
+        output_kwargs['compression'] = 'gzip'
+        output_kwargs['compression_opts'] = output_cfg.compression_level
+        output_kwargs['shuffle'] = output_cfg.shuffle
+
     shape = (geo_grid.length, geo_grid.width)
     if data is None:
         cslc_ds = grid_group.require_dataset(dataset_name, dtype=dtype,
-                                             shape=shape)
+                                             shape=shape, **output_kwargs)
     else:
-        cslc_ds = grid_group.create_dataset(dataset_name, data=data)
+        cslc_ds = grid_group.create_dataset(dataset_name, data=data,
+                                            **output_kwargs)
 
     cslc_ds.attrs['description'] = description
 

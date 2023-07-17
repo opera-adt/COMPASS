@@ -40,7 +40,7 @@ runconfig:
            product_specification_version: str(required=False)
 
         primary_executable:
-          product_type: enum('CSLC_S1', 'CSLC_S1_SL')
+          product_type: enum('CSLC_S1', 'CSLC_S1_STATIC')
 
         # This section includes parameters to tweak the workflow
         processing: include('processing_options', required=False)

@@ -2,7 +2,6 @@
 
 """Wrapper for resample"""
 
-from datetime import timedelta
 import os
 import time
 
@@ -10,7 +9,7 @@ import isce3
 import journal
 from osgeo import gdal
 
-from compass.utils.helpers import get_module_name
+from compass.utils.helpers import get_module_name, get_time_delta_str
 from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -93,7 +92,7 @@ def run(cfg: dict):
                           rg_off_raster, az_off_raster,
                           flatten=cfg.resample_params.flatten)
 
-    dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
+    dt = get_time_delta_str(t_start)
     info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
 
 

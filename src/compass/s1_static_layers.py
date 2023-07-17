@@ -56,7 +56,7 @@ def run(cfg: GeoRunConfig):
     info_channel.log(f"Starting {module_name} burst")
 
     # Start tracking processing time
-    t_start = time.time()
+    t_start = time.perf_counter()
 
     for burst_id, bursts in bursts_grouping_generator(cfg.bursts):
         burst = bursts[0]

@@ -30,7 +30,8 @@ def _make_rdr2geo_cfg(yaml_runconfig_str):
 
 def run(cfg: GeoRunConfig):
     '''
-    Run geocode burst workflow with user-defined
+    Run static layers workflow (i.e., generate static layers,
+    geocode them, create product HDF5) with user-defined
     args stored in dictionary runconfig *cfg*
 
     Parameters

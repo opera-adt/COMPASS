@@ -15,6 +15,17 @@ def _make_rdr2geo_cfg(yaml_runconfig_str):
     Make a rdr2geo specific runconfig with latitude, longitude, and height
     layers enabled for static layer product generation while preserving all
     other rdr2geo config settings
+
+    Parameters
+    ----------
+    yaml_runconfig_str: str
+        Workflow runconfig as a string
+
+    Returns
+    -------
+    rdr2geo_cfg: dict
+        Dictionary with rdr2geo longitude, latitude, and height layers
+        enabled. All other rdr2geo parameters are from *yaml_runconfig_str*
     '''
     # If any of the requisite layers are false, make them true in yaml cfg str
     for layer in ['latitude', 'longitude', 'incidence_angle']:

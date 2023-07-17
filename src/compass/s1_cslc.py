@@ -2,7 +2,8 @@
 
 '''driver for CSLC workflow in radar/geo'''
 
-from compass import s1_rdr2geo, s1_geo2rdr, s1_resample, s1_geocode_slc, s1_static_layers
+from compass import (s1_rdr2geo, s1_geo2rdr, s1_resample,
+                     s1_geocode_slc, s1_static_layers)
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse

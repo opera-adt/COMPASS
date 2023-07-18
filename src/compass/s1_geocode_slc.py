@@ -251,16 +251,25 @@ def run(cfg: GeoRunConfig):
                                  flatten_phase_ds])
             geo_data_blks.extend([_wrap_phase(carrier_phase_data_blk),
                                   _wrap_phase(flatten_phase_data_blk)])
+
+            output_type = cfg.output_params.cslc_data_type
             for cslc_dataset, cslc_data_blk in zip(geo_datasets,
                                                    geo_data_blks):
                 # only convert/modify output if type not 'complex64'
                 # do nothing if type is 'complex64'
-                output_type = cfg.output_params.cslc_data_type
-                if output_type == 'complex32':
-                    cslc_data_blk = to_complex32(cslc_data_blk)
-                if output_type == 'complex64_zero_mantissa':
-                    # use default nonzero_mantissa_bits = 10 below
-                    truncate_mantissa(cslc_data_blk)
+                is_complex_array = np.issubdtype(cslc_data_blk.dtype, np.complexfloating)
+                if is_complex_array:
+                    if output_type == 'complex32':
+                        cslc_data_blk = to_complex32(cslc_data_blk)
+                    if output_type == 'complex64_zero_mantissa':
+                        # use default nonzero_mantissa_bits = 10 below
+                        truncate_mantissa(cslc_data_blk)
+                else:
+                    # Optimization code for az. carrier phase & flattening phase
+                    # Placing mantissa truncation for now
+                    truncate_mantissa(cslc_data_blk, significant_bits=10)
+
+                    # TODO put the phase quantization code here when we decide to go that way
 
                 # write to data block HDF5
                 cslc_dataset.write_direct(cslc_data_blk)

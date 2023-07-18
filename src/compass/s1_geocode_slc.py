@@ -31,7 +31,7 @@ from compass.utils.lut import cumulative_correction_luts
 from compass.utils.yaml_argparse import YamlArgparse
 
 # TEMPORARY MEASURE TODO refactor types functions to isce3 namespace
-from nisar.types import (truncate_mantissa, to_complex32)
+from isce3.core.types import (truncate_mantissa, to_complex32)
 
 def _make_rdr2geo_cfg(yaml_runconfig_str):
     '''

@@ -340,27 +340,25 @@ def open_raster(filename, band=1):
     raster: np.ndarray
         Numpy array containing the raster band to open
     '''
+    error_channel = journal.error('helpers.open_raster')
+    if not os.path.isfile(filename):
+        err_str = f'{filename} '
+        error_channel.log(err_str)
+        raise FileNotFoundError(err_str)
+
     try:
         ds = gdal.Open(filename, gdal.GA_ReadOnly)
         arr = ds.GetRasterBand(band).ReadAsArray()
         return arr
-    except:
-        pass
-
-    # GDAL reads 1st 2 bytes of ENVI binary to determine file type. If 1st
-    # bytes of flat binary is that of a jpeg but the binary is not then GDAL
-    # throws a libjpeg runtime error. Follow specifically tries to load as an
-    # ENVI file.
-    try:
+    except AttributeError:
+        # GDAL reads 1st 2 bytes of ENVI binary to determine file type. If 1st
+        # bytes of flat binary is that of a jpeg but the binary is not then
+        # GDAL throws a libjpeg runtime error. Follow specifically tries to
+        # load as an ENVI file.
         ds = gdal.OpenEx(filename, gdal.OF_VERBOSE_ERROR,
                          allowed_drivers=['ENVI'])
         arr = ds.GetRasterBand(band).ReadAsArray()
         return arr
-    except:
-        error_channel = journal.error('helpers.open_raster')
-        err_str = f'{filename} cannot be opened by GDAL'
-        error_channel.log(err_str)
-        raise ValueError(err_str)
 
 
 def write_raster(filename, data_list, descriptions,

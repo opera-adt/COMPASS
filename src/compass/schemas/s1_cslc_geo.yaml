@@ -50,6 +50,10 @@ runconfig:
 
         # Quality assurance options
         quality_assurance: include('quality_assurance_options', required=False)
+
+        # Output options for geocoded rasters (CSLC datatype, compression, chunking, shuffle filter)
+        output: include('output_options', required=False)
+
 ---
 # Group of processing options
 processing_options:
@@ -65,10 +69,8 @@ processing_options:
    rdr2geo: include('rdr2geo_options', required=False)
 
 geocoding_options:
-    # Boolean flag to enable/disable flattenin
+    # Boolean flag to enable/disable flattening
     flatten: bool(required=False)
-    # Number of lines to process in batch
-    lines_per_block: int(min=1, required=False)
     # Product posting along X (same units as burst center EPSG)
     x_posting: num(min=0, required=False)
     # Product posting along Y (same units as burst center EPSG)
@@ -160,3 +162,16 @@ browse_image_options:
     gamma: num(min=0, required=False)
     # Enable/disable histogram equalization
     equalize: bool(required=False)
+
+output_options:
+    # Data type of CSLC raster (default complex64_zero_mantissa)
+    cslc_data_type: enum('complex32', 'complex64', 'complex64_zero_mantissa', required=False)
+    # Enable/disable gzip compression of raster (default True)
+    compression_enabled: bool(required=False)
+    # Level of compression applied to raster (default 4)
+    # 1 - least compression, 9 - best compresssion
+    compression_level: int(min=1, max=9, required=False)
+    # Chunk size of raster (default [128, 128])
+    chunk_size: list(int(min=4), min=2, max=2, required=False)
+    # Enable/disable shuffle filtering of rasters (default True)
+    shuffle: bool(required=False)

@@ -106,14 +106,15 @@ def _determine_fill_value(dtype):
             return fill_val
 
 
-def create_geocoded_dataset(data_group, dataset_name, geo_grid, dtype,
-                            description, data=None):
+def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
+                          description, data=None, output_cfg=None):
     '''
-    Create NC compliant dataset for isce.geocode.geocode_slc to write to, if
-    no data is provided, and if data is provided, then poplulate dataset with
-    said data.
+    Create and allocate dataset for isce.geocode.geocode_slc to write to that
+    is CF-compliant
 
-    data_group: h5py.Group
+    Parameters
+    ----------
+    grid_group: h5py.Group
         h5py group where geocoded dataset will be created in
     dataset_name: str
         Name of dataset to be created
@@ -123,24 +124,36 @@ def create_geocoded_dataset(data_group, dataset_name, geo_grid, dtype,
         Data type of dataset to be geocoded
     description: str
         Description of dataset to be geocoded
+    data: np.ndarray
+        Array to set dataset raster with
+    output_cfg: dict
+        Optional dict containing output options in runconfig to apply to
+        created datasets
 
     Returns
     -------
     cslc_ds: h5py.Dataset
-        h5py dataset ready to be populated with geocoded dataset
+        NCDF compliant h5py dataset ready to be populated with geocoded raster
     '''
-    # Determine fill value of dataset
-    fill_val = _determine_fill_value(dtype)
-    if fill_val is None:
-        raise ValueError(f'Unexpected COMPASS geocoded dataset type: {dtype}')
+    # Default to no dataset keyword args
+    output_kwargs = {}
+
+    # Always set chunks kwarg
+    output_kwargs['chunks'] = tuple(output_cfg.chunk_size)
+
+    # If compression is enabled, populate kwargs from runconfig contents
+    if output_cfg.compression_enabled:
+        output_kwargs['compression'] = 'gzip'
+        output_kwargs['compression_opts'] = output_cfg.compression_level
+        output_kwargs['shuffle'] = output_cfg.shuffle
 
     shape = (geo_grid.length, geo_grid.width)
     if data is None:
-        cslc_ds = data_group.require_dataset(dataset_name, dtype=dtype,
-                                             shape=shape, fillvalue=fill_val)
+        cslc_ds = grid_group.require_dataset(dataset_name, dtype=dtype,
+                                             shape=shape, **output_kwargs)
     else:
-        cslc_ds = data_group.create_dataset(dataset_name, data=data,
-                                            fillvalue=fill_val)
+        cslc_ds = grid_group.create_dataset(dataset_name, data=data,
+                                            **output_kwargs)
 
     cslc_ds.attrs['description'] = description
 
@@ -158,9 +171,9 @@ def create_geocoded_dataset(data_group, dataset_name, geo_grid, dtype,
 
     # following copied and pasted (and slightly modified) from:
     # https://github-fn.jpl.nasa.gov/isce-3/isce/wiki/CF-Conventions-and-Map-Projections
-    x_ds = data_group.require_dataset('x_coordinates', dtype='float64',
+    x_ds = grid_group.require_dataset('x_coordinates', dtype='float64',
                                       data=x_vect, shape=x_vect.shape)
-    y_ds = data_group.require_dataset('y_coordinates', dtype='float64',
+    y_ds = grid_group.require_dataset('y_coordinates', dtype='float64',
                                       data=y_vect, shape=y_vect.shape)
 
     # Mapping of dimension scales to datasets is not done automatically in HDF5
@@ -184,14 +197,14 @@ def create_geocoded_dataset(data_group, dataset_name, geo_grid, dtype,
              {'units': 'meters'})
     ]
     for meta_item in grid_meta_items:
-        add_dataset_and_attrs(data_group, meta_item)
+        add_dataset_and_attrs(grid_group, meta_item)
 
     # Set up osr for wkt
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(geo_grid.epsg)
 
     #Create a new single int dataset for projections
-    projection_ds = data_group.require_dataset('projection', (), dtype='i')
+    projection_ds = grid_group.require_dataset('projection', (), dtype='i')
     projection_ds[()] = geo_grid.epsg
 
     # WGS84 ellipsoid

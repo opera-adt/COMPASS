@@ -81,7 +81,7 @@ def run(cfg, burst, fetch_from_scratch=False):
     info_channel.log(f"Starting {module_name} burst")
 
     # Start tracking processing time
-    t_start = time.time()
+    t_start = time.perf_counter()
 
     # common initializations
     dem_raster = isce3.io.Raster(cfg.dem)
@@ -138,10 +138,10 @@ def run(cfg, burst, fetch_from_scratch=False):
                              'incidence'),
          'local_incidence_angle': (cfg.rdr2geo_params.compute_local_incidence_angle,
                                    'local_incidence'),
-         'heading_angle': (cfg.rdr2geo_params.compute_azimuth_angle,
-                           'heading'),
-         'layover_shadow_mask': (cfg.rdr2geo_params.compute_layover_shadow_mask,
-                                 'layover_shadow_mask')
+         'east_los_vector': (cfg.rdr2geo_params.compute_ground_to_sat_east,
+                            'los_east'),
+         'north_los_vector': (cfg.rdr2geo_params.compute_ground_to_sat_north,
+                              'los_north')
          }
 
     out_h5 = f'{out_paths.output_directory}/static_layers_{burst_id}.h5'

@@ -68,7 +68,7 @@ def run(cfg: GeoRunConfig):
         # Generate required static layers
         rdr2geo_cfg = _make_rdr2geo_cfg(cfg.yaml_string)
         s1_rdr2geo.run(rdr2geo_cfg, burst, save_in_scratch=True)
-        s1_geocode_metadata.run(cfg, burst, fetch_from_scratch=True)
+        #s1_geocode_metadata.run(cfg, burst, fetch_from_scratch=True)
 
     dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
     info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")

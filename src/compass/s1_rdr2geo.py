@@ -31,7 +31,7 @@ def run(cfg, burst=None, save_in_scratch=False):
     info_channel.log(f"Starting {module_name} burst")
 
     # Tracking time elapsed for processing
-    t_start = time.time()
+    t_start = time.perf_counter()
 
     # Extract rdr2geo cfg
     rdr2geo_cfg = cfg.rdr2geo_params
@@ -116,7 +116,12 @@ def run(cfg, burst=None, save_in_scratch=False):
                        rdr2geo_cfg.compute_local_incidence_angle,
                        gdal.GDT_Float32),
                        'heading': (
-                       rdr2geo_cfg.compute_azimuth_angle, gdal.GDT_Float32)}
+                       rdr2geo_cfg.compute_azimuth_angle, gdal.GDT_Float32),
+                       'los_east': (
+                       rdr2geo_cfg.compute_ground_to_sat_east, gdal.GDT_Float32),
+                       'los_north': (
+                       rdr2geo_cfg.compute_ground_to_sat_north, gdal.GDT_Float32),
+                       }
         raster_list = [
             isce3.io.Raster(f'{output_path}/{fname}.rdr', rdr_grid.width,
                             rdr_grid.length, 1, dtype, 'ENVI')
@@ -125,7 +130,8 @@ def run(cfg, burst=None, save_in_scratch=False):
 
         x_raster, y_raster, z_raster, layover_shadow_raster, \
         incident_angle_raster, local_incident_angle_raster, \
-        azimuth_angle_raster = raster_list
+        azimuth_angle_raster, los_east_raster,\
+        los_north_raster = raster_list
 
         # run rdr2geo
         rdr2geo_obj.topo(dem_raster, x_raster=x_raster, y_raster=y_raster,
@@ -133,7 +139,9 @@ def run(cfg, burst=None, save_in_scratch=False):
                          incidence_angle_raster=incident_angle_raster,
                          local_incidence_angle_raster=local_incident_angle_raster,
                          heading_angle_raster=azimuth_angle_raster,
-                         layover_shadow_raster=layover_shadow_raster)
+                         layover_shadow_raster=layover_shadow_raster,
+                         ground_to_sat_east_raster=los_east_raster,
+                         ground_to_sat_north_raster=los_north_raster)
 
         # remove undesired/None rasters from raster list
         raster_list = [raster for raster in raster_list if raster is not None]

@@ -91,7 +91,11 @@ runconfig:
               # Enable/disable local incidence output
               compute_local_incidence_angle: True
               # Enable/disable azimuth angle output
-              compute_azimuth_angle: True
+              compute_azimuth_angle: False
+              # Enable/disable ground to satellite East LOS vector
+              compute_ground_to_sat_east: True
+              # Enable/disable ground to satellite North LOS vector
+              compute_ground_to_sat_north: True
 
       worker:
           # Optional. To prevent downloading DEM or other data (default: False)

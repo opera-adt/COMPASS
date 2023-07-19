@@ -127,6 +127,10 @@ rdr2geo_options:
     compute_local_incidence_angle: bool(required=False)
     # Enable/disable azimuth angle output
     compute_azimuth_angle: bool(required=False)
+    # Enable/disable ground to satellite East LOS vector
+    compute_ground_to_sat_east: bool(required=True)
+    # Enable/disable ground to satellite North LOS vector
+    compute_ground_to_sat_north: bool(required=False)
 
 worker_options:
     # To prevent downloading DEM / other data automatically. Default True

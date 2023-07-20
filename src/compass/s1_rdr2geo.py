@@ -103,7 +103,9 @@ def run(cfg, burst=None, save_in_scratch=False):
                               extraiter=rdr2geo_cfg.extraiter,
                               lines_per_block=rdr2geo_cfg.lines_per_block)
 
-        # prepare output rasters
+        # Dict containing the rdr2geo layers to generate and their filenames
+        # key: rdr2geo layer name
+        # value: (boolean flag; True if layers needs to be generated, layer name)
         topo_output = {'x': (rdr2geo_cfg.compute_longitude, gdal.GDT_Float64),
                        'y': (rdr2geo_cfg.compute_latitude, gdal.GDT_Float64),
                        'z': (rdr2geo_cfg.compute_height, gdal.GDT_Float64),

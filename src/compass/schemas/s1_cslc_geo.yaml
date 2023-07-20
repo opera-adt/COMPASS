@@ -121,12 +121,8 @@ rdr2geo_options:
     compute_height: bool(required=False)
     # Enable/disable layover shadow mask output
     compute_layover_shadow_mask: bool(required=False)
-    # Enable/disable incidence angle output
-    compute_incidence_angle: bool(required=False)
     # Enable/disable local incidence output
     compute_local_incidence_angle: bool(required=False)
-    # Enable/disable azimuth angle output
-    compute_azimuth_angle: bool(required=False)
     # Enable/disable ground to satellite East LOS vector
     compute_ground_to_sat_east: bool(required=False)
     # Enable/disable ground to satellite North LOS vector

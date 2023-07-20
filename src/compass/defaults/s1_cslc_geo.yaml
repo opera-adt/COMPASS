@@ -86,12 +86,8 @@ runconfig:
               compute_height: False
               # Enable/disable layover shadow mask output
               compute_layover_shadow_mask: True
-              # Enable/disable incidence angle output
-              compute_incidence_angle: True
               # Enable/disable local incidence output
               compute_local_incidence_angle: True
-              # Enable/disable azimuth angle output
-              compute_azimuth_angle: False
               # Enable/disable ground to satellite East LOS vector
               compute_ground_to_sat_east: True
               # Enable/disable ground to satellite North LOS vector

@@ -12,6 +12,10 @@ from osgeo import gdal
 from scipy.interpolate import InterpolatedUnivariateSpline
 
 from compass import s1_rdr2geo
+from compass.s1_rdr2geo import (file_name_los_east,
+                                file_name_los_north,file_name_local_incidence,
+                                file_name_layover, file_name_x,
+                                file_name_y, file_name_z)
 from compass.s1_cslc_qa import QualityAssuranceCSLC
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.h5_helpers import (algorithm_metadata_to_h5group,
@@ -131,17 +135,17 @@ def run(cfg, burst, fetch_from_scratch=False):
     # key: dataset name
     # value: (bool flag if dataset is to written, raster layer name)
     static_layers = \
-        {'x': (cfg.rdr2geo_params.compute_longitude, 'x'),
-         'y': (cfg.rdr2geo_params.compute_latitude, 'y'),
-         'z': (cfg.rdr2geo_params.compute_height, 'z'),
-         'incidence_angle': (cfg.rdr2geo_params.compute_incidence_angle,
-                             'incidence'),
-         'local_incidence_angle': (cfg.rdr2geo_params.compute_local_incidence_angle,
-                                   'local_incidence'),
-         'east_los_vector': (cfg.rdr2geo_params.compute_ground_to_sat_east,
-                            'los_east'),
-         'north_los_vector': (cfg.rdr2geo_params.compute_ground_to_sat_north,
-                              'los_north')
+        {file_name_x: (cfg.rdr2geo_params.compute_longitude, 'x'),
+         file_name_y: (cfg.rdr2geo_params.compute_latitude, 'y'),
+         file_name_z: (cfg.rdr2geo_params.compute_height, 'z'),
+         file_name_local_incidence: (cfg.rdr2geo_params.compute_local_incidence_angle,
+                                    'local_incidence'),
+         file_name_los_east: (cfg.rdr2geo_params.compute_ground_to_sat_east,
+                             'los_east'),
+         file_name_los_north: (cfg.rdr2geo_params.compute_ground_to_sat_north,
+                              'los_north'),
+         file_name_layover: (cfg.rdr2geo_params.compute_layover_shadow_mask,
+                             'layover_shadow_mask')
          }
 
     out_h5 = f'{out_paths.output_directory}/static_layers_{burst_id}.h5'

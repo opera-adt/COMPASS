@@ -46,7 +46,6 @@ runconfig:
           polarization: co-pol
           geocoding:
               flatten: True
-              lines_per_block: 1000
               x_posting:
               y_posting:
               x_snap:
@@ -71,8 +70,6 @@ runconfig:
                  delay_type: wet_dry
 
           rdr2geo:
-              # Enable/disable computation of topo layers
-              enabled: False
               # Convergence threshold for rdr2geo algorithm
               threshold: 1.0e-8
               # Maximum number of iterations
@@ -95,8 +92,6 @@ runconfig:
               compute_local_incidence_angle: True
               # Enable/disable azimuth angle output
               compute_azimuth_angle: True
-              # Enable/disable generation of the topo layers
-              geocode_metadata_layers: True
 
       worker:
           # Optional. To prevent downloading DEM or other data (default: False)
@@ -123,3 +118,16 @@ runconfig:
               equalize: False
           perform_qa: True
           output_to_json: False
+
+      # Output options for CSLC raster (e.g. compression, chunking, shuffle filter)
+      output:
+          # Data type of CSLC raster
+          cslc_data_type: complex64_zero_mantissa
+          # Enable gzip compression of rasters
+          compression_enabled: True
+          # Level of compression applied to rasters
+          compression_level: 4
+          # Chunk size of rasters
+          chunk_size: [128, 128]
+          # Enable shuffle filtering of rasters
+          shuffle: True

@@ -2,7 +2,6 @@
 
 """Wrapper for resample"""
 
-from datetime import timedelta
 import os
 import time
 
@@ -10,7 +9,7 @@ import isce3
 import journal
 from osgeo import gdal
 
-from compass.utils.helpers import get_module_name
+from compass.utils.helpers import get_module_name, get_time_delta_str
 from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -81,7 +80,7 @@ def run(cfg: dict):
         burst.slc_to_vrt_file(sec_burst_path)
         original_raster = isce3.io.Raster(sec_burst_path)
 
-        # Prepare resamled SLC as raster object
+        # Prepare resampled SLC as raster object
         coreg_burst_path = f'{out_paths.output_directory}/{out_paths.file_name_stem}.slc'
         resampled_raster = isce3.io.Raster(coreg_burst_path,
                                            rg_off_raster.width,
@@ -93,7 +92,7 @@ def run(cfg: dict):
                           rg_off_raster, az_off_raster,
                           flatten=cfg.resample_params.flatten)
 
-    dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
+    dt = get_time_delta_str(t_start)
     info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
 
 

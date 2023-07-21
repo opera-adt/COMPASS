@@ -435,7 +435,7 @@ def identity_to_h5group(dst_group, burst, cfg, product_type,
 
 def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
                         save_processing_parameters=True,
-                        eap_correction_applied='NONE'):
+                        eap_correction_applied='None'):
     '''
     Write burst metadata to HDF5
 
@@ -616,7 +616,10 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
                  "If True, CSLC-S1 phase has been flattened with respect to a zero height ellipsoid"),
             Meta('elevation_antenna_pattern_correction_applied',
                  who_applied_eap_correction,
-                 "'OPERA': correction applied by s1-reader and COMPASS. 'ESA': correction was applied by ESA. 'NONE' when the correction was not applied."),
+                 ("Elevation antenna pattern correction. "
+                  "OPERA: correction applied by s1-reader and COMPASS. "
+                  "ESA: correction was applied by ESA. "
+                  "None: when the correction was not applied.")),
             Meta('topographic_flattening_applied',
                  bool(cfg.geocoding_params.flatten),
                  "If True, CSLC-S1 phase has been flattened with respect to topographic height using a DEM"),

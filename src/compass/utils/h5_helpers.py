@@ -217,13 +217,15 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
         projection_ds.attrs['utm_zone_number'] = geo_grid.epsg % 100
 
         #Setup units for x and y
+        x_ds.attrs['description'] = np.string_("CF compliant dimension associated with the X coordinate")
         x_ds.attrs['standard_name'] = np.string_("projection_x_coordinate")
         x_ds.attrs['long_name'] = np.string_("x coordinate of projection")
-        x_ds.attrs['units'] = np.string_("m")
+        x_ds.attrs['units'] = np.string_("meters")
 
+        y_ds.attrs['description'] = np.string_("CF compliant dimension associated with the Y coordinate")
         y_ds.attrs['standard_name'] = np.string_("projection_y_coordinate")
         y_ds.attrs['long_name'] = np.string_("y coordinate of projection")
-        y_ds.attrs['units'] = np.string_("m")
+        y_ds.attrs['units'] = np.string_("meters")
 
     # Polar Stereo North
     elif geo_grid.epsg == 3413:
@@ -307,7 +309,7 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
     return cslc_ds
 
 
-def save_orbit(orbit, orbit_direction, orbit_group):
+def save_orbit(orbit, orbit_direction, orbit_type, orbit_group):
     '''
     Write burst to HDF5
 
@@ -315,6 +317,10 @@ def save_orbit(orbit, orbit_direction, orbit_group):
     ---------
     orbit: isce3.core.Orbit
         ISCE3 orbit object
+    orbit_direction: string
+        Orbit direction: ascending or descending
+    orbit_type: string
+        Type of orbit: RESORB or POEORB
     orbit_group: h5py.Group
         HDF5 group where orbit parameters will be written
     '''
@@ -329,7 +335,7 @@ def save_orbit(orbit, orbit_direction, orbit_group):
              'Time of the orbit state vectors relative to the reference epoch',
              {'units': 'seconds'}),
         Meta('orbit_direction', orbit_direction,
-             'Direction of sensor orbit ephermeris (e.g., ascending, descending)')
+             'Direction of sensor orbit ephemeris (e.g., ascending, descending)')
     ]
     for i_ax, axis in enumerate('xyz'):
         desc_suffix = f'{axis}-direction with respect to WGS84 G1762 reference frame'
@@ -343,9 +349,8 @@ def save_orbit(orbit, orbit_direction, orbit_group):
         add_dataset_and_attrs(orbit_group, meta_item)
 
     orbit_ds = orbit_group.require_dataset("orbit_type", (), "S10",
-                                           data=np.string_("POE"))
-    orbit_ds.attrs["description"] = np.string_("PrOE (or) NOE (or) MOE (or) POE"
-                                        " (or) Custom")
+                                           data=np.string_(orbit_type))
+    orbit_ds.attrs["description"] = np.string_("RESORB: restituted orbit ephemeris or POEORB: precise orbit ephemeris")
 
 
 def get_polygon_wkt(burst: Sentinel1BurstSlc):
@@ -456,7 +461,19 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
     if 'orbit' in meta_group:
         del meta_group['orbit']
     orbit_group = meta_group.require_group('orbit')
-    save_orbit(burst.orbit, burst.orbit_direction, orbit_group)
+
+    # Get orbit type
+    orbit_file_path = os.path.basename(cfg.orbit_path[0])
+    if 'RESORB' in orbit_file_path:
+        orbit_type = 'RESORB'
+    if 'POEORB' in orbit_file_path:
+        orbit_type = 'POEORB'
+    else:
+        err_str = f'{cfg.orbit_path[0]} is not a valid RESORB/POERB file'
+        raise ValueError(err_str)
+
+    save_orbit(burst.orbit, burst.orbit_direction,
+               orbit_type, orbit_group)
 
     # create metadata group to write datasets to
     processing_group = meta_group.require_group('processing_information')
@@ -491,12 +508,12 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
     # input items
     orbit_files = [os.path.basename(f) for f in cfg.orbit_path]
     input_items = [
-        Meta('l1_slc_files', burst.safe_filename, 'Input L1 RSLC file used'),
-        Meta('orbit_files', orbit_files, 'List of input orbit files used'),
-        Meta('calibration_file', burst.burst_calibration.basename_cads,
-             'Input calibration file used'),
-        Meta('noise_file', burst.burst_noise.basename_nads,
-             'Input noise file used'),
+        Meta('l1_slc_files', burst.safe_filename, 'List of input L1 RSLC files used for processing'),
+        Meta('orbit_files', orbit_files, 'List of input orbit files used for processing'),
+        Meta('calibration_files', burst.burst_calibration.basename_cads,
+             'List of input calibration files used for processing'),
+        Meta('noise_files', burst.burst_noise.basename_nads,
+             'List of input noise files used for processing'),
         Meta('dem_source', os.path.basename(cfg.dem), 'source DEM file'),
     ]
     input_group = processing_group.require_group('inputs')
@@ -524,12 +541,12 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
     # burst items
     burst_meta_items = [
         Meta('ipf_version', str(burst.ipf_version),
-             'Image Processing Facility software version'),
+             'ESA Instrument Processing Facility software version'),
         Meta('sensing_start', burst.sensing_start.strftime(TIME_STR_FMT),
              'Sensing start time of the burst',
              {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
         Meta('radar_center_frequency', burst.radar_center_frequency,
-             'Radar center frequency', {'units':'Hz'}),
+             'Radar center frequency', {'units':'Hertz'}),
         Meta('wavelength', burst.wavelength,
              'Wavelength of the transmitted signal', {'units':'meters'}),
         Meta('azimuth_steering_rate', burst.azimuth_steer_rate,
@@ -552,14 +569,14 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
              {'units':'meters'}),
         Meta('range_sampling_rate', burst.range_sampling_rate,
              'Sampling rate of slant range in the input burst SLC',
-             {'units':'Hz'}),
+             {'units':'Hertz'}),
         Meta('range_pixel_spacing', burst.range_pixel_spacing,
              'Pixel spacing between slant range samples in the input burst SLC',
              {'units':'meters'}),
         Meta('shape', burst.shape, 'Shape (length, width) of the burst in radar coordinates',
              {'units':'pixels'}),
         Meta('range_bandwidth', burst.range_bandwidth,
-             'Slant range bandwidth of the signal', {'units':'Hz'}),
+             'Slant range bandwidth of the signal', {'units':'Hertz'}),
         Meta('polarization', burst.polarization, 'Polarization of the burst'),
         Meta('platform_id', burst.platform_id,
              'Sensor platform identification string (e.g., S1A or S1B)'),
@@ -574,9 +591,9 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
              "The number of Pulse Repetition Intervals (PRI) between transmitted pulse and return echo"),
         Meta('prf_raw_data', burst.prf_raw_data,
              'Pulse repetition frequency (PRF) of the raw data',
-             {'units':'Hz'}),
+             {'units':'Hertz'}),
         Meta('range_chirp_rate', burst.range_chirp_rate,
-             'Range chirp rate', {'units':'Hz'})
+             'Range chirp rate', {'units':'Hertz'})
     ]
     burst_meta_group = processing_group.require_group('input_burst_metadata')
     for meta_item in burst_meta_items:
@@ -693,11 +710,11 @@ def algorithm_metadata_to_h5group(parent_group, is_static_layers=False):
     algorithm_items = [
         Meta('dem_interpolation', 'biquintic', 'DEM interpolation method'),
         Meta('float_data_geocoding_interpolator', 'biquintic interpolation',
-             'Geocoding interpolation method'),
+             'Floating-point data geocoding interpolation method'),
         Meta('ISCE3_version', isce3.__version__,
              'ISCE3 version used for processing'),
-        Meta('s1Reader_version', s1reader.__version__,
-             'S1-Reader version used for processing'),
+        Meta('s1_reader_version', s1reader.__version__,
+             'S1 reader version used for processing'),
         Meta('COMPASS_version', compass.__version__,
              'COMPASS (CSLC-S1 processor) version used for processing')
     ]
@@ -845,7 +862,7 @@ def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,
         eap = burst.burst_eap
         eap_items = [
             Meta('sampling_frequency', eap.freq_sampling,
-                 'range sampling frequency', { 'units': 'Hz'}),
+                 'range sampling frequency', {'units': 'Hertz'}),
             Meta('eta_start', eap.eta_start.strftime(TIME_STR_FMT),
                  'Sensing start time', {'format': 'YYYY-MM-DD HH:MM:SS.6f'}),
             Meta('tau_0', eap.tau_0, 'slant range time of the product',

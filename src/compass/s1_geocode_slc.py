@@ -234,7 +234,8 @@ def run(cfg: GeoRunConfig):
             identity_to_h5group(root_group, burst, cfg, 'CSLC -S1',
                                 cfg.product_group.product_specification_version)
 
-            metadata_to_h5group(root_group, burst, cfg)
+            metadata_to_h5group(root_group, burst, cfg,
+                                eap_correction_applied=check_eap.phase_correction)
             algorithm_metadata_to_h5group(root_group)
             flatten_metadata_to_h5group(root_group, cfg)
             if cfg.lut_params.enabled:
@@ -243,8 +244,7 @@ def run(cfg: GeoRunConfig):
                 corrections_to_h5group(correction_group, burst, cfg, rg_lut, az_lut,
                                        scratch_path,
                                        weather_model_path=cfg.weather_model_file,
-                                       delay_type=cfg.tropo_params.delay_type,
-                                       flag_antenna_pattern_by_sas=check_eap.phase_correction)
+                                       delay_type=cfg.tropo_params.delay_type)
 
             # If needed, make browse image and compute CSLC raster stats
             browse_params = cfg.browse_image_params

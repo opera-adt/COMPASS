@@ -17,15 +17,12 @@ runconfig:
     primary_executable:
       product_type: CSLC_S1
     processing:
-      rdr2geo:
-        enabled: false
       geo2rdr:
         lines_per_block: 1000
         numiter: 25
         threshold: 1.0e-08
       geocoding:
         flatten: true
-        lines_per_block: 1000
         x_posting: 5
         x_snap: null
         y_posting: 10

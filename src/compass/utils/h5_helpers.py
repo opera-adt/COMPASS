@@ -83,6 +83,16 @@ def _determine_fill_value(dtype):
     '''
     Helper function to determine COMPASS specific fill values based on h5py
     Dataset type (dtype)
+
+    Parameters
+    ----------
+    dtype: type
+        Given numeric type whose corresponding fill value of same type is to be
+        determined
+
+    Returns:
+        Fill value of type dtype. An exception is raised if no appropriate
+        value is found.
     '''
     # Possible float types and float fill
     float_types = [np.double, np.single, np.float32, np.float64, 'float32',
@@ -102,7 +112,6 @@ def _determine_fill_value(dtype):
     for types, fill_val in zip([float_types, complex_types, int_types],
                                [float_fill, complex_fill, int_fill]):
         if any([dtype == t for t in types]):
-            print(dtype)
             return fill_val
 
 

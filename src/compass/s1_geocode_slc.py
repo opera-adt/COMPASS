@@ -159,7 +159,7 @@ def run(cfg: GeoRunConfig):
                                          temp_slc_path,
                                          temp_slc_path_corrected,
                                          check_eap)
-                
+
                     # Replace the input burst if the correction is applied
                     temp_slc_path = temp_slc_path_corrected
 

@@ -468,6 +468,9 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
         orbit_type = 'RESORB'
     if 'POEORB' in orbit_file_path:
         orbit_type = 'POEORB'
+    else:
+        err_str = f'{cfg.orbit_path[0]} is not a valid RESORB/POERB file'
+        raise ValueError(err_str)
 
     save_orbit(burst.orbit, burst.orbit_direction,
                orbit_type, orbit_group)

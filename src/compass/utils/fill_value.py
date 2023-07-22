@@ -1,7 +1,7 @@
 '''
 Class and function for helping set and determine dataset fill values
 '''
-from dataclasses  dataclass
+from dataclasses import dataclass
 
 import numpy as np
 

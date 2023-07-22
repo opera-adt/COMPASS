@@ -130,9 +130,8 @@ def init_geocoded_dataset(data_group, dataset_name, geo_grid, dtype,
     shape = (geo_grid.length, geo_grid.width)
     if data is None:
         # Determine fill value of dataset
-        _fill_val = determine_fill_value(dtype) \
-            if fill_val is None \
-            else fill_val
+        _fill_val = determine_fill_value(dtype, fill_val)
+
         # Create a dataset with shape and a fill value from above
         cslc_ds = data_group.require_dataset(dataset_name, dtype=dtype,
                                              shape=shape, fillvalue=_fill_val,

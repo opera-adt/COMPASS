@@ -40,7 +40,7 @@ class FillValues:
         '''
         return cls(np.single(user_defined_value),
                    np.csingle(user_defined_value),
-                   np.intc(user_defined_value)
+                   np.intc(user_defined_value))
 
 
 def determine_fill_value(dtype, usr_fill_val=None):

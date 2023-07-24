@@ -61,12 +61,12 @@ def determine_fill_value(dtype, usr_fill_val=None):
         value is found.
     '''
     if usr_fill_val is None:
+        fill_values = FillValues()
+    else:
         # Assign user provided non-default value to all fill values in
         # FillValues object with correct typing. Logic below will return on
         # accordingly.
         fill_values = FillValues.from_user_defined_value(usr_fill_val)
-    else:
-        fill_values = FillValues()
 
     # Check if float type and return float fill
     float_types = [np.double, np.single, np.float32, np.float64, 'float32',

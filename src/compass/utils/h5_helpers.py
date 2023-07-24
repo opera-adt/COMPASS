@@ -14,7 +14,7 @@ from s1reader.s1_burst_slc import Sentinel1BurstSlc
 import shapely
 
 import compass
-from compass.utils.fill_value import determine_fill_value, FillValues
+from compass.utils.fill_value import determine_fill_value
 
 
 TIME_STR_FMT = '%Y-%m-%d %H:%M:%S.%f'

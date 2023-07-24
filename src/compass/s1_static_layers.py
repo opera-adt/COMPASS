@@ -5,7 +5,8 @@ import time
 from datetime import timedelta
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.yaml_argparse import YamlArgparse
-from compass.utils.helpers import bursts_grouping_generator, get_module_name
+from compass.utils.helpers import (bursts_grouping_generator, get_module_name,
+                                   get_time_delta_str)
 from compass import s1_rdr2geo
 from compass import s1_geocode_metadata
 
@@ -70,7 +71,7 @@ def run(cfg: GeoRunConfig):
         s1_rdr2geo.run(rdr2geo_cfg, burst, save_in_scratch=True)
         s1_geocode_metadata.run(cfg, burst, fetch_from_scratch=True)
 
-    dt = str(timedelta(seconds=time.time() - t_start)).split(".")[0]
+    dt = get_time_delta_str(t_start)
     info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
 
 

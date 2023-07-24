@@ -13,6 +13,14 @@ from compass.utils.radar_grid import rdr_grid_to_file
 from compass.utils.runconfig import RunConfig
 from compass.utils.yaml_argparse import YamlArgparse
 
+file_name_los_east = 'los_east'
+file_name_los_north = 'los_north'
+file_name_local_incidence = 'local_incidence'
+file_name_layover = 'layover_shadow_mask'
+file_name_x = 'x'
+file_name_y = 'y'
+file_name_z = 'z'
+
 
 def run(cfg, burst=None, save_in_scratch=False):
     '''run rdr2geo with provided runconfig
@@ -31,7 +39,7 @@ def run(cfg, burst=None, save_in_scratch=False):
     info_channel.log(f"Starting {module_name} burst")
 
     # Tracking time elapsed for processing
-    t_start = time.time()
+    t_start = time.perf_counter()
 
     # Extract rdr2geo cfg
     rdr2geo_cfg = cfg.rdr2geo_params
@@ -103,37 +111,40 @@ def run(cfg, burst=None, save_in_scratch=False):
                               extraiter=rdr2geo_cfg.extraiter,
                               lines_per_block=rdr2geo_cfg.lines_per_block)
 
-        # prepare output rasters
-        topo_output = {'x': (rdr2geo_cfg.compute_longitude, gdal.GDT_Float64),
-                       'y': (rdr2geo_cfg.compute_latitude, gdal.GDT_Float64),
-                       'z': (rdr2geo_cfg.compute_height, gdal.GDT_Float64),
-                       'layover_shadow_mask': (
+        # Dict containing the rdr2geo layers to generate and their filenames
+        # key: rdr2geo layer name
+        # value: (boolean flag; True if layers needs to be generated, layer name)
+        topo_output = {file_name_x: (rdr2geo_cfg.compute_longitude, gdal.GDT_Float64),
+                       file_name_y: (rdr2geo_cfg.compute_latitude, gdal.GDT_Float64),
+                       file_name_z: (rdr2geo_cfg.compute_height, gdal.GDT_Float64),
+                       file_name_layover: (
                        cfg.rdr2geo_params.compute_layover_shadow_mask,
                        gdal.GDT_Byte),
-                       'incidence': (rdr2geo_cfg.compute_incidence_angle,
-                                     gdal.GDT_Float32),
-                       'local_incidence': (
+                       file_name_local_incidence: (
                        rdr2geo_cfg.compute_local_incidence_angle,
                        gdal.GDT_Float32),
-                       'heading': (
-                       rdr2geo_cfg.compute_azimuth_angle, gdal.GDT_Float32)}
+                       file_name_los_east: (
+                       rdr2geo_cfg.compute_ground_to_sat_east, gdal.GDT_Float32),
+                       file_name_los_north: (
+                       rdr2geo_cfg.compute_ground_to_sat_north, gdal.GDT_Float32),
+                       }
         raster_list = [
             isce3.io.Raster(f'{output_path}/{fname}.rdr', rdr_grid.width,
                             rdr_grid.length, 1, dtype, 'ENVI')
             if enabled else None
             for fname, (enabled, dtype) in topo_output.items()]
 
-        x_raster, y_raster, z_raster, layover_shadow_raster, \
-        incident_angle_raster, local_incident_angle_raster, \
-        azimuth_angle_raster = raster_list
+        (x_raster, y_raster, z_raster, layover_shadow_raster,
+         local_incident_angle_raster, los_east_raster,
+         los_north_raster) = raster_list
 
         # run rdr2geo
         rdr2geo_obj.topo(dem_raster, x_raster=x_raster, y_raster=y_raster,
                          height_raster=z_raster,
-                         incidence_angle_raster=incident_angle_raster,
                          local_incidence_angle_raster=local_incident_angle_raster,
-                         heading_angle_raster=azimuth_angle_raster,
-                         layover_shadow_raster=layover_shadow_raster)
+                         layover_shadow_raster=layover_shadow_raster,
+                         ground_to_sat_east_raster=los_east_raster,
+                         ground_to_sat_north_raster=los_north_raster)
 
         # remove undesired/None rasters from raster list
         raster_list = [raster for raster in raster_list if raster is not None]

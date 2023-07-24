@@ -128,7 +128,10 @@ class QualityAssuranceCSLC:
         # path to source group
         static_layer_path = f'{DATA_PATH}'
 
-        # Get the static layer to compute stats for
+        # Get the static layer to compute stats
+        # Following dict tracks which static layers to generate
+        # key: file name of static layer
+        # value: bool flag from runconfig that determines if layer is computed
         static_layers_dict = {
             file_name_x: rdr2geo_params.compute_longitude,
             file_name_y: rdr2geo_params.compute_latitude,

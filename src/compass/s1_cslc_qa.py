@@ -10,8 +10,7 @@ import numpy as np
 
 from compass.s1_rdr2geo import (file_name_los_east,
                                 file_name_los_north,file_name_local_incidence,
-                                file_name_layover, file_name_x,
-                                file_name_y, file_name_z)
+                                file_name_x, file_name_y, file_name_z)
 from compass.utils.h5_helpers import (DATA_PATH, METADATA_PATH, TIME_STR_FMT,
                                       QA_PATH, add_dataset_and_attrs, Meta)
 

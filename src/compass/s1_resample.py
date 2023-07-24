@@ -28,7 +28,7 @@ def run(cfg: dict):
     info_channel.log(f"Starting {module_name} burst")
 
     # Tracking time elapsed for processing
-    t_start = time.time()
+    t_start = time.perf_counter()
 
     # Check if user wants to use GPU for processing
     # Instantiate and initialize resample object

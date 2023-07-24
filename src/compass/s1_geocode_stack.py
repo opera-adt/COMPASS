@@ -403,7 +403,7 @@ def run(slc_dir, dem_file, burst_id=None, common_bursts_only=False, start_date=N
         Flag to indicate if SAFE files are zipped or not (default: True).
         Will search for .zip files if True, and .SAFE directories if False.
     """
-    start_time = time.time()
+    start_time = time.perf_counter()
     error = journal.error('s1_geo_stack_processor.main')
     info = journal.info('s1_geo_stack_processor.main')
 
@@ -476,7 +476,7 @@ def run(slc_dir, dem_file, burst_id=None, common_bursts_only=False, start_date=N
             rsh.write(
                 f'python {path}/s1_cslc.py {runconfig_path}\n')
 
-    end_time = time.time()
+    end_time = time.perf_counter()
     print('Elapsed time (min):', (end_time - start_time) / 60.0)
 
 

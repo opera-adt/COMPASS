@@ -134,9 +134,9 @@ def run(cfg, burst=None, save_in_scratch=False):
             if enabled else None
             for fname, (enabled, dtype) in topo_output.items()]
 
-        x_raster, y_raster, z_raster, layover_shadow_raster, \
-        local_incident_angle_raster, los_east_raster,\
-        los_north_raster = raster_list
+        (x_raster, y_raster, z_raster, layover_shadow_raster,
+         local_incident_angle_raster, los_east_raster,
+         los_north_raster) = raster_list
 
         # run rdr2geo
         rdr2geo_obj.topo(dem_raster, x_raster=x_raster, y_raster=y_raster,

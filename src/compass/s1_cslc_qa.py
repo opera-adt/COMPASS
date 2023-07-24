@@ -8,6 +8,9 @@ from pathlib import Path
 import isce3
 import numpy as np
 
+from compass.s1_rdr2geo import (file_name_los_east,
+                                file_name_los_north,file_name_local_incidence,
+                                file_name_x, file_name_y, file_name_z)
 from compass.utils.h5_helpers import (DATA_PATH, METADATA_PATH, TIME_STR_FMT,
                                       QA_PATH, add_dataset_and_attrs, Meta)
 
@@ -125,14 +128,17 @@ class QualityAssuranceCSLC:
         # path to source group
         static_layer_path = f'{DATA_PATH}'
 
-        # Get the static layer to compute stats for
+        # Get the static layer to compute stats
+        # Following dict tracks which static layers to generate
+        # key: file name of static layer
+        # value: bool flag from runconfig that determines if layer is computed
         static_layers_dict = {
-            'x': rdr2geo_params.compute_longitude,
-            'y': rdr2geo_params.compute_latitude,
-            'z': rdr2geo_params.compute_height,
-            'incidence_angle': rdr2geo_params.compute_incidence_angle,
-            'local_incidence_angle': rdr2geo_params.compute_local_incidence_angle,
-            'heading_angle': rdr2geo_params.compute_azimuth_angle
+            file_name_x: rdr2geo_params.compute_longitude,
+            file_name_y: rdr2geo_params.compute_latitude,
+            file_name_z: rdr2geo_params.compute_height,
+            file_name_local_incidence: rdr2geo_params.compute_local_incidence_angle,
+            file_name_los_east: rdr2geo_params.compute_ground_to_sat_east,
+            file_name_los_north: rdr2geo_params.compute_ground_to_sat_north
         }
         static_layers = [key for key, val in static_layers_dict.items()
                          if val]

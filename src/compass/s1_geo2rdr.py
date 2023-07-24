@@ -28,7 +28,7 @@ def run(cfg: dict):
     info_channel.log(f'Starting {module_name} burst')
 
     # Tracking time elapsed for processing
-    t_start = time.time()
+    t_start = time.perf_counter()
 
     # Common initializations for different bursts
     dem_raster = isce3.io.Raster(cfg.dem)

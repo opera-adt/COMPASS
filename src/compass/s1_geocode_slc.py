@@ -252,7 +252,8 @@ def run(cfg: GeoRunConfig):
             identity_to_h5group(root_group, burst, cfg, 'CSLC -S1',
                                 cfg.product_group.product_specification_version)
 
-            metadata_to_h5group(root_group, burst, cfg)
+            metadata_to_h5group(root_group, burst, cfg,
+                                eap_correction_applied=check_eap.phase_correction)
             algorithm_metadata_to_h5group(root_group)
             flatten_metadata_to_h5group(root_group, cfg)
             if cfg.lut_params.enabled:

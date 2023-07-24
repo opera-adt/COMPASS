@@ -127,7 +127,12 @@ def init_geocoded_dataset(data_group, dataset_name, geo_grid, dtype,
         output_kwargs['compression_opts'] = output_cfg.compression_level
         output_kwargs['shuffle'] = output_cfg.shuffle
 
+    # Shape of dataset is defined by the geo grid
     shape = (geo_grid.length, geo_grid.width)
+
+    # If data is None, create dataset to specified parameters and fill with
+    # specified fill value. If data is not None, create a dataset with
+    # provided data.
     if data is None:
         # Determine fill value of dataset
         _fill_val = determine_fill_value(dtype, fill_val)

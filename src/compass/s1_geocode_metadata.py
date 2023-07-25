@@ -152,7 +152,7 @@ def run(cfg, burst, fetch_from_scratch=False):
                                'North component of unit vector of LOS from target to sensor'),
          file_name_layover: (cfg.rdr2geo_params.compute_layover_shadow_mask,
                              'layover_shadow_mask',
-                             'Layover shadow mask')
+                             'Layover shadow mask, 1=shadow, 2=layover, 3=shadow and layover')
          }
 
     out_h5 = f'{out_paths.output_directory}/static_layers_{burst_id}.h5'

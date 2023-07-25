@@ -133,19 +133,26 @@ def run(cfg, burst, fetch_from_scratch=False):
 
     # Dict containing which layers to geocode and their respective file names
     # key: dataset name
-    # value: (bool flag if dataset is to written, raster layer name)
+    # value: (bool flag if dataset is to written, raster layer name, description)
     static_layers = \
-        {file_name_x: (cfg.rdr2geo_params.compute_longitude, 'x'),
-         file_name_y: (cfg.rdr2geo_params.compute_latitude, 'y'),
-         file_name_z: (cfg.rdr2geo_params.compute_height, 'z'),
+        {file_name_x: (cfg.rdr2geo_params.compute_longitude, 'x',
+                       'Longitude coordinate in degrees'),
+         file_name_y: (cfg.rdr2geo_params.compute_latitude, 'y',
+                       'Latitude coordinate in degrees'),
+         file_name_z: (cfg.rdr2geo_params.compute_height, 'z',
+                       'Height in meters'),
          file_name_local_incidence: (cfg.rdr2geo_params.compute_local_incidence_angle,
-                                    'local_incidence'),
+                                    'local_incidence',
+                                     'Local incidence angle in degrees'),
          file_name_los_east: (cfg.rdr2geo_params.compute_ground_to_sat_east,
-                             'los_east'),
+                             'los_east',
+                             'East component of unit vector of LOS from target to sensor'),
          file_name_los_north: (cfg.rdr2geo_params.compute_ground_to_sat_north,
-                              'los_north'),
+                              'los_north',
+                               'North component of unit vector of LOS from target to sensor'),
          file_name_layover: (cfg.rdr2geo_params.compute_layover_shadow_mask,
-                             'layover_shadow_mask')
+                             'layover_shadow_mask',
+                             'Layover shadow mask, 1=shadow, 2=layover, 3=shadow and layover')
          }
 
     out_h5 = f'{out_paths.output_directory}/static_layers_{burst_id}.h5'
@@ -163,7 +170,8 @@ def run(cfg, burst, fetch_from_scratch=False):
         static_layer_data_group = h5_root.require_group(DATA_PATH)
 
         # Geocode designated layers
-        for dataset_name, (enabled, raster_file_name) in static_layers.items():
+        for dataset_name, (enabled, raster_file_name,
+                           description) in static_layers.items():
             if not enabled:
                 continue
 
@@ -180,7 +188,7 @@ def run(cfg, burst, fetch_from_scratch=False):
             # Create dataset with x/y coords/spacing and projection
             topo_ds = init_geocoded_dataset(static_layer_data_group,
                                             dataset_name, geo_grid, dtype,
-                                            np.string_(dataset_name),
+                                            description,
                                             output_cfg=cfg.output_params)
 
             # Init output and input isce3.io.Raster objects for geocoding

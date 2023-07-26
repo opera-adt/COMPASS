@@ -42,7 +42,7 @@ def _fix_layover_shadow_mask(static_layers_dict, h5_root, geo_grid,
 
     # find if a correctly masked dataset exists
     correctly_masked_dataset_name = ''
-    for dataset_name, (enabled, _) in static_layers_dict.items():
+    for dataset_name, (enabled, _, _) in static_layers_dict.items():
         if enabled and dataset_name != dst_ds_name:
             correctly_masked_dataset_name = dataset_name
             break
@@ -152,7 +152,7 @@ def run(cfg, burst, fetch_from_scratch=False):
                                'North component of unit vector of LOS from target to sensor'),
          file_name_layover: (cfg.rdr2geo_params.compute_layover_shadow_mask,
                              'layover_shadow_mask',
-                             'Layover shadow mask, 1=shadow, 2=layover, 3=shadow and layover')
+                             'Layover shadow mask. 0=no layover, no shadow; 1=shadow; 2=layover; 3=shadow and layover.')
          }
 
     out_h5 = f'{out_paths.output_directory}/static_layers_{burst_id}.h5'

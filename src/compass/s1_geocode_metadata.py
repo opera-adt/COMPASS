@@ -42,7 +42,8 @@ def _fix_layover_shadow_mask(static_layers_dict, h5_root, geo_grid,
 
     # find if a correctly masked dataset exists
     correctly_masked_dataset_name = ''
-    for dataset_name, (enabled, _, _) in static_layers_dict.items():
+    # only "enabled" from static_layers_dict.items() needed; ignore others
+    for dataset_name, (enabled, *_) in static_layers_dict.items():
         if enabled and dataset_name != dst_ds_name:
             correctly_masked_dataset_name = dataset_name
             break
@@ -61,9 +62,10 @@ def _fix_layover_shadow_mask(static_layers_dict, h5_root, geo_grid,
 
         # delete existing and rewrite with masked data
         del h5_root[layover_shadow_path]
+        desc = 'Layover shadow mask. 0=no layover, no shadow; 1=shadow; 2=layover; 3=shadow and layover.'
         _ = init_geocoded_dataset(h5_root[DATA_PATH], dst_ds_name, geo_grid,
                                   dtype=None,
-                                  description=np.string_(dst_ds_name),
+                                  description=np.string_(desc),
                                   data=temp_arr, output_cfg=output_params)
 
 

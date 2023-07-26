@@ -148,10 +148,10 @@ def run(cfg, burst, fetch_from_scratch=False):
                                      'Local incidence angle in degrees'),
          file_name_los_east: (cfg.rdr2geo_params.compute_ground_to_sat_east,
                              'los_east',
-                             'East component of unit vector of LOS from target to sensor'),
+                             'East component of LOS unit vector from target to sensor'),
          file_name_los_north: (cfg.rdr2geo_params.compute_ground_to_sat_north,
                               'los_north',
-                               'North component of unit vector of LOS from target to sensor'),
+                               'North component of LOS unit vector from target to sensor'),
          file_name_layover: (cfg.rdr2geo_params.compute_layover_shadow_mask,
                              'layover_shadow_mask',
                              'Layover shadow mask. 0=no layover, no shadow; 1=shadow; 2=layover; 3=shadow and layover.')

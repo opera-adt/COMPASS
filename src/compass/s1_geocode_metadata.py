@@ -42,7 +42,8 @@ def _fix_layover_shadow_mask(static_layers_dict, h5_root, geo_grid,
 
     # find if a correctly masked dataset exists
     correctly_masked_dataset_name = ''
-    for dataset_name, (enabled, _) in static_layers_dict.items():
+    # only "enabled" from static_layers_dict.items() needed; ignore others
+    for dataset_name, (enabled, *_) in static_layers_dict.items():
         if enabled and dataset_name != dst_ds_name:
             correctly_masked_dataset_name = dataset_name
             break
@@ -61,9 +62,10 @@ def _fix_layover_shadow_mask(static_layers_dict, h5_root, geo_grid,
 
         # delete existing and rewrite with masked data
         del h5_root[layover_shadow_path]
+        desc = 'Layover shadow mask. 0=no layover, no shadow; 1=shadow; 2=layover; 3=shadow and layover.'
         _ = init_geocoded_dataset(h5_root[DATA_PATH], dst_ds_name, geo_grid,
                                   dtype=None,
-                                  description=np.string_(dst_ds_name),
+                                  description=np.string_(desc),
                                   data=temp_arr, output_cfg=output_params)
 
 
@@ -146,13 +148,13 @@ def run(cfg, burst, fetch_from_scratch=False):
                                      'Local incidence angle in degrees'),
          file_name_los_east: (cfg.rdr2geo_params.compute_ground_to_sat_east,
                              'los_east',
-                             'East component of unit vector of LOS from target to sensor'),
+                             'East component of LOS unit vector from target to sensor'),
          file_name_los_north: (cfg.rdr2geo_params.compute_ground_to_sat_north,
                               'los_north',
-                               'North component of unit vector of LOS from target to sensor'),
+                               'North component of LOS unit vector from target to sensor'),
          file_name_layover: (cfg.rdr2geo_params.compute_layover_shadow_mask,
                              'layover_shadow_mask',
-                             'Layover shadow mask, 1=shadow, 2=layover, 3=shadow and layover')
+                             'Layover shadow mask. 0=no layover, no shadow; 1=shadow; 2=layover; 3=shadow and layover.')
          }
 
     out_h5 = f'{out_paths.output_directory}/static_layers_{burst_id}.h5'

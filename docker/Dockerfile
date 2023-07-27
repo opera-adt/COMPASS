@@ -53,7 +53,8 @@ RUN mkdir RAiDER &&\
     cd RAiDER &&\
     git checkout tags/v0.4.2 &&\
     cd .. &&\
-    python -m pip install ./RAiDER
+    python -m pip install ./RAiDER &&\
+    rm -rf RAiDER
 
 
 # installing OPERA COMPASS

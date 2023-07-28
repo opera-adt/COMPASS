@@ -124,7 +124,7 @@ def run(cfg: GeoRunConfig):
             geo_burst_h5.attrs["contact"] = np.string_("operaops@jpl.nasa.gov")
             geo_burst_h5.attrs["institution"] = np.string_("NASA JPL")
             geo_burst_h5.attrs["project_name"] = np.string_("OPERA")
-            geo_burst_h5.attrs["reference_document"] = np.string_("TBD")
+            geo_burst_h5.attrs["reference_document"] = np.string_("JPL-108278")
             geo_burst_h5.attrs["title"] = np.string_("OPERA L2_CSLC_S1 Product")
 
             # add type to root for GDAL recognition of datasets

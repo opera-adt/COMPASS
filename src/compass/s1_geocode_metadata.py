@@ -144,7 +144,7 @@ def run(cfg, burst, fetch_from_scratch=False):
          file_name_z: (cfg.rdr2geo_params.compute_height, 'z',
                        'Height in meters'),
          file_name_local_incidence: (cfg.rdr2geo_params.compute_local_incidence_angle,
-                                    'local_incidence',
+                                    'local_incidence_angle',
                                      'Local incidence angle in degrees'),
          file_name_los_east: (cfg.rdr2geo_params.compute_ground_to_sat_east,
                              'los_east',

@@ -155,7 +155,7 @@ def _compare_static_layer_rasters(file_ref, file_sec, static_layer_items):
     static_layer_items: list[str]
         List of names of static layers to compare
     """
-    data_path = f'{DATA_PATH}/static_layers'
+    data_path = f'{DATA_PATH}'
     with h5py.File(file_ref, 'r') as h_ref, h5py.File(file_sec, 'r') as h_sec:
         for static_layer_item in static_layer_items:
             if static_layer_item == 'layover_shadow_mask':

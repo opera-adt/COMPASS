@@ -20,7 +20,6 @@ from compass.utils.elevation_antenna_pattern import apply_eap_correction
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.h5_helpers import (algorithm_metadata_to_h5group,
                                       corrections_to_h5group,
-                                      flatten_metadata_to_h5group,
                                       identity_to_h5group,
                                       init_geocoded_dataset,
                                       metadata_to_h5group,
@@ -255,7 +254,6 @@ def run(cfg: GeoRunConfig):
             metadata_to_h5group(root_group, burst, cfg,
                                 eap_correction_applied=check_eap.phase_correction)
             algorithm_metadata_to_h5group(root_group)
-            flatten_metadata_to_h5group(root_group, cfg)
             if cfg.lut_params.enabled:
                 correction_group = geo_burst_h5.require_group(
                     f'{METADATA_PATH}/processing_information')

@@ -159,6 +159,15 @@ def run(cfg, burst, fetch_from_scratch=False):
 
     out_h5 = f'{out_paths.output_directory}/static_layers_{burst_id}.h5'
     with h5py.File(out_h5, 'w') as h5_root:
+
+        # Global attributes for static layers
+        h5_root.attrs['conventions'] = "CF-1.8"
+        h5_root.attrs["contact"] = np.string_("operaops@jpl.nasa.gov")
+        h5_root.attrs["institution"] = np.string_("NASA JPL")
+        h5_root.attrs["project_name"] = np.string_("OPERA")
+        h5_root.attrs["reference_document"] = np.string_("JPL-108762")
+        h5_root.attrs["title"] = np.string_("OPERA_L2_CSLC-S1-STATIC Product")
+
         # write identity and metadata to HDF5
         root_group = h5_root[ROOT_PATH]
         metadata_to_h5group(root_group, burst, cfg, save_noise_and_cal=False,

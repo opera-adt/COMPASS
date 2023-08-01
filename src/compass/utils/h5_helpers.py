@@ -465,7 +465,7 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
 
     # Get orbit type
     orbit_file_path = os.path.basename(cfg.orbit_path[0])
-    print(orbit_file_path)
+
     if 'RESORB' in orbit_file_path:
         orbit_type = 'RESORB'
     if 'POEORB' in orbit_file_path:

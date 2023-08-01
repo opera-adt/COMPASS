@@ -79,7 +79,8 @@ def create_parser():
 
 
 def generate_burst_map(zip_files, orbit_dir, output_epsg=None, bbox=None,
-                       bbox_epsg=4326, burst_db_file=DEFAULT_BURST_DB_FILE):
+                       bbox_epsg=4326, burst_db_file=DEFAULT_BURST_DB_FILE,
+                       pol_type: str = "co-pol"):
     """Generates a dataframe of geogrid infos for each burst ID in `zip_files`.
 
     Parameters
@@ -98,6 +99,8 @@ def generate_burst_map(zip_files, orbit_dir, output_epsg=None, bbox=None,
         to be lon/lat degrees (default: 4326).
     burst_db_file: str
         Path to the burst database file to load bounding boxes.
+    pol-type: str
+        Polarizations to process. Choices: co-pol, cross-pol, dual-pol
 
     Returns
     -------
@@ -112,10 +115,11 @@ def generate_burst_map(zip_files, orbit_dir, output_epsg=None, bbox=None,
     i_subswath = [1, 2, 3]
 
     for zip_file in zip_files:
+        pol = _get_pol_str(zip_file, pol_type)
         orbit_path = get_orbit_file_from_dir(zip_file, orbit_dir, auto_download=True)
 
         for subswath in i_subswath:
-            ref_bursts = load_bursts(zip_file, orbit_path, subswath)
+            ref_bursts = load_bursts(zip_file, orbit_path, subswath, pol=pol)
             for burst in ref_bursts:
                 epsg, bbox_utm = _get_burst_epsg_and_bbox(
                     burst, output_epsg, bbox, bbox_epsg, burst_db_file
@@ -135,6 +139,30 @@ def generate_burst_map(zip_files, orbit_dir, output_epsg=None, bbox=None,
     burst_map = pd.DataFrame(data=burst_map)
     return burst_map
 
+def _get_pol_str(zip_file, pol_type):
+    """Get the polarization string from the zip file name and the type of polarization."""
+    # S1A_IW_SLC__1SDV_20150224T114043_
+    # File name format:
+    # MMM_BB_TTTR_LFPP_YYYYMMDDTHHMMSS_YYYYMMDDTHHMMSS_OOOOOO_DDDDDD_CCCC.EEEE
+    # PP: Polarization: SH (single HH), SV (single VV), DH (dual HH+HV), DV (dual VV+VH)
+    from pathlib import Path
+    pp = Path(zip_file).stem[14:16]
+    count = pp[0]
+    h_or_v = pp[1]
+    if count == "S" and pol_type in ["dual-pol", "cross-pol"]:
+        raise ValueError(f"{zip_file} is single-pol. Unable to process {pol_type}")
+    if pol_type == "dual-pol":
+        raise NotImplementedError("TODO")
+        if h_or_v == "H":
+            return ["hh", "hv"]
+        else:
+            return ["vv", "vh"]
+    elif pol_type == "cross-pol":
+        return 'hv' if h_or_v == "H" else "vh"
+    elif pol_type == "co-pol":
+        return 'hh' if h_or_v == "H" else "vv"
+    else:
+        raise ValueError(f"Invalid {pol_type = }")
 
 def _get_burst_epsg_and_bbox(burst, output_epsg, bbox, bbox_epsg, burst_db_file):
     """Returns the EPSG code and bounding box for a burst.
@@ -437,7 +465,7 @@ def run(slc_dir, dem_file, burst_id=None, common_bursts_only=False, start_date=N
 
     info.log(f'Generating burst map for {len(zip_file_list)} SAFE files')
     burst_map = generate_burst_map(
-        zip_file_list, orbit_dir, output_epsg, bbox, bbox_epsg, burst_db_file
+        zip_file_list, orbit_dir, output_epsg, bbox, bbox_epsg, burst_db_file, pol_type=pol
     )
 
     # Identify burst IDs common across the stack and remove from the dataframe

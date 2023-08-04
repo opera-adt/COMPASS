@@ -56,9 +56,6 @@ def run(cfg: dict):
         # Get reference burst radar grid
         ref_rdr_grid = cfg.reference_radar_info.grid
 
-        # Extract polarization
-        pol = burst.polarization
-
         # Get radar grid
         rdr_grid = burst.as_isce3_radargrid()
 
@@ -76,7 +73,7 @@ def run(cfg: dict):
         az_off_raster = isce3.io.Raster(f'{offset_path}/azimuth.off')
 
         # Get original SLC as raster object
-        sec_burst_path = f'{cfg.scratch_path}/{burst_id}_{date_str}_{pol}.slc.vrt'
+        sec_burst_path = f'{out_paths.scratch_directory}/{out_paths.fname_pol}.slc.vrt'
         burst.slc_to_vrt_file(sec_burst_path)
         original_raster = isce3.io.Raster(sec_burst_path)
 

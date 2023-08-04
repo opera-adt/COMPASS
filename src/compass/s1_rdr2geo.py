@@ -74,7 +74,6 @@ def run(cfg, burst=None, save_in_scratch=False):
         # extract date string and create directory
         date_str = burst.sensing_start.strftime("%Y%m%d")
         burst_id = str(burst.burst_id)
-        pol = burst.polarization
 
         # init output directory in product_path
         burst_id_date_key = (burst_id, date_str)
@@ -85,7 +84,7 @@ def run(cfg, burst=None, save_in_scratch=False):
 
         # save SLC to ENVI for all bursts
         # run rdr2geo for only 1 burst avoid redundancy
-        burst.slc_to_file(f'{output_path}/{burst_id}_{date_str}_{pol}.slc')
+        burst.slc_to_file(f'{output_path}/{out_paths.fname_pol}.slc')
 
         # skip burst if id already rdr2geo processed
         # save id if not processed to avoid rdr2geo reprocessing

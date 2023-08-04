@@ -3,6 +3,7 @@ Class and function for helping set and determine dataset fill values
 '''
 from dataclasses import dataclass
 
+import journal
 import numpy as np
 
 
@@ -56,7 +57,8 @@ def determine_fill_value(dtype, usr_fill_val=None):
     usr_fill_val: float
         User specified non-default dataset fill value
 
-    Returns:
+    Returns
+    -------
         Fill value of type dtype. An exception is raised if no appropriate
         value is found.
     '''
@@ -85,4 +87,7 @@ def determine_fill_value(dtype, usr_fill_val=None):
         return fill_values.int_fill
 
     # No appropriate fill value found above. Raise exception.
-    raise ValueError(f'Unexpected COMPASS geocoded dataset type: {dtype}')
+    err_str = f'Unexpected COMPASS geocoded dataset type: {dtype}'
+    error_channel = journal.error('fill_value.determine_fill_value')
+    error_channel.log(err_str)
+    raise ValueError(err_str)

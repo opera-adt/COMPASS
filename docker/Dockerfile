@@ -1,8 +1,8 @@
 FROM oraclelinux:8
 
 LABEL author="OPERA ADT" \
-    description="s1 cslc 0.3 Gamma release" \
-    version="0.3-gamma"
+    description="s1 cslc 0.3.2 point release" \
+    version="0.3.2-point"
 
 # Update the base linux image to date
 # Create cache and config directory to be used for the dependencies
@@ -41,9 +41,9 @@ SHELL ["conda", "run", "-n", "COMPASS", "/bin/bash", "-c"]
 WORKDIR /home/compass_user/OPERA
 
 # installing OPERA s1-reader
-RUN curl -sSL https://github.com/opera-adt/s1-reader/archive/refs/tags/v0.1.7.tar.gz -o s1_reader_src.tar.gz &&\
+RUN curl -sSL https://github.com/isce-framework/s1-reader/archive/refs/tags/v0.2.0.tar.gz -o s1_reader_src.tar.gz &&\
     tar -xvf s1_reader_src.tar.gz &&\
-    ln -s s1-reader-0.1.7 s1-reader &&\
+    ln -s s1-reader-0.2.0 s1-reader &&\
     rm s1_reader_src.tar.gz &&\
     python -m pip install ./s1-reader
 
@@ -53,7 +53,8 @@ RUN mkdir RAiDER &&\
     cd RAiDER &&\
     git checkout tags/v0.4.2 &&\
     cd .. &&\
-    python -m pip install ./RAiDER
+    python -m pip install ./RAiDER &&\
+    rm -rf RAiDER
 
 
 # installing OPERA COMPASS

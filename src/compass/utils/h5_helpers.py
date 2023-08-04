@@ -484,9 +484,10 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
 
     # Get orbit type
     orbit_file_path = os.path.basename(cfg.orbit_path[0])
+
     if 'RESORB' in orbit_file_path:
         orbit_type = 'RESORB'
-    if 'POEORB' in orbit_file_path:
+    elif 'POEORB' in orbit_file_path:
         orbit_type = 'POEORB'
     else:
         err_str = f'{cfg.orbit_path[0]} is not a valid RESORB/POERB file'
@@ -694,32 +695,6 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
 
     poly1d_to_h5(burst_meta_group, 'azimuth_fm_rate', burst.azimuth_fm_rate)
     poly1d_to_h5(burst_meta_group, 'doppler', burst.doppler.poly1d)
-
-
-def flatten_metadata_to_h5group(parent_group, cfg):
-    '''
-    Write burst flattening metadata to HDF5
-
-    Parameter:
-    ---------
-    parent_group: h5py Group
-        HDF5 group Meta data will be written to
-    cfg: types.SimpleNamespace
-        SimpleNamespace containing run configuration
-    '''
-    # Add parameters group in processing information
-    par_meta_items = [
-        Meta('ellipsoidalFlatteningApplied', cfg.geocoding_params.flatten,
-             "If True, CSLC-S1 phase has been flatten with respect to a zero height ellipsoid",
-             {'units':'unitless'}),
-        Meta('topographicFlatteningApplied', cfg.geocoding_params.flatten,
-             "If True, CSLC-S1 phase has been flatten with respect to topographic height using a DEM",
-             {'units': 'unitless'}),
-    ]
-    par_meta_group = \
-        parent_group.require_group('metadata/processing_information/parameters')
-    for meta_item in par_meta_items:
-        add_dataset_and_attrs(par_meta_group, meta_item)
 
 
 def algorithm_metadata_to_h5group(parent_group, is_static_layers=False):

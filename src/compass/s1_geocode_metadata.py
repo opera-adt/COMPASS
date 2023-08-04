@@ -42,7 +42,8 @@ def _fix_layover_shadow_mask(static_layers_dict, h5_root, geo_grid,
 
     # find if a correctly masked dataset exists
     correctly_masked_dataset_name = ''
-    for dataset_name, (enabled, _) in static_layers_dict.items():
+    # only "enabled" from static_layers_dict.items() needed; ignore others
+    for dataset_name, (enabled, *_) in static_layers_dict.items():
         if enabled and dataset_name != dst_ds_name:
             correctly_masked_dataset_name = dataset_name
             break
@@ -61,9 +62,10 @@ def _fix_layover_shadow_mask(static_layers_dict, h5_root, geo_grid,
 
         # delete existing and rewrite with masked data
         del h5_root[layover_shadow_path]
+        desc = 'Layover shadow mask. 0=no layover, no shadow; 1=shadow; 2=layover; 3=shadow and layover.'
         _ = init_geocoded_dataset(h5_root[DATA_PATH], dst_ds_name, geo_grid,
                                   dtype=None,
-                                  description=np.string_(dst_ds_name),
+                                  description=np.string_(desc),
                                   data=temp_arr, output_cfg=output_params)
 
 
@@ -133,23 +135,39 @@ def run(cfg, burst, fetch_from_scratch=False):
 
     # Dict containing which layers to geocode and their respective file names
     # key: dataset name
-    # value: (bool flag if dataset is to written, raster layer name)
+    # value: (bool flag if dataset is to written, raster layer name, description)
     static_layers = \
-        {file_name_x: (cfg.rdr2geo_params.compute_longitude, 'x'),
-         file_name_y: (cfg.rdr2geo_params.compute_latitude, 'y'),
-         file_name_z: (cfg.rdr2geo_params.compute_height, 'z'),
+        {file_name_x: (cfg.rdr2geo_params.compute_longitude, 'x',
+                       'Longitude coordinate in degrees'),
+         file_name_y: (cfg.rdr2geo_params.compute_latitude, 'y',
+                       'Latitude coordinate in degrees'),
+         file_name_z: (cfg.rdr2geo_params.compute_height, 'z',
+                       'Height in meters'),
          file_name_local_incidence: (cfg.rdr2geo_params.compute_local_incidence_angle,
-                                    'local_incidence'),
+                                    'local_incidence_angle',
+                                     'Local incidence angle in degrees'),
          file_name_los_east: (cfg.rdr2geo_params.compute_ground_to_sat_east,
-                             'los_east'),
+                             'los_east',
+                             'East component of LOS unit vector from target to sensor'),
          file_name_los_north: (cfg.rdr2geo_params.compute_ground_to_sat_north,
-                              'los_north'),
+                              'los_north',
+                               'North component of LOS unit vector from target to sensor'),
          file_name_layover: (cfg.rdr2geo_params.compute_layover_shadow_mask,
-                             'layover_shadow_mask')
+                             'layover_shadow_mask',
+                             'Layover shadow mask. 0=no layover, no shadow; 1=shadow; 2=layover; 3=shadow and layover.')
          }
 
     out_h5 = f'{out_paths.output_directory}/static_layers_{burst_id}.h5'
     with h5py.File(out_h5, 'w') as h5_root:
+
+        # Global attributes for static layers
+        h5_root.attrs['conventions'] = "CF-1.8"
+        h5_root.attrs["contact"] = np.string_("operaops@jpl.nasa.gov")
+        h5_root.attrs["institution"] = np.string_("NASA JPL")
+        h5_root.attrs["project_name"] = np.string_("OPERA")
+        h5_root.attrs["reference_document"] = np.string_("JPL-108762")
+        h5_root.attrs["title"] = np.string_("OPERA_L2_CSLC-S1-STATIC Product")
+
         # write identity and metadata to HDF5
         root_group = h5_root[ROOT_PATH]
         metadata_to_h5group(root_group, burst, cfg, save_noise_and_cal=False,
@@ -163,7 +181,8 @@ def run(cfg, burst, fetch_from_scratch=False):
         static_layer_data_group = h5_root.require_group(DATA_PATH)
 
         # Geocode designated layers
-        for dataset_name, (enabled, raster_file_name) in static_layers.items():
+        for dataset_name, (enabled, raster_file_name,
+                           description) in static_layers.items():
             if not enabled:
                 continue
 
@@ -180,7 +199,7 @@ def run(cfg, burst, fetch_from_scratch=False):
             # Create dataset with x/y coords/spacing and projection
             topo_ds = init_geocoded_dataset(static_layer_data_group,
                                             dataset_name, geo_grid, dtype,
-                                            np.string_(dataset_name),
+                                            description,
                                             output_cfg=cfg.output_params)
 
             # Init output and input isce3.io.Raster objects for geocoding

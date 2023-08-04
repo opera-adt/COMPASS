@@ -20,7 +20,6 @@ from compass.utils.elevation_antenna_pattern import apply_eap_correction
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.h5_helpers import (algorithm_metadata_to_h5group,
                                       corrections_to_h5group,
-                                      flatten_metadata_to_h5group,
                                       identity_to_h5group,
                                       init_geocoded_dataset,
                                       metadata_to_h5group,
@@ -85,7 +84,6 @@ def run(cfg: GeoRunConfig):
         # Create scratch as needed
         scratch_path = out_paths.scratch_directory
 
-
         # If enabled, get range and azimuth LUTs
         t_corrections = time.perf_counter()
         if cfg.lut_params.enabled:
@@ -124,8 +122,8 @@ def run(cfg: GeoRunConfig):
             geo_burst_h5.attrs["contact"] = np.string_("operaops@jpl.nasa.gov")
             geo_burst_h5.attrs["institution"] = np.string_("NASA JPL")
             geo_burst_h5.attrs["project_name"] = np.string_("OPERA")
-            geo_burst_h5.attrs["reference_document"] = np.string_("TBD")
-            geo_burst_h5.attrs["title"] = np.string_("OPERA L2_CSLC_S1 Product")
+            geo_burst_h5.attrs["reference_document"] = np.string_("JPL-108278")
+            geo_burst_h5.attrs["title"] = np.string_("OPERA_L2_CSLC-S1 Product")
 
             # add type to root for GDAL recognition of datasets
             ctype = h5py.h5t.py_create(np.complex64)
@@ -255,7 +253,6 @@ def run(cfg: GeoRunConfig):
             metadata_to_h5group(root_group, burst, cfg,
                                 eap_correction_applied=check_eap.phase_correction)
             algorithm_metadata_to_h5group(root_group)
-            flatten_metadata_to_h5group(root_group, cfg)
             if cfg.lut_params.enabled:
                 correction_group = geo_burst_h5.require_group(
                     f'{METADATA_PATH}/processing_information')

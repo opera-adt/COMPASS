@@ -7,10 +7,11 @@ dependencies:
   - gdal>=3.3
   - isce3>=0.14.0
   - pandas>=1.4
+  - pillow>=7.0
   - pyproj>=3.3
   - pysolid>=0.3
   - ruamel.yaml>=0.15
-  - scipy>=1.0,
+  - scipy>=1.0,<1.13
   - yamale>=4.0
   - h5py>=3.5
   - shapely>=1.8

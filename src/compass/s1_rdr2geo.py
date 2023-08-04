@@ -74,7 +74,6 @@ def run(cfg, burst=None, save_in_scratch=False):
         # extract date string and create directory
         date_str = burst.sensing_start.strftime("%Y%m%d")
         burst_id = str(burst.burst_id)
-        pol = burst.polarization
 
         # init output directory in product_path
         burst_id_date_key = (burst_id, date_str)

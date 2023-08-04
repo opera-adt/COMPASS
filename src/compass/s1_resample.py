@@ -56,9 +56,6 @@ def run(cfg: dict):
         # Get reference burst radar grid
         ref_rdr_grid = cfg.reference_radar_info.grid
 
-        # Extract polarization
-        pol = burst.polarization
-
         # Get radar grid
         rdr_grid = burst.as_isce3_radargrid()
 

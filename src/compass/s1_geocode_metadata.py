@@ -64,7 +64,7 @@ def _fix_layover_shadow_mask(static_layers_dict, h5_root, geo_grid,
         del h5_root[layover_shadow_path]
         desc = 'Layover shadow mask. 0=no layover, no shadow; 1=shadow; 2=layover; 3=shadow and layover.'
         _ = init_geocoded_dataset(h5_root[DATA_PATH], dst_ds_name, geo_grid,
-                                  dtype=None,
+                                  dtype=np.int8,
                                   description=np.string_(desc),
                                   data=temp_arr, output_cfg=output_params)
 
@@ -473,10 +473,8 @@ if __name__ == "__main__":
     for _, bursts in bursts_grouping_generator(cfg.bursts):
         burst = bursts[0]
 
-        # Generate required static layers
-        if cfg.rdr2geo_params.enabled:
-            s1_rdr2geo.run(cfg, save_in_scratch=True)
+        # Generate required un-geocoded static layers
+        s1_rdr2geo.run(cfg, save_in_scratch=True)
 
-            # Geocode static layers if needed
-            if cfg.rdr2geo_params.geocode_metadata_layers:
-                run(cfg, burst, fetch_from_scratch=True)
+        # Geocode static layers generated in step above
+        run(cfg, burst, fetch_from_scratch=True)

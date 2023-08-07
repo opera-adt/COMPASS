@@ -130,13 +130,14 @@ def init_geocoded_dataset(data_group, dataset_name, geo_grid, dtype,
     # Shape of dataset is defined by the geo grid
     shape = (geo_grid.length, geo_grid.width)
 
+    # Determine fill value of dataset to either correctly init empty dataset
+    # and/or populate dataset attribute
+    _fill_val = determine_fill_value(dtype, fill_val)
+
     # If data is None, create dataset to specified parameters and fill with
     # specified fill value. If data is not None, create a dataset with
     # provided data.
     if data is None:
-        # Determine fill value of dataset
-        _fill_val = determine_fill_value(dtype, fill_val)
-
         # Create a dataset with shape and a fill value from above
         cslc_ds = data_group.require_dataset(dataset_name, dtype=dtype,
                                              shape=shape, fillvalue=_fill_val,
@@ -147,6 +148,7 @@ def init_geocoded_dataset(data_group, dataset_name, geo_grid, dtype,
                                             **output_kwargs)
 
     cslc_ds.attrs['description'] = description
+    cslc_ds.attrs['fill_value'] = _fill_val
 
     # Compute x scale
     dx = geo_grid.spacing_x

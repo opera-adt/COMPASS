@@ -18,6 +18,7 @@ Alternatively, you can install in developement mode:
 ```bash
 git clone https://github.com/opera-adt/COMPASS.git && cd COMPASS
 conda env create --file environment.yml
+conda activate compass
 python -m pip install -e .
 ```
 

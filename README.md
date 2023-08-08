@@ -12,8 +12,7 @@ The following will install COMPASS into a conda environment.
 conda install -c conda-forge compass
 ```
 
-
-Alternatively, you can install in developement mode:
+Alternatively, you can install in development mode:
 
 ```bash
 git clone https://github.com/opera-adt/COMPASS.git && cd COMPASS

@@ -1,8 +1,9 @@
+#! python
+
 '''
 Script to mosaic the input CSLC rasters
 '''
 import argparse
-import os
 from collections import Counter
 
 import numpy as np
@@ -12,46 +13,6 @@ from osgeo import gdal, osr
 PATH_CSLC_LAYER_IN_HDF = '/data'
 PATH_LOCAL_INCIDENCE_ANGLE = '/data/local_incidence_angle'
 PATH_NOISE_LAYER_IN_HDF = '/metadata/noise_information'
-
-
-def get_parser():
-    '''
-    Get the parser for CLI
-    '''
-    parser = argparse.ArgumentParser(
-        description='Comparison script with burst ID',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-c',
-                        dest='cslc_list_file',
-                        type=str,
-                        default='',
-                        help='cslc list file')
-
-    parser.add_argument('-s',
-                        dest='static_list_file',
-                        type=str,
-                        default=[],
-                        help='static list file')
-
-    parser.add_argument('-o',
-                        dest='mosaic_out_path',
-                        type=str,
-                        default=None,
-                        help='path to the burst DB')
-
-    parser.add_argument('-cd',
-                        dest='cslc_directory',
-                        type=str,
-                        default=None,
-                        help='path to the cslc directory')
-
-    parser.add_argument('-sd',
-                        dest='cslc_static_directory',
-                        type=str,
-                        default=None,
-                        help='path to the cslc static layer directory')
-
-    return parser
 
 
 def get_most_frequent_epsg(gdal_raster_list: list):
@@ -175,12 +136,15 @@ def get_cslc_gdal_dataset(cslc_path, cslc_static_path, pol, epsg_out, dx, dy, sn
         # return the GDAL Dataset objects as they are, except for noise LUT
         return (ds_in, ds_local_incidence_angle, ds_noise_resampled)
 
-    ds_incidence_angle_reprojected = (gdal.Warp('', ds_local_incidence_angle, options=warp_options) if ds_local_incidence_angle else None)
+    ds_incidence_angle_reprojected = \
+        (gdal.Warp('', ds_local_incidence_angle, options=warp_options)
+         if ds_local_incidence_angle else None)
     ds_cslc_reprojected = gdal.Warp('', ds_in, options=warp_options)
-    
 
     # Return the warped dataset
-    return (ds_cslc_reprojected, ds_incidence_angle_reprojected, ds_noise_resampled)
+    return (ds_cslc_reprojected,
+            ds_incidence_angle_reprojected,
+            ds_noise_resampled)
 
 
 def load_amplitude(ds_cslc_amp, ds_local_incidence_angle=None, ds_noise_lut=None):
@@ -192,24 +156,6 @@ def load_amplitude(ds_cslc_amp, ds_local_incidence_angle=None, ds_noise_lut=None
 
     if ds_noise_lut is not None:
         print('Applying noise removal')
-        # Resample noise LUT to the geogrid of the CSLC amplitude
-        #geotransform_cslc = ds_cslc_amp.GetGeoTransform()
-        #width_cslc = ds_cslc_amp.RasterXSize
-        #height_cslc = ds_cslc_amp.RasterYSize
-
-        #bbox_cslc=[geotransform_cslc[0],
-        #        geotransform_cslc[3] + geotransform_cslc[5] * height_cslc,
-        #        geotransform_cslc[0] + geotransform_cslc[1] * width_cslc,
-        #        geotransform_cslc[3]]
-
-        #ds_resampled_lut = gdal.Warp(
-        #    destNameOrDestDS='',
-        #    srcDSOrSrcDSTab=ds_noise_lut,
-        #    format='MEM',
-        #    outputBounds=bbox_cslc,
-        #    width=width_cslc,
-        #    height=height_cslc)
-
         # Apply noise correction
 
         arr_cslc = arr_cslc ** 2 - ds_noise_lut.ReadAsArray()
@@ -219,7 +165,8 @@ def load_amplitude(ds_cslc_amp, ds_local_incidence_angle=None, ds_noise_lut=None
     if ds_local_incidence_angle is not None:
         print('Applying radiometric mormalization')
         # Apply radiometric normalization using local incidence angle
-        correction_factor = np.cos(np.deg2rad(ds_local_incidence_angle.ReadAsArray()))
+        correction_factor = \
+            np.cos(np.deg2rad(ds_local_incidence_angle.ReadAsArray()))
         arr_cslc /= correction_factor
 
     return arr_cslc
@@ -253,8 +200,11 @@ def find_upperleft_pixel_index(geotransform_burst, geotransform_mosaic):
     return (upperleft_y_px, upperleft_x_px)
 
 
-def mosaic_list_order_mode(cslc_raster_list, local_incidence_angle_list, noise_lut_raster_list,
-                           geotransform_mosaic, shape_mosaic):
+def mosaic_list_order_mode(cslc_raster_list,
+                           local_incidence_angle_list,
+                           noise_lut_raster_list,
+                           geotransform_mosaic,
+                           shape_mosaic):
     '''
     Perform the mosaicking in "list order mode"
     i.e. The pixels from the earlier raster gets replaced by the following rasters
@@ -267,7 +217,9 @@ def mosaic_list_order_mode(cslc_raster_list, local_incidence_angle_list, noise_l
         noise_lut_raster = noise_lut_raster_list[i_raster]
         local_incidence_angle_raster = local_incidence_angle_list[i_raster]
         uly, ulx = find_upperleft_pixel_index(cslc_raster.GetGeoTransform(), geotransform_mosaic)
-        amplitude_burst = load_amplitude(cslc_raster, local_incidence_angle_raster, noise_lut_raster)
+        amplitude_burst = load_amplitude(cslc_raster,
+                                         local_incidence_angle_raster,
+                                         noise_lut_raster)
         length_burst, width_burst = amplitude_burst.shape
 
         subset_array_mosaic = array_mosaic[uly:uly+length_burst, ulx:ulx+width_burst]
@@ -277,16 +229,14 @@ def mosaic_list_order_mode(cslc_raster_list, local_incidence_angle_list, noise_l
     return array_mosaic
 
 
-def mosaic_nearest_centroid_mode(cslc_raster_list, noise_lut_raster_list,
+def mosaic_nearest_centroid_mode(cslc_raster_list, local_incidence_angle_list,
+                                 noise_lut_raster_list,
                                  geotransform_mosaic, shape_mosaic):
     '''
     Perform the mosaicking in "nearest centroid" mode
 
     '''
-    array_mosaic = np.array(shape_mosaic, dtype=np.float32)
-
-    
-    return array_mosaic
+    raise NotImplementedError('This mosaic function was not implemented yet')
 
 
 def compute_mosaic_geotransform_dimension(ds_burst_list):
@@ -364,7 +314,7 @@ def run(cslc_path_list, cslc_static_path_list, pol, mosaic_path,
         dx_mosaic=None, dy_mosaic=None, snap_meters=30,
         epsg_mosaic=None, mosaic_mode='list_order',
         apply_noise_correcion=True, apply_radiometric_normalization=True,
-        resampling_alg='bicubic'):
+        resampling_alg='BILINEAR'):
     '''
     Workflow of the CSLC backscatter mosaic
 
@@ -416,13 +366,15 @@ def run(cslc_path_list, cslc_static_path_list, pol, mosaic_path,
         print('Loading CSLC layer in amplutude, and nouise LUTs: '
               f'{i_cslc + 1} / {len(cslc_path_list)}',
               end='\r')
-        datasets_cslc = get_cslc_gdal_dataset(cslc_path, cslc_static_path, pol, epsg_mosaic,
+        datasets_cslc = get_cslc_gdal_dataset(cslc_path, cslc_static_path,
+                                              pol, epsg_mosaic,
                                               dx_mosaic, dy_mosaic, snap_meters,
-                                              apply_noise_correcion, apply_radiometric_normalization, 
+                                              apply_noise_correcion,
+                                              apply_radiometric_normalization,
                                               resampling_alg)
-        cslc_amp_ds_list[i_cslc] = datasets_cslc[0]
-        local_incidence_angle_ds_list[i_cslc] = datasets_cslc[1]
-        noise_lut_ds_list[i_cslc] = datasets_cslc[2]
+        (cslc_amp_ds_list[i_cslc],
+         local_incidence_angle_ds_list[i_cslc],
+         noise_lut_ds_list[i_cslc]) = datasets_cslc
 
     print(' ')
     # Get the size of mosaic
@@ -447,6 +399,75 @@ def run(cslc_path_list, cslc_static_path_list, pol, mosaic_path,
     save_mosaicked_array(mosaic_arr, gt_mosaic, epsg_mosaic, mosaic_path)
 
 
+
+def get_parser():
+    '''
+    Get the parser for CLI
+    '''
+    parser = argparse.ArgumentParser(
+        description='Comparison script with burst ID',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('-c',
+                        dest='cslc_list_file',
+                        type=str,
+                        default='',
+                        help='cslc list file')
+
+    parser.add_argument('-s',
+                        dest='cslc_static_list_file',
+                        type=str,
+                        default=[],
+                        help='static list file')
+
+    parser.add_argument('-o',
+                        dest='mosaic_out_path',
+                        type=str,
+                        default=None,
+                        help='path to the burst DB')
+
+    parser.add_argument('-p',
+                        dest='pol',
+                        type=str,
+                        default='VV',
+                        help='Polarization')
+
+    parser.add_argument('-te',
+                        dest='target_spacing',
+                        type=float,
+                        nargs=2,
+                        default=[None, None],
+                        help=('spacing of the mosaic. If not provided, '
+                              'the spacing of the first input CSLC will be used.'),
+                        metavar=('NUM1', 'NUM2'))
+
+    parser.add_argument('--snap',
+                        dest='snap',
+                        type=float,
+                        default=30.0,
+                        help='Snapping value of the mosaic grid.')
+
+    parser.add_argument('--mode',
+                        dest='mosaic_mode',
+                        type=str,
+                        default='list_order',
+                        help='Mosaic mode')
+
+    parser.add_argument('--noise_correction_off',
+                        dest='apply_noise_correction',
+                        default=True,
+                        action='store_false',
+                        help='Turn off the noise correction')
+
+    parser.add_argument('--radiometric_normalization_off',
+                        dest='apply_radiometric_normalization',
+                        default=True,
+                        action='store_false',
+                        help='Turn off the radiometric normalization')
+
+
+    return parser
+
+
 def main():
     '''
     Entrypoint of the fiunction
@@ -454,7 +475,16 @@ def main():
     parser = get_parser()
     args = parser.parse_args()
 
-    run(list_burst, list_burst_static, 'VV', output_mosaic_path)
+    with (open(args.cslc_list_file, 'r') as fin_cslc,
+          open(args.cslc_static_list_file, 'r') as fin_cslc_static):
+        list_cslc = fin_cslc.read().rstrip('\n').split('\n')
+        list_cslc_static = fin_cslc_static.read().rstrip('\n').split('\n')
+
+    run(list_cslc, list_cslc_static, args.pol, args.mosaic_out_path,
+        dx_mosaic=args.target_spacing[0], dy_mosaic=args.target_spacing[1],
+        snap_meters=args.snap, mosaic_mode=args.mosaic_mode,
+        apply_noise_correcion=args.apply_noise_correction,
+        apply_radiometric_normalization=args.apply_radiometric_normalization)
 
 
 
@@ -463,4 +493,3 @@ def main():
 
 if __name__=='__main__':
     main()
-    

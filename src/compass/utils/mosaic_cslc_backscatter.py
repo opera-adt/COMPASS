@@ -53,14 +53,47 @@ def _get_epsg(gdal_raster_path: str):
 
 
 def get_cslc_gdal_dataset(cslc_path, cslc_static_path, pol, epsg_out, dx, dy, snap=0,
-                      noise_correction=True,
-                      radiometric_normalization=True,
-                      resampling_alg='BILINEAR'):
+                          noise_correction=True,
+                          radiometric_normalization=True,
+                          resampling_alg='BILINEAR'):
     '''
-    Get the GDAL dataset for CSLC layer and resampled & reprojected noise LUT (when user opted in)
+    Get the GDAL dataset for CSLC layer and resample &
+    reprojecte noise LUT (when user opted in)
 
+    Parameters
+    ----------
+    cslc_path: str
+        path to the CSLC HDF5 file
+    cslc_static_path: str
+        path to the CSLC static layer HDF5 file
+    pol: str
+        Polarization
+    epsg_out: int
+        EPSG of the outputs
+    dx, dy: float
+        x / y spacings of the outputs
+    snap: float
+        Snapping value when the input rasters needs to be resampled
+    noise_correction: bool
+        Flag to turn on/off noise correction
+    radiometric_normalization:bool
+        Flag to turn on/ott radiometric normalization
+    resampling_alg: str
+        Resampling algorithm for gdal.Warp()
+
+    Returns
+    -------
+    (ds_cslc,
+     ds_incidence_angle,
+     ds_noise_resampled): tuple
+     Respectively, GDAL raster dataset for CSLC,
+     GDAL raster dataset for local incidence angle, and
+     GDAL raster dataset for noise LUT
+     (resampled to the same geogrid as the other two)
     '''
     # Get the geotransform and dimensions
+
+
     prefix_netcdf = 'DERIVED_SUBDATASET:AMPLITUDE:NETCDF'
 
     path_cslc = f'{prefix_netcdf}:{cslc_path}:{PATH_CSLC_LAYER_IN_HDF}/{pol}'
@@ -87,6 +120,11 @@ def get_cslc_gdal_dataset(cslc_path, cslc_static_path, pol, epsg_out, dx, dy, sn
     src_srs.ImportFromWkt(ds_in.GetProjectionRef())
     dst_srs = osr.SpatialReference()
     dst_srs.ImportFromEPSG(epsg_out)
+
+    # decide whether or not to warp CSLC and static layer
+    flag_warp_cslc_and_static = ((epsg_cslc != epsg_out)
+                                 or (gt_in[0] != dx)
+                                 or (abs(gt_in[3]) != abs(dy)))
 
     # Define a coordinate transformation
     transform = osr.CoordinateTransformation(src_srs, dst_srs)
@@ -131,8 +169,10 @@ def get_cslc_gdal_dataset(cslc_path, cslc_static_path, pol, epsg_out, dx, dy, sn
     ds_noise_resampled = (gdal.Warp('', ds_noise_lut, options=warp_options) if
                           ds_noise_lut else None)
 
-    if epsg_cslc == epsg_out:
-        # Do not perform reprojection when EPSG of the burst is the same as that of the mosaic
+    if not flag_warp_cslc_and_static:
+        # Do not perform reprojection when
+        # EPSG of the burst is the same as that of the mosaic AND
+        # the spacing of the CSLC is the same as the mosaic's.
         # return the GDAL Dataset objects as they are, except for noise LUT
         return (ds_in, ds_local_incidence_angle, ds_noise_resampled)
 
@@ -149,8 +189,25 @@ def get_cslc_gdal_dataset(cslc_path, cslc_static_path, pol, epsg_out, dx, dy, sn
 
 def load_amplitude(ds_cslc_amp, ds_local_incidence_angle=None, ds_noise_lut=None):
     '''
-    Apply noise correction using the geocoded noist LUT in the product
+    Load the amplitude from CSLC GDAL dataset.
+    Apply noise correction and/or radiometric normalization when
+    the data are provided.
+
+    Parameters
+    ----------
+    ds_cslc_amp: osgeo.gdal.Dataset
+        GDAL Raster dataset for CSLC amplitude
+    ds_local_incidence_angle: osgeo.gdal.Dataset
+        GDAL Raster dataset for local incidence angle
+    ds_noise_lut: osgeo.gdal.Dataset
+        GDAL Raster dataset noise LUT
+
+    Returns
+    -------
+    arr_cslc: np.ndarray
+        CSLC amplitude
     '''
+
     # Load CSLC amplutude into array
     arr_cslc = ds_cslc_amp.ReadAsArray()
 
@@ -208,6 +265,24 @@ def mosaic_list_order_mode(cslc_raster_list,
     '''
     Perform the mosaicking in "list order mode"
     i.e. The pixels from the earlier raster gets replaced by the following rasters
+
+    Parameters
+    ----------
+    cslc_raster_list: list
+        List of GDAL raster dataset for CSLC
+    local_incidence_angle_list: list
+        List of GDAL raster dataset for local incidence angle
+    noise_lut_raster_list: list
+        List of GDAL raster dataset for noise LUT
+    geotransform_mosaic: tuple
+        Geotramsform parameter for the output mosaic
+    shape_mosaic: tuple
+        Shape of the output mosaic array
+
+    Returns
+    -------
+    array_mosaic: np.ndarray
+        Output mosaic as numpy array
     '''
 
     array_mosaic = np.zeros(shape_mosaic, dtype=np.float32) / 0
@@ -216,13 +291,16 @@ def mosaic_list_order_mode(cslc_raster_list,
         print(f'Processing: {i_raster + 1} of {len(cslc_raster_list)}')
         noise_lut_raster = noise_lut_raster_list[i_raster]
         local_incidence_angle_raster = local_incidence_angle_list[i_raster]
-        uly, ulx = find_upperleft_pixel_index(cslc_raster.GetGeoTransform(), geotransform_mosaic)
+        uly, ulx = find_upperleft_pixel_index(cslc_raster.GetGeoTransform(),
+                                              geotransform_mosaic)
         amplitude_burst = load_amplitude(cslc_raster,
                                          local_incidence_angle_raster,
                                          noise_lut_raster)
         length_burst, width_burst = amplitude_burst.shape
 
-        subset_array_mosaic = array_mosaic[uly:uly+length_burst, ulx:ulx+width_burst]
+        subset_array_mosaic = array_mosaic[uly : uly + length_burst,
+                                           ulx : ulx + width_burst]
+
         mask_valid = ~np.isnan(amplitude_burst)
         subset_array_mosaic[mask_valid] = amplitude_burst[mask_valid]
 
@@ -240,10 +318,9 @@ def mosaic_nearest_centroid_mode(cslc_raster_list, local_incidence_angle_list,
 
 
 def compute_mosaic_geotransform_dimension(ds_burst_list):
-    """
-    Compute the GeoTransform vector that covers all rasters in `raster_list`
-    """
-
+    '''Compute the GeoTransform vector that covers all rasters in `ds_burst_list`
+    '''
+    
     # Initialize list to store extents
     if len(ds_burst_list) == 0:
         raise RuntimeError('Empty ds_burst_list was provided')
@@ -275,7 +352,8 @@ def compute_mosaic_geotransform_dimension(ds_burst_list):
     return gt_mosaic, (width_mosaic, height_mosaic)
 
 
-def save_mosaicked_array(mosaic_arr, geotransform_mosaic, epsg_mosaic, mosaic_filename):
+def save_mosaicked_array(mosaic_arr, geotransform_mosaic, epsg_mosaic,
+                         mosaic_filename):
     '''
     Save mosaicked array into GDAL Raster
 
@@ -344,9 +422,11 @@ def run(cslc_path_list, cslc_static_path_list, pol, mosaic_path,
 
     # Determine the EPSG of the mosaic when it is not provided
     if epsg_mosaic is None:
-        print('EPSG was not provided. Finding most common projection among the input rasters.')
+        print('EPSG was not provided. '
+              'Finding most common projection among the input rasters.')
         epsg_mosaic = get_most_frequent_epsg(
-            [f'NETCDF:{cslc_path}:{PATH_CSLC_LAYER_IN_HDF}/{pol}' for cslc_path in cslc_path_list])
+            [f'NETCDF:{cslc_path}:{PATH_CSLC_LAYER_IN_HDF}/{pol}'
+             for cslc_path in cslc_path_list])
         print(f'EPSG of the mosaic will be: {epsg_mosaic}')
 
     if dx_mosaic is None or dy_mosaic is None:
@@ -485,10 +565,6 @@ def main():
         snap_meters=args.snap, mosaic_mode=args.mosaic_mode,
         apply_noise_correcion=args.apply_noise_correction,
         apply_radiometric_normalization=args.apply_radiometric_normalization)
-
-
-
-
 
 
 if __name__=='__main__':

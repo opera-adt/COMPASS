@@ -2,6 +2,7 @@
 
 '''wrapper for geocoded CSLC'''
 
+
 import re
 import time
 
@@ -12,7 +13,6 @@ import numpy as np
 from osgeo import gdal
 from s1reader.s1_reader import is_eap_correction_necessary
 
-from compass import s1_rdr2geo
 from compass import s1_geocode_metadata
 from compass.s1_cslc_qa import QualityAssuranceCSLC
 from compass.utils.browse_image import make_browse_image
@@ -20,7 +20,6 @@ from compass.utils.elevation_antenna_pattern import apply_eap_correction
 from compass.utils.geo_runconfig import GeoRunConfig
 from compass.utils.h5_helpers import (algorithm_metadata_to_h5group,
                                       corrections_to_h5group,
-                                      flatten_metadata_to_h5group,
                                       identity_to_h5group,
                                       init_geocoded_dataset,
                                       metadata_to_h5group,
@@ -31,24 +30,7 @@ from compass.utils.lut import cumulative_correction_luts
 from compass.utils.yaml_argparse import YamlArgparse
 
 # TEMPORARY MEASURE TODO refactor types functions to isce3 namespace
-from nisar.types import (truncate_mantissa, to_complex32)
-
-def _make_rdr2geo_cfg(yaml_runconfig_str):
-    '''
-    Make a rdr2geo specific runconfig with latitude, longitude, and height
-    layers enabled for static layer product generation while preserving all
-    other rdr2geo config settings
-    '''
-    # If any of the requisite layers are false, make them true in yaml cfg str
-    for layer in ['latitude', 'longitude', 'incidence_angle']:
-        re.sub(f'compute_{layer}:\s+[Ff]alse', f'compute_{layer}: true',
-               yaml_runconfig_str)
-
-    # Load a GeoRunConfig from modified yaml cfg string
-    rdr2geo_cfg = GeoRunConfig.load_from_yaml(yaml_runconfig_str,
-                                              workflow_name='s1_cslc_geo')
-
-    return rdr2geo_cfg
+from isce3.core.types import (truncate_mantissa, to_complex32)
 
 
 def _wrap_phase(phase_arr):
@@ -102,7 +84,6 @@ def run(cfg: GeoRunConfig):
         # Create scratch as needed
         scratch_path = out_paths.scratch_directory
 
-
         # If enabled, get range and azimuth LUTs
         t_corrections = time.perf_counter()
         if cfg.lut_params.enabled:
@@ -127,13 +108,6 @@ def run(cfg: GeoRunConfig):
         # Get azimuth polynomial coefficients for this burst
         az_carrier_poly2d = burst.get_az_carrier_poly()
 
-        # Generate required static layers
-        if cfg.rdr2geo_params.enabled:
-            rdr2geo_cfg = _make_rdr2geo_cfg(cfg.yaml_string)
-            s1_rdr2geo.run(rdr2geo_cfg, burst, save_in_scratch=True)
-            if cfg.rdr2geo_params.geocode_metadata_layers:
-                s1_geocode_metadata.run(cfg, burst, fetch_from_scratch=True)
-
         # Extract burst boundaries
         b_bounds = np.s_[burst.first_valid_line:burst.last_valid_line,
                          burst.first_valid_sample:burst.last_valid_sample]
@@ -144,12 +118,12 @@ def run(cfg: GeoRunConfig):
         output_hdf5 = out_paths.hdf5_path
 
         with h5py.File(output_hdf5, 'w') as geo_burst_h5:
-            geo_burst_h5.attrs['Conventions'] = "CF-1.8"
+            geo_burst_h5.attrs['conventions'] = "CF-1.8"
             geo_burst_h5.attrs["contact"] = np.string_("operaops@jpl.nasa.gov")
             geo_burst_h5.attrs["institution"] = np.string_("NASA JPL")
-            geo_burst_h5.attrs["mission_name"] = np.string_("project_name")
-            geo_burst_h5.attrs["reference_document"] = np.string_("TBD")
-            geo_burst_h5.attrs["title"] = np.string_("OPERA L2_CSLC_S1 Product")
+            geo_burst_h5.attrs["project_name"] = np.string_("OPERA")
+            geo_burst_h5.attrs["reference_document"] = np.string_("JPL-108278")
+            geo_burst_h5.attrs["title"] = np.string_("OPERA_L2_CSLC-S1 Product")
 
             # add type to root for GDAL recognition of datasets
             ctype = h5py.h5t.py_create(np.complex64)
@@ -243,14 +217,14 @@ def run(cfg: GeoRunConfig):
                                       rg_carrier=isce3.core.Poly2d(np.array([0])),
                                       az_time_correction=az_lut,
                                       srange_correction=rg_lut,
-                                      carrier_phase_block=_wrap_phase(carrier_phase_data_blk),
-                                      flatten_phase_block=_wrap_phase(flatten_phase_data_blk))
+                                      carrier_phase_block=carrier_phase_data_blk,
+                                      flatten_phase_block=flatten_phase_data_blk)
 
             # write geocoded data blocks to respective HDF5 datasets
             geo_datasets.extend([carrier_phase_ds,
                                  flatten_phase_ds])
-            geo_data_blks.extend([carrier_phase_data_blk,
-                                  flatten_phase_data_blk])
+            geo_data_blks.extend([_wrap_phase(carrier_phase_data_blk),
+                                  _wrap_phase(flatten_phase_data_blk)])
             for cslc_dataset, cslc_data_blk in zip(geo_datasets,
                                                    geo_data_blks):
                 # only convert/modify output if type not 'complex64'
@@ -276,9 +250,9 @@ def run(cfg: GeoRunConfig):
             identity_to_h5group(root_group, burst, cfg, 'CSLC -S1',
                                 cfg.product_group.product_specification_version)
 
-            metadata_to_h5group(root_group, burst, cfg)
+            metadata_to_h5group(root_group, burst, cfg,
+                                eap_correction_applied=check_eap.phase_correction)
             algorithm_metadata_to_h5group(root_group)
-            flatten_metadata_to_h5group(root_group, cfg)
             if cfg.lut_params.enabled:
                 correction_group = geo_burst_h5.require_group(
                     f'{METADATA_PATH}/processing_information')

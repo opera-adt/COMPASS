@@ -122,6 +122,10 @@ class GeoRunConfig(RunConfig):
         return self.groups.product_path_group
 
     @property
+    def product_type(self) -> dict:
+        return self.groups.primary_executable.product_type
+
+    @property
     def weather_model_file(self) -> str:
         return self.groups.dynamic_ancillary_file_group.weather_model_file
 

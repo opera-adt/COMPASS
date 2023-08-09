@@ -2,25 +2,19 @@
 
 The following will install COMPASS into a conda environment.
 
-1. Download source code:
-
 ```bash
-git clone https://github.com/opera-adt/COMPASS.git
+conda install -c conda-forge compass
 ```
 
-2. Install dependencies:
+
+Alternatively, you can install in development mode:
 
 ```bash
-conda install -c conda-forge --file COMPASS/requirements.txt
-python -m pip install git+https://github.com/opera-adt/s1-reader.git
+git clone https://github.com/opera-adt/COMPASS.git && cd COMPASS
+conda env create --file environment.yml
+conda activate compass
+python -m pip install -e .
 ```
-
-3. Install `COMPASS` via pip:
-
-```bash
-# run "pip install -e" to install in development mode
-python -m pip install ./COMPASS
-``` 
 
 ## Usage
 

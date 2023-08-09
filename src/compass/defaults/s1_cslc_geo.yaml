@@ -70,8 +70,6 @@ runconfig:
                  delay_type: wet_dry
 
           rdr2geo:
-              # Enable/disable computation of topo layers
-              enabled: False
               # Convergence threshold for rdr2geo algorithm
               threshold: 1.0e-8
               # Maximum number of iterations
@@ -88,14 +86,12 @@ runconfig:
               compute_height: False
               # Enable/disable layover shadow mask output
               compute_layover_shadow_mask: True
-              # Enable/disable incidence angle output
-              compute_incidence_angle: True
               # Enable/disable local incidence output
               compute_local_incidence_angle: True
-              # Enable/disable azimuth angle output
-              compute_azimuth_angle: True
-              # Enable/disable generation of the topo layers
-              geocode_metadata_layers: True
+              # Enable/disable ground to satellite East LOS vector
+              compute_ground_to_sat_east: True
+              # Enable/disable ground to satellite North LOS vector
+              compute_ground_to_sat_north: True
 
       worker:
           # Optional. To prevent downloading DEM or other data (default: False)

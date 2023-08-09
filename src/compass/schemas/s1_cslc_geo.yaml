@@ -40,7 +40,7 @@ runconfig:
            product_specification_version: str(required=False)
 
         primary_executable:
-          product_type: enum('CSLC_S1')
+          product_type: enum('CSLC_S1', 'CSLC_S1_STATIC')
 
         # This section includes parameters to tweak the workflow
         processing: include('processing_options', required=False)
@@ -105,8 +105,6 @@ troposphere_options:
   delay_type: enum('dry', 'wet', 'wet_dry', required=False)
 
 rdr2geo_options:
-    # Enable/disable computation of topo layers
-    enabled: bool(required=False)
     # Convergence threshold for rdr2geo algorithm
     threshold: num(min=0, required=False)
     # Maximum number of iterations
@@ -123,14 +121,12 @@ rdr2geo_options:
     compute_height: bool(required=False)
     # Enable/disable layover shadow mask output
     compute_layover_shadow_mask: bool(required=False)
-    # Enable/disable incidence angle output
-    compute_incidence_angle: bool(required=False)
     # Enable/disable local incidence output
     compute_local_incidence_angle: bool(required=False)
-    # Enable/disable azimuth angle output
-    compute_azimuth_angle: bool(required=False)
-    # Enable/disable geocoding of the topo layers
-    geocode_metadata_layers: bool(required=False)
+    # Enable/disable ground to satellite East LOS vector
+    compute_ground_to_sat_east: bool(required=False)
+    # Enable/disable ground to satellite North LOS vector
+    compute_ground_to_sat_north: bool(required=False)
 
 worker_options:
     # To prevent downloading DEM / other data automatically. Default True

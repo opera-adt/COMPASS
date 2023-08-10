@@ -14,16 +14,6 @@ PATH_LOCAL_INCIDENCE_ANGLE = '/data/local_incidence_angle'
 PATH_NOISE_LAYER_IN_HDF = '/metadata/noise_information'
 
 
-def _get_epsg(gdal_raster_path: str):
-    '''
-    Get the EPSG of the input raster
-    '''
-    ds_input = gdal.Open(gdal_raster_path, gdal.GA_ReadOnly)
-    projection = ds_input.GetProjection()
-    srs = osr.SpatialReference(wkt=projection)
-    return int(srs.GetAuthorityCode(None))
-
-
 def load_amplitude(ds_cslc_amp, ds_local_incidence_angle=None, ds_noise_lut=None):
     '''
     Load the amplitude from CSLC GDAL dataset.
@@ -191,7 +181,8 @@ def get_parser():
     Get the parser for CLI
     '''
     parser = argparse.ArgumentParser(
-        description='Comparison script with burst ID',
+        description=('Extracts CSLC amplitude with thermal noise and / or '
+                     'radiometric correction applied'),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-c',
                         dest='cslc_path',

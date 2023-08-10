@@ -321,7 +321,7 @@ def mosaic_nearest_centroid_mode(cslc_raster_list, local_incidence_angle_list,
 def compute_mosaic_geotransform_dimension(ds_burst_list):
     '''Compute the GeoTransform vector that covers all rasters in `ds_burst_list`
     '''
-    
+
     # Initialize list to store extents
     if len(ds_burst_list) == 0:
         raise RuntimeError('Empty ds_burst_list was provided')

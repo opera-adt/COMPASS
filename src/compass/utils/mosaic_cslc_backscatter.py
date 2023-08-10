@@ -223,7 +223,7 @@ def load_amplitude(ds_cslc_amp, ds_local_incidence_angle=None, ds_noise_lut=None
         print('Applying radiometric mormalization')
         local_incidence_angle_arr_rad = np.deg2rad(ds_local_incidence_angle.ReadAsArray())
         # Apply radiometric normalization using cotangent(local incidence angle)
-        correction_factor = (np.sin(local_incidence_angle_arr_rad)
+        correction_factor = np.sqrt(np.sin(local_incidence_angle_arr_rad)
                              / np.cos(local_incidence_angle_arr_rad))
         arr_cslc *= correction_factor
 
@@ -444,7 +444,7 @@ def run(cslc_path_list, cslc_static_path_list, pol, mosaic_path,
 
     for i_cslc, cslc_path in enumerate(cslc_path_list):
         cslc_static_path = cslc_static_path_list[i_cslc]
-        print('Loading CSLC layer in amplutude, and nouise LUTs: '
+        print('Loading CSLC layer in amplutude, and noise LUTs:',
               f'{i_cslc + 1} / {len(cslc_path_list)}',
               end='\r')
         datasets_cslc = get_cslc_gdal_dataset(cslc_path, cslc_static_path,

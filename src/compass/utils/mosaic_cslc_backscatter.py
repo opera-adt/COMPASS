@@ -221,10 +221,11 @@ def load_amplitude(ds_cslc_amp, ds_local_incidence_angle=None, ds_noise_lut=None
 
     if ds_local_incidence_angle is not None:
         print('Applying radiometric mormalization')
-        # Apply radiometric normalization using local incidence angle
-        correction_factor = \
-            np.cos(np.deg2rad(ds_local_incidence_angle.ReadAsArray()))
-        arr_cslc /= correction_factor
+        local_incidence_angle_arr_rad = np.deg2rad(ds_local_incidence_angle.ReadAsArray())
+        # Apply radiometric normalization using cotangent(local incidence angle)
+        correction_factor = (np.sin(local_incidence_angle_arr_rad)
+                             / np.cos(local_incidence_angle_arr_rad))
+        arr_cslc *= correction_factor
 
     return arr_cslc
 

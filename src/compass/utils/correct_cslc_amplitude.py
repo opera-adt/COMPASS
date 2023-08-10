@@ -1,7 +1,8 @@
 #! python
 
 '''
-Script to mosaic the input CSLC rasters
+Script to extract amplitude of CSLC,
+with thermal noise correction and / or radiometric normalization applied
 '''
 import argparse
 

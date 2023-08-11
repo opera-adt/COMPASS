@@ -1,14 +1,13 @@
-import journal
 import re
 import time
 
-from datetime import timedelta
+import journal
+
+from compass import s1_geocode_metadata, s1_rdr2geo
 from compass.utils.geo_runconfig import GeoRunConfig
-from compass.utils.yaml_argparse import YamlArgparse
 from compass.utils.helpers import (bursts_grouping_generator, get_module_name,
                                    get_time_delta_str)
-from compass import s1_rdr2geo
-from compass import s1_geocode_metadata
+from compass.utils.yaml_argparse import YamlArgparse
 
 
 def _make_rdr2geo_cfg(yaml_runconfig_str):
@@ -75,7 +74,8 @@ def run(cfg: GeoRunConfig):
     info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
 
 
-if __name__ == "__main__":
+def main():
+    """Create the CLI and run the static layers workflow"""
     # load arguments from command line
     parser = YamlArgparse()
 
@@ -83,5 +83,7 @@ if __name__ == "__main__":
     cfg = GeoRunConfig.load_from_yaml(parser.run_config_path,
                                       workflow_name='s1_cslc_geo')
 
-    # Run geocode burst workflow
     run(cfg)
+
+if __name__ == "__main__":
+    main()

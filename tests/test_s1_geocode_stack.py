@@ -19,4 +19,5 @@ def test_geocode_slc_run(geocode_slc_params, tmpdir):
             slc_dir=data_dir,
             dem_file=data_dir / "test_dem.tiff",
             orbit_dir=data_dir / "orbits",
+            burst_db_file=data_dir / "test_burst_map.sqlite3",
         )

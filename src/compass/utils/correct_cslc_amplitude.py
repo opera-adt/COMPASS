@@ -44,13 +44,14 @@ def load_amplitude(ds_cslc_amp, ds_local_incidence_angle=None, ds_noise_lut=None
         # Apply noise correction
 
         arr_cslc = arr_cslc ** 2 - ds_noise_lut.ReadAsArray()
-        arr_cslc[arr_cslc<0.0] = 0.0
+        arr_cslc[arr_cslc < 0.0] = 0.0
         arr_cslc = np.sqrt(arr_cslc)
 
     if ds_local_incidence_angle is not None:
         print('Applying radiometric mormalization')
-        local_incidence_angle_arr_rad = np.deg2rad(ds_local_incidence_angle.ReadAsArray())
-        # Apply radiometric normalization using cotangent(local incidence angle)
+        local_incidence_angle_arr_rad = \
+            np.deg2rad(ds_local_incidence_angle.ReadAsArray())
+        # Apply radiometric normalization
         correction_factor = np.sqrt(np.tan(local_incidence_angle_arr_rad))
         arr_cslc *= correction_factor
 
@@ -75,7 +76,7 @@ def get_cslc_gdal_dataset(cslc_path, cslc_static_path, pol,
         Polarization
     noise_correction: bool
         Flag to turn on/off noise correction
-    radiometric_normalization:bool
+    radiometric_normalization: bool
         Flag to turn on/ott radiometric normalization
     resampling_alg: str
         Resampling algorithm for gdal.Warp()
@@ -85,10 +86,10 @@ def get_cslc_gdal_dataset(cslc_path, cslc_static_path, pol,
     (ds_cslc,
      ds_incidence_angle,
      ds_noise_resampled): tuple
-     Respectively, GDAL raster dataset for CSLC,
-     GDAL raster dataset for local incidence angle, and
-     GDAL raster dataset for noise LUT
-     (resampled to the same geogrid as the other two)
+        Respectively, GDAL raster dataset for CSLC,
+        GDAL raster dataset for local incidence angle, and
+        GDAL raster dataset for noise LUT
+        (resampled to the same geogrid as the other two)
     '''
     # Get the geotransform and dimensions
 
@@ -132,8 +133,8 @@ def get_cslc_gdal_dataset(cslc_path, cslc_static_path, pol,
                                     dstSRS=src_srs)
 
     # Resample the noise LUT
-    ds_noise_resampled = (gdal.Warp('', ds_noise_lut, options=warp_options) if
-                          ds_noise_lut else None)
+    ds_noise_resampled = (gdal.Warp('', ds_noise_lut, options=warp_options)
+                          if ds_noise_lut else None)
 
     return (ds_in,
             ds_local_incidence_angle,
@@ -148,13 +149,13 @@ def save_amplitude(amplitude_arr, geotransform_cslc, epsg_cslc,
     Parameters
     ----------
     amplitude_arr: np.ndarray
-        Mosaicked image as numpy array
+        Amplitude image as numpy array
     geotransform_cslc: tuple
         Geotransform parameter for mosaic
-    epsg_cslc:
+    epsg_cslc: int
         EPSG for mosaic as projection parameter
-    amplitude_filename:
-        File name of the mosaic raster to save
+    amplitude_filename: str
+        GEOTIFF file name of the output raster
     '''
 
     # Create the projection from the EPSG code
@@ -225,7 +226,7 @@ def get_parser():
 
 def main():
     '''
-    Entrypoint of the fiunction
+    Entrypoint of the script
     '''
     parser = get_parser()
     args = parser.parse_args()

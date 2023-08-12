@@ -12,7 +12,7 @@ from osgeo import gdal, osr
 # Constants for dataset location in HDF5 file
 PATH_CSLC_LAYER_IN_HDF = '/data'
 PATH_LOCAL_INCIDENCE_ANGLE = '/data/local_incidence_angle'
-PATH_NOISE_LAYER_IN_HDF = '/metadata/noise_information'
+PATH_NOISE_LUT = '/metadata/noise_information/thermal_noise_lut'
 
 
 def load_amplitude(ds_cslc_amp, ds_local_incidence_angle=None, ds_noise_lut=None):
@@ -97,7 +97,7 @@ def get_cslc_gdal_dataset(cslc_path, cslc_static_path, pol,
 
     path_cslc = f'{prefix_netcdf}:{cslc_path}:{PATH_CSLC_LAYER_IN_HDF}/{pol}'
     path_local_incidence = f'NETCDF:{cslc_static_path}:{PATH_LOCAL_INCIDENCE_ANGLE}'
-    path_noise_lut = f'NETCDF:{cslc_path}:{PATH_NOISE_LAYER_IN_HDF}/thermal_noise_lut'
+    path_noise_lut = f'NETCDF:{cslc_path}:{PATH_NOISE_LUT}'
 
     ds_in = gdal.Open(path_cslc, gdal.GA_ReadOnly)
 

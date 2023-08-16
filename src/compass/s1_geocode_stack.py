@@ -67,9 +67,6 @@ def create_parser():
                           help='Sqlite3 database file with burst bounding boxes.')
     optional.add_argument('-nf', '--no-flatten', action='store_true',
                           help='If flag is set, disables topographic phase flattening.')
-    optional.add_argument('-m', '--metadata', action='store_true',
-                          help='If flag is set, generates radar metadata layers for each'
-                               ' burst stack (see rdr2geo processing options)')
     optional.add_argument('-nc', '--no-corrections', action='store_true',
                           help='If flag is set, skip the geocoding LUT corrections.')
     optional.add_argument('--unzipped', action='store_true',
@@ -226,7 +223,7 @@ def get_common_burst_ids(data):
 
 
 def create_runconfig(burst_map_row, dem_file, work_dir, flatten, pol, x_spac,
-                     y_spac, enable_metadata, enable_corrections, burst_db_file):
+                     y_spac, enable_corrections, burst_db_file):
     """
     Create runconfig to process geocoded bursts
 
@@ -246,12 +243,10 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, pol, x_spac,
         Spacing of geocoded burst along X-direction
     y_spac: float
         Spacing of geocoded burst along Y-direction
-    enable_metadata: bool
-        Flag to enable/disable metadata generation for each burst stack.
-    burst_db_file: str
-        Path to burst database file to use for burst bounding boxes.
     enable_corrections: bool
         Flag to enable/disable applying corrections to burst stacks.
+    burst_db_file: str
+        Path to burst database file to use for burst bounding boxes.
 
     Returns
     -------
@@ -288,9 +283,6 @@ def create_runconfig(burst_map_row, dem_file, work_dir, flatten, pol, x_spac,
     geocode['flatten'] = flatten
     geocode['x_posting'] = x_spac
     geocode['y_posting'] = y_spac
-
-    # Metadata generation
-    process['rdr2geo']['enabled'] = enable_metadata
 
     date_str = burst.sensing_start.strftime("%Y%m%d")
     os.makedirs(f'{work_dir}/runconfigs', exist_ok=True)
@@ -351,7 +343,7 @@ def run(slc_dir, dem_file, burst_id=None, common_bursts_only=False, start_date=N
         end_date=None, exclude_dates=None, orbit_dir=None, work_dir='stack',
         pol='co-pol', x_spac=5, y_spac=10, bbox=None, bbox_epsg=4326,
         output_epsg=None, burst_db_file=DEFAULT_BURST_DB_FILE, flatten=True,
-        enable_metadata=False, enable_corrections=True, using_zipped=True):
+        enable_corrections=True, using_zipped=True):
     """Create runconfigs and runfiles generating geocoded bursts for a static
     stack of Sentinel-1 A/B SAFE files.
 
@@ -395,8 +387,6 @@ def run(slc_dir, dem_file, burst_id=None, common_bursts_only=False, start_date=N
         File path to burst database containing EPSG/extent information.
     flatten: bool
         Enable/disable flattening (removal of the DEM phase) of geocoded burst.
-    enable_metadata: bool
-        Enable/disable generation of metadata files for each burst stack.
     enable_corrections: bool
         Enable/disable generation/usage of correction LUTs during geocoding.
     using_zipped: bool
@@ -450,13 +440,8 @@ def run(slc_dir, dem_file, burst_id=None, common_bursts_only=False, start_date=N
     if burst_id is not None:
         burst_map = prune_dataframe(burst_map, 'burst_id', burst_id)
 
-    # Find the rows which are the first ones to process each burst
-    # Only these rows will be used to generate metadata (if turned on)
-    first_rows = [(burst_map.burst_id == b).idxmax() for b in burst_map.burst_id.unique()]
-
     # Ready to geocode bursts
     for row in burst_map.itertuples():
-        do_metadata = enable_metadata and (row.Index in first_rows)
         runconfig_path = create_runconfig(
             row,
             dem_file=dem_file,
@@ -465,7 +450,6 @@ def run(slc_dir, dem_file, burst_id=None, common_bursts_only=False, start_date=N
             pol=pol,
             x_spac=x_spac,
             y_spac=y_spac,
-            enable_metadata=do_metadata,
             enable_corrections=enable_corrections,
             burst_db_file=burst_db_file,
         )
@@ -503,7 +487,6 @@ def main():
         output_epsg=args.output_epsg,
         burst_db_file=args.burst_db_file,
         flatten=not args.no_flatten,
-        enable_metadata=args.metadata,
         enable_corrections=not args.no_corrections,
         using_zipped=not args.unzipped,
     )

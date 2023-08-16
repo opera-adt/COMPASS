@@ -84,7 +84,7 @@ def run(cfg, burst=None, save_in_scratch=False):
 
         # save SLC to ENVI for all bursts
         # run rdr2geo for only 1 burst avoid redundancy
-        burst.slc_to_file(f'{output_path}/{out_paths.fname_pol}.slc')
+        burst.slc_to_file(f'{output_path}/{out_paths.file_name_pol}.slc')
 
         # skip burst if id already rdr2geo processed
         # save id if not processed to avoid rdr2geo reprocessing

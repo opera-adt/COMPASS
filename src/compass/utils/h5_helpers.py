@@ -379,8 +379,7 @@ def get_polygon_wkt(burst: Sentinel1BurstSlc):
     return geometry_polygon.wkt
 
 
-def identity_to_h5group(dst_group, burst, cfg, product_type,
-                        product_spec_version):
+def identity_to_h5group(dst_group, burst, cfg, product_type):
     '''
     Write burst metadata to HDF5
 
@@ -394,13 +393,12 @@ def identity_to_h5group(dst_group, burst, cfg, product_type,
         Name space dictionary with runconfig parameters
     product_type: str
         Type of COMPASS product
-    product_spec_version: std
-        Product specification of given COMPASS product
+
     '''
     # identification datasets
     id_meta_items = [
         Meta('product_version', f'{cfg.product_group.product_version}', 'CSLC-S1 product version'),
-        Meta('product_specification_version', f'{product_spec_version}',
+        Meta('product_specification_version', f'{cfg.product_group.product_specification_version}',
              'CSLC-S1 product specification version'),
         Meta('absolute_orbit_number', burst.abs_orbit_number, 'Absolute orbit number'),
         Meta('track_number', burst.burst_id.track_number, 'Track number',

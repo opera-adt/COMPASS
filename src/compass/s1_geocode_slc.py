@@ -247,8 +247,7 @@ def run(cfg: GeoRunConfig):
         t_qa_meta = time.perf_counter()
         with h5py.File(output_hdf5, 'a') as geo_burst_h5:
             root_group = geo_burst_h5[ROOT_PATH]
-            identity_to_h5group(root_group, burst, cfg, 'CSLC -S1',
-                                cfg.product_group.product_specification_version)
+            identity_to_h5group(root_group, burst, cfg, 'CSLC -S1')
 
             metadata_to_h5group(root_group, burst, cfg,
                                 eap_correction_applied=check_eap.phase_correction)

@@ -172,8 +172,7 @@ def run(cfg, burst, fetch_from_scratch=False):
         root_group = h5_root[ROOT_PATH]
         metadata_to_h5group(root_group, burst, cfg, save_noise_and_cal=False,
                             save_processing_parameters=False)
-        identity_to_h5group(root_group, burst, cfg, 'Static layers CSLC-S1',
-                            '0.1')
+        identity_to_h5group(root_group, burst, cfg, 'Static layers CSLC-S1')
         algorithm_metadata_to_h5group(root_group, is_static_layers=True)
 
         # Create group static_layers group under DATA_PATH for consistency with

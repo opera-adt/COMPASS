@@ -172,7 +172,7 @@ class QualityAssuranceCSLC:
         # names of datasets to compute stats for
         corrections = ['bistatic_delay', 'geometry_steering_doppler',
                        'azimuth_fm_rate_mismatch', 'los_ionospheric_delay',
-                       'los_solid_earth_tides']
+                       'los_solid_earth_tides', 'azimuth_solid_earth_tides']
 
         # check if tropo corrections need to be computed and saved
         if apply_tropo_corrections:

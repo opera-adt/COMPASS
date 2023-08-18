@@ -353,7 +353,8 @@ def save_orbit(orbit, orbit_direction, orbit_type, orbit_group):
 
     orbit_ds = orbit_group.require_dataset("orbit_type", (), "S10",
                                            data=np.string_(orbit_type))
-    orbit_ds.attrs["description"] = np.string_("RESORB: restituted orbit ephemeris or POEORB: precise orbit ephemeris")
+    orbit_ds.attrs["description"] = np.string_("Type of orbit file used for processing. "
+                                               "RESORB: restituted orbit ephemeris or POEORB: precise orbit ephemeris")
 
 
 def get_polygon_wkt(burst: Sentinel1BurstSlc):

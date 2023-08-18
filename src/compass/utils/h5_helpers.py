@@ -509,6 +509,7 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
 
     # runconfig yaml text
     processing_group['runconfig'] = cfg.yaml_string
+    processing_group['runconfig'].attrs['description'] = np.string_('Run configuration file used to generate the CSLC-S1 product')
 
     # input items
     orbit_files = [os.path.basename(f) for f in cfg.orbit_path]

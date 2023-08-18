@@ -179,6 +179,9 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
     projection_ds = grid_group.require_dataset('projection', (), dtype='i')
     projection_ds[()] = geo_grid.epsg
 
+    # Add description as an attribute to projection
+    projection_ds.attrs['description'] = np.string_("Projection system")
+
     # WGS84 ellipsoid
     projection_ds.attrs['semi_major_axis'] = 6378137.0
     projection_ds.attrs['inverse_flattening'] = 298.257223563

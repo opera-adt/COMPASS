@@ -120,3 +120,9 @@ def test_geocode_slc_validate(geocode_slc_params):
     # check for bright spots in sliced array
     corner_reflector_threshold = 3e3
     assert np.any(np.abs(arr) > corner_reflector_threshold)
+
+
+def test_metadata(geocode_slc_params):
+    with h5py.File(geocode_slc_params.output_hdf5_path, 'r') as h5_obj:
+        assert (h5_obj['/metadata/processing_information/inputs/dem_source'][()].decode() ==
+                'DEM description was not provided.')

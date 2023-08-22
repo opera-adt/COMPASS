@@ -519,7 +519,7 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
              'List of input noise files used for processing'),
         Meta('dem_source',
              os.path.basename(cfg.groups.dynamic_ancillary_file_group.dem_description),
-             'Description for source DEM file'),
+             'Description of the DEM used for processing'),
     ]
     input_group = processing_group.require_group('inputs')
     for meta_item in input_items:

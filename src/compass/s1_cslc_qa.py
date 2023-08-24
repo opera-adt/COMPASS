@@ -252,12 +252,15 @@ class QualityAssuranceCSLC:
         cslc_h5py_root: h5py.File
             Root of CSLC HDF5
         '''
+
+        percent_shadow, percent_layover, percent_combined =\
+            self.compute_layover_shadow_pixel_percent(cslc_h5py_root)
         pxl_qa_items = [
-            Meta('percent_layover_pixels', 0,
+            Meta('percent_layover_pixels', percent_layover,
                  'Percentage of output pixels labeled layover'),
-            Meta('percent_shadow_pixels', 0,
+            Meta('percent_shadow_pixels', percent_shadow,
                  'Percentage of output pixels labeled shadow'),
-            Meta('percent_combined_pixels', 0,
+            Meta('percent_combined_pixels', percent_combined,
                  'Percentage of output pixels labeled layover and shadow')
         ]
 
@@ -543,6 +546,42 @@ class QualityAssuranceCSLC:
         percent_valid_px = mask_valid_inside_burst.sum() / mask_geocoded_burst.sum() * 100
 
         return percent_valid_land_px, percent_valid_px
+
+
+
+
+    def compute_layover_shadow_pixel_percent(self, cslc_h5py_root):
+        '''
+            Compute the ratio of valid pixels on land area
+
+            Parameters
+            ----------
+            cslc_h5py_path: h5py.File
+                Root of the CSLC-S1 HDF5 product
+            shapefile_path: str
+                Path to the coastline shapefile
+
+
+            Returns
+            -------
+            ratio_valid_pixel_land:  float
+                Ratio of valid pixels on land
+        '''
+
+        layover_shadow_mask_array = np.array(cslc_h5py_root[f'{DATA_PATH}/layover_shadow_mask'])
+
+        mask_geocoded_burst = layover_shadow_mask_array != 127
+
+        mask_shadow_inside_burst = mask_geocoded_burst & (layover_shadow_mask_array == 1)
+        percent_shadow = mask_shadow_inside_burst.sum() / mask_geocoded_burst.sum() * 100
+
+        mask_layover_inside_burst = mask_geocoded_burst & (layover_shadow_mask_array == 2)
+        percent_layover = mask_layover_inside_burst.sum() / mask_geocoded_burst.sum() * 100
+
+        mask_combined_inside_burst = mask_geocoded_burst & (layover_shadow_mask_array == 3)
+        percent_combined = mask_combined_inside_burst.sum() / mask_geocoded_burst.sum() * 100
+
+        return percent_shadow, percent_layover, percent_combined
 
 
 def _get_valid_pixel_mask(arr_cslc):

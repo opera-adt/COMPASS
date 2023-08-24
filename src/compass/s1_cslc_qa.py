@@ -499,7 +499,11 @@ class QualityAssuranceCSLC:
         '''
 
         drv_shp_in = ogr.GetDriverByName('GPKG')
-        coastline_shapefile = drv_shp_in.Open(LAND_GPKG_FILE)
+        if os.path.exists(LAND_GPKG_FILE):
+            coastline_shapefile = drv_shp_in.Open(LAND_GPKG_FILE)
+        else:
+            raise RuntimeError(f'cannot find land polygon file: {LAND_GPKG_FILE}')
+
         layer_coastline = coastline_shapefile.GetLayer()
 
         # extract the geogrid information

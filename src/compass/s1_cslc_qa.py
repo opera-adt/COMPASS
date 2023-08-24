@@ -172,7 +172,7 @@ class QualityAssuranceCSLC:
         # names of datasets to compute stats for
         corrections = ['bistatic_delay', 'geometry_steering_doppler',
                        'azimuth_fm_rate_mismatch', 'los_ionospheric_delay',
-                       'los_solid_earth_tides']
+                       'los_solid_earth_tides', 'azimuth_solid_earth_tides']
 
         # check if tropo corrections need to be computed and saved
         if apply_tropo_corrections:
@@ -436,7 +436,8 @@ class QualityAssuranceCSLC:
             orbit_type = 'precise orbit file'
         orbit_qa_items = [
             Meta('orbit_type', orbit_type,
-                 'Type of orbit file used in processing')
+                 'Type of orbit file used for processing. '
+                 'RESORB: restituted orbit ephemeris or POEORB: precise orbit ephemeris')
         ]
 
         # create HDF5 group for orbit info

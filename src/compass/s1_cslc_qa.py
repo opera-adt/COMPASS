@@ -3,10 +3,15 @@ Class to compute stats for geocoded raster and corrections
 '''
 import datetime
 import json
+import os
 from pathlib import Path
+import time
 
 import isce3
 import numpy as np
+
+from osgeo import ogr, osr, gdal
+from scipy import ndimage
 
 from compass.s1_rdr2geo import (file_name_los_east,
                                 file_name_los_north,file_name_local_incidence,
@@ -14,6 +19,10 @@ from compass.s1_rdr2geo import (file_name_los_east,
 from compass.utils.h5_helpers import (DATA_PATH, METADATA_PATH, TIME_STR_FMT,
                                       QA_PATH, add_dataset_and_attrs, Meta)
 
+
+# determine the path to the world land GPKG file
+from compass import __path__ as compass_path
+LAND_GPKG_FILE = os.path.join(compass_path[0], 'data', 'GSHHS_l_L1.shp.no_attrs.gpkg')
 
 def _compute_slc_array_stats(arr: np.ndarray, pwr_phase: str):
     # internal to function to compute min, max, mean, and std dev of power or
@@ -62,7 +71,7 @@ class QualityAssuranceCSLC:
         self.is_safe_corrupt = False
         self.orbit_dict = {}
         self.output_to_json = False
-
+        
 
     def compute_CSLC_raster_stats(self, cslc_h5py_root, bursts):
         '''
@@ -261,7 +270,7 @@ class QualityAssuranceCSLC:
                                  pxl_qa_items)
 
 
-    def valid_pixel_percentages(self, cslc_h5py_root):
+    def valid_pixel_percentages(self, cslc_h5py_root, pol):
         '''
         Place holder for populating classification of geocoded pixel types
 
@@ -270,10 +279,13 @@ class QualityAssuranceCSLC:
         cslc_h5py_root: h5py.File
             Root of CSLC HDF5
         '''
+
+        percent_land_pixels, percent_valid_pixels = self.compute_valid_land_pixel_percent(cslc_h5py_root,
+                                                                    pol)
         pxl_qa_items = [
-            Meta('percent_land_pixels', 0.0,
+            Meta('percent_land_pixels', percent_land_pixels,
                  'Percentage of output pixels labeled as land'),
-            Meta('percent_valid_pixels', 0.0,
+            Meta('percent_valid_pixels', percent_valid_pixels,
                  'Percentage of output pixels are valid')
         ]
 
@@ -466,3 +478,93 @@ class QualityAssuranceCSLC:
         # write combined dict to JSON
         with open(file_path, 'w') as f:
             json.dump(output_dict, f, indent=4)
+
+
+    def compute_valid_land_pixel_percent(self, cslc_h5py_root, pol):
+        '''
+            Compute the ratio of valid pixels on land area
+
+            Parameters
+            ----------
+            cslc_h5py_path: h5py.File
+                Root of the CSLC-S1 HDF5 product
+            shapefile_path: str
+                Path to the coastline shapefile
+
+
+            Returns
+            -------
+            ratio_valid_pixel_land:  float
+                Ratio of valid pixels on land
+        '''
+
+        drv_shp_in = ogr.GetDriverByName('GPKG')
+        coastline_shapefile = drv_shp_in.Open(LAND_GPKG_FILE)
+        layer_coastline = coastline_shapefile.GetLayer()
+
+        # extract the geogrid information
+        epsg_cslc = int(cslc_h5py_root[f'{DATA_PATH}/projection'][()])
+
+        x_spacing = float(cslc_h5py_root[f'{DATA_PATH}/x_spacing'][()])
+        y_spacing = float(cslc_h5py_root[f'{DATA_PATH}/y_spacing'][()])
+
+        x0 = list(cslc_h5py_root[f'{DATA_PATH}/x_coordinates'][()])[0] - x_spacing / 2
+        y0 = list(cslc_h5py_root[f'{DATA_PATH}/y_coordinates'][()])[0] - y_spacing / 2
+
+        cslc_array = np.array(cslc_h5py_root[f'{DATA_PATH}/{pol}'])
+
+        height_cslc, width_cslc = cslc_array.shape
+
+        drv_raster_out = gdal.GetDriverByName('MEM')
+        rasterized_land = drv_raster_out.Create(str(time.time_ns),
+                                                width_cslc, height_cslc,
+                                                1, gdal.GDT_Byte)
+        srs_raster = osr.SpatialReference()
+        srs_raster.ImportFromEPSG(epsg_cslc)
+
+        rasterized_land.SetGeoTransform((x0, x_spacing, 0, y0, 0, y_spacing))
+        rasterized_land.SetProjection(srs_raster.ExportToWkt())
+
+        gdal.RasterizeLayer(rasterized_land, [1], layer_coastline)
+
+        mask_land = rasterized_land.ReadAsArray()
+
+        mask_geocoded_burst = _get_valid_pixel_mask(cslc_array)
+
+        mask_valid_inside_burst = mask_geocoded_burst & ~np.isnan(cslc_array)
+
+        mask_valid_land_pixel = mask_geocoded_burst & mask_land
+
+        percent_valid_land_px = mask_valid_land_pixel.sum() / mask_geocoded_burst.sum() * 100
+        percent_valid_px = mask_valid_inside_burst.sum() / mask_geocoded_burst.sum() * 100
+
+        return percent_valid_land_px, percent_valid_px
+
+
+def _get_valid_pixel_mask(arr_cslc):
+    # temp. code to test for edge cases
+    #arr_cslc[2000:2500, 9000:10000] = (1 + 1j)*np.nan
+    #arr_cslc[2500:, 0:7500] = (1 + 1j)
+
+    mask_nan = np.isnan(arr_cslc)
+    labeled_arr, _ = ndimage.label(mask_nan)
+
+    labels_along_edges = np.concatenate((labeled_arr[0, :],
+                                         labeled_arr[-1, :],
+                                         labeled_arr[:, 0],
+                                         labeled_arr[:, -1]))
+
+    # Filter out the valid pixels that touches the edges
+    labels_along_edges = labels_along_edges[labels_along_edges != 0]
+
+    labels_edge_list = list(set(labels_along_edges))
+
+
+    # Initial binary index array. Filled with `True`
+    valid_pixel_index = np.full(labeled_arr.shape, True)
+
+    # Get rid of the NaN area whose label is detected along the array's edges
+    for labels_edge in labels_edge_list:
+        valid_pixel_index[labeled_arr == labels_edge] = False
+
+    return valid_pixel_index

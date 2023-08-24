@@ -280,8 +280,10 @@ def run(cfg: GeoRunConfig):
                         cfg.tropo_params.delay_type)
                 cslc_qa.compute_CSLC_raster_stats(geo_burst_h5, bursts)
                 cslc_qa.populate_rfi_dict(geo_burst_h5, bursts)
-                cslc_qa.valid_pixel_percentages(geo_burst_h5)
+                cslc_qa.valid_pixel_percentages(geo_burst_h5,
+                                                bursts[0].polarization)
                 cslc_qa.set_orbit_type(cfg, geo_burst_h5)
+
                 if cfg.quality_assurance_params.output_to_json:
                     cslc_qa.write_qa_dicts_to_json(out_paths.stats_json_path)
 

@@ -22,7 +22,6 @@ DATA_PATH = '/data'
 QA_PATH = '/quality_assurance'
 METADATA_PATH = '/metadata'
 
-
 @dataclass
 class Meta:
     '''

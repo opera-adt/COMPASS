@@ -496,23 +496,15 @@ class QualityAssuranceCSLC:
             ----------
             cslc_h5py_path: h5py.File
                 Root of the CSLC-S1 HDF5 product
-            shapefile_path: str
-                Path to the coastline shapefile
-
+            pol: str
+                Polarization of CSLC layer to
+                compute the valid pixel area
 
             Returns
             -------
             ratio_valid_pixel_land:  float
                 Ratio of valid pixels on land
         '''
-
-        drv_shp_in = ogr.GetDriverByName('GPKG')
-        if os.path.exists(LAND_GPKG_FILE):
-            coastline_shapefile = drv_shp_in.Open(LAND_GPKG_FILE)
-        else:
-            raise RuntimeError(f'cannot find land polygon file: {LAND_GPKG_FILE}')
-
-        layer_coastline = coastline_shapefile.GetLayer()
 
         # extract the geogrid information
         epsg_cslc = int(cslc_h5py_root[f'{DATA_PATH}/projection'][()])
@@ -526,21 +518,6 @@ class QualityAssuranceCSLC:
         cslc_array = np.array(cslc_h5py_root[f'{DATA_PATH}/{pol}'])
 
         height_cslc, width_cslc = cslc_array.shape
-
-        drv_raster_out = gdal.GetDriverByName('MEM')
-        rasterized_land = drv_raster_out.Create(str(time.time_ns),
-                                                width_cslc, height_cslc,
-                                                1, gdal.GDT_Byte)
-        srs_raster = osr.SpatialReference()
-        srs_raster.ImportFromEPSG(epsg_cslc)
-
-        rasterized_land.SetGeoTransform((x0, x_spacing, 0, y0, 0, y_spacing))
-        rasterized_land.SetProjection(srs_raster.ExportToWkt())
-
-        gdal.RasterizeLayer(rasterized_land, [1], layer_coastline, burn_values=[1])
-
-        rasterized_land.FlushCache()
-        mask_land = rasterized_land.ReadAsArray()
 
         mask_land = _get_land_mask(epsg_cslc,
                                    (x0, x_spacing, 0, y0, 0, y_spacing),
@@ -556,23 +533,18 @@ class QualityAssuranceCSLC:
         percent_valid_land_px = mask_valid_land_pixel.sum() / mask_geocoded_burst.sum() * 100
         percent_valid_px = mask_valid_inside_burst.sum() / mask_geocoded_burst.sum() * 100
 
-        
         return percent_valid_land_px, percent_valid_px
-
-
 
 
     def compute_layover_shadow_pixel_percent(self, cslc_h5py_root):
         '''
-            Compute the ratio of valid pixels on land area
+            Compute the ratio of layover / shadow pixels in the
+            geocoded burst area
 
             Parameters
             ----------
             cslc_h5py_path: h5py.File
                 Root of the CSLC-S1 HDF5 product
-            shapefile_path: str
-                Path to the coastline shapefile
-
 
             Returns
             -------
@@ -627,7 +599,11 @@ def _get_valid_pixel_mask(arr_cslc):
 
 def _get_land_mask(epsg_cslc: int, geotransform: tuple, shape_mask: tuple):
     # Load the shapefile into a GeoDataFrame
-    gdf1 = gpd.read_file(LAND_GPKG_FILE)
+    if os.path.exists(LAND_GPKG_FILE):
+        gdf1 = gpd.read_file(LAND_GPKG_FILE)
+    else:
+        raise RuntimeError('Cannot find a land mask GPKG file for '
+                           f'pixel classification: {LAND_GPKG_FILE}')
 
     # Create a bounding box (minx, miny, maxx, maxy)
     xmin = geotransform[0]
@@ -650,11 +626,15 @@ def _get_land_mask(epsg_cslc: int, geotransform: tuple, shape_mask: tuple):
     # Perform the intersection
     intersection_3413 = gdf1.geometry.iloc[0].intersection(bbox_3413.iloc[0])
     intersection_gs = gpd.GeoSeries([intersection_3413], crs='EPSG:3413')
-    
+
     if epsg_cslc != 3413:
         intersection_gs = intersection_gs.to_crs(f'EPSG:{epsg_cslc}')
 
-    tform_bbox = rasterio.transform.from_bounds(xmin, ymin, xmax, ymax, shape_mask[1], shape_mask[0])
-    
-    image = rasterize(intersection_gs.geometry, transform=tform_bbox, out_shape=shape_mask, dtype=np.uint8, default_value=1)
+    tform_bbox = rasterio.transform.from_bounds(xmin, ymin, xmax, ymax,
+                                                shape_mask[1], shape_mask[0])
+
+    image = rasterize(intersection_gs.geometry,
+                      transform=tform_bbox,
+                      out_shape=shape_mask,
+                      dtype=np.uint8, default_value=1)
     return image

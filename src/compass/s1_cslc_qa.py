@@ -8,9 +8,13 @@ from pathlib import Path
 import time
 
 import isce3
+import geopandas as gpd
+from shapely.geometry import box
 import numpy as np
 
 from osgeo import ogr, osr, gdal
+import rasterio
+from rasterio.features import rasterize
 from scipy import ndimage
 
 from compass.s1_rdr2geo import (file_name_los_east,
@@ -22,7 +26,8 @@ from compass.utils.h5_helpers import (DATA_PATH, METADATA_PATH, TIME_STR_FMT,
 
 # determine the path to the world land GPKG file
 from compass import __path__ as compass_path
-LAND_GPKG_FILE = os.path.join(compass_path[0], 'data', 'GSHHS_l_L1.shp.no_attrs.gpkg')
+#LAND_GPKG_FILE = os.path.join(compass_path[0], 'data', 'GSHHS_l_L1.shp.no_attrs.gpkg')
+LAND_GPKG_FILE = os.path.join(compass_path[0], 'data', 'GSHHS_l_L1.shp.no_attrs.epsg3413_dissolved.gpkg')
 
 def _compute_slc_array_stats(arr: np.ndarray, pwr_phase: str):
     # internal to function to compute min, max, mean, and std dev of power or
@@ -532,9 +537,15 @@ class QualityAssuranceCSLC:
         rasterized_land.SetGeoTransform((x0, x_spacing, 0, y0, 0, y_spacing))
         rasterized_land.SetProjection(srs_raster.ExportToWkt())
 
-        gdal.RasterizeLayer(rasterized_land, [1], layer_coastline)
+        gdal.RasterizeLayer(rasterized_land, [1], layer_coastline, burn_values=[1])
 
+        rasterized_land.FlushCache()
         mask_land = rasterized_land.ReadAsArray()
+
+        mask_land = _get_land_mask(epsg_cslc,
+                                   (x0, x_spacing, 0, y0, 0, y_spacing),
+                                   (height_cslc, width_cslc))
+
 
         mask_geocoded_burst = _get_valid_pixel_mask(cslc_array)
 
@@ -545,6 +556,7 @@ class QualityAssuranceCSLC:
         percent_valid_land_px = mask_valid_land_pixel.sum() / mask_geocoded_burst.sum() * 100
         percent_valid_px = mask_valid_inside_burst.sum() / mask_geocoded_burst.sum() * 100
 
+        
         return percent_valid_land_px, percent_valid_px
 
 
@@ -611,3 +623,38 @@ def _get_valid_pixel_mask(arr_cslc):
         valid_pixel_index[labeled_arr == labels_edge] = False
 
     return valid_pixel_index
+
+
+def _get_land_mask(epsg_cslc: int, geotransform: tuple, shape_mask: tuple):
+    # Load the shapefile into a GeoDataFrame
+    gdf1 = gpd.read_file(LAND_GPKG_FILE)
+
+    # Create a bounding box (minx, miny, maxx, maxy)
+    xmin = geotransform[0]
+    ymin = geotransform[3] + geotransform[5] * shape_mask[0]
+    xmax = geotransform[0] + geotransform[1] * shape_mask[1]
+    ymax = geotransform[3]
+
+    bbox = box(xmin, ymin, xmax, ymax)
+
+    # Make sure the CRS of the bounding box is the same as the GeoDataFrame
+    bbox = gpd.GeoSeries([bbox], crs=f'EPSG:{epsg_cslc}')
+    if epsg_cslc != 3413:
+        bbox_3413 = bbox.to_crs('EPSG:3413')
+
+    # Check if the polygon intersects with the bounding box.
+    if not gdf1.geometry.iloc[0].intersects(bbox_3413.iloc[0]):
+        # no overlap
+        return np.full(shape_mask, False)
+
+    # Perform the intersection
+    intersection_3413 = gdf1.geometry.iloc[0].intersection(bbox_3413.iloc[0])
+    intersection_gs = gpd.GeoSeries([intersection_3413], crs='EPSG:3413')
+    
+    if epsg_cslc != 3413:
+        intersection_gs = intersection_gs.to_crs(f'EPSG:{epsg_cslc}')
+
+    tform_bbox = rasterio.transform.from_bounds(xmin, ymin, xmax, ymax, shape_mask[1], shape_mask[0])
+    
+    image = rasterize(intersection_gs.geometry, transform=tform_bbox, out_shape=shape_mask, dtype=np.uint8, default_value=1)
+    return image

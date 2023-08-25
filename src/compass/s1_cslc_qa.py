@@ -277,7 +277,7 @@ class QualityAssuranceCSLC:
                                  pxl_qa_items)
 
 
-    def valid_pixel_percentages(self, cslc_h5py_root, pol):
+    def percent_land_and_valid_pixels(self, cslc_h5py_root, pol):
         '''
         Populate classification of geocoded pixel types
 

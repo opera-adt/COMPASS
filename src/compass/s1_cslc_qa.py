@@ -22,12 +22,11 @@ from compass.s1_rdr2geo import (file_name_los_east,
                                 file_name_x, file_name_y, file_name_z)
 from compass.utils.h5_helpers import (DATA_PATH, METADATA_PATH, TIME_STR_FMT,
                                       QA_PATH, add_dataset_and_attrs, Meta)
-
+from compass.utils.helpers import WORKFLOW_SCRIPTS_DIR
 
 # determine the path to the world land GPKG file
-from compass import __path__ as compass_path
-#LAND_GPKG_FILE = os.path.join(compass_path[0], 'data', 'GSHHS_l_L1.shp.no_attrs.gpkg')
-LAND_GPKG_FILE = os.path.join(compass_path[0], 'data', 'GSHHS_l_L1.shp.no_attrs.epsg3413_dissolved.gpkg')
+LAND_GPKG_FILE = os.path.join(WORKFLOW_SCRIPTS_DIR, 'data',
+                              'GSHHS_l_L1.shp.no_attrs.epsg3413_dissolved.gpkg')
 
 def _compute_slc_array_stats(arr: np.ndarray, pwr_phase: str):
     # internal to function to compute min, max, mean, and std dev of power or

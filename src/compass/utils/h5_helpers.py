@@ -164,7 +164,7 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
         Meta('x_spacing', geo_grid.spacing_x,
              'Spacing of the geographical grid along X-direction',
              {'units': 'meters'}),
-        Meta('y_spacing', geo_grid.spacing_y,
+        Meta('y_spacing', np.abs(geo_grid.spacing_y),
              'Spacing of the geographical grid along Y-direction',
              {'units': 'meters'})
     ]
@@ -178,6 +178,9 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
     #Create a new single int dataset for projections
     projection_ds = grid_group.require_dataset('projection', (), dtype='i')
     projection_ds[()] = geo_grid.epsg
+
+    # Add description as an attribute to projection
+    projection_ds.attrs['description'] = np.string_("Projection system")
 
     # WGS84 ellipsoid
     projection_ds.attrs['semi_major_axis'] = 6378137.0
@@ -350,7 +353,8 @@ def save_orbit(orbit, orbit_direction, orbit_type, orbit_group):
 
     orbit_ds = orbit_group.require_dataset("orbit_type", (), "S10",
                                            data=np.string_(orbit_type))
-    orbit_ds.attrs["description"] = np.string_("RESORB: restituted orbit ephemeris or POEORB: precise orbit ephemeris")
+    orbit_ds.attrs["description"] = np.string_("Type of orbit file used for processing. "
+                                               "RESORB: restituted orbit ephemeris or POEORB: precise orbit ephemeris")
 
 
 def get_polygon_wkt(burst: Sentinel1BurstSlc):
@@ -504,6 +508,7 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
 
     # runconfig yaml text
     processing_group['runconfig'] = cfg.yaml_string
+    processing_group['runconfig'].attrs['description'] = np.string_('Run configuration file used to generate the CSLC-S1 product')
 
     # input items
     orbit_files = [os.path.basename(f) for f in cfg.orbit_path]
@@ -777,7 +782,7 @@ def corrections_to_h5group(parent_group, burst, cfg, rg_lut, az_lut,
              'spacing of slant range of LUT data', {'units': 'meters'}),
         Meta('zero_doppler_time', azimuth, 'azimuth time of LUT data',
              {'units': 'seconds'}),
-        Meta('zero_doppler_time_spacing',rg_lut.y_spacing,
+        Meta('zero_doppler_time_spacing', np.abs(rg_lut.y_spacing),
              'spacing of azimuth time of LUT data', {'units': 'seconds'}),
         Meta('bistatic_delay', ds.GetRasterBand(2).ReadAsArray(),
              f'bistatic delay (azimuth) {desc}', {'units': 'seconds'}),

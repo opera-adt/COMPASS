@@ -5,14 +5,12 @@ import datetime
 import json
 import os
 from pathlib import Path
-import time
 
 import isce3
 import geopandas as gpd
 from shapely.geometry import box
 import numpy as np
 
-from osgeo import ogr, osr, gdal
 import rasterio
 from rasterio.features import rasterize
 from scipy import ndimage

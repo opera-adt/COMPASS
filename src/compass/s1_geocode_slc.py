@@ -187,7 +187,7 @@ def run(cfg: GeoRunConfig):
             # outputs
             phase_names = ['azimuth_carrier_phase', 'flattening_phase']
             phase_descrs = ['azimuth carrier phase', 'flattening phase']
-            
+
             # Prepare arrays and datasets for carrier phase and flattening
             # phase
             ((carrier_phase_data_blk, carrier_phase_ds),

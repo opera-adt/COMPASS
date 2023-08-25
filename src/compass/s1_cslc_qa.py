@@ -76,7 +76,7 @@ class QualityAssuranceCSLC:
         self.is_safe_corrupt = False
         self.orbit_dict = {}
         self.output_to_json = False
-        
+
 
     def compute_CSLC_raster_stats(self, cslc_h5py_root, bursts):
         '''
@@ -287,9 +287,9 @@ class QualityAssuranceCSLC:
         cslc_h5py_root: h5py.File
             Root of CSLC HDF5
         '''
-
-        percent_land_pixels, percent_valid_pixels = self.compute_valid_land_pixel_percent(cslc_h5py_root,
-                                                                    pol)
+        percent_land_pixels, percent_valid_pixels = \
+            self.compute_valid_land_and_pixel_percents(cslc_h5py_root,
+                                                       pol)
         pxl_qa_items = [
             Meta('percent_land_pixels', percent_land_pixels,
                  'Percentage of output pixels labeled as land'),
@@ -488,9 +488,9 @@ class QualityAssuranceCSLC:
             json.dump(output_dict, f, indent=4)
 
 
-    def compute_valid_land_pixel_percent(self, cslc_h5py_root, pol):
+    def compute_valid_land_and_pixel_percents(self, cslc_h5py_root, pol):
         '''
-            Compute the ratio of valid pixels on land area
+            Compute the percentage of valid pixels on land area
 
             Parameters
             ----------
@@ -502,10 +502,13 @@ class QualityAssuranceCSLC:
 
             Returns
             -------
-            ratio_valid_pixel_land:  float
-                Ratio of valid pixels on land
+            percent_valid_land_px: float
+                Percentage of valid pixels on land
+                in the geocoded burst area
+            percent_valid_px: float
+                Percentage of invalid pixels
+                in the geocoded burst area
         '''
-
         # extract the geogrid information
         epsg_cslc = int(cslc_h5py_root[f'{DATA_PATH}/projection'][()])
 
@@ -530,15 +533,16 @@ class QualityAssuranceCSLC:
 
         mask_valid_land_pixel = mask_geocoded_burst & mask_land
 
-        percent_valid_land_px = mask_valid_land_pixel.sum() / mask_geocoded_burst.sum() * 100
-        percent_valid_px = mask_valid_inside_burst.sum() / mask_geocoded_burst.sum() * 100
+        n_unmasked_pxls = mask_geocoded_burst.sum()
+        percent_valid_land_px = mask_valid_land_pixel.sum() / n_unmasked_pxls * 100
+        percent_valid_px = mask_valid_inside_burst.sum() / n_unmasked_pxls * 100
 
         return percent_valid_land_px, percent_valid_px
 
 
     def compute_layover_shadow_pixel_percent(self, cslc_h5py_root):
         '''
-            Compute the ratio of layover / shadow pixels in the
+            Compute the percentage of layover / shadow pixels in the
             geocoded burst area
 
             Parameters
@@ -548,31 +552,49 @@ class QualityAssuranceCSLC:
 
             Returns
             -------
-            ratio_valid_pixel_land:  float
-                Ratio of valid pixels on land
+            percent_shadow: float
+                Percentage of the shadow pixels
+                in the geocoded burst area
+            percent_layover: float
+                Percentage of the layover pixels
+                in the geocoded burst area
+            percent_combined: float
+                Percentage of the shadow and layover pixels
+                in the geocoded burst area
         '''
-
-        layover_shadow_mask_array = np.array(cslc_h5py_root[f'{DATA_PATH}/layover_shadow_mask'])
+        layover_shadow_mask_array = cslc_h5py_root[f'{DATA_PATH}/layover_shadow_mask'][()]
 
         mask_geocoded_burst = layover_shadow_mask_array != 127
 
+        n_unmasked_pxls = mask_geocoded_burst.sum()
+
         mask_shadow_inside_burst = mask_geocoded_burst & (layover_shadow_mask_array == 1)
-        percent_shadow = mask_shadow_inside_burst.sum() / mask_geocoded_burst.sum() * 100
+        percent_shadow = mask_shadow_inside_burst.sum() / n_unmasked_pxls * 100
 
         mask_layover_inside_burst = mask_geocoded_burst & (layover_shadow_mask_array == 2)
-        percent_layover = mask_layover_inside_burst.sum() / mask_geocoded_burst.sum() * 100
+        percent_layover = mask_layover_inside_burst.sum() / n_unmasked_pxls * 100
 
         mask_combined_inside_burst = mask_geocoded_burst & (layover_shadow_mask_array == 3)
-        percent_combined = mask_combined_inside_burst.sum() / mask_geocoded_burst.sum() * 100
+        percent_combined = mask_combined_inside_burst.sum() / n_unmasked_pxls * 100
 
         return percent_shadow, percent_layover, percent_combined
 
 
 def _get_valid_pixel_mask(arr_cslc):
-    # temp. code to test for edge cases
-    #arr_cslc[2000:2500, 9000:10000] = (1 + 1j)*np.nan
-    #arr_cslc[2500:, 0:7500] = (1 + 1j)
+    '''
+    Get the binary index of the pixels in the geocoded burst area
 
+    Parameters
+    ----------
+    arr_cslc: np.ndarray
+        CSLC layer to compute the geocoded burst area
+
+    Returns
+    -------
+    valid_pixel_index: np.ndarray
+        binary index that identifies the pixels in the
+        geocoded burst area
+    '''
     mask_nan = np.isnan(arr_cslc)
     labeled_arr, _ = ndimage.label(mask_nan)
 

@@ -22,9 +22,10 @@ from compass.utils.h5_helpers import (algorithm_metadata_to_h5group,
                                       identity_to_h5group,
                                       init_geocoded_dataset,
                                       metadata_to_h5group, DATA_PATH,
-                                      ROOT_PATH, OPERA_OPERATION_CONTACT_EMAIL)
+                                      ROOT_PATH)
 from compass.utils.helpers import (bursts_grouping_generator, get_module_name,
-                                   get_time_delta_str)
+                                   get_time_delta_str,
+                                   OPERA_OPERATION_CONTACT_EMAIL)
 from compass.utils.yaml_argparse import YamlArgparse
 from compass.utils.radar_grid import get_decimated_rdr_grd
 

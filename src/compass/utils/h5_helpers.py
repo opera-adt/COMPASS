@@ -21,7 +21,6 @@ ROOT_PATH = '/'
 DATA_PATH = '/data'
 QA_PATH = '/quality_assurance'
 METADATA_PATH = '/metadata'
-OPERA_OPERATION_CONTACT_EMAIL = 'opera-sds-ops@jpl.nasa.gov'
 
 @dataclass
 class Meta:

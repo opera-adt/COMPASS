@@ -17,6 +17,7 @@ dependencies:
   - s1reader>=0.2.1
   - shapely>=1.8
   - requests>=2.0
+  - scikit-image
 # CI unit test
   - pytest
   - pluggy

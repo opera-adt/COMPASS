@@ -492,24 +492,24 @@ class QualityAssuranceCSLC:
 
     def compute_valid_land_and_pixel_percents(self, cslc_h5py_root, pol):
         '''
-            Compute the percentage of valid pixels on land area
+        Compute the percentage of valid pixels on land area
 
-            Parameters
-            ----------
-            cslc_h5py_path: h5py.File
-                Root of the CSLC-S1 HDF5 product
-            pol: str
-                Polarization of CSLC layer to
-                compute the valid pixel area
+        Parameters
+        ----------
+        cslc_h5py_path: h5py.File
+            Root of the CSLC-S1 HDF5 product
+        pol: str
+            Polarization of CSLC layer to
+            compute the valid pixel area
 
-            Returns
-            -------
-            percent_valid_land_px: float
-                Percentage of valid pixels on land
-                in the geocoded burst area
-            percent_valid_px: float
-                Percentage of invalid pixels
-                in the geocoded burst area
+        Returns
+        -------
+        percent_valid_land_px: float
+            Percentage of valid pixels on land
+            in the geocoded burst area
+        percent_valid_px: float
+            Percentage of invalid pixels
+            in the geocoded burst area
         '''
         # extract the geogrid information
         epsg_cslc = int(cslc_h5py_root[f'{DATA_PATH}/projection'][()])
@@ -528,7 +528,6 @@ class QualityAssuranceCSLC:
                                    (x0, x_spacing, 0, y0, 0, y_spacing),
                                    (height_cslc, width_cslc))
 
-
         mask_geocoded_burst = _get_valid_pixel_mask(cslc_array)
 
         mask_valid_inside_burst = mask_geocoded_burst & ~np.isnan(cslc_array)
@@ -544,25 +543,25 @@ class QualityAssuranceCSLC:
 
     def compute_layover_shadow_pixel_percent(self, cslc_h5py_root):
         '''
-            Compute the percentage of layover, shadow, and
-            layover/shadow pixels in the geocoded burst area
+        Compute the percentage of layover, shadow, and
+        layover/shadow pixels in the geocoded burst area
 
-            Parameters
-            ----------
-            cslc_h5py_path: h5py.File
-                Root of the CSLC-S1 HDF5 product
+        Parameters
+        ----------
+        cslc_h5py_path: h5py.File
+            Root of the CSLC-S1 HDF5 product
 
-            Returns
-            -------
-            percent_shadow: float
-                Percentage of the shadow pixels
-                in the geocoded burst area
-            percent_layover: float
-                Percentage of the layover pixels
-                in the geocoded burst area
-            percent_combined: float
-                Percentage of the shadow and layover pixels
-                in the geocoded burst area
+        Returns
+        -------
+        percent_shadow: float
+            Percentage of the shadow pixels
+            in the geocoded burst area
+        percent_layover: float
+            Percentage of the layover pixels
+            in the geocoded burst area
+        percent_combined: float
+            Percentage of the shadow and layover pixels
+            in the geocoded burst area
         '''
         layover_shadow_mask_array = cslc_h5py_root[f'{DATA_PATH}/layover_shadow_mask'][()]
 

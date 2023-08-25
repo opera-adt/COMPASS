@@ -249,7 +249,7 @@ class QualityAssuranceCSLC:
 
     def shadow_pixel_classification(self, cslc_h5py_root):
         '''
-        Place holder for populating classification of shadow layover pixels
+        Populate classification of shadow layover pixels
 
         Parameters
         ----------
@@ -279,12 +279,15 @@ class QualityAssuranceCSLC:
 
     def valid_pixel_percentages(self, cslc_h5py_root, pol):
         '''
-        Place holder for populating classification of geocoded pixel types
+        Populate classification of geocoded pixel types
 
         Parameters
         ----------
         cslc_h5py_root: h5py.File
             Root of CSLC HDF5
+
+        pol: str
+            Polarization of the CSLC layer
         '''
         percent_land_pixels, percent_valid_pixels = \
             self.compute_valid_land_and_pixel_percents(cslc_h5py_root,
@@ -541,8 +544,8 @@ class QualityAssuranceCSLC:
 
     def compute_layover_shadow_pixel_percent(self, cslc_h5py_root):
         '''
-            Compute the percentage of layover / shadow pixels in the
-            geocoded burst area
+            Compute the percentage of layover, shadow, and
+            layover/shadow pixels in the geocoded burst area
 
             Parameters
             ----------

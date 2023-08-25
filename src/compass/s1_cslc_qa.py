@@ -3,17 +3,28 @@ Class to compute stats for geocoded raster and corrections
 '''
 import datetime
 import json
+import os
 from pathlib import Path
 
 import isce3
+import geopandas as gpd
+from shapely.geometry import box
 import numpy as np
+
+import rasterio
+from rasterio.features import rasterize
+from scipy import ndimage
 
 from compass.s1_rdr2geo import (file_name_los_east,
                                 file_name_los_north,file_name_local_incidence,
                                 file_name_x, file_name_y, file_name_z)
 from compass.utils.h5_helpers import (DATA_PATH, METADATA_PATH, TIME_STR_FMT,
                                       QA_PATH, add_dataset_and_attrs, Meta)
+from compass.utils.helpers import WORKFLOW_SCRIPTS_DIR
 
+# determine the path to the world land GPKG file
+LAND_GPKG_FILE = os.path.join(WORKFLOW_SCRIPTS_DIR, 'data',
+                              'GSHHS_l_L1.shp.no_attrs.epsg3413_dissolved.gpkg')
 
 def _compute_slc_array_stats(arr: np.ndarray, pwr_phase: str):
     # internal to function to compute min, max, mean, and std dev of power or
@@ -236,19 +247,22 @@ class QualityAssuranceCSLC:
 
     def shadow_pixel_classification(self, cslc_h5py_root):
         '''
-        Place holder for populating classification of shadow layover pixels
+        Populate classification of shadow layover pixels
 
         Parameters
         ----------
         cslc_h5py_root: h5py.File
             Root of CSLC HDF5
         '''
+
+        percent_shadow, percent_layover, percent_combined =\
+            self.compute_layover_shadow_pixel_percent(cslc_h5py_root)
         pxl_qa_items = [
-            Meta('percent_layover_pixels', 0,
+            Meta('percent_layover_pixels', percent_layover,
                  'Percentage of output pixels labeled layover'),
-            Meta('percent_shadow_pixels', 0,
+            Meta('percent_shadow_pixels', percent_shadow,
                  'Percentage of output pixels labeled shadow'),
-            Meta('percent_combined_pixels', 0,
+            Meta('percent_combined_pixels', percent_combined,
                  'Percentage of output pixels labeled layover and shadow')
         ]
 
@@ -261,19 +275,25 @@ class QualityAssuranceCSLC:
                                  pxl_qa_items)
 
 
-    def valid_pixel_percentages(self, cslc_h5py_root):
+    def percent_land_and_valid_pixels(self, cslc_h5py_root, pol):
         '''
-        Place holder for populating classification of geocoded pixel types
+        Populate classification of geocoded pixel types
 
         Parameters
         ----------
         cslc_h5py_root: h5py.File
             Root of CSLC HDF5
+
+        pol: str
+            Polarization of the CSLC layer
         '''
+        percent_land_pixels, percent_valid_pixels = \
+            self.compute_valid_land_and_pixel_percents(cslc_h5py_root,
+                                                       pol)
         pxl_qa_items = [
-            Meta('percent_land_pixels', 0.0,
+            Meta('percent_land_pixels', percent_land_pixels,
                  'Percentage of output pixels labeled as land'),
-            Meta('percent_valid_pixels', 0.0,
+            Meta('percent_valid_pixels', percent_valid_pixels,
                  'Percentage of output pixels are valid')
         ]
 
@@ -467,3 +487,176 @@ class QualityAssuranceCSLC:
         # write combined dict to JSON
         with open(file_path, 'w') as f:
             json.dump(output_dict, f, indent=4)
+
+
+    def compute_valid_land_and_pixel_percents(self, cslc_h5py_root, pol):
+        '''
+        Compute the percentage of valid pixels on land area
+
+        Parameters
+        ----------
+        cslc_h5py_path: h5py.File
+            Root of the CSLC-S1 HDF5 product
+        pol: str
+            Polarization of CSLC layer to
+            compute the valid pixel area
+
+        Returns
+        -------
+        percent_valid_land_px: float
+            Percentage of valid pixels on land
+            in the geocoded burst area
+        percent_valid_px: float
+            Percentage of invalid pixels
+            in the geocoded burst area
+        '''
+        # extract the geogrid information
+        epsg_cslc = int(cslc_h5py_root[f'{DATA_PATH}/projection'][()])
+
+        x_spacing = float(cslc_h5py_root[f'{DATA_PATH}/x_spacing'][()])
+        y_spacing = float(cslc_h5py_root[f'{DATA_PATH}/y_spacing'][()])
+
+        x0 = list(cslc_h5py_root[f'{DATA_PATH}/x_coordinates'][()])[0] - x_spacing / 2
+        y0 = list(cslc_h5py_root[f'{DATA_PATH}/y_coordinates'][()])[0] - y_spacing / 2
+
+        cslc_array = np.array(cslc_h5py_root[f'{DATA_PATH}/{pol}'])
+
+        height_cslc, width_cslc = cslc_array.shape
+
+        mask_land = _get_land_mask(epsg_cslc,
+                                   (x0, x_spacing, 0, y0, 0, y_spacing),
+                                   (height_cslc, width_cslc))
+
+        mask_geocoded_burst = _get_valid_pixel_mask(cslc_array)
+
+        mask_valid_inside_burst = mask_geocoded_burst & ~np.isnan(cslc_array)
+
+        mask_valid_land_pixel = mask_geocoded_burst & mask_land
+
+        n_unmasked_pxls = mask_geocoded_burst.sum()
+        percent_valid_land_px = mask_valid_land_pixel.sum() / n_unmasked_pxls * 100
+        percent_valid_px = mask_valid_inside_burst.sum() / n_unmasked_pxls * 100
+
+        return percent_valid_land_px, percent_valid_px
+
+
+    def compute_layover_shadow_pixel_percent(self, cslc_h5py_root):
+        '''
+        Compute the percentage of layover, shadow, and
+        layover/shadow pixels in the geocoded burst area
+
+        Parameters
+        ----------
+        cslc_h5py_path: h5py.File
+            Root of the CSLC-S1 HDF5 product
+
+        Returns
+        -------
+        percent_shadow: float
+            Percentage of the shadow pixels
+            in the geocoded burst area
+        percent_layover: float
+            Percentage of the layover pixels
+            in the geocoded burst area
+        percent_combined: float
+            Percentage of the shadow and layover pixels
+            in the geocoded burst area
+        '''
+        layover_shadow_mask_array = cslc_h5py_root[f'{DATA_PATH}/layover_shadow_mask'][()]
+
+        mask_geocoded_burst = layover_shadow_mask_array != 127
+
+        n_unmasked_pxls = mask_geocoded_burst.sum()
+
+        mask_shadow_inside_burst = mask_geocoded_burst & (layover_shadow_mask_array == 1)
+        percent_shadow = mask_shadow_inside_burst.sum() / n_unmasked_pxls * 100
+
+        mask_layover_inside_burst = mask_geocoded_burst & (layover_shadow_mask_array == 2)
+        percent_layover = mask_layover_inside_burst.sum() / n_unmasked_pxls * 100
+
+        mask_combined_inside_burst = mask_geocoded_burst & (layover_shadow_mask_array == 3)
+        percent_combined = mask_combined_inside_burst.sum() / n_unmasked_pxls * 100
+
+        return percent_shadow, percent_layover, percent_combined
+
+
+def _get_valid_pixel_mask(arr_cslc):
+    '''
+    Get the binary index of the pixels in the geocoded burst area
+
+    Parameters
+    ----------
+    arr_cslc: np.ndarray
+        CSLC layer to compute the geocoded burst area
+
+    Returns
+    -------
+    valid_pixel_index: np.ndarray
+        binary index that identifies the pixels in the
+        geocoded burst area
+    '''
+    mask_nan = np.isnan(arr_cslc)
+    labeled_arr, _ = ndimage.label(mask_nan)
+
+    labels_along_edges = np.concatenate((labeled_arr[0, :],
+                                         labeled_arr[-1, :],
+                                         labeled_arr[:, 0],
+                                         labeled_arr[:, -1]))
+
+    # Filter out the valid pixels that touches the edges
+    labels_along_edges = labels_along_edges[labels_along_edges != 0]
+
+    labels_edge_list = list(set(labels_along_edges))
+
+
+    # Initial binary index array. Filled with `True`
+    valid_pixel_index = np.full(labeled_arr.shape, True)
+
+    # Get rid of the NaN area whose label is detected along the array's edges
+    for labels_edge in labels_edge_list:
+        valid_pixel_index[labeled_arr == labels_edge] = False
+
+    return valid_pixel_index
+
+
+def _get_land_mask(epsg_cslc: int, geotransform: tuple, shape_mask: tuple):
+    # Load the shapefile into a GeoDataFrame
+    if os.path.exists(LAND_GPKG_FILE):
+        gdf1 = gpd.read_file(LAND_GPKG_FILE)
+    else:
+        raise RuntimeError('Cannot find a land mask GPKG file for '
+                           f'pixel classification: {LAND_GPKG_FILE}')
+
+    # Create a bounding box (minx, miny, maxx, maxy)
+    xmin = geotransform[0]
+    ymin = geotransform[3] + geotransform[5] * shape_mask[0]
+    xmax = geotransform[0] + geotransform[1] * shape_mask[1]
+    ymax = geotransform[3]
+
+    bbox = box(xmin, ymin, xmax, ymax)
+
+    # Make sure the CRS of the bounding box is the same as the GeoDataFrame
+    bbox = gpd.GeoSeries([bbox], crs=f'EPSG:{epsg_cslc}')
+    if epsg_cslc != 3413:
+        bbox_3413 = bbox.to_crs('EPSG:3413')
+
+    # Check if the polygon intersects with the bounding box.
+    if not gdf1.geometry.iloc[0].intersects(bbox_3413.iloc[0]):
+        # no overlap
+        return np.full(shape_mask, False)
+
+    # Perform the intersection
+    intersection_3413 = gdf1.geometry.iloc[0].intersection(bbox_3413.iloc[0])
+    intersection_gs = gpd.GeoSeries([intersection_3413], crs='EPSG:3413')
+
+    if epsg_cslc != 3413:
+        intersection_gs = intersection_gs.to_crs(f'EPSG:{epsg_cslc}')
+
+    tform_bbox = rasterio.transform.from_bounds(xmin, ymin, xmax, ymax,
+                                                shape_mask[1], shape_mask[0])
+
+    image = rasterize(intersection_gs.geometry,
+                      transform=tform_bbox,
+                      out_shape=shape_mask,
+                      dtype=np.uint8, default_value=1)
+    return image

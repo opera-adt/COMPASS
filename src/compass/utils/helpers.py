@@ -17,6 +17,7 @@ import compass
 
 
 WORKFLOW_SCRIPTS_DIR = os.path.dirname(compass.__file__)
+OPERA_OPERATION_CONTACT_EMAIL = 'opera-sds-ops@jpl.nasa.gov'
 
 # get the basename given an input file path
 # example: get_module_name(__file__)

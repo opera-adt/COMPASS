@@ -25,7 +25,8 @@ from compass.utils.h5_helpers import (algorithm_metadata_to_h5group,
                                       metadata_to_h5group,
                                       DATA_PATH, METADATA_PATH, ROOT_PATH)
 from compass.utils.helpers import (bursts_grouping_generator,
-                                   get_time_delta_str, get_module_name)
+                                   get_time_delta_str, get_module_name,
+                                   OPERA_OPERATION_CONTACT_EMAIL)
 from compass.utils.lut import cumulative_correction_luts
 from compass.utils.yaml_argparse import YamlArgparse
 
@@ -119,7 +120,7 @@ def run(cfg: GeoRunConfig):
 
         with h5py.File(output_hdf5, 'w') as geo_burst_h5:
             geo_burst_h5.attrs['conventions'] = "CF-1.8"
-            geo_burst_h5.attrs["contact"] = np.string_("operaops@jpl.nasa.gov")
+            geo_burst_h5.attrs["contact"] = np.string_(OPERA_OPERATION_CONTACT_EMAIL)
             geo_burst_h5.attrs["institution"] = np.string_("NASA JPL")
             geo_burst_h5.attrs["project_name"] = np.string_("OPERA")
             geo_burst_h5.attrs["reference_document"] = np.string_("JPL-108278")
@@ -185,8 +186,7 @@ def run(cfg: GeoRunConfig):
             # Declare names, types, and descriptions of carrier and flatten
             # outputs
             phase_names = ['azimuth_carrier_phase', 'flattening_phase']
-            phase_descrs = [f'{pol} geocoded CSLC image {desc}'
-                            for desc in phase_names]
+            phase_descrs = ['azimuth carrier phase', 'flattening phase']
 
             # Prepare arrays and datasets for carrier phase and flattening
             # phase
@@ -280,8 +280,10 @@ def run(cfg: GeoRunConfig):
                         cfg.tropo_params.delay_type)
                 cslc_qa.compute_CSLC_raster_stats(geo_burst_h5, bursts)
                 cslc_qa.populate_rfi_dict(geo_burst_h5, bursts)
-                cslc_qa.valid_pixel_percentages(geo_burst_h5)
+                cslc_qa.percent_land_and_valid_pixels(geo_burst_h5,
+                                                bursts[0].polarization)
                 cslc_qa.set_orbit_type(cfg, geo_burst_h5)
+
                 if cfg.quality_assurance_params.output_to_json:
                     cslc_qa.write_qa_dicts_to_json(out_paths.stats_json_path)
 

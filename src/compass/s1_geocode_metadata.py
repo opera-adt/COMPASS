@@ -24,7 +24,8 @@ from compass.utils.h5_helpers import (algorithm_metadata_to_h5group,
                                       metadata_to_h5group, DATA_PATH,
                                       ROOT_PATH)
 from compass.utils.helpers import (bursts_grouping_generator, get_module_name,
-                                   get_time_delta_str)
+                                   get_time_delta_str,
+                                   OPERA_OPERATION_CONTACT_EMAIL)
 from compass.utils.yaml_argparse import YamlArgparse
 from compass.utils.radar_grid import get_decimated_rdr_grd
 
@@ -162,7 +163,7 @@ def run(cfg, burst, fetch_from_scratch=False):
 
         # Global attributes for static layers
         h5_root.attrs['conventions'] = "CF-1.8"
-        h5_root.attrs["contact"] = np.string_("operaops@jpl.nasa.gov")
+        h5_root.attrs["contact"] = np.string_(OPERA_OPERATION_CONTACT_EMAIL)
         h5_root.attrs["institution"] = np.string_("NASA JPL")
         h5_root.attrs["project_name"] = np.string_("OPERA")
         h5_root.attrs["reference_document"] = np.string_("JPL-108762")

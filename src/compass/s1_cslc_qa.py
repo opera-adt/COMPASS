@@ -524,7 +524,7 @@ class QualityAssuranceCSLC:
         height_cslc, width_cslc = cslc_array.shape
 
         mask_land = _get_land_mask(epsg_cslc,
-                                   (x0, x_spacing, 0, y0, 0, y_spacing),
+                                   (x0, x_spacing, 0, y0, 0, -abs(y_spacing)),
                                    (height_cslc, width_cslc))
 
         mask_geocoded_burst = _get_valid_pixel_mask(cslc_array)
@@ -659,4 +659,12 @@ def _get_land_mask(epsg_cslc: int, geotransform: tuple, shape_mask: tuple):
                       transform=tform_bbox,
                       out_shape=shape_mask,
                       dtype=np.uint8, default_value=1)
+    
+    # Debug code - comment out when not in use
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots()
+    gdf1.boundary.plot(ax=ax, color='red', label='Intersection')
+    bbox_3413.boundary.plot(ax=ax, color='green', label='Intersection')
+    #intersection_gs.boundary.plot(ax=ax, color='blue', label='Intersection')
+
     return image

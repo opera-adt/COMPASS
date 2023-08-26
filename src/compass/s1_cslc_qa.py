@@ -660,11 +660,4 @@ def _get_land_mask(epsg_cslc: int, geotransform: tuple, shape_mask: tuple):
                       out_shape=shape_mask,
                       dtype=np.uint8, default_value=1)
     
-    # Debug code - comment out when not in use
-    import matplotlib.pyplot as plt
-    fig, ax = plt.subplots()
-    gdf1.boundary.plot(ax=ax, color='red', label='Intersection')
-    bbox_3413.boundary.plot(ax=ax, color='green', label='Intersection')
-    #intersection_gs.boundary.plot(ax=ax, color='blue', label='Intersection')
-
     return image

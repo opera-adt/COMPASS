@@ -5,17 +5,12 @@ import datetime
 import json
 import os
 from pathlib import Path
+import time
 
 import isce3
 
 import numpy as np
-from osgeo import ogr, osr
-import pyproj
-from shapely.ops import transform
-from shapely import wkb, geometry
-
-import rasterio
-from rasterio.features import rasterize
+from osgeo import ogr, osr, gdal
 from scipy import ndimage
 
 from compass.s1_rdr2geo import (file_name_los_east,
@@ -625,57 +620,87 @@ def _get_valid_pixel_mask(arr_cslc):
 def _get_land_mask(epsg_cslc: int, geotransform: tuple, shape_mask: tuple):
     '''
     Get the land mask within the CSLC bounding box
+
+    Parameters
+    ----------
+    epsg_cslc: int
+        EPSG code of the CSLC layer
+    geotransform: tuple
+        Geotransform vector of the CSLC layer
+    shape_mask: tuple
+        Shape of the raster as numpy array
+
+
+    Returns
+    -------
+    mask_land: np.ndarray
+        Raster Mask for land area. `1` is land, `0` otherwise
     '''
-    land_polygon, epsg_land = _get_land_polygon()
-
-    # Create a bounding box (minx, miny, maxx, maxy)
-    xmin = geotransform[0]
-    ymin = geotransform[3] + geotransform[5] * shape_mask[0]
-    xmax = geotransform[0] + geotransform[1] * shape_mask[1]
-    ymax = geotransform[3]
-    bbox_cslc = geometry.box(xmin, ymin, xmax, ymax)
-
-    proj_cslc = pyproj.CRS(f'EPSG:{epsg_cslc}')
-    proj_land_polygon = pyproj.CRS(f'EPSG:{epsg_land}')
-
-    transformer_bbox = pyproj.Transformer.from_crs(proj_cslc, proj_land_polygon, always_xy=True)
-    bbox_reprojected = transform(transformer_bbox.transform, bbox_cslc)
-
-    intersection_land_bbox = land_polygon.intersection(bbox_reprojected)
-
-    # Back-project the intersection result
-    transformer_back = pyproj.Transformer.from_crs(proj_land_polygon, proj_cslc, always_xy=True)
-    intersection_land_bbox_cslc_srs = transform(transformer_back.transform, intersection_land_bbox)
-
-    # rasterize the backprojected polygon
-    tform_bbox = rasterio.transform.from_bounds(xmin, ymin, xmax, ymax,
-                                                shape_mask[1], shape_mask[0])
-
-    image = rasterize([intersection_land_bbox_cslc_srs],
-                      transform=tform_bbox,
-                      out_shape=shape_mask,
-                      dtype=np.uint8, default_value=1)
-
-    return image
-
-
-def _get_land_polygon():
-    '''
-    get the shapely polygon from the GPKG file defined in `LAND_GPKG_FILE`
-    '''
-
+    # Extract the land polygon
     ds_land = ogr.Open(LAND_GPKG_FILE, 0)
     layer_land = ds_land.GetLayer()
     feature = layer_land.GetNextFeature()
     land_polygon = feature.GetGeometryRef()
 
-    wkb_poly_land = land_polygon.ExportToWkb()
-
-    # extract the EPSG of the GPKG
+    # extract the EPSG of the land polgyon GPKG
     srs_gpkg = layer_land.GetSpatialRef()
-    epsg_code_land = srs_gpkg.GetAuthorityCode(None)
+    land_epsg = int(srs_gpkg.GetAuthorityCode(None))
 
+    # Compute and create the bounding box
+    xmin = geotransform[0]
+    ymin = geotransform[3] + geotransform[5] * shape_mask[0]
+    xmax = geotransform[0] + geotransform[1] * shape_mask[1]
+    ymax = geotransform[3]
+    bbox_cslc = ogr.Geometry(ogr.wkbPolygon)
+    ring_cslc = ogr.Geometry(ogr.wkbLinearRing)
+    ring_cslc.AddPoint(xmin, ymin)
+    ring_cslc.AddPoint(xmax, ymin)
+    ring_cslc.AddPoint(xmax, ymax)
+    ring_cslc.AddPoint(xmin, ymax)
+    ring_cslc.AddPoint(xmin, ymin)
+    bbox_cslc.AddGeometry(ring_cslc)
 
-    shapely_poly_land = wkb.loads(bytes(wkb_poly_land))
+    # Define the SRS for CSLC and land polygon
+    srs_cslc = osr.SpatialReference()
+    srs_cslc.ImportFromEPSG(epsg_cslc)
 
-    return shapely_poly_land, epsg_code_land
+    srs_land = osr.SpatialReference()
+    srs_land.ImportFromEPSG(land_epsg)
+
+    # Reproject the bounding box (in CSLC EPSG) to land polygon's EPSG
+    transformer_cslc_to_land = osr.CoordinateTransformation(srs_cslc, srs_land)
+    bbox_cslc.Transform(transformer_cslc_to_land)
+
+    # Return a numpy array full of `False` when there is no intersection
+    if not bbox_cslc.Intersects(land_polygon):
+        return np.full(shape_mask, False)
+
+    # Compute the intersection and reproject the result back to CSLC's EPSG
+    intersection_land = bbox_cslc.Intersection(land_polygon)
+    transformer_land_to_cslc = osr.CoordinateTransformation(srs_land, srs_cslc)
+    intersection_land.Transform(transformer_land_to_cslc)
+
+    # Build up a vector layer, and add a feature that has `intersection_land`` as geometry
+    drv_intersection_polygon = ogr.GetDriverByName('Memory')
+    ds_intersection_polygon = drv_intersection_polygon.CreateDataSource(str(time.time_ns))
+    layer_intersection = ds_intersection_polygon.CreateLayer('layer_intersection',
+                                                             srs_cslc,
+                                                             ogr.wkbPolygon)
+    feature_defn = layer_intersection.GetLayerDefn()
+    feature = ogr.Feature(feature_defn)
+    feature.SetGeometry(intersection_land)
+    layer_intersection.CreateFeature(feature)
+
+    # Prepare for output layer for the rasterization
+    drv_raster_out = gdal.GetDriverByName('MEM')
+    rasterized_land = drv_raster_out.Create(str(time.time_ns),
+                                            shape_mask[1], shape_mask[0],
+                                            1, gdal.GDT_Byte)
+    rasterized_land.SetGeoTransform(geotransform)
+    rasterized_land.SetProjection(srs_cslc.ExportToWkt())
+
+    gdal.RasterizeLayer(rasterized_land, [1], layer_intersection)
+
+    mask_land = rasterized_land.ReadAsArray()
+
+    return mask_land

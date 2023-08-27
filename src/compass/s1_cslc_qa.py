@@ -8,7 +8,6 @@ from pathlib import Path
 import time
 
 import isce3
-
 import numpy as np
 from osgeo import ogr, osr, gdal
 from scipy import ndimage

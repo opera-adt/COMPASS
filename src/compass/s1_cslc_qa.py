@@ -630,7 +630,6 @@ def _get_land_mask(epsg_cslc: int, geotransform: tuple, shape_mask: tuple):
     shape_mask: tuple
         Shape of the raster as numpy array
 
-
     Returns
     -------
     mask_land: np.ndarray

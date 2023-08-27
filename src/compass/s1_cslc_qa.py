@@ -9,6 +9,11 @@ from pathlib import Path
 import isce3
 import geopandas as gpd
 from shapely.geometry import box
+from shapely.ops import transform
+from shapely import wkb, geometry
+
+from osgeo import ogr, osr
+import pyproj
 import numpy as np
 
 import rasterio
@@ -25,6 +30,7 @@ from compass.utils.helpers import WORKFLOW_SCRIPTS_DIR
 # determine the path to the world land GPKG file
 LAND_GPKG_FILE = os.path.join(WORKFLOW_SCRIPTS_DIR, 'data',
                               'GSHHS_l_L1.shp.no_attrs.epsg3413_dissolved.gpkg')
+EPSG_LAND_POLYGON = 3413
 
 def _compute_slc_array_stats(arr: np.ndarray, pwr_phase: str):
     # internal to function to compute min, max, mean, and std dev of power or
@@ -526,6 +532,11 @@ class QualityAssuranceCSLC:
         mask_land = _get_land_mask(epsg_cslc,
                                    (x0, x_spacing, 0, y0, 0, y_spacing),
                                    (height_cslc, width_cslc))
+        
+
+        mask_land_2 = _get_land_mask_2(epsg_cslc,
+                                       (x0, x_spacing, 0, y0, 0, y_spacing),
+                                       (height_cslc, width_cslc))
 
         mask_geocoded_burst = _get_valid_pixel_mask(cslc_array)
 
@@ -659,5 +670,79 @@ def _get_land_mask(epsg_cslc: int, geotransform: tuple, shape_mask: tuple):
                       transform=tform_bbox,
                       out_shape=shape_mask,
                       dtype=np.uint8, default_value=1)
+
+    return image
+
+
+def _get_land_mask_2(epsg_cslc: int, geotransform: tuple, shape_mask: tuple):
+    '''
+    sadfasdf
+    '''
+    land_polygon = _get_land_polygon()
+
+    # Create a bounding box (minx, miny, maxx, maxy)
+    xmin = geotransform[0]
+    ymin = geotransform[3] + geotransform[5] * shape_mask[0]
+    xmax = geotransform[0] + geotransform[1] * shape_mask[1]
+    ymax = geotransform[3]
+    bbox_cslc = geometry.box(xmin, ymin, xmax, ymax)
+
+    # reproject the boundig box to the land polygon's SRS
+    #transformer_bbox = Transformer.from_crs(f"EPSG:{epsg_cslc}", f"EPSG:{EPSG_LAND_POLYGON}", always_xy=True)
+        
+    proj_cslc = pyproj.CRS(f'EPSG:{epsg_cslc}')
+    proj_land_polygon = pyproj.CRS('EPSG:3413')
+
+    transformer_bbox = pyproj.Transformer.from_crs(proj_cslc, proj_land_polygon, always_xy=True)
+
+    bbox_reprojected = transform(transformer_bbox.transform, bbox_cslc)
+
+
+    intersection_land_bbox = land_polygon.intersection(bbox_reprojected)
+
+    # Back-project the intersection result
+    transformer_back = pyproj.Transformer.from_crs(proj_land_polygon, proj_cslc, always_xy=True)
+    intersection_land_bbox_cslc_srs = transform(transformer_back.transform, intersection_land_bbox)
+
+    #rasterize the backprojected polygon
+    tform_bbox = rasterio.transform.from_bounds(xmin, ymin, xmax, ymax,
+                                                shape_mask[1], shape_mask[0])
+
+    image = rasterize([intersection_land_bbox_cslc_srs],
+                      transform=tform_bbox,
+                      out_shape=shape_mask,
+                      dtype=np.uint8, default_value=1)
     
     return image
+
+
+
+
+
+
+
+def _get_land_polygon():
+    '''
+    get the shapely polygon from the GPKG file defined in `LAND_GPKG_FILE`
+    '''
+
+    ds_land = ogr.Open(LAND_GPKG_FILE, 0)
+    layer_land = ds_land.GetLayer()
+    feature = layer_land.GetNextFeature()  # Assuming you want the first feature
+    land_polygon = feature.GetGeometryRef()
+
+    # Step 2: Convert the polygon to WKB format
+    wkb_poly_land = land_polygon.ExportToWkb()
+
+
+    # Step 3: Convert the WKB to a Shapely geometry
+    shapely_poly_land = wkb.loads(bytes(wkb_poly_land))
+
+    # debug code
+    import matplotlib.pyplot as plt
+    for polygon in shapely_poly_land.geoms:
+        x, y = polygon.exterior.xy
+        plt.fill(x, y, alpha=0.5, fc='r')
+
+
+    return shapely_poly_land

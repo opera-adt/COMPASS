@@ -524,7 +524,7 @@ class QualityAssuranceCSLC:
         height_cslc, width_cslc = cslc_array.shape
 
         mask_land = _get_land_mask(epsg_cslc,
-                                   (x0, x_spacing, 0, y0, 0, -abs(y_spacing)),
+                                   (x0, x_spacing, 0, y0, 0, y_spacing),
                                    (height_cslc, width_cslc))
 
         mask_geocoded_burst = _get_valid_pixel_mask(cslc_array)

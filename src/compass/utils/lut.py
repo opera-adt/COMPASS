@@ -403,14 +403,14 @@ def compute_rdr2geo_rasters(burst, dem_raster, output_path,
                                          threshold=1.0e-8)
 
     # Get the rdr2geo raster needed for SET computation
-    topo_output = {f'{output_path}/x.rdr': gdal.GDT_Float64,
-                   f'{output_path}/y.rdr': gdal.GDT_Float64,
-                   f'{output_path}/height.rdr': gdal.GDT_Float64,
-                   f'{output_path}/incidence_angle.rdr': gdal.GDT_Float32,
-                   f'{output_path}/heading_angle.rdr': gdal.GDT_Float32}
+    topo_output = {f'{output_path}/x.rdr.tif': gdal.GDT_Float64,
+                   f'{output_path}/y.rdr.tif': gdal.GDT_Float64,
+                   f'{output_path}/height.rdr.tif': gdal.GDT_Float64,
+                   f'{output_path}/incidence_angle.rdr.tif': gdal.GDT_Float32,
+                   f'{output_path}/heading_angle.rdr.tif': gdal.GDT_Float32}
     raster_list = [
         isce3.io.Raster(fname, rdr_grid.width,
-                        rdr_grid.length, 1, dtype, 'ENVI')
+                        rdr_grid.length, 1, dtype, 'GTiff')
         for fname, dtype in topo_output.items()]
     x_raster, y_raster, height_raster, incidence_raster, heading_raster = raster_list
 

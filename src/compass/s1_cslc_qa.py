@@ -5,14 +5,11 @@ import datetime
 import json
 import os
 from pathlib import Path
+import time
 
 import isce3
-import geopandas as gpd
-from shapely.geometry import box
 import numpy as np
-
-import rasterio
-from rasterio.features import rasterize
+from osgeo import ogr, osr, gdal
 from scipy import ndimage
 
 from compass.s1_rdr2geo import (file_name_los_east,
@@ -620,43 +617,88 @@ def _get_valid_pixel_mask(arr_cslc):
 
 
 def _get_land_mask(epsg_cslc: int, geotransform: tuple, shape_mask: tuple):
-    # Load the shapefile into a GeoDataFrame
-    if os.path.exists(LAND_GPKG_FILE):
-        gdf1 = gpd.read_file(LAND_GPKG_FILE)
-    else:
-        raise RuntimeError('Cannot find a land mask GPKG file for '
-                           f'pixel classification: {LAND_GPKG_FILE}')
+    '''
+    Get the land mask within the CSLC bounding box
 
-    # Create a bounding box (minx, miny, maxx, maxy)
+    Parameters
+    ----------
+    epsg_cslc: int
+        EPSG code of the CSLC layer
+    geotransform: tuple
+        Geotransform vector of the CSLC layer
+    shape_mask: tuple
+        Shape of the raster as numpy array
+
+    Returns
+    -------
+    mask_land: np.ndarray
+        Raster Mask for land area. `1` is land, `0` otherwise
+    '''
+    # Extract the land polygon
+    ds_land = ogr.Open(LAND_GPKG_FILE, 0)
+    layer_land = ds_land.GetLayer()
+    feature = layer_land.GetNextFeature()
+    land_polygon = feature.GetGeometryRef()
+
+    # extract the EPSG of the land polgyon GPKG
+    srs_gpkg = layer_land.GetSpatialRef()
+    land_epsg = int(srs_gpkg.GetAuthorityCode(None))
+
+    # Compute and create the bounding box
     xmin = geotransform[0]
     ymin = geotransform[3] + geotransform[5] * shape_mask[0]
     xmax = geotransform[0] + geotransform[1] * shape_mask[1]
     ymax = geotransform[3]
+    bbox_cslc = ogr.Geometry(ogr.wkbPolygon)
+    ring_cslc = ogr.Geometry(ogr.wkbLinearRing)
+    ring_cslc.AddPoint(xmin, ymin)
+    ring_cslc.AddPoint(xmax, ymin)
+    ring_cslc.AddPoint(xmax, ymax)
+    ring_cslc.AddPoint(xmin, ymax)
+    ring_cslc.AddPoint(xmin, ymin)
+    bbox_cslc.AddGeometry(ring_cslc)
 
-    bbox = box(xmin, ymin, xmax, ymax)
+    # Define the SRS for CSLC and land polygon
+    srs_cslc = osr.SpatialReference()
+    srs_cslc.ImportFromEPSG(epsg_cslc)
 
-    # Make sure the CRS of the bounding box is the same as the GeoDataFrame
-    bbox = gpd.GeoSeries([bbox], crs=f'EPSG:{epsg_cslc}')
-    if epsg_cslc != 3413:
-        bbox_3413 = bbox.to_crs('EPSG:3413')
+    srs_land = osr.SpatialReference()
+    srs_land.ImportFromEPSG(land_epsg)
 
-    # Check if the polygon intersects with the bounding box.
-    if not gdf1.geometry.iloc[0].intersects(bbox_3413.iloc[0]):
-        # no overlap
+    # Reproject the bounding box (in CSLC EPSG) to land polygon's EPSG
+    transformer_cslc_to_land = osr.CoordinateTransformation(srs_cslc, srs_land)
+    bbox_cslc.Transform(transformer_cslc_to_land)
+
+    # Return a numpy array full of `False` when there is no intersection
+    if not bbox_cslc.Intersects(land_polygon):
         return np.full(shape_mask, False)
 
-    # Perform the intersection
-    intersection_3413 = gdf1.geometry.iloc[0].intersection(bbox_3413.iloc[0])
-    intersection_gs = gpd.GeoSeries([intersection_3413], crs='EPSG:3413')
+    # Compute the intersection and reproject the result back to CSLC's EPSG
+    intersection_land = bbox_cslc.Intersection(land_polygon)
+    transformer_land_to_cslc = osr.CoordinateTransformation(srs_land, srs_cslc)
+    intersection_land.Transform(transformer_land_to_cslc)
 
-    if epsg_cslc != 3413:
-        intersection_gs = intersection_gs.to_crs(f'EPSG:{epsg_cslc}')
+    # Build up a vector layer, and add a feature that has `intersection_land`` as geometry
+    drv_intersection_polygon = ogr.GetDriverByName('Memory')
+    ds_intersection_polygon = drv_intersection_polygon.CreateDataSource(str(time.time_ns))
+    layer_intersection = ds_intersection_polygon.CreateLayer('layer_intersection',
+                                                             srs_cslc,
+                                                             ogr.wkbPolygon)
+    feature_defn = layer_intersection.GetLayerDefn()
+    feature = ogr.Feature(feature_defn)
+    feature.SetGeometry(intersection_land)
+    layer_intersection.CreateFeature(feature)
 
-    tform_bbox = rasterio.transform.from_bounds(xmin, ymin, xmax, ymax,
-                                                shape_mask[1], shape_mask[0])
+    # Prepare for output layer for the rasterization
+    drv_raster_out = gdal.GetDriverByName('MEM')
+    rasterized_land = drv_raster_out.Create(str(time.time_ns),
+                                            shape_mask[1], shape_mask[0],
+                                            1, gdal.GDT_Byte)
+    rasterized_land.SetGeoTransform(geotransform)
+    rasterized_land.SetProjection(srs_cslc.ExportToWkt())
 
-    image = rasterize(intersection_gs.geometry,
-                      transform=tform_bbox,
-                      out_shape=shape_mask,
-                      dtype=np.uint8, default_value=1)
-    return image
+    gdal.RasterizeLayer(rasterized_land, [1], layer_intersection)
+
+    mask_land = rasterized_land.ReadAsArray()
+
+    return mask_land

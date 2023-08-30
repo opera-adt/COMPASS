@@ -14,6 +14,17 @@ dependencies:
   - scipy>=1.0,<1.13
   - yamale>=4.0
   - h5py>=3.5
-  - s1reader>=0.2.0
+  - s1reader>=0.2.1
   - shapely>=1.8
   - requests>=2.0
+  - scikit-image
+# CI unit test
+  - pytest
+  - pluggy
+  - pytest-order
+# Dependencies for RAiDER
+  - progressbar
+  - rasterio
+  - dem_stitcher
+  - gxx_linux-64>=9,<10
+  

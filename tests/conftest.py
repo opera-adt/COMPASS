@@ -5,7 +5,7 @@ import types
 
 import pytest
 import requests
-from s1reader.s1_orbit import check_internet_connection
+from s1reader.s1_orbit import _check_internet_connection
 
 from compass.utils import iono
 from compass.utils.h5_helpers import DATA_PATH
@@ -24,7 +24,7 @@ def download_if_needed(local_path):
     if os.path.isfile(local_path):
         return
 
-    check_internet_connection()
+    _check_internet_connection()
 
     dst_dir, file_name = os.path.split(local_path)
 

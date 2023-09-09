@@ -9,7 +9,7 @@ from collections import defaultdict
 import journal
 import pandas as pd
 import yaml
-from s1reader.s1_orbit import get_orbit_file_from_dir, parse_safe_filename
+from s1reader.s1_orbit import get_orbit_file_from_dir, _parse_safe_filename
 from s1reader.s1_reader import load_bursts
 from shapely import geometry
 
@@ -312,7 +312,7 @@ def _filter_by_date(zip_file_list, start_date, end_date, exclude_dates):
     zip_file_list: list
         Filtered list of zip files
     """
-    safe_datetimes = [parse_safe_filename(zip_file)[2] for zip_file in zip_file_list]
+    safe_datetimes = [_parse_safe_filename(zip_file)[2] for zip_file in zip_file_list]
     if start_date:
         start_datetime = datetime.datetime.strptime(start_date, '%Y%m%d')
     else:

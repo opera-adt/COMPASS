@@ -14,10 +14,10 @@ dependencies:
   - scipy>=1.0,<1.13
   - yamale>=4.0
   - h5py>=3.5
-  - s1reader>=0.2.1
   - shapely>=1.8
   - requests>=2.0
   - scikit-image
+  - s1reader=0.2.2
 # CI unit test
   - pytest
   - pluggy

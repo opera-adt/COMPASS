@@ -243,6 +243,10 @@ def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
                 else:
                     continue
 
+                # Skip the burst that does not have border polygon
+                if burst.border is None:
+                    continue
+
                 # check if not a reference burst (radar grid workflow only)
                 if 'reference_burst' in cfg.input_file_group.__dict__:
                     not_ref = not cfg.input_file_group.reference_burst.is_reference

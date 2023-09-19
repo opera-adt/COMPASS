@@ -244,7 +244,7 @@ def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
                     continue
 
                 # Skip the burst that does not have border polygon
-                if burst.border is None:
+                if len(burst.border) == 1 and burst.border[0].is_empty:
                     continue
 
                 # check if not a reference burst (radar grid workflow only)

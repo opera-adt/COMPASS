@@ -348,10 +348,17 @@ def open_raster(filename, band=1):
         raise FileNotFoundError(err_str)
 
     try:
+        # The pythonic execption handling for GDAL can be turned on / off
+        # The flag of which can be identified by `gdal.GetUseExceptions()`
+        # In pythonic exception halding, `gdal.Open()` will raise `RuntimeError`
+        # In traditional GDAL, the function does not raise exception buy will return `None`,
+        # and the attempts to call GDAL methods will raise `AttributeError`
+
         ds = gdal.Open(filename, gdal.GA_ReadOnly)
         arr = ds.GetRasterBand(band).ReadAsArray()
         return arr
-    except AttributeError:
+
+    except (AttributeError, RuntimeError):
         # GDAL reads 1st 2 bytes of ENVI binary to determine file type. If 1st
         # bytes of flat binary is that of a jpeg but the binary is not then
         # GDAL throws a libjpeg runtime error. Follow specifically tries to

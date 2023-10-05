@@ -545,13 +545,6 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
     for meta_item in vrt_items:
         add_dataset_and_attrs(vrt_group, meta_item)
 
-    # Fill in the center coordinated with NaN when
-    # the burst does not have center point information
-    if burst.center.is_empty:
-        xy_center = [float('nan')] * 2
-    else:
-        xy_center = [xy[0] for xy in burst.center.coords.xy]
-        
     # burst items
     burst_meta_items = [
         Meta('ipf_version', str(burst.ipf_version),
@@ -594,7 +587,7 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
         Meta('polarization', burst.polarization, 'Polarization of the burst'),
         Meta('platform_id', burst.platform_id,
              'Sensor platform identification string (e.g., S1A or S1B)'),
-        Meta('center', xy_center,
+        Meta('center', [xy[0] for xy in burst.center.coords.xy],
              'Longitude, latitude center of burst', {'units':'degrees'}),
         # window parameters
         Meta('range_window_type', burst.range_window_type,
@@ -614,7 +607,6 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
         add_dataset_and_attrs(burst_meta_group, meta_item)
 
     # Add parameters group in processing information
-    flag_set_applied = not burst.border[0].is_empty
     if save_processing_parameters:
         dry_tropo_corr_enabled = \
             True if (cfg.weather_model_file is not None) and \
@@ -646,7 +638,7 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
             Meta('geometry_doppler_applied',
                  bool(cfg.lut_params.enabled),
                  "If True, geometry steering doppler timing correction has been applied"),
-            Meta('los_solid_earth_tides_applied', bool(flag_set_applied),
+            Meta('los_solid_earth_tides_applied', bool(cfg.lut_params.enabled),
                  "If True, solid Earth tides correction has been applied in slant range direction"),
             Meta('azimuth_solid_earth_tides_applied', False,
                  "If True, solid Earth tides correction has been applied in azimuth direction"),

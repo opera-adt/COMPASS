@@ -230,16 +230,10 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
                                                  ellipsoid,
                                                  geo2rdr_params)
     out_shape = bistatic_delay.data.shape
-    # Return zero-filled array when `solid_earth_tides` is not successful
-    if (rg_set_temp is None)  and (az_set_temp is None):
-        rg_set = np.zeros(out_shape)
-        az_set = np.zeros(out_shape)
-    else:
-        # Resize SET to the size of the correction grid    
-        kwargs = dict(order=1, mode='edge', anti_aliasing=True,
-                      preserve_range=True)
-        rg_set = resize(rg_set_temp, out_shape, **kwargs)
-        az_set = resize(az_set_temp, out_shape, **kwargs)
+    kwargs = dict(order=1, mode='edge', anti_aliasing=True,
+                    preserve_range=True)
+    rg_set = resize(rg_set_temp, out_shape, **kwargs)
+    az_set = resize(az_set_temp, out_shape, **kwargs)
 
     # Compute ionosphere delay
     los_ionosphere = ionosphere_delay(burst.sensing_mid,
@@ -311,10 +305,6 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, hgt_radar_grid,
     '''
 
     # Extract top-left coordinates from burst polygon
-    if burst.border[0].is_empty:
-        # Return `None` when the corner coordinates cannot be extracted
-        return None, None
-
     lon_min, lat_min, _, _ = burst.border[0].bounds
 
     # Generate the atr object to run pySolid. We compute SET on a

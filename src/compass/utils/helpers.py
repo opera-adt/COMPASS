@@ -358,7 +358,7 @@ def open_raster(filename, band=1):
         arr = ds.GetRasterBand(band).ReadAsArray()
         return arr
 
-    except (AttributeError, RuntimeError):
+    except:
         # GDAL reads 1st 2 bytes of ENVI binary to determine file type. If 1st
         # bytes of flat binary is that of a jpeg but the binary is not then
         # GDAL throws a libjpeg runtime error. Follow specifically tries to

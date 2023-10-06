@@ -80,8 +80,9 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
         rg_lut_data += dry_los_tropo
 
     # Invert signs to correct for convention
-    # TO DO: add azimuth SET to LUT
-    az_lut_data = -(bistatic_delay.data + az_fm_mismatch.data)
+    #az_lut_data = -(bistatic_delay.data + az_fm_mismatch.data)
+    az_lut_data = -bistatic_delay.data
+    # NOTE: Azimuth FM rate was turned off for OPERA production
 
     rg_lut = isce3.core.LUT2d(bistatic_delay.x_start,
                               bistatic_delay.y_start,
@@ -229,11 +230,9 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
                                                  height[dec_slice],
                                                  ellipsoid,
                                                  geo2rdr_params)
-
-    # Resize SET to the size of the correction grid
     out_shape = bistatic_delay.data.shape
     kwargs = dict(order=1, mode='edge', anti_aliasing=True,
-                  preserve_range=True)
+                    preserve_range=True)
     rg_set = resize(rg_set_temp, out_shape, **kwargs)
     az_set = resize(az_set_temp, out_shape, **kwargs)
 

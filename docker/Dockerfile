@@ -57,7 +57,6 @@ RUN mkdir RAiDER &&\
     python -m pip install ./RAiDER &&\
     rm -rf RAiDER
 
-
 # installing OPERA COMPASS
 RUN python -m pip install ./COMPASS &&\
     echo "conda activate COMPASS" >> /home/compass_user/.bashrc

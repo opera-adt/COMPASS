@@ -1,8 +1,8 @@
 FROM oraclelinux:8.8
 
 LABEL author="OPERA ADT" \
-    description="s1 cslc 0.5.3 point release" \
-    version="0.5.3-point"
+    description="s1 cslc 0.5.4 point release" \
+    version="0.5.4-point"
 
 # Update the base linux image to date
 # Create cache and config directory to be used for the dependencies

@@ -80,9 +80,7 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
         rg_lut_data += dry_los_tropo
 
     # Invert signs to correct for convention
-    #az_lut_data = -(bistatic_delay.data + az_fm_mismatch.data)
-    az_lut_data = -bistatic_delay.data
-    # NOTE: Azimuth FM rate was turned off for OPERA production
+    az_lut_data = -(bistatic_delay.data + az_fm_mismatch.data)
 
     rg_lut = isce3.core.LUT2d(bistatic_delay.x_start,
                               bistatic_delay.y_start,

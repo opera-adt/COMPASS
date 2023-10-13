@@ -350,7 +350,7 @@ def open_raster(filename, band=1):
     try:
         # The pythonic execption handling for GDAL can be turned on / off
         # The flag of which can be identified by `gdal.GetUseExceptions()`
-        # In pythonic exception halding, `gdal.Open()` will raise `RuntimeError`
+        # In pythonic exception handling, `gdal.Open()` will raise `RuntimeError`
         # In traditional GDAL, the function does not raise exception buy will return `None`,
         # and the attempts to call GDAL methods will raise `AttributeError`
 

@@ -633,7 +633,7 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
                  bool(cfg.lut_params.enabled),
                  "If True, bistatic delay timing correction has been applied"),
             Meta('azimuth_fm_rate_applied',
-                 False,  # NOTE: Azimuth FM rate was turned off for OPERA production
+                 bool(cfg.lut_params.enabled),
                  "If True, azimuth FM-rate mismatch timing correction has been applied"),
             Meta('geometry_doppler_applied',
                  bool(cfg.lut_params.enabled),

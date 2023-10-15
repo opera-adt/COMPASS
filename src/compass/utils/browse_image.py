@@ -206,14 +206,14 @@ def make_browse_image(filename, path_h5, bursts, complex_to_real='amplitude', pe
     derived_netcdf_to_grid = f'{derived_ds_str}:NETCDF:{path_h5}:/{DATA_PATH}'
 
     with h5py.File(path_h5, 'r', swmr=True) as h5_obj:
-        grid_group = h5_obj[DATA_PATH]
+        data_group = h5_obj[DATA_PATH]
 
         for b in bursts:
             # get polarization to extract geocoded raster
             pol = b.polarization
 
             # compute browse shape
-            full_shape = grid_group[pol].shape
+            full_shape = data_group[pol].shape
             browse_h, browse_w = _scale_to_max_pixel_dimension(full_shape)
 
             # create in memory GDAL raster for GSLC as real value array

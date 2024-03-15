@@ -44,7 +44,7 @@ SHELL ["conda", "run", "-n", "COMPASS", "/bin/bash", "-c"]
 RUN mkdir -p /home/compass_user/OPERA/ISCE3/install &&\
     mkdir -p /home/compass_user/OPERA/ISCE3/build &&\
     cd /home/compass_user/OPERA/ISCE3 &&\
-    curl -sSL https://github.com/isce-framework/isce3/archive/refs/tags/v0.14.0.zip -o isce3_sourcecode.zip &&\
+    curl -sSL https://github.com/isce-framework/isce3/archive/refs/tags/v0.15.1.zip -o isce3_sourcecode.zip &&\
     unzip isce3_sourcecode.zip &&\
     rm isce3_sourcecode.zip &&\
     cd /home/compass_user/OPERA/ISCE3/build &&\

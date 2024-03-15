@@ -7,8 +7,8 @@
 FROM oraclelinux:8
 
 LABEL author="OPERA ADT" \
-    description="s1 cslc 0.3.2 point release" \
-    version="0.3.2-point"
+    description="s1 cslc 0.5.5 patch release" \
+    version="0.5.5-final_point"
 
 RUN yum -y update &&\
     yum -y install curl git make unzip &&\
@@ -48,7 +48,7 @@ RUN mkdir -p /home/compass_user/OPERA/ISCE3/install &&\
     unzip isce3_sourcecode.zip &&\
     rm isce3_sourcecode.zip &&\
     cd /home/compass_user/OPERA/ISCE3/build &&\
-    cmake -DCMAKE_INSTALL_PREFIX=/home/compass_user/OPERA/ISCE3/install -DWITH_CUDA=OFF /home/compass_user/OPERA/ISCE3/isce3-0.14.0 &&\
+    cmake -DCMAKE_INSTALL_PREFIX=/home/compass_user/OPERA/ISCE3/install -DWITH_CUDA=OFF -DCMAKE_BUILD_TYPE=Release /home/compass_user/OPERA/ISCE3/isce3-0.15.1 &&\
     make -j32 VERBOSE=ON &&\
     make install &&\
     rm -rf /home/compass_user/OPERA/ISCE3/build/* &&\
@@ -56,7 +56,7 @@ RUN mkdir -p /home/compass_user/OPERA/ISCE3/install &&\
     find /home/compass_user/OPERA/ISCE3/install/lib64 -name "*.so*" -exec ln -s {} \; &&\
     cd `find $CONDA_PREFIX -name "site-packages"|sort|tail -1` &&\
     find /home/compass_user/OPERA/ISCE3/install/packages -maxdepth 1 -type d|sort|awk 'NR>1'|xargs -I{} ln -s {} &&\
-    rm -rf /home/compass_user/OPERA/ISCE3/isce3-0.14.0 &&\
+    rm -rf /home/compass_user/OPERA/ISCE3/isce3-0.15.1 &&\
     rm -rf /home/compass_user/OPERA/ISCE3/build
 
 WORKDIR /home/compass_user/OPERA
@@ -64,9 +64,9 @@ WORKDIR /home/compass_user/OPERA
 
 
 # installing OPERA s1-reader
-RUN curl -sSL https://github.com/opera-adt/s1-reader/archive/refs/tags/v0.1.7.tar.gz -o s1_reader_src.tar.gz &&\
+RUN curl -sSL https://github.com/opera-adt/s1-reader/archive/refs/tags/v0.2.4.tar.gz -o s1_reader_src.tar.gz &&\
     tar -xvf s1_reader_src.tar.gz &&\
-    ln -s s1-reader-0.1.7 s1-reader &&\
+    ln -s s1-reader-0.2.4 s1-reader &&\
     rm s1_reader_src.tar.gz &&\
     python -m pip install ./s1-reader
 

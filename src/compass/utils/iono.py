@@ -264,20 +264,6 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
 
         fetch_ionex_from_remote(fname_src, fname_dst)
 
-    """# download - compose cmd
-    cmd = f'wget --continue --auth-no-challenge "{fname_src}"'
-    if os.path.isfile(fname_dst) and os.path.getsize(fname_dst) > 1000:
-        cmd += ' --timestamping'
-
-    # Record executed command line in logging file
-    logging.info(f'Execute command: {cmd}')
-
-    # download - run cmd in output dir
-    pwd = os.getcwd()
-    os.chdir(tec_dir)
-    os.system(cmd)
-    os.chdir(pwd)"""
-
     # uncompress
     # if output file 1) does not exist or 2) smaller than 400k in size or 3) older
     if (not os.path.isfile(fname_dst_uncomp)
@@ -299,7 +285,7 @@ def fetch_ionex_from_remote(ionex_url, ionex_local_path):
 
     # Record executed command line in logging file
     logging.info(f'Execute command: {cmd}')
-    
+
     # download - run cmd in output dir
     tec_dir = os.path.dirname(ionex_local_path)
     pwd = os.getcwd()

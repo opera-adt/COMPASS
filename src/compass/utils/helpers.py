@@ -3,6 +3,7 @@
 from datetime import timedelta
 import itertools
 import os
+import requests
 import sqlite3
 import time
 
@@ -459,3 +460,33 @@ def get_time_delta_str(t_prev: time) -> str:
     '''
     return str(timedelta(seconds=time.perf_counter()
                          - t_prev)).split(".", maxsplit=1)[0]
+
+
+def check_url(url):
+    '''
+    Check if a resource exists at the given URL.
+
+    Parameters
+    ----------
+    url: str
+        URL to the object
+
+    Returns
+    -------
+    _: Bool
+        `True` if the resource exists in the URL provide; False otherwise
+    '''
+
+    try:
+        response = requests.head(url, allow_redirects=True)
+        # A 200 OK or 30x redirect status code means the resource exists.
+        print('status code:',response.status_code)
+        if response.status_code in range(200, 400):
+            print(f"Resource exists at: {url}")
+            return True
+        else:
+            print(f"Resource does not exist at: {url}")
+            return False
+    except requests.exceptions.RequestException as e:
+        print(f"An error occurred: {e}")
+        return False

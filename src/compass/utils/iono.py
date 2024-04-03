@@ -16,6 +16,7 @@ import re
 import isce3
 import numpy as np
 from scipy import interpolate
+from compass.utils.helpers import check_url
 
 # Approximatedate from which the new IONEX file name format needs to be used
 # https://cddis.nasa.gov/Data_and_Derived_Products/GNSS/atmospheric_products.html
@@ -240,9 +241,11 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
 
     # determine the initial format to try
     use_new_ionex_filename_format = date_tec >= NEW_IONEX_FILENAME_FORMAT_FROM
+
     kwargs = dict(sol_code=sol_code,
                   date_fmt=date_fmt,
-                  new_filename_format=use_new_ionex_filename_format)
+                  new_filename_format=use_new_ionex_filename_format,
+                  check_if_exists=False)
     try:
         # Initial try with the automatically-determined IONEX file name format
         fname_src = get_ionex_filename(date_str, tec_dir=None, **kwargs)
@@ -270,7 +273,7 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
             or os.path.getsize(fname_dst_uncomp) < 400e3
             or os.path.getmtime(fname_dst_uncomp) < os.path.getmtime(
                 fname_dst)):
-        cmd = f"gzip --force --keep --decompress {fname_dst}"
+        cmd = f"gzip --force --decompress {fname_dst}"
         logging.info(f'Execute command: {cmd}')
         os.system(cmd)
 
@@ -299,7 +302,8 @@ def fetch_ionex_from_remote(ionex_url, ionex_local_path):
 
 def get_ionex_filename(date_str, tec_dir=None, sol_code='jpl',
                        date_fmt='%Y%m%d',
-                       new_filename_format=None):
+                       new_filename_format=None,
+                       check_if_exists=False):
     '''
     Get the file name of the IONEX file
 
@@ -314,6 +318,10 @@ def get_ionex_filename(date_str, tec_dir=None, sol_code='jpl',
         (values: cod, esa, igs, jpl, upc, uqr)
     date_fmt: str
         Date format string
+    new_file_format: bool
+        Flag whether not not to use the new IONEX TEC file format
+    check_if_exists: bool
+        Flag whether the IONEX file exists in the local directory or in the URL
 
     Returns
     -------
@@ -327,20 +335,33 @@ def get_ionex_filename(date_str, tec_dir=None, sol_code='jpl',
     yy = yy_full[2:4]
 
     # file name base
+    # Keep both the old- and new- formats of the file names
+    fname_list = [f"{sol_code.lower()}g{doy}0.{yy}i.Z",
+                  f'{sol_code.upper()}0OPSFIN_{yy_full}{doy}0000_01D_02H_GIM.INX.gz']
 
+    # Decide which file name format to try first
     if new_filename_format:
-        fname = f'{sol_code.upper()}0OPSFIN_{yy_full}{doy}0000_01D_02H_GIM.INX.gz'
-    else:
-        fname = f"{sol_code.lower()}g{doy}0.{yy}i.Z"
+        fname_list.reverse()
 
-    # full path
-    if tec_dir:
-        # local uncompressed file path
-        tec_file = os.path.join(tec_dir, fname[:fname.rfind('.')])
-    else:
-        # remote compressed file path
-        url_dir = "https://cddis.nasa.gov/archive/gnss/products/ionex"
-        tec_file = os.path.join(url_dir, str(dd.year), doy, fname)
+    for fname in fname_list:
+        # This initial value in the flag will make the for loop to choose the
+        # first format in the list when `check_if_exists` is turned off
+        flag_ionex_exists = True
+        # full path
+        if tec_dir:
+            # local uncompressed file path
+            tec_file = os.path.join(tec_dir, fname[:fname.rfind('.')])
+            if check_if_exists:
+                flag_ionex_exists = os.path.exists(tec_file)
+        else:
+            # remote compressed file path
+            url_dir = "https://cddis.nasa.gov/archive/gnss/products/ionex"
+            tec_file = os.path.join(url_dir, str(dd.year), doy, fname)
+            if check_if_exists:
+                flag_ionex_exists = check_url(tec_file)
+
+        if flag_ionex_exists:
+            break
 
     return tec_file
 

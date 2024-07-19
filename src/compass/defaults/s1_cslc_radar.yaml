@@ -61,6 +61,8 @@ runconfig:
                compute_local_incidence_angle: False
                # Enable/disable azimuth angle output
                compute_azimuth_angle: False
+               compute_ground_to_sat_east: False
+               compute_ground_to_sat_north: False
            geo2rdr:
                lines_per_block: 1000
                threshold: 1.0e-8

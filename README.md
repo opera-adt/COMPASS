@@ -2,8 +2,6 @@
 
 COregistered Multi-temPorAl Sar Slc
 
-🚨 This toolbox is still in **pre-alpha** stage and undergoing **rapid development**. 🚨
-
 ### Install
 
 The following will install COMPASS into a conda environment.

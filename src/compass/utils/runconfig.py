@@ -374,8 +374,7 @@ class RunConfig:
         ref_rdr_grid_info = None
         if not sns.input_file_group.reference_burst.is_reference:
             ref_rdr_grid_info = get_ref_radar_grid_info(
-                sns.input_file_group.reference_burst.file_path,
-                sns.input_file_group.burst_id)
+                sns.input_file_group.reference_burst.file_path)
 
         # For saving entire file with defaults filled-in as string to metadata.
         # Stop gap for writing dict to individual elements to HDF5 metadata

@@ -78,12 +78,12 @@ def run(cfg: dict):
         original_raster = isce3.io.Raster(sec_burst_path)
 
         # Prepare resampled SLC as raster object
-        coreg_burst_path = f'{out_paths.output_directory}/{out_paths.file_name_stem}.slc'
+        coreg_burst_path = f'{out_paths.output_directory}/{out_paths.file_name_stem}.slc.tif'
         resampled_raster = isce3.io.Raster(coreg_burst_path,
                                            rg_off_raster.width,
                                            rg_off_raster.length,
                                            1, gdal.GDT_CFloat32,
-                                           'ENVI')
+                                           'GTiff')
 
         resamp_obj.resamp(original_raster, resampled_raster,
                           rg_off_raster, az_off_raster,

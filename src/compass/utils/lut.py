@@ -407,7 +407,7 @@ def compute_rdr2geo_rasters(burst, dem_raster, output_path,
                    f'{output_path}/heading_angle.rdr': gdal.GDT_Float32}
     raster_list = [
         isce3.io.Raster(fname, rdr_grid.width,
-                        rdr_grid.length, 1, dtype, 'ENVI')
+                        rdr_grid.length, 1, dtype, 'GTiff')
         for fname, dtype in topo_output.items()]
     x_raster, y_raster, height_raster, incidence_raster, heading_raster = raster_list
 

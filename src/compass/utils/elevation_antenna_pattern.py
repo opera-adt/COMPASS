@@ -20,7 +20,7 @@ def apply_eap_correction(burst, path_slc_vrt, path_slc_corrected, check_eap):
     path_slc_corrected: str:
         Path to the burst SLC after EAP correction
     check_eap: Namespace
-        A namespace that contains flags if phase and/or magnitute
+        A namespace that contains flags if phase and/or magnitude
         EAP correction are necessary
 
     '''
@@ -45,7 +45,7 @@ def apply_eap_correction(burst, path_slc_vrt, path_slc_corrected, check_eap):
 
     # Write out the EAP-corrected SLC
     dtype = slc_in.GetRasterBand(1).DataType
-    drvout = gdal.GetDriverByName('ENVI')
+    drvout = gdal.GetDriverByName('GTiff')
     raster_out = drvout.Create(path_slc_corrected, burst.shape[1],
                                burst.shape[0], 1, dtype)
     band_out = raster_out.GetRasterBand(1)

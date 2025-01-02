@@ -348,7 +348,7 @@ def open_raster(filename, band=1):
         raise FileNotFoundError(err_str)
 
     try:
-        # The pythonic execption handling for GDAL can be turned on / off
+        # The pythonic exception handling for GDAL can be turned on / off
         # The flag of which can be identified by `gdal.GetUseExceptions()`
         # In pythonic exception handling, `gdal.Open()` will raise `RuntimeError`
         # In traditional GDAL, the function does not raise exception buy will return `None`,
@@ -370,7 +370,7 @@ def open_raster(filename, band=1):
 
 
 def write_raster(filename, data_list, descriptions,
-                 data_type=gdal.GDT_Float32, data_format='ENVI'):
+                 data_type=gdal.GDT_Float32, data_format='GTiff'):
     '''
     Write a multiband GDAL-friendly raster to disk.
     Each dataset allocated in the output file contains

@@ -306,7 +306,7 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
     dst_group =\
         geo_burst_h5.require_group(dst_group_path)
 
-    gdal_envi_driver = gdal.GetDriverByName('ENVI')
+    gdal_geotiff_driver = gdal.GetDriverByName('GTiff')
 
     # Define the radargrid for LUT interpolation
     # The resultant radargrid will have
@@ -356,7 +356,7 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
                             range_lut_interp[np.newaxis, ...])
 
         lut_path = f'{scratch_path}/{item_name}_radargrid.rdr'
-        lut_gdal_raster = gdal_envi_driver.Create(lut_path,
+        lut_gdal_raster = gdal_geotiff_driver.Create(lut_path,
                                                   radargrid_interp.width,
                                                   radargrid_interp.length,
                                                   1, gdal.GDT_Float32)

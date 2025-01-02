@@ -128,7 +128,7 @@ def run(cfg, burst=None, save_in_scratch=False):
                        rdr2geo_cfg.compute_ground_to_sat_north, gdal.GDT_Float32),
                        }
         raster_list = [
-            isce3.io.Raster(f'{output_path}/{fname}.rdr', rdr_grid.width,
+            isce3.io.Raster(f'{output_path}/{fname}.tif', rdr_grid.width,
                             rdr_grid.length, 1, dtype, 'GTiff')
             if enabled else None
             for fname, (enabled, dtype) in topo_output.items()]

@@ -37,7 +37,7 @@ def los2orbit_azimuth_angle(los_az_angle, look_direction='right'):
 
 def azimuth2heading_angle(az_angle, look_direction='right'):
     """
-    Convert azimuth angle from ISCE los.rdr band2 into satellite orbit heading angle
+    Convert azimuth angle from ISCE los.tif band2 into satellite orbit heading angle
     ISCE-2 los.* file band2 is azimuth angle of LOS vector from ground target to the satellite
     measured from the north in anti-clockwise as positive.
 
@@ -49,7 +49,7 @@ def azimuth2heading_angle(az_angle, look_direction='right'):
     ----------
     az_angle: np.ndarray or float
         Measured from North in anti-clockwise direction. Same definition
-        as ISCE2 azimmuth angle (second band of *los raster)
+        as ISCE2 azimuth angle (second band of *los raster)
     look_direction: str
         Satellite look direction. S1-A/B is right; NISAR is left
 

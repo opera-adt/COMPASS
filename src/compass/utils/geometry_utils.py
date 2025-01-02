@@ -300,7 +300,7 @@ def enu2rgaz(radargrid_ref, orbit, ellipsoid,
         Orbit of the burst
     ellipsoid: isce3.core.Ellipsoid
         Ellipsoid definition
-    lon_arr, lat_arr, hgt_arr: np.nadrray
+    lon_arr, lat_arr, hgt_arr: np.ndarray
         Arrays for longitude, latitude, and height.
         Units for longitude and latitude are degree; unit for height is meters.
     e_arr, n_arr, u_arr: np.ndarray

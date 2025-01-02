@@ -292,7 +292,7 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, hgt_radar_grid,
         Longitude array on burst radargrid
     inc_angle: np.ndarray
         Incident angle raster in unit of degrees
-    head_angle: np.ndaaray
+    head_angle: np.ndarray
         Heading angle raster in unit of degrees
 
     Returns
@@ -458,7 +458,7 @@ def compute_static_troposphere_delay(incidence_angle_arr, hgt_arr):
     inc_path: str
         Path to incidence angle raster in radar grid in degrees
     hgt_path: str
-        Path to surface heightraster in radar grid in meters
+        Path to surface height raster in radar grid in meters
 
     Return:
     -------

@@ -5,6 +5,8 @@ dependencies:
   - python>=3.8
   - numpy>=1.20
   - gdal>=3.3
+  - libgdal-netcdf
+  - libgdal-hdf5
   - isce3>=0.14.0
   - pandas>=1.4
   - pillow>=7.0

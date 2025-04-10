@@ -39,7 +39,7 @@ def range_split_spectrum(burst,
     burst_path: str
         Path to the burst SLC to apply split spectrum
     cfg_split_spectrum: dict
-        Dictionary with split-spetrum options
+        Dictionary with split-spectrum options
     scratch_path: str
         Directory for storing temp files
 
@@ -87,8 +87,8 @@ def range_split_spectrum(burst,
     # contain 3 bands: Band #1: low-band image; Band #2 main-band image;
     # Band #3: high-band image.
     in_ds = gdal.Open(burst_path, gdal.GA_ReadOnly)
-    driver = gdal.GetDriverByName('ENVI')
-    out_ds = driver.Create(f'{scratch_path}/{burst_id_pol}_low_main_high.slc',
+    driver = gdal.GetDriverByName('GTiff')
+    out_ds = driver.Create(f'{scratch_path}/{burst_id_pol}_low_main_high.slc.tif',
                            width, length, 3, gdal.GDT_CFloat32)
 
     # Prepare necessary variables for block processing

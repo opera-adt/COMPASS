@@ -206,7 +206,7 @@ def run(cfg, burst, fetch_from_scratch=False):
             output_raster = isce3.io.Raster(f"IH5:::ID={topo_ds.id.id}".encode("utf-8"),
                                             update=True)
 
-            input_raster = isce3.io.Raster(f'{input_path}/{raster_file_name}.rdr')
+            input_raster = isce3.io.Raster(f'{input_path}/{raster_file_name}.tif')
 
             geocode_obj.geocode(radar_grid=radar_grid,
                                 input_raster=input_raster,
@@ -306,7 +306,7 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
     dst_group =\
         geo_burst_h5.require_group(dst_group_path)
 
-    gdal_envi_driver = gdal.GetDriverByName('ENVI')
+    gdal_geotiff_driver = gdal.GetDriverByName('GTiff')
 
     # Define the radargrid for LUT interpolation
     # The resultant radargrid will have
@@ -355,8 +355,8 @@ def geocode_luts(geo_burst_h5, burst, cfg, dst_group_path, item_dict,
         lut_arr = np.matmul(azimuth_lut_interp[..., np.newaxis],
                             range_lut_interp[np.newaxis, ...])
 
-        lut_path = f'{scratch_path}/{item_name}_radargrid.rdr'
-        lut_gdal_raster = gdal_envi_driver.Create(lut_path,
+        lut_path = f'{scratch_path}/{item_name}_radargrid.tif'
+        lut_gdal_raster = gdal_geotiff_driver.Create(lut_path,
                                                   radargrid_interp.width,
                                                   radargrid_interp.length,
                                                   1, gdal.GDT_Float32)

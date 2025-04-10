@@ -37,7 +37,7 @@ def run(run_config_path: str, grid_type: str):
 
     elif grid_type == 'geo':
         # CSLC workflow in geo-coordinates
-        # get a runconfig dict from command line argumens
+        # get a runconfig dict from command line arguments
         cfg = GeoRunConfig.load_from_yaml(run_config_path, 's1_cslc_geo')
 
         # Check if product_type is CSLC-S1, and produce product only

@@ -82,9 +82,9 @@ def run(cfg, burst=None, save_in_scratch=False):
         if save_in_scratch:
             output_path = out_paths.scratch_directory
 
-        # save SLC to ENVI for all bursts
+        # save SLC to Geotiff for all bursts
         # run rdr2geo for only 1 burst avoid redundancy
-        burst.slc_to_file(f'{output_path}/{out_paths.file_name_pol}.slc')
+        burst.slc_to_file(f'{output_path}/{out_paths.file_name_pol}.slc.tif', 'GTiff')
 
         # skip burst if id already rdr2geo processed
         # save id if not processed to avoid rdr2geo reprocessing
@@ -128,8 +128,8 @@ def run(cfg, burst=None, save_in_scratch=False):
                        rdr2geo_cfg.compute_ground_to_sat_north, gdal.GDT_Float32),
                        }
         raster_list = [
-            isce3.io.Raster(f'{output_path}/{fname}.rdr', rdr_grid.width,
-                            rdr_grid.length, 1, dtype, 'ENVI')
+            isce3.io.Raster(f'{output_path}/{fname}.tif', rdr_grid.width,
+                            rdr_grid.length, 1, dtype, 'GTiff')
             if enabled else None
             for fname, (enabled, dtype) in topo_output.items()]
 

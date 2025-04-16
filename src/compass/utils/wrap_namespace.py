@@ -1,25 +1,28 @@
-'''Utility functions to convert to/from nested dicts or lists, and nested namespaces
+"""Utility functions to convert to/from nested dicts or lists, and nested namespaces
 
 References
 ----------
 https://stackoverflow.com/a/50491016
-'''
+"""
 
 from functools import singledispatch
 from types import SimpleNamespace
+
 
 @singledispatch
 def wrap_namespace(ob):
     return ob
 
+
 @wrap_namespace.register(dict)
 def _wrap_dict(ob):
-    return SimpleNamespace(**{key: wrap_namespace(val)
-                              for key, val in ob.items()})
+    return SimpleNamespace(**{key: wrap_namespace(val) for key, val in ob.items()})
+
 
 @wrap_namespace.register(list)
 def _wrap_list(ob):
     return [wrap_namespace(val) for val in ob]
+
 
 def unwrap_to_dict(sns: SimpleNamespace) -> dict:
     sns_as_dict = {}

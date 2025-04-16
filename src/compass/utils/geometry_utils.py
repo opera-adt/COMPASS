@@ -9,7 +9,8 @@
 import numpy as np
 import isce3
 
-def los2orbit_azimuth_angle(los_az_angle, look_direction='right'):
+
+def los2orbit_azimuth_angle(los_az_angle, look_direction="right"):
     """
     Convert the azimuth angle of the LOS vector to the one of the orbit flight vector.
     The conversion done for this function only works for zero-Doppler geometry.
@@ -27,15 +28,15 @@ def los2orbit_azimuth_angle(los_az_angle, look_direction='right'):
         the north with anti-clockwise direction as positive, in the unit of degrees
     """
 
-    if look_direction == 'right':
+    if look_direction == "right":
         orb_az_angle = los_az_angle - 90
     else:
         orb_az_angle = los_az_angle + 90
-    orb_az_angle -= np.round(orb_az_angle / 360.) * 360.
+    orb_az_angle -= np.round(orb_az_angle / 360.0) * 360.0
     return orb_az_angle
 
 
-def azimuth2heading_angle(az_angle, look_direction='right'):
+def azimuth2heading_angle(az_angle, look_direction="right"):
     """
     Convert azimuth angle from ISCE los.tif band2 into satellite orbit heading angle
     ISCE-2 los.* file band2 is azimuth angle of LOS vector from ground target to the satellite
@@ -60,15 +61,15 @@ def azimuth2heading_angle(az_angle, look_direction='right'):
         from the North in anti-clockwise direction as positive
     """
 
-    if look_direction == 'right':
+    if look_direction == "right":
         head_angle = (az_angle - 90) * -1
     else:
         head_angle = (az_angle + 90) * -1
-    head_angle -= np.round(head_angle / 360.) * 360.
+    head_angle -= np.round(head_angle / 360.0) * 360.0
     return head_angle
 
 
-def heading2azimuth_angle(head_angle, look_direction='right'):
+def heading2azimuth_angle(head_angle, look_direction="right"):
     """
     Convert satellite orbit heading angle into azimuth angle as defined in ISCE-2
 
@@ -86,11 +87,11 @@ def heading2azimuth_angle(head_angle, look_direction='right'):
         Measured from the North in anti-clockwise direction. Same definition
         as ISCE2 azimuth angle (second band of *los raster)
     """
-    if look_direction == 'right':
+    if look_direction == "right":
         az_angle = (head_angle - 90) * -1
     else:
         az_angle = (head_angle + 90) * -1
-    az_angle -= np.round(az_angle / 360.) * 360.
+    az_angle -= np.round(az_angle / 360.0) * 360.0
     return az_angle
 
 
@@ -127,12 +128,14 @@ def enu2los(v_e, v_n, v_u, inc_angle, head_angle=None, az_angle=None):
         if head_angle is not None:
             az_angle = heading2azimuth_angle(head_angle)
         else:
-            raise ValueError(f'invalid az_angle: {az_angle}!')
+            raise ValueError(f"invalid az_angle: {az_angle}!")
 
     # project ENU onto LOS
-    v_los = (  v_e * np.sin(np.deg2rad(inc_angle)) * np.sin(np.deg2rad(az_angle)) * -1
-             + v_n * np.sin(np.deg2rad(inc_angle)) * np.cos(np.deg2rad(az_angle))
-             + v_u * np.cos(np.deg2rad(inc_angle)))
+    v_los = (
+        v_e * np.sin(np.deg2rad(inc_angle)) * np.sin(np.deg2rad(az_angle)) * -1
+        + v_n * np.sin(np.deg2rad(inc_angle)) * np.cos(np.deg2rad(az_angle))
+        + v_u * np.cos(np.deg2rad(inc_angle))
+    )
 
     return v_los
 
@@ -158,8 +161,9 @@ def en2az(v_e, v_n, orb_az_angle):
         motion along flight direction as positive
     """
     # project EN onto azimuth
-    v_az = (  v_e * np.sin(np.deg2rad(orb_az_angle)) * -1
-            + v_n * np.cos(np.deg2rad(orb_az_angle)))
+    v_az = v_e * np.sin(np.deg2rad(orb_az_angle)) * -1 + v_n * np.cos(
+        np.deg2rad(orb_az_angle)
+    )
     return v_az
 
 
@@ -185,7 +189,9 @@ def calc_azimuth_from_east_north_obs(east, north):
     return az_angle
 
 
-def get_unit_vector4component_of_interest(los_inc_angle, los_az_angle, comp='enu2los', horz_az_angle=None):
+def get_unit_vector4component_of_interest(
+    los_inc_angle, los_az_angle, comp="enu2los", horz_az_angle=None
+):
     """
     Get the unit vector for the component of interest.
 
@@ -211,42 +217,53 @@ def get_unit_vector4component_of_interest(los_inc_angle, los_az_angle, comp='enu
 
     # check input arguments
     comps = [
-        'enu2los', 'en2los', 'hz2los', 'horz2los', 'u2los', 'vert2los',   # radar LOS / cross-track
-        'en2az', 'hz2az', 'orb_az', 'orbit_az',                           # radar azimuth / along-track
-        'vert', 'vertical', 'horz', 'horizontal',                         # vertical / horizontal
+        "enu2los",
+        "en2los",
+        "hz2los",
+        "horz2los",
+        "u2los",
+        "vert2los",  # radar LOS / cross-track
+        "en2az",
+        "hz2az",
+        "orb_az",
+        "orbit_az",  # radar azimuth / along-track
+        "vert",
+        "vertical",
+        "horz",
+        "horizontal",  # vertical / horizontal
     ]
 
     if comp not in comps:
-        raise ValueError(f'un-recognized comp input: {comp}.\nchoose from: {comps}')
+        raise ValueError(f"un-recognized comp input: {comp}.\nchoose from: {comps}")
 
-    if comp == 'horz' and horz_az_angle is None:
-        raise ValueError('comp=horz requires horz_az_angle input!')
+    if comp == "horz" and horz_az_angle is None:
+        raise ValueError("comp=horz requires horz_az_angle input!")
 
     # initiate output
     unit_vec = None
 
-    if comp in ['enu2los']:
+    if comp in ["enu2los"]:
         unit_vec = [
             np.sin(np.deg2rad(los_inc_angle)) * np.sin(np.deg2rad(los_az_angle)) * -1,
             np.sin(np.deg2rad(los_inc_angle)) * np.cos(np.deg2rad(los_az_angle)),
             np.cos(np.deg2rad(los_inc_angle)),
         ]
 
-    elif comp in ['en2los', 'hz2los', 'horz2los']:
+    elif comp in ["en2los", "hz2los", "horz2los"]:
         unit_vec = [
             np.sin(np.deg2rad(los_inc_angle)) * np.sin(np.deg2rad(los_az_angle)) * -1,
             np.sin(np.deg2rad(los_inc_angle)) * np.cos(np.deg2rad(los_az_angle)),
             np.zeros_like(los_inc_angle),
         ]
 
-    elif comp in ['u2los', 'vert2los']:
+    elif comp in ["u2los", "vert2los"]:
         unit_vec = [
             np.zeros_like(los_inc_angle),
             np.zeros_like(los_inc_angle),
             np.cos(np.deg2rad(los_inc_angle)),
         ]
 
-    elif comp in ['en2az', 'hz2az', 'orb_az', 'orbit_az']:
+    elif comp in ["en2az", "hz2az", "orb_az", "orbit_az"]:
         orb_az_angle = los2orbit_azimuth_angle(los_az_angle)
         unit_vec = [
             np.sin(np.deg2rad(orb_az_angle)) * -1,
@@ -254,10 +271,10 @@ def get_unit_vector4component_of_interest(los_inc_angle, los_az_angle, comp='enu
             np.zeros_like(orb_az_angle),
         ]
 
-    elif comp in ['vert', 'vertical']:
+    elif comp in ["vert", "vertical"]:
         unit_vec = [0, 0, 1]
 
-    elif comp in ['horz', 'horizontal']:
+    elif comp in ["horz", "horizontal"]:
         unit_vec = [
             np.sin(np.deg2rad(horz_az_angle)) * -1,
             np.cos(np.deg2rad(horz_az_angle)),
@@ -267,11 +284,19 @@ def get_unit_vector4component_of_interest(los_inc_angle, los_az_angle, comp='enu
     return unit_vec
 
 
-def enu2rgaz(radargrid_ref, orbit, ellipsoid,
-             lon_arr, lat_arr, hgt_arr,
-             e_arr, n_arr, u_arr,
-             geo2rdr_params=None):
-    '''
+def enu2rgaz(
+    radargrid_ref,
+    orbit,
+    ellipsoid,
+    lon_arr,
+    lat_arr,
+    hgt_arr,
+    e_arr,
+    n_arr,
+    u_arr,
+    geo2rdr_params=None,
+):
+    """
     Convert ENU displacement into range / azimuth displacement,
     based on the idea mentioned in ETAD ATBD, available in the link below:
     https://sentinels.copernicus.eu/documents/247904/4629150/ETAD-DLR-DD-0008_Algorithm-Technical-Baseline-Document_2.3.pdf/5cb45b43-76dc-8dec-04ef-ca1252ace434?t=1680181574715 # noqa
@@ -321,7 +346,7 @@ def enu2rgaz(radargrid_ref, orbit, ellipsoid,
     threshold and max # iterations are set to
     `1.0e-8` and `25` respectively.
 
-    '''
+    """
     if geo2rdr_params is None:
         # default threshold and # iteration for geo2rdr
         threshold = 1.0e-8
@@ -342,36 +367,38 @@ def enu2rgaz(radargrid_ref, orbit, ellipsoid,
 
         vec_e, vec_n, vec_u = get_enu_vector_ecef(lon_deg, lat_deg)
 
-        llh_ref = np.array([np.deg2rad(lon_deg),
-                            np.deg2rad(lat_deg),
-                            hgt])
+        llh_ref = np.array([np.deg2rad(lon_deg), np.deg2rad(lat_deg), hgt])
 
         xyz_before = ellipsoid.lon_lat_to_xyz(llh_ref)
-        xyz_after_set = (xyz_before
-                         + vec_e * e_arr[index_arr]
-                         + vec_n * n_arr[index_arr]
-                         + vec_u * u_arr[index_arr])
+        xyz_after_set = (
+            xyz_before
+            + vec_e * e_arr[index_arr]
+            + vec_n * n_arr[index_arr]
+            + vec_u * u_arr[index_arr]
+        )
         llh_displaced = ellipsoid.xyz_to_lon_lat(xyz_after_set)
 
-        aztime_ref, slant_range_ref =\
-            isce3.geometry.geo2rdr(llh_ref,
-                                   ellipsoid,
-                                   orbit,
-                                   isce3.core.LUT2d(),
-                                   radargrid_ref.wavelength,
-                                   radargrid_ref.lookside,
-                                   threshold=threshold,
-                                   maxiter=maxiter)
+        aztime_ref, slant_range_ref = isce3.geometry.geo2rdr(
+            llh_ref,
+            ellipsoid,
+            orbit,
+            isce3.core.LUT2d(),
+            radargrid_ref.wavelength,
+            radargrid_ref.lookside,
+            threshold=threshold,
+            maxiter=maxiter,
+        )
 
-        aztime_displaced, slant_range_displaced =\
-            isce3.geometry.geo2rdr(llh_displaced,
-                                   ellipsoid,
-                                   orbit,
-                                   isce3.core.LUT2d(),
-                                   radargrid_ref.wavelength,
-                                   radargrid_ref.lookside,
-                                   threshold=threshold,
-                                   maxiter=maxiter)
+        aztime_displaced, slant_range_displaced = isce3.geometry.geo2rdr(
+            llh_displaced,
+            ellipsoid,
+            orbit,
+            isce3.core.LUT2d(),
+            radargrid_ref.wavelength,
+            radargrid_ref.lookside,
+            threshold=threshold,
+            maxiter=maxiter,
+        )
 
         rg_arr[index_arr] = slant_range_displaced - slant_range_ref
         az_arr[index_arr] = aztime_displaced - aztime_ref
@@ -379,8 +406,8 @@ def enu2rgaz(radargrid_ref, orbit, ellipsoid,
     return rg_arr, az_arr
 
 
-def get_enu_vector_ecef(lon, lat, units='degrees'):
-    '''
+def get_enu_vector_ecef(lon, lat, units="degrees"):
+    """
     Calculate the east, north, and up vectors in ECEF for lon / lat provided
 
     Parameters
@@ -401,27 +428,37 @@ def get_enu_vector_ecef(lon, lat, units='degrees'):
         unit vector of "north" direction in ECEF
     vec_u: np.ndarray
         unit vector of "up" direction in ECEF
-    '''
-    if units == 'degrees':
+    """
+    if units == "degrees":
         lon_rad = np.deg2rad(lon)
         lat_rad = np.deg2rad(lat)
-    elif units == 'radians':
+    elif units == "radians":
         lon_rad = lon
         lat_rad = lat
     else:
-        raise ValueError(f'"{units}" was provided for `units`, '
-                         'which needs to be either `degrees` or `radians`')
+        raise ValueError(
+            f'"{units}" was provided for `units`, '
+            "which needs to be either `degrees` or `radians`"
+        )
 
     # Calculate up, north, and east vectors
     # reference: https://github.com/isce-framework/isce3/blob/944eba17f4a5b1c88c6a035c2d58ddd0d4f0709c/cxx/isce3/core/Ellipsoid.h#L154-L157 # noqa
     # https://en.wikipedia.org/wiki/Geographic_coordinate_conversion#From_ECEF_to_ENU # noqa
-    vec_u = np.array([np.cos(lon_rad) * np.cos(lat_rad),
-                      np.sin(lon_rad) * np.cos(lat_rad),
-                      np.sin(lat_rad)])
+    vec_u = np.array(
+        [
+            np.cos(lon_rad) * np.cos(lat_rad),
+            np.sin(lon_rad) * np.cos(lat_rad),
+            np.sin(lat_rad),
+        ]
+    )
 
-    vec_n = np.array([-np.cos(lon_rad) * np.sin(lat_rad),
-                      -np.sin(lon_rad) * np.sin(lat_rad),
-                      np.cos(lat_rad)])
+    vec_n = np.array(
+        [
+            -np.cos(lon_rad) * np.sin(lat_rad),
+            -np.sin(lon_rad) * np.sin(lat_rad),
+            np.cos(lat_rad),
+        ]
+    )
 
     vec_e = np.cross(vec_n, vec_u, axis=0)
 

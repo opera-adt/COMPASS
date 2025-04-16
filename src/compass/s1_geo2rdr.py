@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-'''wrapper for geo2rdr'''
+"""wrapper for geo2rdr"""
 
 import os
 import time
@@ -25,7 +25,7 @@ def run(cfg: dict):
     """
     module_name = get_module_name(__file__)
     info_channel = journal.info(f"{module_name}.run")
-    info_channel.log(f'Starting {module_name} burst')
+    info_channel.log(f"Starting {module_name} burst")
 
     # Tracking time elapsed for processing
     t_start = time.perf_counter()
@@ -69,17 +69,16 @@ def run(cfg: dict):
 
         # Get topo layers from vrt
         ref_burst_path = cfg.reference_radar_info.path
-        topo_raster = isce3.io.Raster(f'{ref_burst_path}/topo.vrt')
+        topo_raster = isce3.io.Raster(f"{ref_burst_path}/topo.vrt")
 
         # Get radar grid and orbit
         rdr_grid = burst.as_isce3_radargrid()
         orbit = burst.orbit
 
         # Initialize geo2rdr object
-        geo2rdr_obj = geo2rdr(rdr_grid, orbit, ellipsoid,
-                              isce3.core.LUT2d(),
-                              threshold, iters,
-                              blocksize)
+        geo2rdr_obj = geo2rdr(
+            rdr_grid, orbit, ellipsoid, isce3.core.LUT2d(), threshold, iters, blocksize
+        )
 
         # Execute geo2rdr
         geo2rdr_obj.geo2rdr(topo_raster, out_paths.output_directory)
@@ -93,8 +92,9 @@ if __name__ == "__main__":
     parser = YamlArgparse()
 
     # Get a runconfig dict from command line arguments
-    cfg = RunConfig.load_from_yaml(parser.args.run_config_path,
-                                   workflow_name='s1_cslc_radar')
+    cfg = RunConfig.load_from_yaml(
+        parser.args.run_config_path, workflow_name="s1_cslc_radar"
+    )
 
     # Run geo2rdr
     run(cfg)

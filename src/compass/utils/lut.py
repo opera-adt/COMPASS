@@ -1,6 +1,7 @@
-'''
+"""
 Placeholder for model-based correction LUT
-'''
+"""
+
 import os
 import isce3
 import numpy as np
@@ -15,13 +16,18 @@ from compass.utils.helpers import open_raster
 from compass.utils.helpers import write_raster
 
 
-def cumulative_correction_luts(burst, dem_path, tec_path,
-                               scratch_path=None,
-                               weather_model_path=None,
-                               rg_step=200, az_step=0.25,
-                               delay_type='dry',
-                               geo2rdr_params=None):
-    '''
+def cumulative_correction_luts(
+    burst,
+    dem_path,
+    tec_path,
+    scratch_path=None,
+    weather_model_path=None,
+    rg_step=200,
+    az_step=0.25,
+    delay_type="dry",
+    geo2rdr_params=None,
+):
+    """
     Sum correction LUTs and returns cumulative correction LUT in slant range
     and azimuth directions
 
@@ -56,73 +62,101 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
     az_lut: isce3.core.LUT2d
         Sum of azimuth correction LUTs in seconds as a function of azimuth time
         and slant range
-    '''
+    """
     # Get individual LUTs
-    geometrical_steer_doppler, bistatic_delay, az_fm_mismatch, [tide_rg, tide_az], \
-        los_ionosphere, [wet_los_tropo, dry_los_tropo], los_static_tropo = \
-        compute_geocoding_correction_luts(burst,
-                                          dem_path=dem_path,
-                                          tec_path=tec_path,
-                                          scratch_path=scratch_path,
-                                          weather_model_path=weather_model_path,
-                                          rg_step=rg_step,
-                                          az_step=az_step,
-                                          geo2rdr_params=geo2rdr_params)
+    (
+        geometrical_steer_doppler,
+        bistatic_delay,
+        az_fm_mismatch,
+        [tide_rg, tide_az],
+        los_ionosphere,
+        [wet_los_tropo, dry_los_tropo],
+        los_static_tropo,
+    ) = compute_geocoding_correction_luts(
+        burst,
+        dem_path=dem_path,
+        tec_path=tec_path,
+        scratch_path=scratch_path,
+        weather_model_path=weather_model_path,
+        rg_step=rg_step,
+        az_step=az_step,
+        geo2rdr_params=geo2rdr_params,
+    )
 
     # Convert to geometrical doppler from range time (seconds) to range (m)
     geometry_doppler = geometrical_steer_doppler.data * isce3.core.speed_of_light * 0.5
     rg_lut_data = geometry_doppler + tide_rg + los_ionosphere + los_static_tropo
 
     # Add troposphere delay to range LUT
-    if 'wet' in delay_type:
+    if "wet" in delay_type:
         rg_lut_data += wet_los_tropo
-    if 'dry' in delay_type:
+    if "dry" in delay_type:
         rg_lut_data += dry_los_tropo
 
     # Invert signs to correct for convention
     az_lut_data = -(bistatic_delay.data + az_fm_mismatch.data)
 
-    rg_lut = isce3.core.LUT2d(bistatic_delay.x_start,
-                              bistatic_delay.y_start,
-                              bistatic_delay.x_spacing,
-                              bistatic_delay.y_spacing,
-                              rg_lut_data)
-    az_lut = isce3.core.LUT2d(bistatic_delay.x_start,
-                              bistatic_delay.y_start,
-                              bistatic_delay.x_spacing,
-                              bistatic_delay.y_spacing,
-                              az_lut_data)
+    rg_lut = isce3.core.LUT2d(
+        bistatic_delay.x_start,
+        bistatic_delay.y_start,
+        bistatic_delay.x_spacing,
+        bistatic_delay.y_spacing,
+        rg_lut_data,
+    )
+    az_lut = isce3.core.LUT2d(
+        bistatic_delay.x_start,
+        bistatic_delay.y_start,
+        bistatic_delay.x_spacing,
+        bistatic_delay.y_spacing,
+        az_lut_data,
+    )
 
     # Save corrections on disk. In this way, we should avoid running
     # the corrections again when allocating data inside the HDF5 product
     # Create a directory in the scratch path to save corrections
-    output_path = f'{scratch_path}/corrections'
+    output_path = f"{scratch_path}/corrections"
     os.makedirs(output_path, exist_ok=True)
-    data_list = [geometry_doppler, bistatic_delay.data, az_fm_mismatch.data,
-                 tide_rg, tide_az, los_ionosphere]
-    descr = ['slant range geometrical doppler', 'azimuth bistatic delay',
-             'azimuth FM rate mismatch', 'slant range Solid Earth tides',
-             'azimuth time Solid Earth tides', 'line-of-sight ionospheric delay']
+    data_list = [
+        geometry_doppler,
+        bistatic_delay.data,
+        az_fm_mismatch.data,
+        tide_rg,
+        tide_az,
+        los_ionosphere,
+    ]
+    descr = [
+        "slant range geometrical doppler",
+        "azimuth bistatic delay",
+        "azimuth FM rate mismatch",
+        "slant range Solid Earth tides",
+        "azimuth time Solid Earth tides",
+        "line-of-sight ionospheric delay",
+    ]
 
     if weather_model_path is not None:
-        if 'wet' in delay_type:
+        if "wet" in delay_type:
             data_list.append(wet_los_tropo)
-            descr.append('wet LOS troposphere')
-        if 'dry' in delay_type:
+            descr.append("wet LOS troposphere")
+        if "dry" in delay_type:
             data_list.append(dry_los_tropo)
-            descr.append('dry LOS troposphere')
+            descr.append("dry LOS troposphere")
 
-    write_raster(f'{output_path}/corrections', data_list, descr)
+    write_raster(f"{output_path}/corrections", data_list, descr)
 
     return rg_lut, az_lut
 
 
-def compute_geocoding_correction_luts(burst, dem_path, tec_path,
-                                      scratch_path=None,
-                                      weather_model_path=None,
-                                      rg_step=200, az_step=0.25,
-                                      geo2rdr_params=None):
-    '''
+def compute_geocoding_correction_luts(
+    burst,
+    dem_path,
+    tec_path,
+    scratch_path=None,
+    weather_model_path=None,
+    rg_step=200,
+    az_step=0.25,
+    geo2rdr_params=None,
+):
+    """
     Compute slant range and azimuth LUTs corrections
     to be applied during burst geocoding
 
@@ -181,7 +215,7 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
         List of numpy.ndarray containing the LOS wet and dry troposphere delays
         computed from the file specified under 'weather_model_path'. These delays
         need to be added to the slant range correction LUT2D.
-    '''
+    """
 
     # Get DEM raster
     dem_raster = isce3.io.Raster(dem_path)
@@ -190,58 +224,63 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
     ellipsoid = proj.ellipsoid
 
     # Create directory to store SET temp results
-    output_path = f'{scratch_path}/corrections'
+    output_path = f"{scratch_path}/corrections"
     os.makedirs(output_path, exist_ok=True)
 
     # Compute Geometrical Steering Doppler
-    geometrical_steering_doppler = \
-        burst.doppler_induced_range_shift(range_step=rg_step, az_step=az_step)
+    geometrical_steering_doppler = burst.doppler_induced_range_shift(
+        range_step=rg_step, az_step=az_step
+    )
 
     # Compute bistatic delay
     bistatic_delay = burst.bistatic_delay(range_step=rg_step, az_step=az_step)
 
     # Run rdr2geo to obtain the required layers
     # return contents: lon_path, lat_path, height_path, inc_path, head_path
-    rdr2geo_raster_paths = compute_rdr2geo_rasters(burst, dem_raster,
-                                                   output_path, rg_step,
-                                                   az_step)
+    rdr2geo_raster_paths = compute_rdr2geo_rasters(
+        burst, dem_raster, output_path, rg_step, az_step
+    )
 
     # Open rdr2geo layers
-    lon, lat, height, inc_angle, head_angle = \
-        [open_raster(raster_path) for raster_path in rdr2geo_raster_paths]
+    lon, lat, height, inc_angle, head_angle = [
+        open_raster(raster_path) for raster_path in rdr2geo_raster_paths
+    ]
 
     # Compute azimuth FM-rate mismatch
-    az_fm_mismatch = burst.az_fm_rate_mismatch_from_llh(lat, lon, height,
-                                                        ellipsoid,
-                                                        burst.as_isce3_radargrid(
-                                                            az_step=az_step,
-                                                            rg_step=rg_step)
-                                                        )
+    az_fm_mismatch = burst.az_fm_rate_mismatch_from_llh(
+        lat,
+        lon,
+        height,
+        ellipsoid,
+        burst.as_isce3_radargrid(az_step=az_step, rg_step=rg_step),
+    )
 
     # compute Solid Earth Tides using pySolid. Decimate the rdr2geo layers.
     # compute decimation factor assuming a 5 km spacing along slant range
     dec_factor = int(np.round(5000.0 / rg_step))
     dec_slice = np.s_[::dec_factor, ::dec_factor]
-    rg_set_temp, az_set_temp = solid_earth_tides(burst,
-                                                 lat[dec_slice],
-                                                 lon[dec_slice],
-                                                 height[dec_slice],
-                                                 ellipsoid,
-                                                 geo2rdr_params)
+    rg_set_temp, az_set_temp = solid_earth_tides(
+        burst,
+        lat[dec_slice],
+        lon[dec_slice],
+        height[dec_slice],
+        ellipsoid,
+        geo2rdr_params,
+    )
     out_shape = bistatic_delay.data.shape
-    kwargs = dict(order=1, mode='edge', anti_aliasing=True,
-                    preserve_range=True)
+    kwargs = dict(order=1, mode="edge", anti_aliasing=True, preserve_range=True)
     rg_set = resize(rg_set_temp, out_shape, **kwargs)
     az_set = resize(az_set_temp, out_shape, **kwargs)
 
     # Compute ionosphere delay
-    los_ionosphere = ionosphere_delay(burst.sensing_mid,
-                                      burst.wavelength,
-                                      tec_path, lon, lat, inc_angle)
+    los_ionosphere = ionosphere_delay(
+        burst.sensing_mid, burst.wavelength, tec_path, lon, lat, inc_angle
+    )
 
     # Compute wet and dry troposphere delays using RAiDER
-    wet_los_tropo, dry_los_tropo, los_static_tropo =\
-        [np.zeros(out_shape) for _ in range(3)]
+    wet_los_tropo, dry_los_tropo, los_static_tropo = [
+        np.zeros(out_shape) for _ in range(3)
+    ]
 
     if weather_model_path is None:
         # Compute static troposphere correction
@@ -251,18 +290,20 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
         from RAiDER.delay import tropo_delay
         from RAiDER.llreader import RasterRDR
         from RAiDER.losreader import Zenith
+
         # Instantiate an "aoi" object to read lat/lon/height files
-        aoi = RasterRDR(rdr2geo_raster_paths[1], rdr2geo_raster_paths[0],
-                        rdr2geo_raster_paths[2])
+        aoi = RasterRDR(
+            rdr2geo_raster_paths[1], rdr2geo_raster_paths[0], rdr2geo_raster_paths[2]
+        )
 
         # Instantiate the Zenith object. Note RAiDER LOS object requires
         # the orbit files.
         los = Zenith()
 
         # Compute the troposphere delay along the Zenith
-        zen_wet, zen_dry = tropo_delay(burst.sensing_start,
-                                       weather_model_path,
-                                       aoi, los)
+        zen_wet, zen_dry = tropo_delay(
+            burst.sensing_start, weather_model_path, aoi, los
+        )
 
         # RaiDER delay is one-way only. Get the LOS delay my multiplying
         # by the incidence angle
@@ -270,15 +311,25 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
         dry_los_tropo = 2.0 * zen_dry / np.cos(np.deg2rad(inc_angle))
 
     return (
-        geometrical_steering_doppler, bistatic_delay, az_fm_mismatch,
-        [rg_set, az_set], los_ionosphere,
-        [wet_los_tropo, dry_los_tropo], los_static_tropo
+        geometrical_steering_doppler,
+        bistatic_delay,
+        az_fm_mismatch,
+        [rg_set, az_set],
+        los_ionosphere,
+        [wet_los_tropo, dry_los_tropo],
+        los_static_tropo,
     )
 
 
-def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, hgt_radar_grid,
-                      ellipsoid, geo2rdr_params=None):
-    '''
+def solid_earth_tides(
+    burst,
+    lat_radar_grid,
+    lon_radar_grid,
+    hgt_radar_grid,
+    ellipsoid,
+    geo2rdr_params=None,
+):
+    """
     Compute displacement due to Solid Earth Tides (SET)
     in slant range and azimuth directions
 
@@ -301,7 +352,7 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, hgt_radar_grid,
         2D array with SET displacement along LOS
     az_set: np.ndarray
         2D array with SET displacement along azimuth
-    '''
+    """
 
     # Extract top-left coordinates from burst polygon
     lon_min, lat_min, _, _ = burst.border[0].bounds
@@ -313,48 +364,56 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, hgt_radar_grid,
     lon_start = lon_min - margin
 
     atr = {
-        'LENGTH': 25,
-        'WIDTH': 100,
-        'X_FIRST': lon_start,
-        'Y_FIRST': lat_start,
-        'X_STEP': 0.023,
-        'Y_STEP': 0.023
+        "LENGTH": 25,
+        "WIDTH": 100,
+        "X_FIRST": lon_start,
+        "Y_FIRST": lat_start,
+        "X_STEP": 0.023,
+        "Y_STEP": 0.023,
     }
 
     # Run pySolid and get SET in ENU coordinate system
-    (set_e,
-     set_n,
-     set_u) = pysolid.calc_solid_earth_tides_grid(burst.sensing_start, atr,
-                                                  display=False, verbose=True)
+    (set_e, set_n, set_u) = pysolid.calc_solid_earth_tides_grid(
+        burst.sensing_start, atr, display=False, verbose=True
+    )
 
     # Resample SET from geographical grid to radar grid
     # Generate the lat/lon arrays for the SET geogrid
-    lat_geo_array = np.linspace(atr['Y_FIRST'],
-                                lat_start + atr['Y_STEP'] * atr['LENGTH'],
-                                num=atr['LENGTH'])
-    lon_geo_array = np.linspace(atr['X_FIRST'],
-                                lon_start + atr['X_STEP'] * atr['WIDTH'],
-                                num=atr['WIDTH'])
+    lat_geo_array = np.linspace(
+        atr["Y_FIRST"], lat_start + atr["Y_STEP"] * atr["LENGTH"], num=atr["LENGTH"]
+    )
+    lon_geo_array = np.linspace(
+        atr["X_FIRST"], lon_start + atr["X_STEP"] * atr["WIDTH"], num=atr["WIDTH"]
+    )
 
     # Use scipy RGI to resample SET from geocoded to radar coordinates
     pts_src = (np.flipud(lat_geo_array), lon_geo_array)
     pts_dst = (lat_radar_grid.flatten(), lon_radar_grid.flatten())
 
-    rdr_set_e, rdr_set_n, rdr_set_u = \
-        [resample_set(set_enu, pts_src, pts_dst).reshape(lat_radar_grid.shape)
-         for set_enu in [set_e, set_n, set_u]]
+    rdr_set_e, rdr_set_n, rdr_set_u = [
+        resample_set(set_enu, pts_src, pts_dst).reshape(lat_radar_grid.shape)
+        for set_enu in [set_e, set_n, set_u]
+    ]
 
     # Convert SET from ENU to range/azimuth coordinates
-    set_rg, set_az = enu2rgaz(burst.as_isce3_radargrid(), burst.orbit, ellipsoid,
-             lon_radar_grid, lat_radar_grid, hgt_radar_grid,
-             rdr_set_e, rdr_set_n, rdr_set_u, geo2rdr_params)
+    set_rg, set_az = enu2rgaz(
+        burst.as_isce3_radargrid(),
+        burst.orbit,
+        ellipsoid,
+        lon_radar_grid,
+        lat_radar_grid,
+        hgt_radar_grid,
+        rdr_set_e,
+        rdr_set_n,
+        rdr_set_u,
+        geo2rdr_params,
+    )
 
     return set_rg, set_az
 
 
-def compute_rdr2geo_rasters(burst, dem_raster, output_path,
-                            rg_step, az_step):
-    '''
+def compute_rdr2geo_rasters(burst, dem_raster, output_path, rg_step, az_step):
+    """
     Get latitude, longitude, incidence and
     azimuth angle on multi-looked radar grid
 
@@ -381,7 +440,7 @@ def compute_rdr2geo_rasters(burst, dem_raster, output_path,
         Path to incidence angle raster
     head_path: str
         Path to heading angle raster
-    '''
+    """
 
     # Some ancillary inputs
     epsg = dem_raster.get_epsg()
@@ -389,33 +448,38 @@ def compute_rdr2geo_rasters(burst, dem_raster, output_path,
     ellipsoid = proj.ellipsoid
 
     # Get radar grid for the correction grid
-    rdr_grid = burst.as_isce3_radargrid(az_step=az_step,
-                                        rg_step=rg_step)
+    rdr_grid = burst.as_isce3_radargrid(az_step=az_step, rg_step=rg_step)
 
     grid_doppler = isce3.core.LUT2d()
 
     # Initialize the rdr2geo object
-    rdr2geo_obj = isce3.geometry.Rdr2Geo(rdr_grid, burst.orbit,
-                                         ellipsoid, grid_doppler,
-                                         threshold=1.0e-8)
+    rdr2geo_obj = isce3.geometry.Rdr2Geo(
+        rdr_grid, burst.orbit, ellipsoid, grid_doppler, threshold=1.0e-8
+    )
 
     # Get the rdr2geo raster needed for SET computation
-    topo_output = {f'{output_path}/x.tif': gdal.GDT_Float64,
-                   f'{output_path}/y.tif': gdal.GDT_Float64,
-                   f'{output_path}/height.tif': gdal.GDT_Float64,
-                   f'{output_path}/incidence_angle.tif': gdal.GDT_Float32,
-                   f'{output_path}/heading_angle.tif': gdal.GDT_Float32}
+    topo_output = {
+        f"{output_path}/x.tif": gdal.GDT_Float64,
+        f"{output_path}/y.tif": gdal.GDT_Float64,
+        f"{output_path}/height.tif": gdal.GDT_Float64,
+        f"{output_path}/incidence_angle.tif": gdal.GDT_Float32,
+        f"{output_path}/heading_angle.tif": gdal.GDT_Float32,
+    }
     raster_list = [
-        isce3.io.Raster(fname, rdr_grid.width,
-                        rdr_grid.length, 1, dtype, 'GTiff')
-        for fname, dtype in topo_output.items()]
+        isce3.io.Raster(fname, rdr_grid.width, rdr_grid.length, 1, dtype, "GTiff")
+        for fname, dtype in topo_output.items()
+    ]
     x_raster, y_raster, height_raster, incidence_raster, heading_raster = raster_list
 
     # Run rdr2geo on coarse radar grid
-    rdr2geo_obj.topo(dem_raster, x_raster, y_raster,
-                     height_raster=height_raster,
-                     incidence_angle_raster=incidence_raster,
-                     heading_angle_raster=heading_raster)
+    rdr2geo_obj.topo(
+        dem_raster,
+        x_raster,
+        y_raster,
+        height_raster=height_raster,
+        incidence_angle_raster=incidence_raster,
+        heading_angle_raster=heading_raster,
+    )
 
     # Return file path to rdr2geo layers
     paths = list(topo_output.keys())
@@ -423,7 +487,7 @@ def compute_rdr2geo_rasters(burst, dem_raster, output_path,
 
 
 def resample_set(geo_tide, pts_src, pts_dest):
-    '''
+    """
     Use scipy RegularGridInterpolator to resample geo_tide
     from a geographical to a radar grid
 
@@ -439,18 +503,19 @@ def resample_set(geo_tide, pts_src, pts_dest):
     -------
     rdr_tide: np.ndarray
         Tide displacement component resampled on radar grid
-    '''
+    """
 
     # Flip tide displacement component to be consistent with flipped latitudes
     geo_tide = np.flipud(geo_tide)
-    rgi_func = RGI(pts_src, geo_tide, method='nearest',
-                   bounds_error=False, fill_value=0)
+    rgi_func = RGI(
+        pts_src, geo_tide, method="nearest", bounds_error=False, fill_value=0
+    )
     rdr_tide = rgi_func(pts_dest)
     return rdr_tide
 
 
 def compute_static_troposphere_delay(incidence_angle_arr, hgt_arr):
-    '''
+    """
     Compute troposphere delay using static model
 
     Parameters:
@@ -464,7 +529,7 @@ def compute_static_troposphere_delay(incidence_angle_arr, hgt_arr):
     -------
     tropo: np.ndarray
         Troposphere delay in slant range
-    '''
+    """
     ZPD = 2.3
     H = 6000.0
 

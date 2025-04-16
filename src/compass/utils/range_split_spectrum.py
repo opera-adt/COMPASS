@@ -3,8 +3,9 @@ import numpy as np
 from isce3.splitspectrum import splitspectrum
 from osgeo import gdal
 
+
 def find_next_power(number):
-    '''
+    """
     Finds the next power of 2 of 'number'
 
     Parameters
@@ -16,21 +17,18 @@ def find_next_power(number):
     -------
     power: int
         Next power of 2 of 'number'
-    '''
+    """
     power = 1
-    if (number and not (number & (number - 1))):
+    if number and not (number & (number - 1)):
         return number
 
-    while (power < number):
+    while power < number:
         power <<= 1
     return number
 
 
-def range_split_spectrum(burst,
-                         burst_path,
-                         cfg_split_spectrum,
-                         scratch_path):
-    '''
+def range_split_spectrum(burst, burst_path, cfg_split_spectrum, scratch_path):
+    """
     Split burst range spectrum
     Parameters
     ----------
@@ -48,16 +46,19 @@ def range_split_spectrum(burst,
     burst_raster: isce3.io.Raster
         3-bands ISCE3 Raster. Band #1: low band;
         Band #2: main band; Band #3: high band
-    '''
+    """
     length, width = burst.shape
     lines_per_block = cfg_split_spectrum.lines_per_block
-    burst_id_pol = f'{str(burst.burst_id)}_{burst.polarization}'
+    burst_id_pol = f"{str(burst.burst_id)}_{burst.polarization}"
 
     # In ISCE3, we can use raised cosine to implement S1-A/B Hamming
     window_type = burst.range_window_type
-    window_type = 'Cosine' if window_type.casefold() == 'hamming' else window_type
-    window_shape = 2 * burst.range_window_coefficient - 1.0 if \
-    window_type.casefold() == 'hamming' else burst.range_window_coefficient
+    window_type = "Cosine" if window_type.casefold() == "hamming" else window_type
+    window_shape = (
+        2 * burst.range_window_coefficient - 1.0
+        if window_type.casefold() == "hamming"
+        else burst.range_window_coefficient
+    )
 
     # Extract bandwidths (bw) and create frequency vectors
     half_bw = 0.5 * burst.range_bandwidth
@@ -80,16 +81,21 @@ def range_split_spectrum(burst,
         rg_bandwidth=burst.range_bandwidth,
         center_frequency=burst.radar_center_frequency,
         slant_range=rdr_grid.slant_range,
-        freq='A')
-
+        freq="A",
+    )
 
     # The output burst will
     # contain 3 bands: Band #1: low-band image; Band #2 main-band image;
     # Band #3: high-band image.
     in_ds = gdal.Open(burst_path, gdal.GA_ReadOnly)
-    driver = gdal.GetDriverByName('GTiff')
-    out_ds = driver.Create(f'{scratch_path}/{burst_id_pol}_low_main_high.slc.tif',
-                           width, length, 3, gdal.GDT_CFloat32)
+    driver = gdal.GetDriverByName("GTiff")
+    out_ds = driver.Create(
+        f"{scratch_path}/{burst_id_pol}_low_main_high.slc.tif",
+        width,
+        length,
+        3,
+        gdal.GDT_CFloat32,
+    )
 
     # Prepare necessary variables for block processing
     lines_per_block = min(length, lines_per_block)
@@ -103,35 +109,42 @@ def range_split_spectrum(burst,
             block_length = lines_per_block
 
         # Read a block of valid burst data
-        burst_data = in_ds.GetRasterBand(1).ReadAsArray(0, line_start,
-                                                        width, block_length)
+        burst_data = in_ds.GetRasterBand(1).ReadAsArray(
+            0, line_start, width, block_length
+        )
         # Get the low band sub-image and corresponding metadata
         burst_low_data, _ = split_spectrum_obj.bandpass_shift_spectrum(
-            slc_raster=burst_data, low_frequency=low_band_freqs[0],
+            slc_raster=burst_data,
+            low_frequency=low_band_freqs[0],
             high_frequency=low_band_freqs[1],
             new_center_frequency=low_center_freq,
-            fft_size=find_next_power(width), window_shape=window_shape,
-            window_function=window_type, resampling=False
+            fft_size=find_next_power(width),
+            window_shape=window_shape,
+            window_function=window_type,
+            resampling=False,
         )
         # Get the high sub-image and corresponding metadata
         burst_high_data, _ = split_spectrum_obj.bandpass_shift_spectrum(
-            slc_raster=burst_data, low_frequency=high_band_freqs[0],
+            slc_raster=burst_data,
+            low_frequency=high_band_freqs[0],
             high_frequency=high_band_freqs[1],
             new_center_frequency=high_center_freq,
-            fft_size=find_next_power(width), window_shape=window_shape,
-            window_function=window_type, resampling=False
+            fft_size=find_next_power(width),
+            window_shape=window_shape,
+            window_function=window_type,
+            resampling=False,
         )
         # Write back all the processed data
-        out_ds.GetRasterBand(1).WriteArray(burst_low_data[0:block_length],
-                                           yoff=line_start)
-        out_ds.GetRasterBand(2).WriteArray(burst_data[0:block_length],
-                                           yoff=line_start)
-        out_ds.GetRasterBand(3).WriteArray(burst_high_data[0:block_length],
-                                           yoff=line_start)
+        out_ds.GetRasterBand(1).WriteArray(
+            burst_low_data[0:block_length], yoff=line_start
+        )
+        out_ds.GetRasterBand(2).WriteArray(burst_data[0:block_length], yoff=line_start)
+        out_ds.GetRasterBand(3).WriteArray(
+            burst_high_data[0:block_length], yoff=line_start
+        )
 
     out_ds.FlushCache()
     out_ds = None
-    burst_raster = isce3.io.Raster(
-        f'{scratch_path}/{burst_id_pol}_low_main_high.slc')
+    burst_raster = isce3.io.Raster(f"{scratch_path}/{burst_id_pol}_low_main_high.slc")
 
     return burst_raster

@@ -1,6 +1,7 @@
-'''
+"""
 Functions for computing and adding boundary polygon to geo_runconfig dicts
-'''
+"""
+
 import os
 
 import numpy as np
@@ -8,9 +9,8 @@ from osgeo import gdal
 from shapely.geometry import MultiPoint
 
 
-def get_boundary_polygon(filename, invalid_value=np.nan,
-                         dataset_path_template=None):
-    '''
+def get_boundary_polygon(filename, invalid_value=np.nan, dataset_path_template=None):
+    """
     Get boundary polygon for raster in 'filename'.
      Polygon includes only valid pixels
 
@@ -28,35 +28,38 @@ def get_boundary_polygon(filename, invalid_value=np.nan,
     --------
     poly: shapely.Polygon
         Shapely polygon including valid values
-    '''
+    """
     if not os.path.isfile(filename):
-        raise FileNotFoundError('cannot generate raster boundary - '
-                                f'{filename} not found')
+        raise FileNotFoundError(
+            f"cannot generate raster boundary - {filename} not found"
+        )
 
     # Optimize this with block-processing?
     if dataset_path_template is not None:
-        dataset_path = dataset_path_template.replace('%FILE_PATH%', filename)
+        dataset_path = dataset_path_template.replace("%FILE_PATH%", filename)
     else:
         dataset_path = filename
     try:
         ds = gdal.Open(dataset_path, gdal.GA_ReadOnly)
     except:
-        raise ValueError(f'GDAL unable to open: {dataset_path}')
+        raise ValueError(f"GDAL unable to open: {dataset_path}")
     burst = ds.GetRasterBand(1).ReadAsArray()
 
     if np.isnan(invalid_value):
-        idy, idx = np.where((~np.isnan(burst.real)) &
-                            (~np.isnan(burst.imag)))
+        idy, idx = np.where((~np.isnan(burst.real)) & (~np.isnan(burst.imag)))
     else:
-        idy, idx = np.where((burst.real == invalid_value) &
-                            (burst.imag == invalid_value))
+        idy, idx = np.where(
+            (burst.real == invalid_value) & (burst.imag == invalid_value)
+        )
 
     # Get geotransform defining geogrid
     xmin, xsize, _, ymin, _, ysize = ds.GetGeoTransform()
 
     # Use geotransform to convert indices to geogrid points
-    tgt_xy = [[x_idx * xsize + xmin, y_idx * ysize + ymin]
-              for x_idx, y_idx in zip(idx[::100], idy[::100])]
+    tgt_xy = [
+        [x_idx * xsize + xmin, y_idx * ysize + ymin]
+        for x_idx, y_idx in zip(idx[::100], idy[::100])
+    ]
 
     points = MultiPoint(tgt_xy)
     poly = points.convex_hull

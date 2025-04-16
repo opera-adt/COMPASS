@@ -63,31 +63,43 @@ def run(cfg: dict):
         az_poly = burst.get_az_carrier_poly()
 
         # Init resample SLC object
-        resamp_obj = resamp(rdr_grid, burst.doppler.lut2d,
-                            az_poly, ref_rdr_grid=ref_rdr_grid)
+        resamp_obj = resamp(
+            rdr_grid, burst.doppler.lut2d, az_poly, ref_rdr_grid=ref_rdr_grid
+        )
         resamp_obj.lines_per_tile = blocksize
 
         # Get range and azimuth offsets
         offset_path = out_paths.scratch_directory
-        rg_off_raster = isce3.io.Raster(f'{offset_path}/range.off')
-        az_off_raster = isce3.io.Raster(f'{offset_path}/azimuth.off')
+        rg_off_raster = isce3.io.Raster(f"{offset_path}/range.off")
+        az_off_raster = isce3.io.Raster(f"{offset_path}/azimuth.off")
 
         # Get original SLC as raster object
-        sec_burst_path = f'{out_paths.scratch_directory}/{out_paths.file_name_pol}.slc.vrt'
+        sec_burst_path = (
+            f"{out_paths.scratch_directory}/{out_paths.file_name_pol}.slc.vrt"
+        )
         burst.slc_to_vrt_file(sec_burst_path)
         original_raster = isce3.io.Raster(sec_burst_path)
 
         # Prepare resampled SLC as raster object
-        coreg_burst_path = f'{out_paths.output_directory}/{out_paths.file_name_stem}.slc.tif'
-        resampled_raster = isce3.io.Raster(coreg_burst_path,
-                                           rg_off_raster.width,
-                                           rg_off_raster.length,
-                                           1, gdal.GDT_CFloat32,
-                                           'GTiff')
+        coreg_burst_path = (
+            f"{out_paths.output_directory}/{out_paths.file_name_stem}.slc.tif"
+        )
+        resampled_raster = isce3.io.Raster(
+            coreg_burst_path,
+            rg_off_raster.width,
+            rg_off_raster.length,
+            1,
+            gdal.GDT_CFloat32,
+            "GTiff",
+        )
 
-        resamp_obj.resamp(original_raster, resampled_raster,
-                          rg_off_raster, az_off_raster,
-                          flatten=cfg.resample_params.flatten)
+        resamp_obj.resamp(
+            original_raster,
+            resampled_raster,
+            rg_off_raster,
+            az_off_raster,
+            flatten=cfg.resample_params.flatten,
+        )
 
     dt = get_time_delta_str(t_start)
     info_channel.log(f"{module_name} burst successfully ran in {dt} (hr:min:sec)")
@@ -98,8 +110,9 @@ if __name__ == "__main__":
     parser = YamlArgparse()
 
     # Get a runconfig dict from command line arguments
-    cfg = RunConfig.load_from_yaml(parser.args.run_config_path,
-                                   workflow_name='s1_cslc_radar')
+    cfg = RunConfig.load_from_yaml(
+        parser.args.run_config_path, workflow_name="s1_cslc_radar"
+    )
 
     # Run resample burst
     run(cfg)

@@ -480,7 +480,7 @@ def check_url(url):
     try:
         response = requests.head(url, allow_redirects=True)
         # A 200 OK or 30x redirect status code means the resource exists.
-        print('status code:',response.status_code)
+        print('status code:', response.status_code)
         if response.status_code in range(200, 400):
             print(f"Resource exists at: {url}")
             return True

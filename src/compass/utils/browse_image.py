@@ -1,6 +1,7 @@
-'''
+"""
 function to generate CSLC browse image and image manipulation helper functions
-'''
+"""
+
 import argparse
 
 import h5py
@@ -13,7 +14,7 @@ from compass.utils.h5_helpers import get_georaster_bounds, DATA_PATH
 
 
 def _scale_to_max_pixel_dimension(orig_shape, max_dim_allowed=2048):
-    '''
+    """
     Scale up or down length and width represented by a shape to a maximum
     dimension. The larger of length or width used to compute scaling ratio.
 
@@ -28,7 +29,7 @@ def _scale_to_max_pixel_dimension(orig_shape, max_dim_allowed=2048):
     -------
     _: list(int)
         Shape (length, width) scaled up or down from original shape
-    '''
+    """
     # compute scaling ratio based on larger dimension
     scaling_ratio = max([xy / max_dim_allowed for xy in orig_shape])
 
@@ -38,7 +39,7 @@ def _scale_to_max_pixel_dimension(orig_shape, max_dim_allowed=2048):
 
 
 def _clip_by_percentage(image, percent_low, percent_high):
-    '''
+    """
     Clip image by low and high percentiles
 
     Parameters
@@ -58,9 +59,9 @@ def _clip_by_percentage(image, percent_low, percent_high):
         Minimum value of image determined by percent_low
     vmax_: float
         Maximum value of image determined by percent_high
-    '''
+    """
     if percent_high <= percent_low:
-        raise ValueError('upper percentile not > lower percentile')
+        raise ValueError("upper percentile not > lower percentile")
 
     # get max/min values by percentile
     vmax = np.nanpercentile(image, percent_high)
@@ -74,7 +75,7 @@ def _clip_by_percentage(image, percent_low, percent_high):
 
 
 def _normalize_apply_gamma(image, vmin, vmax, gamma=1.0):
-    '''
+    """
     Normal and gamma correct an image array
 
     Parameters
@@ -92,9 +93,9 @@ def _normalize_apply_gamma(image, vmin, vmax, gamma=1.0):
     -------
     image: np.ndarray
         Normalized and gamma corrected image
-    '''
+    """
     if vmax <= vmin:
-        raise ValueError(f'maximum value {vmax} not > minimum value {vmin}')
+        raise ValueError(f"maximum value {vmax} not > minimum value {vmin}")
 
     # scale to 0-1 for gray scale and then apply gamma correction
     image = (image - vmin) / (vmax - vmin)
@@ -107,7 +108,7 @@ def _normalize_apply_gamma(image, vmin, vmax, gamma=1.0):
 
 
 def _image_histogram_equalization(image, number_bins=256):
-    '''
+    """
     Apply histogram equalization to an image array
 
     Parameters
@@ -125,21 +126,22 @@ def _image_histogram_equalization(image, number_bins=256):
     Reference
     ---------
         http://www.janeriksolem.net/histogram-equalization-with-python-and.html
-    '''
+    """
     if number_bins <= 0:
-        raise ValueError('number of histogram bins must be >= 1')
+        raise ValueError("number of histogram bins must be >= 1")
 
     mask = np.isnan(image)
 
     # get image histogram based on non-nan values
-    image_histogram, bins = np.histogram(image[~mask].flatten(),
-                                         number_bins, density=True)
+    image_histogram, bins = np.histogram(
+        image[~mask].flatten(), number_bins, density=True
+    )
 
     # cumulative distribution function
     cdf = image_histogram.cumsum()
 
     # normalize
-    cdf = (number_bins-1) * cdf / cdf[-1]
+    cdf = (number_bins - 1) * cdf / cdf[-1]
 
     # use linear interpolation of cdf to find new pixel values
     image_eq = np.interp(image.flatten(), bins[:-1], cdf).reshape(image.shape)
@@ -149,7 +151,7 @@ def _image_histogram_equalization(image, number_bins=256):
 
 
 def _save_to_disk_as_greyscale(image, fname):
-    '''
+    """
     Save image array as greyscale to file
 
     Parameters
@@ -158,7 +160,7 @@ def _save_to_disk_as_greyscale(image, fname):
         Numpy array representing an image to be saved to png file
     fname: str
         File name of output browse image
-    '''
+    """
     # scale to 1-255
     # 0 reserved for transparency
     nan_mask = np.isnan(image)
@@ -168,13 +170,21 @@ def _save_to_disk_as_greyscale(image, fname):
     image[nan_mask] = 0
 
     # save to disk in grayscale ('L')
-    img = Image.fromarray(image, mode='L')
+    img = Image.fromarray(image, mode="L")
     img.save(fname, transparency=0)
 
 
-def make_browse_image(filename, path_h5, bursts, complex_to_real='amplitude', percent_low=0.0,
-                      percent_high=100.0, gamma=1.0, equalize=False):
-    '''
+def make_browse_image(
+    filename,
+    path_h5,
+    bursts,
+    complex_to_real="amplitude",
+    percent_low=0.0,
+    percent_high=100.0,
+    gamma=1.0,
+    equalize=False,
+):
+    """
     Make browse image(s) for geocoded CSLC raster(s)
 
     Parameters
@@ -196,16 +206,16 @@ def make_browse_image(filename, path_h5, bursts, complex_to_real='amplitude', pe
         Exponent value used to gamma correct image
     equalize: bool
         Enable/disable histogram equalization
-    '''
+    """
     # determine how to transform complex imagery in gdal warp
-    if complex_to_real not in ['amplitude', 'intensity', 'logamplitude']:
-        raise ValueError(f'{complex_to_real} invalid complex to real transform')
-    derived_ds_str = f'DERIVED_SUBDATASET:{complex_to_real.upper()}'
+    if complex_to_real not in ["amplitude", "intensity", "logamplitude"]:
+        raise ValueError(f"{complex_to_real} invalid complex to real transform")
+    derived_ds_str = f"DERIVED_SUBDATASET:{complex_to_real.upper()}"
 
     # prepend transform to NETCDF path to grid
-    derived_netcdf_to_grid = f'{derived_ds_str}:NETCDF:{path_h5}:/{DATA_PATH}'
+    derived_netcdf_to_grid = f"{derived_ds_str}:NETCDF:{path_h5}:/{DATA_PATH}"
 
-    with h5py.File(path_h5, 'r', swmr=True) as h5_obj:
+    with h5py.File(path_h5, "r", swmr=True) as h5_obj:
         grid_group = h5_obj[DATA_PATH]
 
         for b in bursts:
@@ -217,31 +227,34 @@ def make_browse_image(filename, path_h5, bursts, complex_to_real='amplitude', pe
             browse_h, browse_w = _scale_to_max_pixel_dimension(full_shape)
 
             # create in memory GDAL raster for GSLC as real value array
-            src_raster = f'{derived_netcdf_to_grid}/{pol}'
+            src_raster = f"{derived_netcdf_to_grid}/{pol}"
 
             min_x, max_x, min_y, max_y = get_georaster_bounds(path_h5, pol)
 
             # Check if the raster crosses antimeridian
             if max_x - min_x > 180.0:
-                gdal.SetConfigOption('CENTER_LONG', '180')
+                gdal.SetConfigOption("CENTER_LONG", "180")
                 # Adjust the min / max in the X direction (longitude)
                 min_x, max_x = max_x, min_x + 360.0
             else:
-                gdal.SetConfigOption('CENTER_LONG', None)
+                gdal.SetConfigOption("CENTER_LONG", None)
 
             # gdal warp to right geo extents, image shape and EPSG
-            ds_wgs84 = gdal.Warp('', src_raster, format='MEM',
-                                 dstSRS='EPSG:4326',
-                                 width=browse_w, height=browse_h,
-                                 resampleAlg=gdal.GRIORA_Bilinear,
-                                 dstNodata=float('nan'),
-                                 outputBounds=(min_x, min_y, max_x, max_y)
-                                )
+            ds_wgs84 = gdal.Warp(
+                "",
+                src_raster,
+                format="MEM",
+                dstSRS="EPSG:4326",
+                width=browse_w,
+                height=browse_h,
+                resampleAlg=gdal.GRIORA_Bilinear,
+                dstNodata=float("nan"),
+                outputBounds=(min_x, min_y, max_x, max_y),
+            )
             image = ds_wgs84.ReadAsArray()
 
             # get hi/lo values by percentile
-            image, vmin, vmax = _clip_by_percentage(image, percent_low,
-                                                    percent_high)
+            image, vmin, vmax = _clip_by_percentage(image, percent_low, percent_high)
 
             if equalize:
                 image = _image_histogram_equalization(image)
@@ -255,28 +268,51 @@ def make_browse_image(filename, path_h5, bursts, complex_to_real='amplitude', pe
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Create browse images for the geocode cslc workflow from command line',
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('run-config-path', nargs='?',
-                        default=None, help='Path to run config file')
-    parser.add_argument('-o', '--out-fname',
-                        help='Path to output png file')
-    parser.add_argument('-c', '--complex-to-real',
-                        choices=['amplitude', 'intensity', 'logamplitude'],
-                        default='amplitude', help='Method to convert complex data to real')
-    parser.add_argument('-l', '--percent-low', type=float, default=0.0,
-                        help='Lower percentage of non-NaN pixels to be clipped')
-    parser.add_argument('-u', '--percent-up', type=float, default=100.0,
-                        help='Upper percentage of non-NaN pixels to be clipped')
-    parser.add_argument('-g', '--gamma', type=float, default=0.5,
-                        help='Exponent value used for gamma correction')
-    parser.add_argument('-e', '--equalize', action='store_true',
-                        help='Enable histogram equalization')
+    parser = argparse.ArgumentParser(
+        description=(
+            "Create browse images for the geocode cslc workflow from command line"
+        ),
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "run-config-path", nargs="?", default=None, help="Path to run config file"
+    )
+    parser.add_argument("-o", "--out-fname", help="Path to output png file")
+    parser.add_argument(
+        "-c",
+        "--complex-to-real",
+        choices=["amplitude", "intensity", "logamplitude"],
+        default="amplitude",
+        help="Method to convert complex data to real",
+    )
+    parser.add_argument(
+        "-l",
+        "--percent-low",
+        type=float,
+        default=0.0,
+        help="Lower percentage of non-NaN pixels to be clipped",
+    )
+    parser.add_argument(
+        "-u",
+        "--percent-up",
+        type=float,
+        default=100.0,
+        help="Upper percentage of non-NaN pixels to be clipped",
+    )
+    parser.add_argument(
+        "-g",
+        "--gamma",
+        type=float,
+        default=0.5,
+        help="Exponent value used for gamma correction",
+    )
+    parser.add_argument(
+        "-e", "--equalize", action="store_true", help="Enable histogram equalization"
+    )
     args = parser.parse_args()
 
     # Get a runconfig dict from command line argumens
-    cfg = GeoRunConfig.load_from_yaml(args.run_config_path,
-                                      workflow_name='s1_cslc_geo')
+    cfg = GeoRunConfig.load_from_yaml(args.run_config_path, workflow_name="s1_cslc_geo")
 
     # unpack args to make browse image
     bursts = cfg.bursts
@@ -287,6 +323,13 @@ if __name__ == "__main__":
     output_hdf5 = out_paths.hdf5_path
 
     # Run geocode burst workflow
-    make_browse_image(args.out_fname, output_hdf5, bursts,
-                      args.complex_to_real,  args.percent_low, args.percent_up,
-                      args.gamma, args.equalize)
+    make_browse_image(
+        args.out_fname,
+        output_hdf5,
+        bursts,
+        args.complex_to_real,
+        args.percent_low,
+        args.percent_up,
+        args.gamma,
+        args.equalize,
+    )

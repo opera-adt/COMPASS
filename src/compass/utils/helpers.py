@@ -1,4 +1,4 @@
-'''collection of useful functions used across workflows'''
+"""collection of useful functions used across workflows"""
 
 from datetime import timedelta
 import itertools
@@ -15,13 +15,12 @@ from shapely import geometry
 
 import compass
 
-
 WORKFLOW_SCRIPTS_DIR = os.path.dirname(compass.__file__)
-OPERA_OPERATION_CONTACT_EMAIL = 'opera-sds-ops@jpl.nasa.gov'
+OPERA_OPERATION_CONTACT_EMAIL = "opera-sds-ops@jpl.nasa.gov"
 
 # get the basename given an input file path
 # example: get_module_name(__file__)
-get_module_name = lambda x : os.path.basename(x).split('.')[0]
+get_module_name = lambda x: os.path.basename(x).split(".")[0]
 
 
 def check_file_path(file_path: str) -> None:
@@ -32,9 +31,9 @@ def check_file_path(file_path: str) -> None:
     file_path : str
         Path to file to be checked
     """
-    error_channel = journal.error('helpers.check_file_path')
+    error_channel = journal.error("helpers.check_file_path")
     if not os.path.exists(file_path):
-        err_str = f'{file_path} not found'
+        err_str = f"{file_path} not found"
         error_channel.log(err_str)
         raise FileNotFoundError(err_str)
 
@@ -47,15 +46,15 @@ def check_directory(file_path: str) -> None:
     file_path: str
        Path to directory to be checked
     """
-    error_channel = journal.error('helpers.check_directory')
+    error_channel = journal.error("helpers.check_directory")
     if not os.path.isdir(file_path):
-        err_str = f'{file_path} not found'
+        err_str = f"{file_path} not found"
         error_channel.log(err_str)
         raise FileNotFoundError(err_str)
 
 
 def get_file_polarization_mode(file_path: str) -> str:
-    '''Check polarization mode from file name
+    """Check polarization mode from file name
 
     Taking PP from SAFE file name with following format:
     MMM_BB_TTTR_LFPP_YYYYMMDDTHHMMSS_YYYYMMDDTHHMMSS_OOOOOO_DDDDDD_CCCC.SAFE
@@ -73,10 +72,10 @@ def get_file_polarization_mode(file_path: str) -> str:
     References
     ----------
     https://sentinel.esa.int/web/sentinel/user-guides/sentinel-1-sar/naming-conventions
-    '''
+    """
     # index split tokens from rear to account for R in TTTR being possibly
     # replaced with '_'
-    safe_pol_mode = os.path.basename(file_path).split('_')[-6][2:]
+    safe_pol_mode = os.path.basename(file_path).split("_")[-6][2:]
 
     return safe_pol_mode
 
@@ -119,9 +118,9 @@ def check_write_dir(dst_path: str):
         File path to directory for which to check writing permission
     """
     if not dst_path:
-        dst_path = '.'
+        dst_path = "."
 
-    error_channel = journal.error('helpers.check_write_dir')
+    error_channel = journal.error("helpers.check_write_dir")
 
     # check if scratch path exists
     dst_path_ok = os.path.isdir(dst_path)
@@ -150,17 +149,17 @@ def check_dem(dem_path: str):
     dem_path : str
         File path to DEM for which to check GDAL-compatibility
     """
-    error_channel = journal.error('helpers.check_dem')
+    error_channel = journal.error("helpers.check_dem")
     try:
         gdal.Open(dem_path, gdal.GA_ReadOnly)
     except ValueError:
-        err_str = f'{dem_path} cannot be opened by GDAL'
+        err_str = f"{dem_path} cannot be opened by GDAL"
         error_channel.log(err_str)
         raise ValueError(err_str)
 
     epsg = isce3.io.Raster(dem_path).get_epsg()
     if not 1024 <= epsg <= 32767:
-        err_str = f'DEM epsg of {epsg} out of bounds'
+        err_str = f"DEM epsg of {epsg} out of bounds"
         error_channel.log(err_str)
         raise ValueError(err_str)
 
@@ -257,7 +256,9 @@ def burst_bbox_from_db(burst_id, burst_db_file=None, burst_db_conn=None):
         burst_db_conn = sqlite3.connect(burst_db_file)
     burst_db_conn.row_factory = sqlite3.Row  # return rows as dicts
 
-    query = "SELECT epsg, xmin, ymin, xmax, ymax FROM burst_id_map WHERE burst_id_jpl = ?"
+    query = (
+        "SELECT epsg, xmin, ymin, xmax, ymax FROM burst_id_map WHERE burst_id_jpl = ?"
+    )
     cur = burst_db_conn.execute(query, (burst_id,))
     result = cur.fetchone()
 
@@ -303,7 +304,7 @@ def burst_bboxes_from_db(burst_ids, burst_db_file=None, burst_db_conn=None):
     burst_db_conn.row_factory = sqlite3.Row  # return rows as dicts
 
     # concatenate '?, ' with for each burst ID for IN query
-    qs_in_query = ', '.join('?' for _ in burst_ids)
+    qs_in_query = ", ".join("?" for _ in burst_ids)
     query = f"SELECT * FROM burst_id_map WHERE burst_id_jpl IN ({qs_in_query})"
     cur = burst_db_conn.execute(query, burst_ids)
     results = cur.fetchall()
@@ -317,8 +318,12 @@ def burst_bboxes_from_db(burst_ids, burst_db_file=None, burst_db_conn=None):
     burst_ids = [[]] * n_results
     for i_result, result in enumerate(results):
         epsgs[i_result] = result["epsg"]
-        bboxes[i_result] = (result["xmin"], result["ymin"],
-                           result["xmax"], result["ymax"])
+        bboxes[i_result] = (
+            result["xmin"],
+            result["ymin"],
+            result["xmax"],
+            result["ymax"],
+        )
         burst_ids[i_result] = result["burst_id_jpl"]
 
     # TODO add warning if not all burst bounding boxes found
@@ -326,7 +331,7 @@ def burst_bboxes_from_db(burst_ids, burst_db_file=None, burst_db_conn=None):
 
 
 def open_raster(filename, band=1):
-    '''
+    """
     Return band as numpy array from gdal-friendly raster
 
     Parameters
@@ -340,10 +345,10 @@ def open_raster(filename, band=1):
     -------
     raster: np.ndarray
         Numpy array containing the raster band to open
-    '''
-    error_channel = journal.error('helpers.open_raster')
+    """
+    error_channel = journal.error("helpers.open_raster")
     if not os.path.isfile(filename):
-        err_str = f'{filename} '
+        err_str = f"{filename} "
         error_channel.log(err_str)
         raise FileNotFoundError(err_str)
 
@@ -363,15 +368,15 @@ def open_raster(filename, band=1):
         # bytes of flat binary is that of a jpeg but the binary is not then
         # GDAL throws a libjpeg runtime error. Follow specifically tries to
         # load as an ENVI file.
-        ds = gdal.OpenEx(filename, gdal.OF_VERBOSE_ERROR,
-                         allowed_drivers=['ENVI'])
+        ds = gdal.OpenEx(filename, gdal.OF_VERBOSE_ERROR, allowed_drivers=["ENVI"])
         arr = ds.GetRasterBand(band).ReadAsArray()
         return arr
 
 
-def write_raster(filename, data_list, descriptions,
-                 data_type=gdal.GDT_Float32, data_format='GTiff'):
-    '''
+def write_raster(
+    filename, data_list, descriptions, data_type=gdal.GDT_Float32, data_format="GTiff"
+):
+    """
     Write a multiband GDAL-friendly raster to disk.
     Each dataset allocated in the output file contains
     a description of the dataset allocated for that band
@@ -391,15 +396,17 @@ def write_raster(filename, data_list, descriptions,
         GDAL dataset type
     format: gdal.Format
         Format for GDAL output file
-    '''
+    """
 
-    error_channel = journal.error('helpers.write_raster')
+    error_channel = journal.error("helpers.write_raster")
 
     # Check number of datasets match number of descriptions
     if len(data_list) != len(descriptions):
-        err_str = f'Number of datasets to write does not match' \
-                  f'the number of descriptions ' \
-                  f'{len(data_list)} != {len(descriptions)}'
+        err_str = (
+            "Number of datasets to write does not match"
+            "the number of descriptions "
+            f"{len(data_list)} != {len(descriptions)}"
+        )
         error_channel.log(err_str)
         raise ValueError(err_str)
 
@@ -422,7 +429,7 @@ def write_raster(filename, data_list, descriptions,
 
 
 def bursts_grouping_generator(bursts):
-    '''
+    """
     Dict to group bursts with the same burst ID but different polarizations
     key: burst ID, value: list[S1BurstSlc]
 
@@ -437,7 +444,7 @@ def bursts_grouping_generator(bursts):
         Burst ID of grouped list of bursts
     v: list[Sentinel1BurstSlc]
         List of bursts with the same burst ID
-    '''
+    """
     grouped_bursts = itertools.groupby(bursts, key=lambda b: str(b.burst_id))
 
     for k, v in grouped_bursts:
@@ -445,7 +452,7 @@ def bursts_grouping_generator(bursts):
 
 
 def get_time_delta_str(t_prev: time) -> str:
-    '''
+    """
     Helper function that computes difference between current time and a given
     time object and returns it as a str
 
@@ -456,6 +463,7 @@ def get_time_delta_str(t_prev: time) -> str:
 
     _: str
         Difference from current time and t_prev represented as a string
-    '''
-    return str(timedelta(seconds=time.perf_counter()
-                         - t_prev)).split(".", maxsplit=1)[0]
+    """
+    return str(timedelta(seconds=time.perf_counter() - t_prev)).split(".", maxsplit=1)[
+        0
+    ]

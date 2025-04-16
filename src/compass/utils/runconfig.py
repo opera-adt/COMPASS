@@ -35,39 +35,42 @@ def load_validate_yaml(yaml_runconfig: str, workflow_name: str) -> dict:
     dict
         Validated user runconfig dict with defaults inserted
     """
-    error_channel = journal.error('runconfig.load_validate_yaml')
+    error_channel = journal.error("runconfig.load_validate_yaml")
 
     try:
         # Load schema corresponding to 'workflow_name' and to validate against
-        schema_name = workflow_name if workflow_name == 's1_cslc_geo' \
-            else 's1_cslc_radar'
+        schema_name = (
+            workflow_name if workflow_name == "s1_cslc_geo" else "s1_cslc_radar"
+        )
         schema = yamale.make_schema(
-            f'{helpers.WORKFLOW_SCRIPTS_DIR}/schemas/{schema_name}.yaml',
-            parser='ruamel')
+            f"{helpers.WORKFLOW_SCRIPTS_DIR}/schemas/{schema_name}.yaml",
+            parser="ruamel",
+        )
     except:
-        err_str = f'unable to load schema for workflow {workflow_name}.'
+        err_str = f"unable to load schema for workflow {workflow_name}."
         error_channel.log(err_str)
         raise ValueError(err_str)
 
     # Determine run config type based on existence of newlines
-    run_config_is_txt = '\n' in yaml_runconfig
+    run_config_is_txt = "\n" in yaml_runconfig
 
     # Prepare part of load and validation error message just in case
-    what_is_broken = 'from runconfig string' if run_config_is_txt \
-        else yaml_runconfig
+    what_is_broken = "from runconfig string" if run_config_is_txt else yaml_runconfig
 
     if not run_config_is_txt and not os.path.isfile(yaml_runconfig):
-        raise FileNotFoundError(f'Yaml file {yaml_runconfig} not found.')
+        raise FileNotFoundError(f"Yaml file {yaml_runconfig} not found.")
 
     # load yaml file or string from command line
     try:
         if run_config_is_txt:
-            data = yamale.make_data(content=yaml_runconfig,
-                                    parser='ruamel')
+            data = yamale.make_data(content=yaml_runconfig, parser="ruamel")
         else:
-            data = yamale.make_data(yaml_runconfig, parser='ruamel')
+            data = yamale.make_data(yaml_runconfig, parser="ruamel")
     except yamale.YamaleError as yamale_err:
-        err_str = f'Yamale unable to load {workflow_name} runconfig yaml {what_is_broken} for validation.'
+        err_str = (
+            f"Yamale unable to load {workflow_name} runconfig yaml {what_is_broken} for"
+            " validation."
+        )
         error_channel.log(err_str)
         raise yamale.YamaleError(err_str) from yamale_err
 
@@ -75,28 +78,30 @@ def load_validate_yaml(yaml_runconfig: str, workflow_name: str) -> dict:
     try:
         yamale.validate(schema, data)
     except yamale.YamaleError as yamale_err:
-        err_str = f'Validation fail for {workflow_name} runconfig yaml {what_is_broken}.'
+        err_str = (
+            f"Validation fail for {workflow_name} runconfig yaml {what_is_broken}."
+        )
         error_channel.log(err_str)
         raise yamale.YamaleError(err_str) from yamale_err
 
     # load default runconfig
-    parser = YAML(typ='safe')
-    default_cfg_path = f'{helpers.WORKFLOW_SCRIPTS_DIR}/defaults/{schema_name}.yaml'
-    with open(default_cfg_path, 'r') as f_default:
+    parser = YAML(typ="safe")
+    default_cfg_path = f"{helpers.WORKFLOW_SCRIPTS_DIR}/defaults/{schema_name}.yaml"
+    with open(default_cfg_path, "r") as f_default:
         default_cfg = parser.load(f_default)
 
     # load user config based on input type
     if run_config_is_txt:
         user_cfg = parser.load(yaml_runconfig)
     else:
-        with open(yaml_runconfig, 'r') as f_yaml:
+        with open(yaml_runconfig, "r") as f_yaml:
             user_cfg = parser.load(f_yaml)
 
     # Copy user-supplied configuration options into default runconfig
     helpers.deep_update(default_cfg, user_cfg)
 
     # Validate YAML values under groups dict
-    validate_group_dict(default_cfg['runconfig']['groups'], workflow_name)
+    validate_group_dict(default_cfg["runconfig"]["groups"], workflow_name)
 
     return default_cfg
 
@@ -109,21 +114,21 @@ def validate_group_dict(group_cfg: dict, workflow_name) -> None:
     group_cfg : dict
         Dictionary storing runconfig options to validate
     """
-    error_channel = journal.error('runconfig.validate_group_dict')
+    error_channel = journal.error("runconfig.validate_group_dict")
 
     # Check 'input_file_group' section of runconfig
-    input_group = group_cfg['input_file_group']
+    input_group = group_cfg["input_file_group"]
     # If is_reference flag is False, check that file path to reference
     # burst is assigned and valid (required by geo2rdr and resample)
-    if workflow_name == 's1_cslc_radar':
-        is_reference = input_group['reference_burst']['is_reference']
+    if workflow_name == "s1_cslc_radar":
+        is_reference = input_group["reference_burst"]["is_reference"]
         if not is_reference:
-            helpers.check_directory(input_group['reference_burst']['file_path'])
+            helpers.check_directory(input_group["reference_burst"]["file_path"])
 
     # Check SAFE files
-    run_pol_mode = group_cfg['processing']['polarization']
+    run_pol_mode = group_cfg["processing"]["polarization"]
     safe_pol_modes = []
-    for safe_file in input_group['safe_file_path']:
+    for safe_file in input_group["safe_file_path"]:
         # Check if files exists
         helpers.check_file_path(safe_file)
 
@@ -132,8 +137,8 @@ def validate_group_dict(group_cfg: dict, workflow_name) -> None:
         safe_pol_modes.append(safe_pol_mode)
 
         # Raise error if given co-pol file and expecting cross-pol or dual-pol
-        if run_pol_mode != 'co-pol' and safe_pol_mode in ['SV', 'SH']:
-            err_str = f'{run_pol_mode} polarization lacks cross-pol in {safe_file}'
+        if run_pol_mode != "co-pol" and safe_pol_mode in ["SV", "SH"]:
+            err_str = f"{run_pol_mode} polarization lacks cross-pol in {safe_file}"
             error_channel.log(err_str)
             raise ValueError(err_str)
 
@@ -142,29 +147,29 @@ def validate_group_dict(group_cfg: dict, workflow_name) -> None:
         first_safe_pol_mode = safe_pol_modes[0][1]
         for safe_pol_mode in safe_pol_modes[1:]:
             if safe_pol_mode[1] != first_safe_pol_mode:
-                err_str = 'SH/SV SAFE file mixed with DH/DV'
+                err_str = "SH/SV SAFE file mixed with DH/DV"
                 error_channel.log(err_str)
                 raise ValueError(err_str)
 
-    for orbit_file in input_group['orbit_file_path']:
+    for orbit_file in input_group["orbit_file_path"]:
         helpers.check_file_path(orbit_file)
 
     # Check 'dynamic_ancillary_file_groups' section of runconfig
     # Check that DEM file exists and is GDAL-compatible
-    dem_path = group_cfg['dynamic_ancillary_file_group']['dem_file']
+    dem_path = group_cfg["dynamic_ancillary_file_group"]["dem_file"]
     helpers.check_file_path(dem_path)
     helpers.check_dem(dem_path)
 
     # Check 'product_path_group' section of runconfig.
     # Check that directories herein have writing permissions
-    product_path_group = group_cfg['product_path_group']
-    helpers.check_write_dir(product_path_group['product_path'])
-    helpers.check_write_dir(product_path_group['scratch_path'])
-    helpers.check_write_dir(product_path_group['sas_output_file'])
+    product_path_group = group_cfg["product_path_group"]
+    helpers.check_write_dir(product_path_group["product_path"])
+    helpers.check_write_dir(product_path_group["scratch_path"])
+    helpers.check_write_dir(product_path_group["sas_output_file"])
 
 
 def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
-    '''Return bursts based on parameters in given runconfig
+    """Return bursts based on parameters in given runconfig
 
     Parameters
     ----------
@@ -175,8 +180,8 @@ def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
     -------
     _ : list[Sentinel1BurstSlc]
         List of bursts loaded according to given configuration.
-    '''
-    error_channel = journal.error('runconfig.correlate_burst_to_orbit')
+    """
+    error_channel = journal.error("runconfig.correlate_burst_to_orbit")
 
     # dict to store list of bursts keyed by burst_ids
     bursts = []
@@ -185,30 +190,39 @@ def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
     for safe_file in cfg.input_file_group.safe_file_path:
         # get orbit file from directory of first orbit file
         orbit_path = get_orbit_file_from_dir(
-            safe_file,
-            Path(cfg.input_file_group.orbit_file_path[0]).parent)
+            safe_file, Path(cfg.input_file_group.orbit_file_path[0]).parent
+        )
 
         if not orbit_path:
-            err_str = f"No orbit file correlates to safe file: {os.path.basename(safe_file)}"
+            err_str = (
+                f"No orbit file correlates to safe file: {os.path.basename(safe_file)}"
+            )
             error_channel.log(err_str)
             raise ValueError(err_str)
 
         # from SAFE file mode, create dict of runconfig pol mode to polarization(s)
         safe_pol_mode = helpers.get_file_polarization_mode(safe_file)
-        if safe_pol_mode == 'SV':
-            mode_to_pols = {'co-pol':['VV']}
-        elif safe_pol_mode == 'DV':
-            mode_to_pols = {'co-pol':['VV'], 'cross-pol':['VH'], 'dual-pol':['VV', 'VH']}
-        elif safe_pol_mode == 'SH':
-            mode_to_pols = {'co-pol':['HH']}
+        if safe_pol_mode == "SV":
+            mode_to_pols = {"co-pol": ["VV"]}
+        elif safe_pol_mode == "DV":
+            mode_to_pols = {
+                "co-pol": ["VV"],
+                "cross-pol": ["VH"],
+                "dual-pol": ["VV", "VH"],
+            }
+        elif safe_pol_mode == "SH":
+            mode_to_pols = {"co-pol": ["HH"]}
         else:
-            mode_to_pols = {'co-pol':['HH'], 'cross-pol':['HV'], 'dual-pol':['HH', 'HV']}
+            mode_to_pols = {
+                "co-pol": ["HH"],
+                "cross-pol": ["HV"],
+                "dual-pol": ["HH", "HV"],
+            }
         pols = mode_to_pols[cfg.processing.polarization]
 
         # zip pol and IW subswath indices together
         i_subswaths = [1, 2, 3]
-        pol_subswath_index_pairs = [(pol, i)
-                                    for pol in pols for i in i_subswaths]
+        pol_subswath_index_pairs = [(pol, i) for pol in pols for i in i_subswaths]
 
         # list of burst ID + polarization tuples
         # used to prevent reference repeats
@@ -228,8 +242,10 @@ def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
 
                 # include ALL bursts if no burst IDs given
                 # is burst_id wanted? skip if not given in config
-                if (cfg.input_file_group.burst_id is not None and
-                        burst_id not in cfg.input_file_group.burst_id):
+                if (
+                    cfg.input_file_group.burst_id is not None
+                    and burst_id not in cfg.input_file_group.burst_id
+                ):
                     continue
 
                 # get polarization and save as tuple with burst ID
@@ -244,7 +260,7 @@ def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
                     continue
 
                 # check if not a reference burst (radar grid workflow only)
-                if 'reference_burst' in cfg.input_file_group.__dict__:
+                if "reference_burst" in cfg.input_file_group.__dict__:
                     not_ref = not cfg.input_file_group.reference_burst.is_reference
                 else:
                     not_ref = True
@@ -266,7 +282,7 @@ def runconfig_to_bursts(cfg: SimpleNamespace) -> list[Sentinel1BurstSlc]:
 
 
 def get_ref_radar_grid_info(ref_path):
-    ''' Find all reference radar grids info
+    """Find all reference radar grids info
 
     Parameters
     ----------
@@ -278,11 +294,11 @@ def get_ref_radar_grid_info(ref_path):
     ref_radar_grids:
         reference radar path and grid values found associated with
         burst ID keys
-    '''
-    rdr_grid_files = f'{ref_path}/radar_grid.txt'
+    """
+    rdr_grid_files = f"{ref_path}/radar_grid.txt"
 
     if not os.path.isfile(rdr_grid_files):
-        raise FileNotFoundError(f'No reference radar grids not found in {ref_path}')
+        raise FileNotFoundError(f"No reference radar grids not found in {ref_path}")
 
     ref_rdr_path = os.path.dirname(rdr_grid_files)
     ref_rdr_grid = file_to_rdr_grid(rdr_grid_files)
@@ -310,7 +326,7 @@ def create_output_paths(sns, bursts):
 
         # Save output dir, output hdf5 and scratch dir to dict as
         # SimpleNamespace
-        out_dir = f'{product_paths.product_path}/{burst_id}/{date_str}'
+        out_dir = f"{product_paths.product_path}/{burst_id}/{date_str}"
         os.makedirs(out_dir, exist_ok=True)
 
         fname_stem = f"{burst_id}_{date_str}"
@@ -319,21 +335,25 @@ def create_output_paths(sns, bursts):
         browse_path = f"{out_dir}/{fname_stem}.png"
         stats_json_path = f"{out_dir}/{fname_stem}.json"
 
-        scratch_path = f'{product_paths.scratch_path}/{burst_id}/{date_str}'
+        scratch_path = f"{product_paths.scratch_path}/{burst_id}/{date_str}"
         os.makedirs(scratch_path, exist_ok=True)
 
-        output_paths[path_key] = SimpleNamespace(output_directory=out_dir,
-                                                 file_name_stem=fname_stem,
-                                                 file_name_pol=fname_pol,
-                                                 hdf5_path=h5_path,
-                                                 browse_path=browse_path,
-                                                 stats_json_path=stats_json_path,
-                                                 scratch_directory=scratch_path)
+        output_paths[path_key] = SimpleNamespace(
+            output_directory=out_dir,
+            file_name_stem=fname_stem,
+            file_name_pol=fname_pol,
+            hdf5_path=h5_path,
+            browse_path=browse_path,
+            stats_json_path=stats_json_path,
+            scratch_directory=scratch_path,
+        )
     return output_paths
+
 
 @dataclass(frozen=True)
 class RunConfig:
-    '''dataclass containing CSLC runconfig'''
+    """dataclass containing CSLC runconfig"""
+
     # workflow name
     name: str
     # runconfig options converted from dict
@@ -351,8 +371,7 @@ class RunConfig:
     output_paths: dict[tuple[str, str], SimpleNamespace]
 
     @classmethod
-    def load_from_yaml(cls, yaml_runconfig: str,
-                       workflow_name: str) -> RunConfig:
+    def load_from_yaml(cls, yaml_runconfig: str, workflow_name: str) -> RunConfig:
         """Initialize RunConfig class with options from given yaml file.
 
         Parameters
@@ -366,7 +385,7 @@ class RunConfig:
         cfg = load_validate_yaml(yaml_runconfig, workflow_name)
 
         # Convert runconfig dict to SimpleNamespace
-        sns = wrap_namespace(cfg['runconfig']['groups'])
+        sns = wrap_namespace(cfg["runconfig"]["groups"])
 
         bursts = runconfig_to_bursts(sns)
 
@@ -374,7 +393,8 @@ class RunConfig:
         ref_rdr_grid_info = None
         if not sns.input_file_group.reference_burst.is_reference:
             ref_rdr_grid_info = get_ref_radar_grid_info(
-                sns.input_file_group.reference_burst.file_path)
+                sns.input_file_group.reference_burst.file_path
+            )
 
         # For saving entire file with defaults filled-in as string to metadata.
         # Stop gap for writing dict to individual elements to HDF5 metadata
@@ -382,8 +402,14 @@ class RunConfig:
 
         output_paths = create_output_paths(sns, bursts)
 
-        return cls(cfg['runconfig']['name'], sns, bursts, ref_rdr_grid_info,
-                   user_plus_default_yaml_str, output_paths)
+        return cls(
+            cfg["runconfig"]["name"],
+            sns,
+            bursts,
+            ref_rdr_grid_info,
+            user_plus_default_yaml_str,
+            output_paths,
+        )
 
     @property
     def burst_id(self) -> list[str]:
@@ -454,33 +480,31 @@ class RunConfig:
         return self.groups.worker.gpu_id
 
     def as_dict(self):
-        '''Convert self to dict for write to YAML/JSON
+        """Convert self to dict for write to YAML/JSON
 
         Unable to dataclasses.asdict() because isce3 objects can not be pickled
-        '''
+        """
+
         # Convenience functions
         def date_str(burst):
-            '''Burst datetime sensing_start to str conversion
-            '''
-            return burst.sensing_start.date().strftime('%Y%m%d')
+            """Burst datetime sensing_start to str conversion"""
+            return burst.sensing_start.date().strftime("%Y%m%d")
 
         def burst_as_key(burst):
-            '''Create an unique key of burst ID, date string, and polarization
-            '''
-            return '_'.join([str(burst.burst_id), date_str(burst), burst.polarization])
+            """Create an unique key of burst ID, date string, and polarization"""
+            return "_".join([str(burst.burst_id), date_str(burst), burst.polarization])
 
         self_as_dict = {}
         for key, val in self.__dict__.items():
-            if key == 'groups':
+            if key == "groups":
                 val = unwrap_to_dict(val)
-            elif key == 'bursts':
+            elif key == "bursts":
                 val = {burst_as_key(burst): burst.as_dict() for burst in val}
             self_as_dict[key] = val
         return self_as_dict
 
     def to_yaml(self):
-        '''Dump runconfig as string to sys.stdout
-        '''
+        """Dump runconfig as string to sys.stdout"""
         self_as_dict = self.as_dict()
-        yaml_obj = YAML(typ='safe')
+        yaml_obj = YAML(typ="safe")
         yaml_obj.dump(self_as_dict, sys.stdout)

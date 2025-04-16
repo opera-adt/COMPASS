@@ -29,4 +29,3 @@ dependencies:
   - rasterio
   - dem_stitcher
   - gxx_linux-64>=9,<10
-  

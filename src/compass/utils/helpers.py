@@ -349,7 +349,7 @@ def open_raster(filename, band=1):
         raise FileNotFoundError(err_str)
 
     try:
-        # The pythonic execption handling for GDAL can be turned on / off
+        # The pythonic exception handling for GDAL can be turned on / off
         # The flag of which can be identified by `gdal.GetUseExceptions()`
         # In pythonic exception handling, `gdal.Open()` will raise `RuntimeError`
         # In traditional GDAL, the function does not raise exception buy will return `None`,
@@ -476,17 +476,20 @@ def check_url(url):
     _: Bool
         `True` if the resource exists in the URL provide; False otherwise
     '''
+    error_channel = journal.error('helpers.check_url')
+    info_channel = journal.error('helpers.check_url')
 
     try:
-        response = requests.head(url, allow_redirects=True)
+        response = requests.head(url, allow_redirects=True, timeout=30)
         # A 200 OK or 30x redirect status code means the resource exists.
-        print('status code:', response.status_code)
         if response.status_code in range(200, 400):
-            print(f"Resource exists at: {url}")
+            info_channel.log(f"Got response {response.status_code}. "
+                             f"Resource exists at: {url}")
             return True
         else:
-            print(f"Resource does not exist at: {url}")
+            info_channel.log(f"Got response {response.status_code}. "
+                             f"Resource does not exist at: {url}")
             return False
-    except requests.exceptions.RequestException as e:
-        print(f"An error occurred: {e}")
+    except requests.exceptions.RequestException as err:
+        error_channel.log(f"An error occurred: {err}")
         return False

@@ -12,6 +12,7 @@ import datetime as dt
 import logging
 import os
 import re
+import subprocess
 
 import isce3
 import numpy as np
@@ -279,14 +280,14 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
                 fname_dst)):
         cmd = f"gzip --force --decompress {fname_dst}"
         logging.info(f'Execute command: {cmd}')
-        os.system(cmd)
+        subprocess.run(cmd.split(' '), check=True)
 
     return fname_dst_uncomp
 
 
 def fetch_ionex_from_remote(ionex_url, ionex_local_path):
     # download - compose cmd
-    cmd = f'wget --continue --auth-no-challenge "{ionex_url}"'
+    cmd = f'wget --continue --auth-no-challenge {ionex_url}'
     if os.path.isfile(ionex_local_path) and os.path.getsize(ionex_local_path) > 1000:
         cmd += ' --timestamping'
 
@@ -297,7 +298,8 @@ def fetch_ionex_from_remote(ionex_url, ionex_local_path):
     tec_dir = os.path.dirname(ionex_local_path)
     pwd = os.getcwd()
     os.chdir(tec_dir)
-    exit_status = os.system(cmd)
+    #exit_status = os.system(cmd)
+    exit_status = subprocess.run(cmd.split(' '), check=True).returncode
     os.chdir(pwd)
 
     if exit_status != 0:

@@ -246,7 +246,7 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
     kwargs = {
         "sol_code": sol_code,
         "date_fmt": date_fmt,
-        "new_filename_format": use_new_ionex_filename_format,
+        "is_new_filename_format": use_new_ionex_filename_format,
         "check_if_exists": False
         }
 
@@ -262,7 +262,7 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
     except RuntimeError:
         logging.info('Initial download attempt was not successful. '
                      'Trying another IONEX file name format.')
-        kwargs['new_filename_format'] = not use_new_ionex_filename_format
+        kwargs['is_new_filename_format'] = not use_new_ionex_filename_format
 
         fname_src = get_ionex_filename(date_str, tec_dir=None, **kwargs)
         fname_dst_uncomp = get_ionex_filename(date_str, tec_dir=tec_dir, **kwargs)

@@ -477,7 +477,7 @@ def check_url(url):
         `True` if the resource exists in the URL provide; False otherwise
     '''
     error_channel = journal.error('helpers.check_url')
-    info_channel = journal.error('helpers.check_url')
+    info_channel = journal.info('helpers.check_url')
 
     try:
         response = requests.head(url, allow_redirects=True, timeout=30)
@@ -493,3 +493,36 @@ def check_url(url):
     except requests.exceptions.RequestException as err:
         error_channel.log(f"An error occurred: {err}")
         return False
+
+
+def download_url(url:str, out_file_path:str):
+    '''
+    Download a file from a given URL.
+
+    Parameters
+    ----------
+    url: str
+        URL to the object
+    out_file_path: str
+        Path to the file where the object is to be downloaded
+
+    Returns
+    -------
+    _: Bool
+        `True` if the resource exists in the URL provide; `False` otherwise
+    '''
+    error_channel = journal.error('helpers.download_url')
+    info_channel = journal.info('helpers.download_url')
+
+    if not check_url(url):
+        error_channel.log(f"Resource does not exist at: {url}")
+        return False
+
+    info_channel.log(f"Downloading {url} to {out_file_path}")
+
+    r = requests.get(url, stream=True)
+    r.raise_for_status()
+    with open("out_file_path", "wb") as f:
+        for chunk in r.iter_content(1024*1024):
+            f.write(chunk)
+    return True

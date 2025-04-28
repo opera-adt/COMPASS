@@ -17,7 +17,7 @@ import subprocess
 import isce3
 import numpy as np
 from scipy import interpolate
-from compass.utils.helpers import check_url
+from compass.utils.helpers import check_url, download_url
 
 
 def read_ionex(tec_file):
@@ -258,7 +258,7 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
         ionex_zip_extension = fname_src[fname_src.rfind('.'):]
         fname_dst = fname_dst_uncomp + ionex_zip_extension
 
-        fetch_ionex_from_remote(fname_src, fname_dst)
+        download_url(fname_src, fname_dst)
 
     except RuntimeError:
         logging.info('Initial download attempt was not successful. '
@@ -270,7 +270,7 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
         ionex_zip_extension = fname_src[fname_src.rfind('.'):]
         fname_dst = fname_dst_uncomp + ionex_zip_extension
 
-        fetch_ionex_from_remote(fname_src, fname_dst)
+        download_url(fname_src, fname_dst)
 
     # uncompress
     # if output file 1) does not exist or 2) smaller than 400k in size or 3) older

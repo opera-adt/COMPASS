@@ -13,6 +13,8 @@ import logging
 import os
 import re
 import subprocess
+import shutil
+import gzip
 
 import isce3
 import numpy as np
@@ -281,9 +283,10 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
             or os.path.getsize(fname_dst_uncomp) < 400e3
             or os.path.getmtime(fname_dst_uncomp) < os.path.getmtime(
                 fname_dst)):
-        cmd = f"gzip --force --decompress {fname_dst}"
-        logging.info(f'Execute command: {cmd}')
-        subprocess.run(cmd.split(' '), check=True)
+        #cmd = f"gzip --force --decompress {fname_dst}"
+        #logging.info(f'Execute command: {cmd}')
+        #subprocess.run(cmd.split(' '), check=True)
+        decompress_gzip_file(fname_dst)
 
     return fname_dst_uncomp
 
@@ -456,3 +459,30 @@ def ionosphere_delay(utc_time, wavelength,
                            / np.cos(np.deg2rad(inc_arr)))
 
     return los_iono_delay
+
+
+def decompress_gzip_file(filename):
+    '''
+    Decompress a gzip file
+    Parameters
+    ----------
+    filename: str
+        Path to the gzip file to decompress
+    Returns
+    -------
+    None
+    '''
+    if not (filename.endswith('.gz') or filename.endswith('.Z')):
+        raise ValueError(f"Expected a .gz or .Z file, got {filename}")
+
+    decompressed_filename = '.'.join(filename.split('.')[:-1])  # remove `.gz` or `.Z`
+
+    # Force overwrite if exists
+    if os.path.exists(decompressed_filename):
+        os.remove(decompressed_filename)
+
+    with gzip.open(filename, 'rb') as f_in:
+        with open(decompressed_filename, 'wb') as f_out:
+            shutil.copyfileobj(f_in, f_out)
+
+    print(f"Decompressed: {filename} -> {decompressed_filename}")

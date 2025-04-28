@@ -271,6 +271,9 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
         fname_dst = fname_dst_uncomp + ionex_zip_extension
 
         download_url(fname_src, fname_dst)
+        # debug code
+        print(f'ls -l {fname_dst}')
+        os.system(f'ls -l {fname_dst}')
 
     # uncompress
     # if output file 1) does not exist or 2) smaller than 400k in size or 3) older

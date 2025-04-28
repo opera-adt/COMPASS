@@ -522,7 +522,7 @@ def download_url(url:str, out_file_path:str):
 
     r = requests.get(url, stream=True)
     r.raise_for_status()
-    with open("out_file_path", "wb") as f:
+    with open(out_file_path, "wb") as f:
         for chunk in r.iter_content(1024*1024):
             f.write(chunk)
     return True

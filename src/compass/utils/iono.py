@@ -282,7 +282,11 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
             or os.path.getmtime(fname_dst_uncomp) < os.path.getmtime(
                 fname_dst)):
         #cmd = f"gzip --force --decompress {fname_dst}"
-        cmd = ["gzip",  "--force", "--decompress", fname_dst]
+        if fname_dst.endswith('.Z'):
+            cmd = ["uncompress", fname_dst]
+        elif fname_dst.endswith('.gz'):
+            cmd = ["gzip", "--force", "--decompress", fname_dst]
+        #cmd = ["gzip",  "--force", "--decompress", fname_dst]
         cmd_str = ' '.join(cmd)
         logging.info(f'Execute command: {cmd_str}')
 

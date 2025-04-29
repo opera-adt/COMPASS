@@ -1,0 +1,42 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate, br, zstd
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.32.3
+    method: HEAD
+    uri: https://cddis.nasa.gov/archive/gnss/products/ionex/2024/320/JPL0OPSFIN_20243200000_01D_02H_GIM.INX.gz
+  response:
+    body:
+      string: ''
+    headers:
+      Accept-Ranges:
+      - bytes
+      Connection:
+      - close
+      Content-Length:
+      - '139363'
+      Content-Type:
+      - application/x-gzip
+      Date:
+      - Tue, 29 Apr 2025 22:58:22 GMT
+      ETag:
+      - '"22063-6272647b1138c"'
+      Last-Modified:
+      - Mon, 18 Nov 2024 02:00:25 GMT
+      Server:
+      - Apache
+      Strict-Transport-Security:
+      - max-age=31536000
+      X-Frame-Options:
+      - SAMEORIGIN
+    status:
+      code: 200
+      message: OK
+version: 1

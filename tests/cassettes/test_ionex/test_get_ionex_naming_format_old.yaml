@@ -1,0 +1,76 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate, br, zstd
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.32.3
+    method: HEAD
+    uri: https://cddis.nasa.gov/archive/gnss/products/ionex/2016/320/JPL0OPSFIN_20163200000_01D_02H_GIM.INX.gz
+  response:
+    body:
+      string: ''
+    headers:
+      Accept-Ranges:
+      - bytes
+      Connection:
+      - close
+      Content-Type:
+      - text/html; charset=UTF-8
+      Date:
+      - Tue, 29 Apr 2025 22:58:21 GMT
+      Server:
+      - Apache
+      Strict-Transport-Security:
+      - max-age=31536000
+      X-Frame-Options:
+      - SAMEORIGIN
+    status:
+      code: 404
+      message: Not Found
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate, br, zstd
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.32.3
+    method: HEAD
+    uri: https://cddis.nasa.gov/archive/gnss/products/ionex/2016/320/jplg3200.16i.Z
+  response:
+    body:
+      string: ''
+    headers:
+      Accept-Ranges:
+      - bytes
+      Connection:
+      - close
+      Content-Length:
+      - '155633'
+      Content-Type:
+      - application/x-compress
+      Date:
+      - Tue, 29 Apr 2025 22:58:21 GMT
+      ETag:
+      - '"25ff1-5418cd27a2380"'
+      Last-Modified:
+      - Fri, 18 Nov 2016 05:46:06 GMT
+      Server:
+      - Apache
+      Strict-Transport-Security:
+      - max-age=31536000
+      X-Frame-Options:
+      - SAMEORIGIN
+    status:
+      code: 200
+      message: OK
+version: 1

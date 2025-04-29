@@ -281,9 +281,11 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
             or os.path.getsize(fname_dst_uncomp) < 400e3
             or os.path.getmtime(fname_dst_uncomp) < os.path.getmtime(
                 fname_dst)):
-        cmd = f"gzip --force --decompress {fname_dst}"
-        logging.info(f'Execute command: {cmd}')
-        subprocess.run(cmd, shell=True, check=True)
+        #cmd = f"gzip --force --decompress {fname_dst}"
+        cmd = ["gzip",  "--force", "--decompress", fname_dst]
+        cmd_str = ' '.join(cmd)
+        logging.info(f'Execute command: {cmd_str}')
+        subprocess.run(cmd, check=True)
 
     return fname_dst_uncomp
 

@@ -1,6 +1,7 @@
 '''
 Test IONEX functionalities: file reading and interpolation
 '''
+import os
 
 import numpy as np
 import pytest
@@ -33,7 +34,7 @@ def test_read_ionex(ionex_params):
     _, _, _, tec_maps = iono.read_ionex(ionex_params.tec_file)[:4]
     assert np.allclose(tec_maps[time_ind, y0:y1, x0:x1], tec_aoi)
 
-
+@pytest.mark.vcr
 def test_get_ionex_value(ionex_params):
     '''
     Test IONEX TEC data interpolation
@@ -64,3 +65,30 @@ def test_get_ionex_value(ionex_params):
                                        )
         assert np.allclose(tec_val, value, atol=1e-05, rtol=1e-05)
 
+@pytest.mark.vcr
+def test_download_ionex(ionex_params):
+    tec_file = iono.download_ionex(ionex_params.date_str,
+                                   ionex_params.tec_dir,
+                                   sol_code=ionex_params.sol_code)
+    assert os.path.basename(tec_file) == 'jplg3190.15i'
+
+
+@pytest.mark.vcr
+def test_get_ionex_naming_format_old():
+    # old IONEX filename format
+    tec_url_old = iono.get_ionex_filename('20161115',
+                                           sol_code='jpl',
+                                           check_if_exists=True)
+    print('tec_url_old:', tec_url_old)
+    assert tec_url_old == ('https://cddis.nasa.gov/archive/gnss/products/'
+                           'ionex/2016/320/jplg3200.16i.Z')
+
+@pytest.mark.vcr
+def test_get_ionex_naming_new():
+    # new IONEX filename format
+    tec_url_new = iono.get_ionex_filename('20241115',
+                                           sol_code='jpl',
+                                           check_if_exists=True)
+    print('tec_url_new:', tec_url_new)
+    assert tec_url_new == ('https://cddis.nasa.gov/archive/gnss/products/'
+                           'ionex/2024/320/JPL0OPSFIN_20243200000_01D_02H_GIM.INX.gz')

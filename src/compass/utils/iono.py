@@ -285,6 +285,12 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
         cmd = ["gzip",  "--force", "--decompress", fname_dst]
         cmd_str = ' '.join(cmd)
         logging.info(f'Execute command: {cmd_str}')
+
+        result_gzip_version = subprocess.run(['gzip', '--version'], capture_output=True, text=True, check=True)
+        print('GZIP_STDOUT:',result_gzip_version.stdout)
+        print('GZIP_STDERR:',result_gzip_version.stderr)
+        print('GZIP_Return code:',result_gzip_version.returncode)
+
         result_ls = subprocess.run(['ls', '-l', fname_dst], capture_output=True, text=True, check=True)
         print('LS_STDOUT:',result_ls.stdout)
         print('LS_STDERR:',result_ls.stderr)

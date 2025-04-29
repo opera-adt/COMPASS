@@ -1,6 +1,8 @@
 import os
 from compass.utils import iono
+import pytest
 
+@pytest.mark.vcr
 def test_get_ionex_naming_format(ionex_params):
     # old IONEX filename format
     tec_file_old = iono.download_ionex('20161115',

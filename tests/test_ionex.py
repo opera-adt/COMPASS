@@ -3,9 +3,10 @@ Test IONEX functionalities: file reading and interpolation
 '''
 
 import numpy as np
-
+import pytest
 from compass.utils import iono
 
+@pytest.mark.vcr
 def test_read_ionex(ionex_params):
     '''
     Test the reader for IONEX data

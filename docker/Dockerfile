@@ -1,8 +1,8 @@
 FROM oraclelinux:8.8
 
 LABEL author="OPERA ADT" \
-    description="s1 cslc 0.5.4 point release" \
-    version="0.5.4-point"
+    description="s1 cslc 0.5.6 patch release" \
+    version="0.5.6-final"
 
 # Update the base linux image to date
 # Create cache and config directory to be used for the dependencies
@@ -58,7 +58,8 @@ RUN mkdir RAiDER &&\
     rm -rf RAiDER
 
 # installing OPERA COMPASS
-RUN python -m pip install ./COMPASS &&\
+RUN python -m pip install pytest-recording &&\
+    python -m pip install ./COMPASS &&\
     echo "conda activate COMPASS" >> /home/compass_user/.bashrc
 
 WORKDIR /home/compass_user/scratch

@@ -8,6 +8,7 @@ import collections
 # release history
 Tag = collections.namedtuple('Tag', 'version date')
 release_history = (
+    Tag('0.5.6', '2025-04-29'),
     Tag('0.5.5', '2024-03-15'),
     Tag('0.5.4', '2023-10-13'),
     Tag('0.5.3', '2023-10-05'),

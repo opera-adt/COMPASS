@@ -285,7 +285,10 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
         cmd = ["gzip",  "--force", "--decompress", fname_dst]
         cmd_str = ' '.join(cmd)
         logging.info(f'Execute command: {cmd_str}')
-        subprocess.run(cmd, check=True)
+        result = subprocess.run(cmd, check=True)  # noqa
+        print('STDOUT:',result.stdout)
+        print('STDERR:',result.stderr)
+        print('Return code:',result.returncode)
 
     return fname_dst_uncomp
 

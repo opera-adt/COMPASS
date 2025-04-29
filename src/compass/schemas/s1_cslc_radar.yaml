@@ -78,6 +78,8 @@ rdr2geo_options:
    compute_local_incidence_angle: bool(required=False)
    # Enable/disable azimuth angle output
    compute_azimuth_angle: bool(required=False)
+   compute_ground_to_sat_east: bool(required=False)
+   compute_ground_to_sat_north: bool(required=False)
 
 resample_options:
    # Lines per block to process in batch

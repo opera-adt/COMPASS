@@ -371,7 +371,7 @@ def open_raster(filename, band=1):
 
 
 def write_raster(filename, data_list, descriptions,
-                 data_type=gdal.GDT_Float32, data_format='ENVI'):
+                 data_type=gdal.GDT_Float32, data_format='GTiff'):
     '''
     Write a multiband GDAL-friendly raster to disk.
     Each dataset allocated in the output file contains

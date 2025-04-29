@@ -640,7 +640,7 @@ def _get_land_mask(epsg_cslc: int, geotransform: tuple, shape_mask: tuple):
     feature = layer_land.GetNextFeature()
     land_polygon = feature.GetGeometryRef()
 
-    # extract the EPSG of the land polgyon GPKG
+    # extract the EPSG of the land polygon GPKG
     srs_gpkg = layer_land.GetSpatialRef()
     land_epsg = int(srs_gpkg.GetAuthorityCode(None))
 

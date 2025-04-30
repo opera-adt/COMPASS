@@ -25,7 +25,7 @@ interactions:
       Content-Type:
       - application/x-compress
       Date:
-      - Tue, 29 Apr 2025 22:58:19 GMT
+      - Wed, 30 Apr 2025 00:39:23 GMT
       ETag:
       - '"2b763-524c725debf00"'
       Last-Modified:
@@ -64,7 +64,7 @@ interactions:
 
         <h1>Found</h1>
 
-        #<p>The document has moved <a href="https://urs.earthdata.nasa.gov/oauth/authorize?client_id=gDQnv1IO0j9O2xXdwS8KMQ&amp;response_type=code&amp;redirect_uri=https%3A%2F%2Fcddis.nasa.gov%2Fproxyauth&amp;state=aHR0cDovL2NkZGlzLm5hc2EuZ292L2FyY2hpdmUvZ25zcy9wcm9kdWN0cy9pb25leC8yMDE1LzMxOS9qcGxnMzE5MC4xNWkuWg">here</a>.</p>
+        <p>The document has moved <a href="https://urs.earthdata.nasa.gov/">here</a>.</p>
 
         </body></html>
 
@@ -77,7 +77,7 @@ interactions:
       Content-Type:
       - text/html; charset=iso-8859-1
       Date:
-      - Tue, 29 Apr 2025 22:58:19 GMT
+      - Wed, 30 Apr 2025 00:39:23 GMT
       Location:
       - https://urs.earthdata.nasa.gov/
       Server:
@@ -96,6 +96,8 @@ interactions:
       - '*/*'
       Accept-Encoding:
       - gzip, deflate, br, zstd
+      Authorization:
+      - Basic DUMMY
       Connection:
       - keep-alive
       User-Agent:
@@ -121,7 +123,7 @@ interactions:
       Content-Type:
       - text/html; charset=utf-8
       Date:
-      - Tue, 29 Apr 2025 22:58:20 GMT
+      - Wed, 30 Apr 2025 00:39:24 GMT
       Expires:
       - Fri, 01 Jan 1990 00:00:00 GMT
       Location:
@@ -143,7 +145,7 @@ interactions:
       X-Permitted-Cross-Domain-Policies:
       - none
       X-Runtime:
-      - '0.032761'
+      - '0.046535'
       X-XSS-Protection:
       - '0'
     status:
@@ -187,7 +189,7 @@ interactions:
       Content-Type:
       - text/html; charset=iso-8859-1
       Date:
-      - Tue, 29 Apr 2025 22:58:20 GMT
+      - Wed, 30 Apr 2025 00:39:24 GMT
       Location:
       - http://cddis.nasa.gov/archive/gnss/products/ionex/2015/319/jplg3190.15i.Z
       Server:
@@ -3375,7 +3377,7 @@ interactions:
       Content-Type:
       - application/x-compress
       Date:
-      - Tue, 29 Apr 2025 22:58:20 GMT
+      - Wed, 30 Apr 2025 00:39:25 GMT
       ETag:
       - '"2b763-524c725debf00"'
       Last-Modified:

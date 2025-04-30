@@ -9,12 +9,13 @@
 #   IMPC (DLR): https://impc.dlr.de/products/total-electron-content/near-real-time-tec/near-real-time-tec-maps-global
 
 import datetime as dt
-import logging
+
 import os
 import re
 import subprocess
 
 import isce3
+import journal
 import numpy as np
 from scipy import interpolate
 from compass.utils.helpers import check_url, download_url
@@ -117,6 +118,8 @@ def get_ionex_value(tec_file, utc_sec, lat, lon,
     tec_val: float or 1D np.ndarray
         Vertical TEC value in TECU
     '''
+    error_channel = journal.error('get_ionex_value')
+
     def interp_3d_rotate(interpfs, mins, lats, lons, utc_min, lat, lon):
         ind0 = np.where((mins - utc_min) <= 0)[0][-1]
         ind1 = ind0 + 1
@@ -207,7 +210,7 @@ def get_ionex_value(tec_file, utc_sec, lat, lon,
     else:
         msg = f'Un-recognized interp_method input: {interp_method}!'
         msg += '\nSupported inputs: nearest, linear2d, linear3d.'
-        logging.error(msg)
+        error_channel.log(msg)
         raise ValueError(msg)
 
     return tec_val
@@ -233,6 +236,7 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
     fname_dst_uncomp: str
         Path to local uncompressed IONEX file
     '''
+    info_channel = journal.info('download_ionex')
 
     # Approximate date from which the new IONEX file name format needs to be used
     # https://cddis.nasa.gov/Data_and_Derived_Products/GNSS/atmospheric_products.html
@@ -261,8 +265,8 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
         download_url(fname_src, fname_dst)
 
     except RuntimeError:
-        logging.info('Initial download attempt was not successful. '
-                     'Trying another IONEX file name format.')
+        info_channel.log('Initial download attempt was not successful. '
+                         'Trying another IONEX file name format.')
         kwargs['is_new_filename_format'] = not use_new_ionex_filename_format
 
         fname_src = get_ionex_filename(date_str, tec_dir=None, **kwargs)
@@ -271,9 +275,6 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
         fname_dst = fname_dst_uncomp + ionex_zip_extension
 
         download_url(fname_src, fname_dst)
-        # debug code
-        print(f'ls -l {fname_dst}')
-        os.system(f'ls -l {fname_dst}')
 
     # uncompress
     # if output file 1) does not exist or 2) smaller than 400k in size or 3) older
@@ -281,14 +282,9 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
             or os.path.getsize(fname_dst_uncomp) < 400e3
             or os.path.getmtime(fname_dst_uncomp) < os.path.getmtime(
                 fname_dst)):
-        #cmd = f"gzip --force --decompress {fname_dst}"
-        #if fname_dst.endswith('.Z'):
-        #    cmd = ["uncompress", fname_dst]
-        #elif fname_dst.endswith('.gz'):
-        #    cmd = ["gzip", "--force", "--decompress", fname_dst]
         cmd = ["gzip",  "--force", "--decompress", fname_dst]
         cmd_str = ' '.join(cmd)
-        logging.info(f'Execute command: {cmd_str}')
+        info_channel.log(f'Execute command: {cmd_str}')
         subprocess.run(cmd, capture_output=True, text=True, check=True)
 
     return fname_dst_uncomp
@@ -409,10 +405,11 @@ def ionosphere_delay(utc_time, wavelength,
     los_iono_delay: np.ndarray
         Ionospheric delay in line of sight in meters
     '''
+    warning_channel = journal.warning('ionosphere_delay')
 
     if not tec_file:
-        print('"tec_file" was not provided. '
-              'Ionosphere correction will not be applied.')
+        warning_channel.log('"tec_file" was not provided. '
+                            'Ionosphere correction will not be applied.')
         return np.zeros(lon_arr.shape)
 
     if not os.path.exists(tec_file):

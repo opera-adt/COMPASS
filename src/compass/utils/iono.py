@@ -237,6 +237,7 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
         Path to local uncompressed IONEX file
     '''
     info_channel = journal.info('download_ionex')
+    err_channel = journal.info('download_ionex')
 
     # Approximate date from which the new IONEX file name format needs to be used
     # https://cddis.nasa.gov/Data_and_Derived_Products/GNSS/atmospheric_products.html
@@ -251,30 +252,28 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
     kwargs = {
         "sol_code": sol_code,
         "date_fmt": date_fmt,
-        "is_new_filename_format": use_new_ionex_filename_format,
+        "is_new_filename_format": None,
         "check_if_exists": False
         }
 
-    try:
-        # Initial try with the automatically-determined IONEX file name format
-        fname_src = get_ionex_filename(date_str, tec_dir=None, **kwargs)
-        fname_dst_uncomp = get_ionex_filename(date_str, tec_dir=tec_dir, **kwargs)
-        ionex_zip_extension = fname_src[fname_src.rfind('.'):]
-        fname_dst = fname_dst_uncomp + ionex_zip_extension
-
-        download_url(fname_src, fname_dst)
-
-    except RuntimeError:
-        info_channel.log('Initial download attempt was not successful. '
-                         'Trying another IONEX file name format.')
-        kwargs['is_new_filename_format'] = not use_new_ionex_filename_format
+    # Iterate over both possible formats and break if file retrieved.
+    for fname_fmt in [use_new_ionex_filename_format, not use_new_ionex_filename_format]:
+        kwargs['is_new_filename_format'] = fname_fmt
 
         fname_src = get_ionex_filename(date_str, tec_dir=None, **kwargs)
         fname_dst_uncomp = get_ionex_filename(date_str, tec_dir=tec_dir, **kwargs)
         ionex_zip_extension = fname_src[fname_src.rfind('.'):]
         fname_dst = fname_dst_uncomp + ionex_zip_extension
 
-        download_url(fname_src, fname_dst)
+        ionex_download_successful = download_url(fname_src, fname_dst)
+
+        if ionex_download_successful:
+            info_channel.log(f'Downloaded IONEX file: {fname_dst}')
+            break
+
+    if not ionex_download_successful:
+        err_channel.log(f'Failed to download IONEX file: {fname_src}')
+        raise RuntimeError
 
     # uncompress
     # if output file 1) does not exist or 2) smaller than 400k in size or 3) older

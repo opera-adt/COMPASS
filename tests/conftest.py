@@ -29,7 +29,8 @@ def _check_internet_connection(host="8.8.8.8", port=53, timeout=3):
         socket.setdefaulttimeout(timeout)
         socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((host, port))
         return True
-    except socket.error:
+    except socket.error as e:
+        print(f"Internet connection check failed: {e}")
         return False
 
 
@@ -124,12 +125,6 @@ def geocode_slc_params():
 def ionex_params():
     '''
     Prepare IONEX data for unit test
-
-    Parameters
-    ----------
-    download_data: bool
-        Boolean flag allow to download TEC data
-        for unit test if set to True
 
     Returns
     -------

@@ -81,7 +81,8 @@ def test_get_ionex_naming_format_old():
                                            check_if_exists=True)
     print('tec_url_old:', tec_url_old)
     assert tec_url_old == ('https://cddis.nasa.gov/archive/gnss/products/'
-                           'ionex/2016/320/jplg3200.16i.Z')
+                           'ionex/2016/320/jplg3200.16i.Z'), \
+                            'Old IONEX URL format mismatch'
 
 @pytest.mark.vcr
 def test_get_ionex_naming_new():
@@ -91,4 +92,5 @@ def test_get_ionex_naming_new():
                                            check_if_exists=True)
     print('tec_url_new:', tec_url_new)
     assert tec_url_new == ('https://cddis.nasa.gov/archive/gnss/products/'
-                           'ionex/2024/320/JPL0OPSFIN_20243200000_01D_02H_GIM.INX.gz')
+                           'ionex/2024/320/JPL0OPSFIN_20243200000_01D_02H_GIM.INX.gz'), \
+                           'New IONEX URL format mismatch'

@@ -284,7 +284,15 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
         cmd = ["gzip",  "--force", "--decompress", fname_dst]
         cmd_str = ' '.join(cmd)
         info_channel.log(f'Execute command: {cmd_str}')
-        subprocess.run(cmd, capture_output=True, text=True, check=True)
+
+        try:
+            subprocess.run(cmd, capture_output=True, text=True, check=True)
+
+        except subprocess.CalledProcessError as e:
+            err_channel.log(f'Failed to uncompress IONEX file: {fname_dst}')
+            err_channel.log(f'Command: {cmd_str}')
+            err_channel.log(f'Error message: {e.stderr}')
+            raise RuntimeError
 
     return fname_dst_uncomp
 
@@ -294,16 +302,20 @@ def get_ionex_filename(date_str, tec_dir=None, sol_code='jpl',
                        is_new_filename_format=True,
                        check_if_exists=False):
     '''
-    Get the file name of the IONEX file
+    Get the path to the IONEX file, or URL to the compressed IONEX.
+    Supports both the old and new file name formats.
+    To find IONEX file locally: provide the directory to `tec_dir`
+    To find IONEX file remotely: Leave `tec_dir` as None
 
     Parameters
     ----------
     date_str: str
         Date in the 'date_fmt' format
     tec_dir: str
-        Directory where to store downloaded TEC files
+        Directory where to store downloaded TEC files, If None, the function
+        will look for the file in the remote directory
     sol_code: str
-        GIM analysis center code in 3 digits
+        GIM analysis center code in 3 alphabetic characters
         (values: cod, esa, igs, jpl, upc, uqr)
     date_fmt: str
         Date format string

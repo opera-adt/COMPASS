@@ -15,12 +15,14 @@ def _check_internet_connection(host="8.8.8.8", port=53, timeout=3):
     """
     Checks if the machine has internet access by attempting to connect to a DNS server.
 
-    Args:
+    Parameters
+    ----------
         host (str): Host to connect to (default is Google DNS).
         port (int): Port to use (default is 53).
         timeout (int): Timeout in seconds.
 
-    Returns:
+    Returns
+    -------
         bool: True if connection succeeds, False otherwise.
     """
     try:

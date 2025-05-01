@@ -31,7 +31,7 @@ ENV CONDA_PREFIX=/home/compass_user/miniforge3
 
 # install Miniconda
 WORKDIR /home/compass_user
-RUN curl -sSL https://github.com/conda-forge/miniforge/releases/download/25.3.0-1/Miniforge3-25.3.0-1-Linux-x86_64.sh -o miniforge.sh &&\
+RUN curl -sSL "https://github.com/conda-forge/miniforge/releases/download/25.3.0-1/Miniforge3-25.3.0-1-Linux-x86_64.sh" -o miniforge.sh &&\
     bash miniforge.sh -b -p ${CONDA_PREFIX} &&\
     rm $HOME/miniforge.sh
 
@@ -65,10 +65,11 @@ RUN mkdir RAiDER &&\
     python -m pip install ./RAiDER &&\
     rm -rf RAiDER
 
-# installing OPERA COMPASS
+# installing OPERA COMPASS. Finalize the installation.
 RUN python -m pip install pytest-recording==0.13.3 &&\
     python -m pip install ./COMPASS &&\
-    echo "conda activate COMPASS" >> /home/compass_user/.bashrc
+    echo "conda activate COMPASS" >> /home/compass_user/.bashrc &&\
+    echo "Base image: $BASE_IMAGE" > /home/compass_user/BASE_IMAGE_INFORMATION.txt
 
 WORKDIR /home/compass_user/scratch
 

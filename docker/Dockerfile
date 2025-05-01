@@ -9,7 +9,7 @@ ARG BASE_IMAGE
 RUN echo "Base image is $BASE_IMAGE"
 
 LABEL author="OPERA ADT" \
-    description="s1 cslc 0.5.6 patch release" \
+    description="s1 cslc 0.5.6 point release" \
     version="0.5.6-final"
 
 # Update the base linux image to date

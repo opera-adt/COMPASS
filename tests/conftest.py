@@ -1,14 +1,37 @@
 import multiprocessing as mp
 import os
 import pathlib
+import socket
 import types
 
 import pytest
 import requests
-from s1reader.s1_orbit import _check_internet_connection
 
 from compass.utils import iono
 from compass.utils.h5_helpers import DATA_PATH
+
+
+def _check_internet_connection(host="8.8.8.8", port=53, timeout=3):
+    """
+    Checks if the machine has internet access by attempting to connect to a DNS server.
+
+    Parameters
+    ----------
+        host (str): Host to connect to (default is Google DNS).
+        port (int): Port to use (default is 53).
+        timeout (int): Timeout in seconds.
+
+    Returns
+    -------
+        bool: True if connection succeeds, False otherwise.
+    """
+    try:
+        socket.setdefaulttimeout(timeout)
+        socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((host, port))
+        return True
+    except socket.error as e:
+        print(f"Internet connection check failed: {e}")
+        return False
 
 
 def download_if_needed(local_path):
@@ -99,15 +122,9 @@ def geocode_slc_params():
     return test_params
 
 @pytest.fixture(scope='session')
-def ionex_params(download_data=True):
+def ionex_params():
     '''
     Prepare IONEX data for unit test
-
-    Parameters
-    ----------
-    download_data: bool
-        Boolean flag allow to download TEC data
-        for unit test if set to True
 
     Returns
     -------
@@ -127,17 +144,7 @@ def ionex_params(download_data=True):
     # Generate the TEC filename
     test_params.tec_file = iono.get_ionex_filename(test_params.date_str,
                                           tec_dir=test_params.tec_dir,
-                                          sol_code=test_params.sol_code)
-
-    # TODO figure out how to toggle download
-
-    # If prep_mode=True, download data
-    if download_data:
-        if not os.path.isfile(test_params.tec_file):
-            print(f'Download IONEX file at {test_params.date_str} from '
-                  f'{test_params.sol_code} to {test_params.tec_dir}')
-            test_params.tec_file = iono.download_ionex(test_params.date_str,
-                                                       test_params.tec_dir,
-                                                       sol_code=test_params.sol_code)
+                                          sol_code=test_params.sol_code,
+                                          check_if_exists=True)
 
     return test_params

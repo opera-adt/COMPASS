@@ -9,13 +9,16 @@
 #   IMPC (DLR): https://impc.dlr.de/products/total-electron-content/near-real-time-tec/near-real-time-tec-maps-global
 
 import datetime as dt
-import logging
+
 import os
 import re
+import subprocess
 
 import isce3
+import journal
 import numpy as np
 from scipy import interpolate
+from compass.utils.helpers import check_url, download_url
 
 
 def read_ionex(tec_file):
@@ -115,6 +118,8 @@ def get_ionex_value(tec_file, utc_sec, lat, lon,
     tec_val: float or 1D np.ndarray
         Vertical TEC value in TECU
     '''
+    error_channel = journal.error('get_ionex_value')
+
     def interp_3d_rotate(interpfs, mins, lats, lons, utc_min, lat, lon):
         ind0 = np.where((mins - utc_min) <= 0)[0][-1]
         ind1 = ind0 + 1
@@ -205,7 +210,7 @@ def get_ionex_value(tec_file, utc_sec, lat, lon,
     else:
         msg = f'Un-recognized interp_method input: {interp_method}!'
         msg += '\nSupported inputs: nearest, linear2d, linear3d.'
-        logging.error(msg)
+        error_channel.log(msg)
         raise ValueError(msg)
 
     return tec_val
@@ -231,25 +236,44 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
     fname_dst_uncomp: str
         Path to local uncompressed IONEX file
     '''
+    info_channel = journal.info('download_ionex')
+    err_channel = journal.info('download_ionex')
+
+    # Approximate date from which the new IONEX file name format needs to be used
+    # https://cddis.nasa.gov/Data_and_Derived_Products/GNSS/atmospheric_products.html
+    new_ionex_filename_format_from = dt.datetime.fromisoformat('2023-10-18')
+
     # get the source (remote) and destination (local) file path/url
-    kwargs = dict(sol_code=sol_code, date_fmt=date_fmt)
-    fname_src = get_ionex_filename(date_str, tec_dir=None, **kwargs)
-    fname_dst = get_ionex_filename(date_str, tec_dir=tec_dir, **kwargs) + '.Z'
-    fname_dst_uncomp = fname_dst[:-2]
+    date_tec = dt.datetime.strptime(date_str, date_fmt)
 
-    # download - compose cmd
-    cmd = f'wget --continue --auth-no-challenge "{fname_src}"'
-    if os.path.isfile(fname_dst) and os.path.getsize(fname_dst) > 1000:
-        cmd += ' --timestamping'
+    # determine the initial format to try
+    use_new_ionex_filename_format = date_tec >= new_ionex_filename_format_from
 
-    # Record executed command line in logging file
-    logging.info(f'Execute command: {cmd}')
+    kwargs = {
+        "sol_code": sol_code,
+        "date_fmt": date_fmt,
+        "is_new_filename_format": None,
+        "check_if_exists": False
+        }
 
-    # download - run cmd in output dir
-    pwd = os.getcwd()
-    os.chdir(tec_dir)
-    os.system(cmd)
-    os.chdir(pwd)
+    # Iterate over both possible formats and break if file retrieved.
+    for fname_fmt in [use_new_ionex_filename_format, not use_new_ionex_filename_format]:
+        kwargs['is_new_filename_format'] = fname_fmt
+
+        fname_src = get_ionex_filename(date_str, tec_dir=None, **kwargs)
+        fname_dst_uncomp = get_ionex_filename(date_str, tec_dir=tec_dir, **kwargs)
+        ionex_zip_extension = fname_src[fname_src.rfind('.'):]
+        fname_dst = fname_dst_uncomp + ionex_zip_extension
+
+        ionex_download_successful = download_url(fname_src, fname_dst)
+
+        if ionex_download_successful:
+            info_channel.log(f'Downloaded IONEX file: {fname_dst}')
+            break
+
+    if not ionex_download_successful:
+        err_channel.log(f'Failed to download IONEX file: {fname_src}')
+        raise RuntimeError
 
     # uncompress
     # if output file 1) does not exist or 2) smaller than 400k in size or 3) older
@@ -257,29 +281,48 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
             or os.path.getsize(fname_dst_uncomp) < 400e3
             or os.path.getmtime(fname_dst_uncomp) < os.path.getmtime(
                 fname_dst)):
-        cmd = f"gzip --force --keep --decompress {fname_dst}"
-        logging.info(f'Execute command: {cmd}')
-        os.system(cmd)
+        cmd = ["gzip",  "--force", "--decompress", fname_dst]
+        cmd_str = ' '.join(cmd)
+        info_channel.log(f'Execute command: {cmd_str}')
+
+        try:
+            subprocess.run(cmd, capture_output=True, text=True, check=True)
+
+        except subprocess.CalledProcessError as e:
+            err_channel.log(f'Failed to uncompress IONEX file: {fname_dst}')
+            err_channel.log(f'Command: {cmd_str}')
+            err_channel.log(f'Error message: {e.stderr}')
+            raise RuntimeError
 
     return fname_dst_uncomp
 
 
 def get_ionex_filename(date_str, tec_dir=None, sol_code='jpl',
-                       date_fmt='%Y%m%d'):
+                       date_fmt='%Y%m%d',
+                       is_new_filename_format=True,
+                       check_if_exists=False):
     '''
-    Get the file name of the IONEX file
+    Get the path to the IONEX file, or URL to the compressed IONEX.
+    Supports both the old and new file name formats.
+    To find IONEX file locally: provide the directory to `tec_dir`
+    To find IONEX file remotely: Leave `tec_dir` as None
 
     Parameters
     ----------
     date_str: str
         Date in the 'date_fmt' format
     tec_dir: str
-        Directory where to store downloaded TEC files
+        Directory where to store downloaded TEC files, If None, the function
+        will look for the file in the remote directory
     sol_code: str
-        GIM analysis center code in 3 digits
+        GIM analysis center code in 3 alphabetic characters
         (values: cod, esa, igs, jpl, upc, uqr)
     date_fmt: str
         Date format string
+    is_new_file_format: bool
+        Flag whether not not to use the new IONEX TEC file format. Defaults to True
+    check_if_exists: bool
+        Flag whether the IONEX file exists in the local directory or in the URL
 
     Returns
     -------
@@ -289,19 +332,37 @@ def get_ionex_filename(date_str, tec_dir=None, sol_code='jpl',
 
     dd = dt.datetime.strptime(date_str, date_fmt)
     doy = f'{dd.timetuple().tm_yday:03d}'
-    yy = str(dd.year)[2:4]
+    yy_full = str(dd.year)
+    yy = yy_full[2:4]
 
     # file name base
-    fname = f"{sol_code.lower()}g{doy}0.{yy}i.Z"
+    # Keep both the old- and new- formats of the file names
+    fname_list = [f"{sol_code.lower()}g{doy}0.{yy}i.Z",
+                  f'{sol_code.upper()}0OPSFIN_{yy_full}{doy}0000_01D_02H_GIM.INX.gz']
 
-    # full path
-    if tec_dir:
-        # local uncompressed file path
-        tec_file = os.path.join(tec_dir, fname[:-2])
-    else:
-        # remote compressed file path
-        url_dir = "https://cddis.nasa.gov/archive/gnss/products/ionex"
-        tec_file = os.path.join(url_dir, str(dd.year), doy, fname)
+    # Decide which file name format to try first
+    if is_new_filename_format:
+        fname_list.reverse()
+
+    for fname in fname_list:
+        # This initial value in the flag will make the for loop to choose the
+        # first format in the list when `check_if_exists` is turned off
+        flag_ionex_exists = True
+        # full path
+        if tec_dir is not None:
+            # local uncompressed file path
+            tec_file = os.path.join(tec_dir, fname[:fname.rfind('.')])
+            if check_if_exists:
+                flag_ionex_exists = os.path.exists(tec_file)
+        else:
+            # remote compressed file path
+            url_dir = "https://cddis.nasa.gov/archive/gnss/products/ionex"
+            tec_file = os.path.join(url_dir, str(dd.year), doy, fname)
+            if check_if_exists:
+                flag_ionex_exists = check_url(tec_file)
+
+        if flag_ionex_exists:
+            break
 
     return tec_file
 
@@ -355,10 +416,11 @@ def ionosphere_delay(utc_time, wavelength,
     los_iono_delay: np.ndarray
         Ionospheric delay in line of sight in meters
     '''
+    warning_channel = journal.warning('ionosphere_delay')
 
     if not tec_file:
-        print('"tec_file" was not provided. '
-              'Ionosphere correction will not be applied.')
+        warning_channel.log('"tec_file" was not provided. '
+                            'Ionosphere correction will not be applied.')
         return np.zeros(lon_arr.shape)
 
     if not os.path.exists(tec_file):

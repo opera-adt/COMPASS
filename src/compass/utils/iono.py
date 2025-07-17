@@ -216,7 +216,7 @@ def get_ionex_value(tec_file, utc_sec, lat, lon,
     return tec_val
 
 
-def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
+def download_ionex(date_str, tec_dir, sol_code='jpl', product_type='FINAL', date_fmt='%Y%m%d'):
     '''
     Download IGS vertical TEC files in IONEX format
 
@@ -228,6 +228,8 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
         Local directory where to save downloaded files
     sol_code: str
         IGS TEC analysis center code
+    product_code: str
+        Either 'FINAL' or 'RAPID'
     date_fmt: str
         Date format code
 
@@ -251,9 +253,10 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
 
     kwargs = {
         "sol_code": sol_code,
+        'product_type': product_type,
         "date_fmt": date_fmt,
         "is_new_filename_format": None,
-        "check_if_exists": False
+        "check_if_exists": True
         }
 
     # Iterate over both possible formats and break if file retrieved.
@@ -261,7 +264,8 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
         kwargs['is_new_filename_format'] = fname_fmt
 
         fname_src = get_ionex_filename(date_str, tec_dir=None, **kwargs)
-        fname_dst_uncomp = get_ionex_filename(date_str, tec_dir=tec_dir, **kwargs)
+        basename_dst_uncomp = os.path.basename(fname_src[:fname_src.rfind('.')])
+        fname_dst_uncomp = os.path.join(tec_dir, basename_dst_uncomp)
         ionex_zip_extension = fname_src[fname_src.rfind('.'):]
         fname_dst = fname_dst_uncomp + ionex_zip_extension
 
@@ -297,7 +301,7 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', date_fmt='%Y%m%d'):
     return fname_dst_uncomp
 
 
-def get_ionex_filename(date_str, tec_dir=None, sol_code='jpl',
+def get_ionex_filename(date_str, tec_dir=None, sol_code='jpl', product_type='FINAL',
                        date_fmt='%Y%m%d',
                        is_new_filename_format=True,
                        check_if_exists=False):
@@ -317,12 +321,14 @@ def get_ionex_filename(date_str, tec_dir=None, sol_code='jpl',
     sol_code: str
         GIM analysis center code in 3 alphabetic characters
         (values: cod, esa, igs, jpl, upc, uqr)
+    product_code: str
+        Either 'FINAL' or 'RAPID'
     date_fmt: str
         Date format string
     is_new_file_format: bool
         Flag whether not not to use the new IONEX TEC file format. Defaults to True
     check_if_exists: bool
-        Flag whether the IONEX file exists in the local directory or in the URL
+        Flag whether the IONEX file exists in the local directory or in the remote repository.
 
     Returns
     -------
@@ -339,6 +345,11 @@ def get_ionex_filename(date_str, tec_dir=None, sol_code='jpl',
     # Keep both the old- and new- formats of the file names
     fname_list = [f"{sol_code.lower()}g{doy}0.{yy}i.Z",
                   f'{sol_code.upper()}0OPSFIN_{yy_full}{doy}0000_01D_02H_GIM.INX.gz']
+
+    if product_type.upper() == 'RAPID':
+        rapid_sol_code_old = sol_code.lower()[:-1] + 'r'
+        fname_list[0] = fname_list[0].replace(sol_code.lower(), rapid_sol_code_old)
+        fname_list[1] = fname_list[1].replace('0OPSFIN', '0OPSRAP')
 
     # Decide which file name format to try first
     if is_new_filename_format:

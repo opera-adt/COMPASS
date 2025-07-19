@@ -216,7 +216,7 @@ def get_ionex_value(tec_file, utc_sec, lat, lon,
     return tec_val
 
 
-def download_ionex(date_str, tec_dir, sol_code='jpl', product_type='FINAL', date_fmt='%Y%m%d'):
+def download_ionex(date_str, tec_dir, sol_code='jpl', product_type='FINAL', interval='02H', date_fmt='%Y%m%d'):
     '''
     Download IGS vertical TEC files in IONEX format
 
@@ -255,6 +255,7 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', product_type='FINAL', date
         "sol_code": sol_code,
         'product_type': product_type,
         "date_fmt": date_fmt,
+        "intv": interval,
         "is_new_filename_format": None,
         "check_if_exists": True
         }
@@ -301,7 +302,7 @@ def download_ionex(date_str, tec_dir, sol_code='jpl', product_type='FINAL', date
     return fname_dst_uncomp
 
 
-def get_ionex_filename(date_str, tec_dir=None, sol_code='jpl', product_type='FINAL',
+def get_ionex_filename(date_str, tec_dir=None, sol_code='jpl', product_type='FINAL', intv='02H',
                        date_fmt='%Y%m%d',
                        is_new_filename_format=True,
                        check_if_exists=False):
@@ -344,7 +345,11 @@ def get_ionex_filename(date_str, tec_dir=None, sol_code='jpl', product_type='FIN
     # file name base
     # Keep both the old- and new- formats of the file names
     fname_list = [f"{sol_code.lower()}g{doy}0.{yy}i.Z",
-                  f'{sol_code.upper()}0OPSFIN_{yy_full}{doy}0000_01D_02H_GIM.INX.gz']
+                  f'{sol_code.upper()}0OPSFIN_{yy_full}{doy}0000_01D_{intv}_GIM.INX.gz']
+
+    # sol_code specific changes
+    if sol_code.lower() == 'gfz':
+        fname_list[1] = fname_list[1].replace('_GIM.INX.gz', '_ION.IOX.gz')
 
     if product_type.upper() == 'RAPID':
         rapid_sol_code_old = sol_code.lower()[:-1] + 'r'
@@ -375,7 +380,10 @@ def get_ionex_filename(date_str, tec_dir=None, sol_code='jpl', product_type='FIN
         if flag_ionex_exists:
             break
 
-    return tec_file
+    if flag_ionex_exists:
+        return tec_file
+    else:
+        return None
 
 
 def get_ionex_height(tec_file):

@@ -329,6 +329,7 @@ def get_ionex_filename(date_str, tec_dir=None, sol_code='jpl', product_type='FIN
     is_new_file_format: bool
         Flag whether not not to use the new IONEX TEC file format. Defaults to True
     check_if_exists: bool
+        Flag whether the IONEX file exists in the local directory or in the URL
         Flag whether the IONEX file exists in the local directory or in the remote repository.
 
     Returns

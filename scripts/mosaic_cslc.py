@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Merge all CSLC-S1 burst products in a directory into one mosaic + browse PNGs.
+"""Merge all CSLC-S1 burst products in a directory into one mosaic + browse PNGs.
 
 Each geocoded CSLC burst lives in its own ``.h5`` (``data/<pol>``) on a UTM grid.
 GDAL does not read the georeferencing from the product, so this rebuilds each
@@ -57,8 +56,7 @@ def burst_georef(h5: str, pol: str) -> tuple[int, list[float], int, int]:
 
 
 def build_mosaic(h5s: list[str], pol: str, out_tif: str) -> gdal.Dataset:  # pylint: disable=too-many-locals
-    """
-    Paint-over mosaic of the complex bursts into a georeferenced GeoTIFF.
+    """Paint-over mosaic of the complex bursts into a georeferenced GeoTIFF.
 
     Each geocoded burst is a slanted parallelogram of valid data inside an
     axis-aligned UTM box, so ~60% of the box is zero-fill, and adjacent bursts

@@ -40,3 +40,9 @@ repos:
         language: python
         additional_dependencies: ["bandit[toml]==1.9.4"]
         files: ^scripts/.*\.py$
+    -   id: pydocstyle
+        name: pydocstyle
+        entry: pydocstyle
+        language: python
+        additional_dependencies: ["pydocstyle[toml]==6.3.0"]
+        files: ^scripts/.*\.py$

@@ -66,3 +66,10 @@ max-statements = 70
 [tool.bandit]
 # Skip low-severity subprocess advisories on scripts that legitimately shell out.
 skips = ["B404", "B603", "B607"]
+
+[tool.pydocstyle]
+# Standard PEP 257 convention. It disables the mutually-exclusive D203/D211
+# (blank line before class docstring) and D212/D213 (summary line placement)
+# pairs -- enabling either side of a pair is unsatisfiable, so pick a convention
+# rather than fighting it. Docstrings use the first-line-summary style (D212).
+convention = "pep257"

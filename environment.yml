@@ -2,10 +2,12 @@ name: compass
 channels:
   - conda-forge
 dependencies:
-  - python>=3.12,<3.13 # isce3 0.24.4 / gdal 3.10 are built for py312 (docker specfile)
+  - python>=3.12 # isce3/gdal wheels are built for py312+ (see docker/specfile.txt)
   - numpy>=1.20
-  - gdal>=3.10 # to match isce3 0.24
-  - isce3=0.24.4=*cpu* # match docker pin (docker/specfile.txt); *cpu* avoids the CUDA build
+  - gdal>=3.10
+  # Docker pins the exact tested build isce3 0.24.4 (docker/specfile.txt is the
+  # locked artifact); float from that here so the dev env stays solvable.
+  - isce3>=0.24.4
   - libgdal-netcdf
   - libgdal-hdf5
   - pandas>=1.4

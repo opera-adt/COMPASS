@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Stage every input the CSLC-S1 SAS runconfig needs, into a local ``input_data`` dir.
+"""
+Stage every input the CSLC-S1 SAS runconfig needs, into a local ``input_data`` dir.
 
 Given one Sentinel-1 SLC granule name this fetches the five inputs referenced by
 ``runconfig_cslc_s1_*.yaml`` and writes matching runconfig(s):
@@ -34,6 +35,7 @@ Stage everything for one granule and write both runconfigs::
 Stage only the ionosphere file with the final (rather than rapid) solution::
 
     python stage_cslc_inputs.py iono <GRANULE> --product-type FINAL
+
 """
 
 from __future__ import annotations
@@ -77,7 +79,9 @@ _CHUNK = 8 * 1024 * 1024
 # Earthdata-authenticated HTTP session
 # --------------------------------------------------------------------------- #
 class _EarthdataSession(requests.Session):
-    """Session that (re)applies EDL Basic-Auth on every hop to Earthdata.
+
+    """
+    Session that (re)applies EDL Basic-Auth on every hop to Earthdata.
 
     ``requests`` does not carry the Authorization header across redirects, and
     the ASF datapool bounces through an intermediate host
@@ -190,7 +194,8 @@ def _list_orbits(session: requests.Session, kind: str) -> list[str]:
 def _match_orbit(
     names: list[str], mission: str, start: datetime.datetime, stop: datetime.datetime
 ) -> str | None:
-    """Return the best orbit filename whose validity window covers ``[start, stop]``.
+    """
+    Return the best orbit filename whose validity window covers ``[start, stop]``.
 
     A single POEORB spans a whole day, but RESORB files (the fallback for recent
     S1C/S1D acquisitions, where the precise orbit still lags) are issued every
@@ -220,13 +225,21 @@ def _match_orbit(
 def stage_orbit(
     granule: str, out_dir: Path, orbit_type: str = "auto", overwrite: bool = False
 ) -> Path:
-    """Resolve and download the orbit covering ``granule`` from the ASF aux archive.
+    """
+    Resolve and download the orbit covering ``granule`` from the ASF aux archive.
 
     Parameters
     ----------
+    granule :
+        Sentinel-1 SLC granule name whose sensing window the orbit must cover.
+    out_dir :
+        Directory the ``.EOF`` orbit file is downloaded into.
     orbit_type :
         ``"POEORB"`` (precise), ``"RESORB"`` (restituted), or ``"auto"`` (try
         precise, fall back to restituted for acquisitions too recent for POEORB).
+    overwrite :
+        Re-download even if the matched orbit file is already present.
+
     """
     mission, start, stop = parse_granule(granule)
     session = earthdata_session()
@@ -279,7 +292,8 @@ def stage_dem(
     bbox: tuple[float, float, float, float] | None = None,
     snap_deg: float | None = None,
 ) -> Path:
-    """Stitch an ellipsoidal Copernicus GLO-30 DEM covering the granule.
+    """
+    Stitch an ellipsoidal Copernicus GLO-30 DEM covering the granule.
 
     The DEM must cover more than the SLC footprint: isce3 ``geo2rdr`` searches a
     height range at the scene edges, and each burst's geogrid (from the burst
@@ -288,8 +302,16 @@ def stage_dem(
 
     Parameters
     ----------
+    granule :
+        Sentinel-1 SLC granule name whose footprint the DEM must cover.
+    out_dir :
+        Directory the stitched DEM GeoTIFF is written into.
     margin_deg :
         Padding added around the granule footprint, in degrees. Default 0.4.
+    dem_name :
+        Filename to save the stitched DEM under (default ``dem_4326.tiff``).
+    overwrite :
+        Re-stitch even if the DEM file is already present.
     bbox :
         Explicit ``(west, south, east, north)`` to stage instead of the
         footprint-derived box -- e.g. to match a golden dataset's DEM extent.
@@ -297,6 +319,7 @@ def stage_dem(
         If set, expand the (footprint+margin) box outward to a multiple of this
         many degrees (e.g. ``1.0`` snaps to whole-degree bounds, matching a DEM
         built on an integer-degree grid). Ignored when ``bbox`` is given.
+
     """
     import math
 
@@ -350,7 +373,8 @@ def stage_dem(
 def _ionex_candidates(
     date: datetime.date, sol_code: str, product_type: str, interval: str
 ) -> list[str]:
-    """Return candidate CDDIS IONEX archive names for a day, preferred first.
+    """
+    Return candidate CDDIS IONEX archive names for a day, preferred first.
 
     Covers both the legacy (``igrg1210.22i.Z``) and long IGS product
     (``IGS0OPSRAP_20221210000_01D_02H_GIM.INX.gz``) conventions.
@@ -374,7 +398,8 @@ def stage_iono(
     interval: str = "02H",
     overwrite: bool = False,
 ) -> Path:
-    """Download the daily IONEX TEC file for the granule date from NASA CDDIS.
+    """
+    Download the daily IONEX TEC file for the granule date from NASA CDDIS.
 
     Defaults to the Rapid IGS (IGR) solution used by the CSLC-S1-SAS.
     """
@@ -509,7 +534,8 @@ def _find(out_dir: Path, pattern: str, kind: str) -> str:
 
 
 def _ionex_date(name: str) -> datetime.date | None:
-    """Parse the acquisition date from an IONEX filename, or ``None``.
+    """
+    Parse the acquisition date from an IONEX filename, or ``None``.
 
     Handles the long product name (``IGS0OPSRAP_20221210000_01D_02H_GIM.INX``)
     and the legacy name (``igrg1210.22i``).
@@ -571,7 +597,8 @@ def write_runconfig(
     work_dir: Path | None = None,
     tag: str | None = None,
 ) -> list[Path]:
-    """Write runconfig(s) referencing the staged inputs in ``input_dir``.
+    """
+    Write runconfig(s) referencing the staged inputs in ``input_dir``.
 
     ``input_dir`` is expected to be a child of ``work_dir`` (the run directory),
     matching the delivery layout where paths are ``input_data/<file>``.

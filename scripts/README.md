@@ -20,16 +20,16 @@ dependency. It does not import `compass`, `s1reader`, `sentineleof`, or
 | Input | Source | Notes |
 |-------|--------|-------|
 | SLC SAFE zip | ASF DAAC HTTPS datapool | Earthdata Login |
-| Orbit (EOF) | ASF S1 aux archive | matched by validity window; POEORB, else RESORB |
-| DEM (ellipsoidal) | Copernicus GLO-30 via `dem_stitcher` | geoid → WGS84 ellipsoid |
-| Ionosphere (IONEX TEC) | NASA CDDIS | defaults to Rapid IGS (**IGR**), the SAS default |
+| Orbit (EOF) | ASF S1 aux archive | by validity window; POEORB else RESORB |
+| DEM (ellipsoidal) | Copernicus GLO-30 (`dem_stitcher`) | geoid → ellipsoid |
+| Ionosphere (TEC) | NASA CDDIS | Rapid IGS (**IGR**), the SAS default |
 | Burst database | OPERA `burst_db` release | public bbox-only SQLite |
 
 ## Credentials
 
 ASF and CDDIS use NASA Earthdata Login. Add it once to `~/.netrc`:
 
-```
+```text
 machine urs.earthdata.nasa.gov login <user> password <pass>
 ```
 
@@ -72,11 +72,13 @@ present is skipped unless you pass `--overwrite`.
 ### Individual steps
 
 ```bash
-python scripts/stage_cslc_inputs.py slc       <GRANULE>
-python scripts/stage_cslc_inputs.py orbit     <GRANULE> [--orbit-type POEORB|RESORB]
-python scripts/stage_cslc_inputs.py dem       <GRANULE> [--margin 0.4] [--bbox W S E N] [--snap 1.0]
-python scripts/stage_cslc_inputs.py iono      <GRANULE> [--product-type RAPID|FINAL] [--sol-code igs]
-python scripts/stage_cslc_inputs.py burst-db            [--source URL|PATH]
+python scripts/stage_cslc_inputs.py slc <GRANULE>
+python scripts/stage_cslc_inputs.py orbit <GRANULE> [--orbit-type POEORB|RESORB]
+python scripts/stage_cslc_inputs.py dem <GRANULE> \
+    [--margin 0.4] [--bbox W S E N] [--snap 1.0]
+python scripts/stage_cslc_inputs.py iono <GRANULE> \
+    [--product-type RAPID|FINAL] [--sol-code igs]
+python scripts/stage_cslc_inputs.py burst-db [--source URL|PATH]
 python scripts/stage_cslc_inputs.py runconfig <GRANULE> [--static] [--run-tag TAG]
 ```
 

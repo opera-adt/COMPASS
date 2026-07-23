@@ -1,7 +1,38 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
+#
+# One-time setup (installs the git hook so checks run automatically):
+#   pip install pre-commit pylint bandit
+#   pre-commit install                          # run on `git commit`
+#   pre-commit install --hook-type pre-push     # (optional) also run on `git push`
+#
+# Run manually against everything:  pre-commit run --all-files
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
     -   id: check-added-large-files
+    -   id: end-of-file-fixer
+    -   id: trailing-whitespace
+
+# Shellcheck for the *.sh helper scripts (self-contained binary, no deps needed).
+-   repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+    -   id: shellcheck
+
+# Pylint and Bandit run from the active environment so they see the project's
+# dependencies (osgeo, dem_stitcher, ...). Configuration lives in pyproject.toml.
+-   repo: local
+    hooks:
+    -   id: pylint
+        name: pylint
+        entry: pylint
+        language: system
+        types: [python]
+        require_serial: true
+    -   id: bandit
+        name: bandit
+        entry: bandit -c pyproject.toml
+        language: system
+        types: [python]

@@ -28,7 +28,7 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
     Parameters
     ----------
     burst: Sentinel1BurstSlc
-        Sentinel-1 A/B burst SLC object
+        Sentinel-1 burst SLC object
     dem_path: str
         Path to the DEM file
     tec_path: str
@@ -129,7 +129,7 @@ def compute_geocoding_correction_luts(burst, dem_path, tec_path,
     Parameters
     ----------
     burst: Sentinel1BurstSlc
-        S1-A/B burst object
+        Sentinel-1 burst object
     dem_path: str
         Path to the DEM required for azimuth FM rate mismatch.
     tec_path: str
@@ -285,7 +285,7 @@ def solid_earth_tides(burst, lat_radar_grid, lon_radar_grid, hgt_radar_grid,
     Parameters
     ---------
     burst: Sentinel1Slc
-        S1-A/B burst object
+        Sentinel-1 burst object
     lat_radar_grid: np.ndarray
         Latitude array on burst radargrid
     lon_radar_grid: np.ndarray
@@ -361,7 +361,7 @@ def compute_rdr2geo_rasters(burst, dem_raster, output_path,
     Parameters
     ----------
     burst: Sentinel1Slc
-        S1-A/B burst object
+        Sentinel-1 burst object
     dem_raster: isce3.io.Raster
         ISCE3 object including DEM raster
     output_path: str

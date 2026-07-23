@@ -1,7 +1,48 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
+#
+# Runs on pull requests via pre-commit.ci. To run locally too:
+#   pip install pre-commit
+#   pre-commit install                          # run on `git commit`
+#   pre-commit run --all-files                  # run manually against everything
+#
+# All hooks below install their own tools (pre-commit manages the environments),
+# so no linter needs to be pre-installed -- this is what lets pre-commit.ci run
+# them. Pylint/Bandit config lives in pyproject.toml. Pylint and Bandit are
+# scoped to scripts/ (the standalone helper scripts); the rest of the tree is
+# covered by Codacy.
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
     -   id: check-added-large-files
+
+# Shellcheck for the *.sh helper scripts (self-contained binary).
+-   repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+    -   id: shellcheck
+
+-   repo: local
+    hooks:
+    -   id: pylint
+        name: pylint
+        entry: pylint
+        language: python
+        # requests is subclassed (_EarthdataSession); give pylint the real base
+        # class so it recognises the overrides instead of flagging them.
+        additional_dependencies: ["pylint==4.0.6", "requests"]
+        files: ^scripts/.*\.py$
+        require_serial: true
+    -   id: bandit
+        name: bandit
+        entry: bandit -c pyproject.toml
+        language: python
+        additional_dependencies: ["bandit[toml]==1.9.4"]
+        files: ^scripts/.*\.py$
+    -   id: pydocstyle
+        name: pydocstyle
+        entry: pydocstyle
+        language: python
+        additional_dependencies: ["pydocstyle[toml]==6.3.0"]
+        files: ^scripts/.*\.py$

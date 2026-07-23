@@ -33,3 +33,43 @@ Homepage = "https://github.com/opera-adt/compass"
 # extra requirements: `pip install compass[docs]` or `pip install .[docs]`
 [tool.setuptools.dynamic.optional-dependencies.docs]
 file = ["docs/requirements.txt"]
+
+# --------------------------------------------------------------------------- #
+# Lint configuration (mirrors the checks Codacy runs on pull requests).
+# Run locally before pushing with:  pre-commit run --all-files
+# --------------------------------------------------------------------------- #
+[tool.pylint.main]
+py-version = "3.8"
+
+[tool.pylint.messages_control]
+disable = [
+    "import-error",            # optional/heavy deps (osgeo, dem_stitcher) not always in the lint env
+    "import-outside-toplevel", # deliberate lazy imports of optional/heavy deps
+    "missing-module-docstring",
+    "duplicate-code",
+    "fixme",
+]
+
+[tool.pylint.format]
+max-line-length = 100
+
+[tool.pylint.basic]
+# Allow short names common in scientific/array code (x, y, dx, f, p, ...).
+good-names = ["i", "j", "k", "n", "x", "y", "z", "dx", "dy", "nx", "ny", "f", "p", "ex", "_"]
+
+[tool.pylint.design]
+max-args = 10
+max-positional-arguments = 10
+max-locals = 25
+max-statements = 70
+
+[tool.bandit]
+# Skip low-severity subprocess advisories on scripts that legitimately shell out.
+skips = ["B404", "B603", "B607"]
+
+[tool.pydocstyle]
+# Standard PEP 257 convention. It disables the mutually-exclusive D203/D211
+# (blank line before class docstring) and D212/D213 (summary line placement)
+# pairs -- enabling either side of a pair is unsatisfiable, so pick a convention
+# rather than fighting it. Docstrings use the first-line-summary style (D212).
+convention = "pep257"

@@ -1,0 +1,13 @@
+# Prospector configuration (honored by Codacy when "Use configuration files"
+# is enabled for the repository).
+#
+# pydocstyle ships mutually-exclusive checks: D212/D213 (multi-line summary on
+# the first vs. second line) and D203/D211 (blank line before a class docstring
+# or not). Enabling either side of a pair is unsatisfiable, so disable the pairs
+# and keep the first-line-summary / no-blank style used across the codebase.
+pydocstyle:
+  disable:
+    - D203
+    - D211
+    - D212
+    - D213

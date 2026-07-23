@@ -501,44 +501,59 @@ runconfig:
 
 
 def _find(out_dir: Path, pattern: str, kind: str) -> str:
-    """Return the single ``input_dir``-relative match for ``pattern``."""
+    """Return the first ``input_dir``-relative match for ``pattern``."""
     matches = sorted(out_dir.glob(pattern))
     if not matches:
         sys.exit(f"Cannot write runconfig: no {kind} found ({pattern}). Stage it first.")
     return f"{out_dir.name}/{matches[0].name}"
 
 
-def write_runconfig(
-    granule: str,
-    input_dir: Path,
-    static: bool = False,
-    work_dir: Path | None = None,
-    tag: str | None = None,
-) -> Path:
-    """Write a runconfig referencing the staged inputs in ``input_dir``.
+def _ionex_date(name: str) -> datetime.date | None:
+    """Parse the acquisition date from an IONEX filename, or ``None``.
 
-    ``input_dir`` is expected to be a child of ``work_dir`` (the run directory),
-    matching the delivery layout where paths are ``input_data/<file>``.
-
-    Parameters
-    ----------
-    tag :
-        When several granules are staged under one run directory (each in its
-        own ``input_dir``), pass a distinct tag so the runconfig filename and
-        the product/scratch paths do not collide: ``runconfig_<tag>.yaml`` with
-        ``output_<tag>`` / ``scratch_<tag>``. Defaults to the delivery names
-        (``runconfig_cslc_s1.yaml``, ``output_s1_cslc``).
+    Handles the long product name (``IGS0OPSRAP_20221210000_01D_02H_GIM.INX``)
+    and the legacy name (``igrg1210.22i``).
     """
-    work_dir = work_dir or input_dir.parent
+    m = re.search(r"_(\d{4})(\d{3})\d{4}_", name)  # long: _YYYYDOY0000_
+    if m:
+        year, doy = int(m.group(1)), int(m.group(2))
+        return datetime.date(year, 1, 1) + datetime.timedelta(days=doy - 1)
+    m = re.search(r"(\d{3})0\.(\d{2})[iI]$", name)  # legacy: DOY0.YYi
+    if m:
+        doy, yy = int(m.group(1)), int(m.group(2))
+        return datetime.date(2000 + yy, 1, 1) + datetime.timedelta(days=doy - 1)
+    return None
+
+
+def _match_tec(input_dir: Path, date: datetime.date) -> str | None:
+    """Return the ``input_dir``-relative staged IONEX file for ``date``, if any."""
+    for p in sorted(input_dir.iterdir()):
+        if _ionex_date(p.name) == date:
+            return f"{input_dir.name}/{p.name}"
+    return None
+
+
+def _emit_runconfig(
+    work_dir: Path,
+    static: bool,
+    *,
+    safe: str,
+    orbit: str,
+    dem: str,
+    tec: str,
+    burst_db: str,
+    tag: str | None,
+) -> Path:
+    """Render one runconfig from already-resolved input-relative paths."""
     suffix = "_static" if static else ""
     rc_base = tag or "cslc_s1"
     prod_base = tag or "s1_cslc"
     text = _RUNCONFIG_TEMPLATE.format(
-        safe=_find(input_dir, "S1*_SLC*.zip", "SLC"),
-        orbit=_find(input_dir, "S1*_AUX_*ORB_*.EOF", "orbit"),
-        dem=_find(input_dir, "dem_*.tif*", "DEM"),
-        tec=_find_tec(input_dir),
-        burst_db=_find(input_dir, "*bbox-only.sqlite*", "burst database"),
+        safe=safe,
+        orbit=orbit,
+        dem=dem,
+        tec=tec,
+        burst_db=burst_db,
         product_path=f"output_{prod_base}{suffix}",
         scratch_path=f"scratch_{prod_base}{suffix}",
         spec_version="0.1.2" if static else "0.1.7",
@@ -548,6 +563,90 @@ def write_runconfig(
     dest.write_text(text)
     print(f"  runconfig -> {dest}")
     return dest
+
+
+def write_runconfig(
+    input_dir: Path,
+    static: bool = False,
+    work_dir: Path | None = None,
+    tag: str | None = None,
+) -> list[Path]:
+    """Write runconfig(s) referencing the staged inputs in ``input_dir``.
+
+    ``input_dir`` is expected to be a child of ``work_dir`` (the run directory),
+    matching the delivery layout where paths are ``input_data/<file>``.
+
+    The runconfig references exactly one SAFE, so the behaviour depends on how
+    many SLCs are staged in ``input_dir``:
+
+    * **one SAFE** -- a single runconfig, using the first staged orbit/TEC and
+      the caller's ``tag`` (default names ``runconfig_cslc_s1.yaml`` /
+      ``output_s1_cslc``).
+    * **several SAFEs** (a stack staged together) -- one runconfig *per* SAFE,
+      each matched to its own orbit (by validity window) and TEC (by date), and
+      tagged by acquisition date (``<tag>_``-prefixed if ``tag`` is given) so the
+      ``runconfig_<...>.yaml`` / ``output_<...>`` / ``scratch_<...>`` names do
+      not collide. DEM and burst-db are shared across all of them.
+    """
+    work_dir = work_dir or input_dir.parent
+    safes = sorted(input_dir.glob("S1*_SLC*.zip"))
+    if not safes:
+        sys.exit("Cannot write runconfig: no SLC found (S1*_SLC*.zip). Stage it first.")
+
+    dem = _find(input_dir, "dem_*.tif*", "DEM")
+    burst_db = _find(input_dir, "*bbox-only.sqlite*", "burst database")
+
+    # Single SAFE: one runconfig, first staged orbit/TEC, caller's tag.
+    if len(safes) == 1:
+        return [
+            _emit_runconfig(
+                work_dir,
+                static,
+                safe=f"{input_dir.name}/{safes[0].name}",
+                orbit=_find(input_dir, "S1*_AUX_*ORB_*.EOF", "orbit"),
+                dem=dem,
+                tec=_find_tec(input_dir),
+                burst_db=burst_db,
+                tag=tag,
+            )
+        ]
+
+    # Several SAFEs staged together: one runconfig per SAFE, each matched to its
+    # own orbit and TEC. DEM/burst-db are area-independent and shared.
+    orbit_names = [p.name for p in sorted(input_dir.glob("S1*_AUX_*ORB_*.EOF"))]
+    dests: list[Path] = []
+    used: set[str] = set()
+    for safe in safes:
+        mission, start, stop = parse_granule(safe.name)
+        orbit = _match_orbit(orbit_names, mission, start, stop)
+        if orbit is None:
+            sys.exit(f"Cannot write runconfig: no staged orbit covers {safe.name}")
+        tec = _match_tec(input_dir, start.date())
+        if tec is None:
+            sys.exit(
+                f"Cannot write runconfig: no staged TEC for {start.date()} "
+                f"({safe.name})"
+            )
+        # Date tag keeps a time series distinct; fall back to the full timestamp
+        # if two frames share a date.
+        date_tag = start.strftime("%Y%m%d")
+        if date_tag in used:
+            date_tag = start.strftime("%Y%m%dT%H%M%S")
+        used.add(date_tag)
+        safe_tag = f"{tag}_{date_tag}" if tag else date_tag
+        dests.append(
+            _emit_runconfig(
+                work_dir,
+                static,
+                safe=f"{input_dir.name}/{safe.name}",
+                orbit=f"{input_dir.name}/{orbit}",
+                dem=dem,
+                tec=tec,
+                burst_db=burst_db,
+                tag=safe_tag,
+            )
+        )
+    return dests
 
 
 def _find_tec(input_dir: Path) -> str:
@@ -578,6 +677,7 @@ def _add_common(parser: argparse.ArgumentParser, granule: bool = True) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
+    """Parse CLI arguments and dispatch the requested staging command."""
     parser = argparse.ArgumentParser(
         prog="stage_cslc_inputs.py",
         description=__doc__,
@@ -688,9 +788,9 @@ def main(argv: list[str] | None = None) -> None:
     elif args.cmd == "burst-db":
         stage_burst_db(out, args.source, args.overwrite)
     elif args.cmd == "runconfig":
-        write_runconfig(args.granule, out, static=False, tag=args.run_tag)
+        write_runconfig(out, static=False, tag=args.run_tag)
         if args.static:
-            write_runconfig(args.granule, out, static=True, tag=args.run_tag)
+            write_runconfig(out, static=True, tag=args.run_tag)
     elif args.cmd == "all":
         print("[1/6] SLC")
         stage_slc(args.granule, out, args.overwrite)
@@ -706,8 +806,8 @@ def main(argv: list[str] | None = None) -> None:
         print("[5/6] burst database")
         stage_burst_db(out, args.burst_db_source, args.overwrite)
         print("[6/6] runconfigs")
-        write_runconfig(args.granule, out, static=False, tag=args.run_tag)
-        write_runconfig(args.granule, out, static=True, tag=args.run_tag)
+        write_runconfig(out, static=False, tag=args.run_tag)
+        write_runconfig(out, static=True, tag=args.run_tag)
         print("Done. All inputs staged under", out)
 
 

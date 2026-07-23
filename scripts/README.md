@@ -46,6 +46,29 @@ python scripts/stage_cslc_inputs.py all \
 
 Run from the directory where you want `input_data/` and the runconfigs created.
 
+### Downloading the SLC (SAFE)
+
+Fetch just the SLC SAFE zip for a granule (Earthdata Login required):
+
+```bash
+python scripts/stage_cslc_inputs.py slc \
+    S1A_IW_SLC__1SDV_20220501T015035_20220501T015102_043011_0522A4_42CC
+```
+
+This streams the full `<GRANULE>.zip` from ASF's HTTPS datapool
+(`https://datapool.asf.alaska.edu/SLC/S{A,C,D}/<GRANULE>.zip`) into the
+`-i/--input-dir` (default `input_data/`). The mission letter (`A`/`C`/`D`) is
+taken from the granule name, so S1A/S1C/S1D are all supported. A granule already
+present is skipped unless you pass `--overwrite`.
+
+> **One runconfig per SAFE.** A runconfig references exactly one SLC. With a
+> single `S1*_SLC*.zip` staged you get one runconfig (default names
+> `runconfig_cslc_s1.yaml` / `output_s1_cslc`). Stage several SAFEs of a stack
+> into the same directory and `runconfig`/`all` writes **one runconfig per
+> SAFE**, matching each to its own orbit (by validity window) and TEC (by date)
+> and tagging it by acquisition date (`runconfig_20220501.yaml` /
+> `output_20220501`, …). DEM and burst-db are shared across all of them.
+
 ### Individual steps
 
 ```bash
@@ -68,12 +91,14 @@ searches a height range at the edges, and each burst's geogrid is padded), so
 `--margin` defaults to 0.4 deg. Increase it to match a golden delivery's extent
 (e.g. `--margin 1.7`), or set an explicit `--bbox W S E N`.
 
-**Sharing DEM / burst-db across granules.** These two inputs are area- and
-mission-independent, so one copy can serve several granules over the same area.
-Stage each granule's SLC/orbit/TEC into its own `-i input_data_<tag>` dir (with
-`--run-tag <tag>` for distinct runconfig + `output_<tag>` paths), keep one
-`dem_4326.tiff` and one burst-db in a shared `input_data/`, and point the
-`dem_file` / `burst_database_file` lines there.
+**Staging a stack (several granules, one area).** DEM and burst-db are area- and
+mission-independent, so one copy serves every granule over the same area. Stage
+each date's SLC/orbit/TEC into a single shared `input_data/` (repeat the `slc` /
+`orbit` / `iono` steps per granule, or run `all` once per granule into the same
+`-i` dir), then run `runconfig` once: it emits one runconfig per SAFE, each
+matched to its own orbit/TEC and tagged by date, all pointing at the shared
+`dem_4326.tiff` and burst-db. To keep granules fully separate instead, stage
+each into its own `-i input_data_<tag>` dir with `--run-tag <tag>`.
 
 ## run_cslc.sh
 

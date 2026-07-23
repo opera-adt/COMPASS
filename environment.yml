@@ -2,10 +2,10 @@ name: compass
 channels:
   - conda-forge
 dependencies:
-  - python>=3.8
+  - python>=3.12,<3.13 # isce3 0.24.4 / gdal 3.10 are built for py312 (docker specfile)
   - numpy>=1.20
-  - gdal>=3.3
-  - isce3
+  - gdal>=3.10 # to match isce3 0.24
+  - isce3=0.24.4=*cpu* # match docker pin (docker/specfile.txt); *cpu* avoids the CUDA build
   - libgdal-netcdf
   - libgdal-hdf5
   - pandas>=1.4
@@ -29,3 +29,7 @@ dependencies:
   - rasterio
   - dem_stitcher
   - gxx_linux-64>=9,<10
+# OPERA s1-reader (>=0.2.6 required for Sentinel-1C/1D support); matches docker pin
+  - pip
+  - pip:
+    - "s1reader @ https://github.com/opera-adt/s1-reader/archive/refs/tags/v0.2.6.tar.gz"

@@ -586,7 +586,7 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
              'Slant range bandwidth of the signal', {'units':'Hertz'}),
         Meta('polarization', burst.polarization, 'Polarization of the burst'),
         Meta('platform_id', burst.platform_id,
-             'Sensor platform identification string (e.g., S1A or S1B)'),
+             'Sensor platform identification string (e.g., S1A, S1B, S1C, or S1D)'),
         Meta('center', [xy[0] for xy in burst.center.coords.xy],
              'Longitude, latitude center of burst', {'units':'degrees'}),
         # window parameters

@@ -22,7 +22,7 @@ DEFAULT_BURST_DB_FILE = os.path.abspath("/u/aurora-r0/staniewi/dev/burst_map_bbo
 
 def create_parser():
     parser = argparse.ArgumentParser(
-        description='S1-A/B geocoded CSLC stack processor.',
+        description='Sentinel-1 geocoded CSLC stack processor.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     # Separate the required options from the optional ones
     # https://stackoverflow.com/a/41747010/
@@ -30,7 +30,7 @@ def create_parser():
     required = parser.add_argument_group('required arguments')
     optional = parser.add_argument_group('optional arguments')
     required.add_argument('-s', '--slc-dir', required=True,
-                          help='Directory containing the S1-A/B SLCs (zip files)')
+                          help='Directory containing the Sentinel-1 SLCs (zip files)')
     required.add_argument('-d', '--dem-file', required=True,
                           help='File path to a GDAL-readable DEM to use for processing.')
     optional.add_argument('-o', '--orbit-dir', default=None,
@@ -82,7 +82,7 @@ def generate_burst_map(zip_files, orbit_dir, output_epsg=None, bbox=None,
     Parameters
     ----------
     zip_files: str
-        List of S1-A/B SAFE (zip) files
+        List of Sentinel-1 SAFE (zip) files
     orbit_dir: str
         Directory containing sensor orbit ephemerides
     output_epsg: int
@@ -345,12 +345,12 @@ def run(slc_dir, dem_file, burst_id=None, common_bursts_only=False, start_date=N
         output_epsg=None, burst_db_file=DEFAULT_BURST_DB_FILE, flatten=True,
         enable_corrections=True, using_zipped=True):
     """Create runconfigs and runfiles generating geocoded bursts for a static
-    stack of Sentinel-1 A/B SAFE files.
+    stack of Sentinel-1 SAFE files.
 
     Parameters
     ----------
     slc_dir: str
-        Directory containing S1-A/B SAFE files
+        Directory containing Sentinel-1 SAFE files
     dem_file: str
         File path to DEM to use for processing
     burst_id: Optional[list]

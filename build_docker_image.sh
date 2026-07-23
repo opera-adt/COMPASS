@@ -2,7 +2,7 @@
 
 REPO=opera
 IMAGE=cslc_s1
-TAG=final_0.5.6
+TAG=final_0.5.7
 
 docker_build_args=(--rm --force-rm --network host -t $REPO/$IMAGE:$TAG -f docker/Dockerfile)
 

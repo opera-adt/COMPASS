@@ -1,38 +1,42 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
 #
-# One-time setup (installs the git hook so checks run automatically):
-#   pip install pre-commit pylint bandit
+# Runs on pull requests via pre-commit.ci. To run locally too:
+#   pip install pre-commit
 #   pre-commit install                          # run on `git commit`
-#   pre-commit install --hook-type pre-push     # (optional) also run on `git push`
+#   pre-commit run --all-files                  # run manually against everything
 #
-# Run manually against everything:  pre-commit run --all-files
+# All hooks below install their own tools (pre-commit manages the environments),
+# so no linter needs to be pre-installed -- this is what lets pre-commit.ci run
+# them. Pylint/Bandit config lives in pyproject.toml. Pylint and Bandit are
+# scoped to scripts/ (the standalone helper scripts); the rest of the tree is
+# covered by Codacy.
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
     -   id: check-added-large-files
-    -   id: end-of-file-fixer
-    -   id: trailing-whitespace
 
-# Shellcheck for the *.sh helper scripts (self-contained binary, no deps needed).
+# Shellcheck for the *.sh helper scripts (self-contained binary).
 -   repo: https://github.com/shellcheck-py/shellcheck-py
     rev: v0.11.0.1
     hooks:
     -   id: shellcheck
 
-# Pylint and Bandit run from the active environment so they see the project's
-# dependencies (osgeo, dem_stitcher, ...). Configuration lives in pyproject.toml.
 -   repo: local
     hooks:
     -   id: pylint
         name: pylint
         entry: pylint
-        language: system
-        types: [python]
+        language: python
+        # requests is subclassed (_EarthdataSession); give pylint the real base
+        # class so it recognises the overrides instead of flagging them.
+        additional_dependencies: ["pylint==4.0.6", "requests"]
+        files: ^scripts/.*\.py$
         require_serial: true
     -   id: bandit
         name: bandit
         entry: bandit -c pyproject.toml
-        language: system
-        types: [python]
+        language: python
+        additional_dependencies: ["bandit[toml]==1.9.4"]
+        files: ^scripts/.*\.py$

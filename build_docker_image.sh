@@ -4,13 +4,13 @@ REPO=opera
 IMAGE=cslc_s1
 TAG=final_0.5.7
 
-docker_build_args=(--rm --force-rm --network host -t $REPO/$IMAGE:$TAG -f docker/Dockerfile)
+docker_build_args=(--rm --force-rm --network host -t "$REPO/$IMAGE:$TAG" -f docker/Dockerfile)
 
 if [ $# -eq 0 ]; then
     echo "Base image was not specified. Using the default image specified in the Dockerfile."
 else
     echo "Using $1 as the base image."
-    docker_build_args+=(--build-arg BASE_IMAGE=$1)
+    docker_build_args+=(--build-arg "BASE_IMAGE=$1")
 fi
 
 echo "IMAGE is $REPO/$IMAGE:$TAG"

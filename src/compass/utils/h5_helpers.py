@@ -14,6 +14,7 @@ from s1reader.s1_burst_slc import Sentinel1BurstSlc
 import shapely
 
 import compass
+from compass.utils.fill_value import determine_fill_value
 
 
 TIME_STR_FMT = '%Y-%m-%d %H:%M:%S.%f'
@@ -78,22 +79,26 @@ def add_dataset_and_attrs(group, meta_item):
         val_ds.attrs[key] = _as_np_string_if_needed(val)
 
 
-def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
-                          description, data=None, output_cfg=None):
+def init_geocoded_dataset(data_group, dataset_name, geo_grid, dtype,
+                          description, data=None, output_cfg=None,
+                          fill_val=None):
     '''
     Create and allocate dataset for isce.geocode.geocode_slc to write to that
-    is CF-compliant
+    is CF-compliant. If data parameter not provided, then an appropriate fill
+    value is found and used to fill dataset.
 
     Parameters
     ----------
-    grid_group: h5py.Group
+    data_group: h5py.Group
         h5py group where geocoded dataset will be created in
     dataset_name: str
         Name of dataset to be created
     geo_grid: isce3.product.GeoGridParameters
         Geogrid of output
-    dtype: str
-        Data type of dataset to be geocoded
+    dtype: Union(str, type)
+        Data type of dataset to be geocoded to be passed to require_dataset.
+        require_dataset can take string values e.g. "float32" or types e.g.
+        numpy.float32
     description: str
         Description of dataset to be geocoded
     data: np.ndarray
@@ -101,6 +106,8 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
     output_cfg: dict
         Optional dict containing output options in runconfig to apply to
         created datasets
+    fill_val: float
+        Optional value to fill an empty dataset
 
     Returns
     -------
@@ -119,15 +126,28 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
         output_kwargs['compression_opts'] = output_cfg.compression_level
         output_kwargs['shuffle'] = output_cfg.shuffle
 
+    # Shape of dataset is defined by the geo grid
     shape = (geo_grid.length, geo_grid.width)
+
+    # Determine fill value of dataset to either correctly init empty dataset
+    # and/or populate dataset attribute
+    _fill_val = determine_fill_value(dtype, fill_val)
+
+    # If data is None, create dataset to specified parameters and fill with
+    # specified fill value. If data is not None, create a dataset with
+    # provided data.
     if data is None:
-        cslc_ds = grid_group.require_dataset(dataset_name, dtype=dtype,
-                                             shape=shape, **output_kwargs)
+        # Create a dataset with shape and a fill value from above
+        cslc_ds = data_group.require_dataset(dataset_name, dtype=dtype,
+                                             shape=shape, fillvalue=_fill_val,
+                                             **output_kwargs)
     else:
-        cslc_ds = grid_group.create_dataset(dataset_name, data=data,
+        # Create a dataset with provided data
+        cslc_ds = data_group.create_dataset(dataset_name, data=data,
                                             **output_kwargs)
 
     cslc_ds.attrs['description'] = description
+    cslc_ds.attrs['fill_value'] = _fill_val
 
     # Compute x scale
     dx = geo_grid.spacing_x
@@ -143,9 +163,9 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
 
     # following copied and pasted (and slightly modified) from:
     # https://github-fn.jpl.nasa.gov/isce-3/isce/wiki/CF-Conventions-and-Map-Projections
-    x_ds = grid_group.require_dataset('x_coordinates', dtype='float64',
+    x_ds = data_group.require_dataset('x_coordinates', dtype='float64',
                                       data=x_vect, shape=x_vect.shape)
-    y_ds = grid_group.require_dataset('y_coordinates', dtype='float64',
+    y_ds = data_group.require_dataset('y_coordinates', dtype='float64',
                                       data=y_vect, shape=y_vect.shape)
 
     # Mapping of dimension scales to datasets is not done automatically in HDF5
@@ -159,6 +179,7 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
     # Associate grid mapping with data - projection created later
     cslc_ds.attrs['grid_mapping'] = np.string_("projection")
 
+    # Build list of metadata to be inserted to accompany dataset
     grid_meta_items = [
         Meta('x_spacing', geo_grid.spacing_x,
              'Spacing of the geographical grid along X-direction',
@@ -168,14 +189,14 @@ def init_geocoded_dataset(grid_group, dataset_name, geo_grid, dtype,
              {'units': 'meters'})
     ]
     for meta_item in grid_meta_items:
-        add_dataset_and_attrs(grid_group, meta_item)
+        add_dataset_and_attrs(data_group, meta_item)
 
     # Set up osr for wkt
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(geo_grid.epsg)
 
     #Create a new single int dataset for projections
-    projection_ds = grid_group.require_dataset('projection', (), dtype='i')
+    projection_ds = data_group.require_dataset('projection', (), dtype='i')
     projection_ds[()] = geo_grid.epsg
 
     # Add description as an attribute to projection

@@ -130,7 +130,7 @@ def run(cfg: GeoRunConfig):
             ctype = h5py.h5t.py_create(np.complex64)
             ctype.commit(geo_burst_h5['/'].id, np.string_('complex64'))
 
-            grid_group = geo_burst_h5.require_group(DATA_PATH)
+            data_group = geo_burst_h5.require_group(DATA_PATH)
             check_eap = is_eap_correction_necessary(burst.ipf_version)
 
             # Initialize source/radar and destination/geo dataset into lists
@@ -168,7 +168,7 @@ def run(cfg: GeoRunConfig):
                 rdr_data_blks.append(rdr_dataset.ReadAsArray())
 
                 # Prepare output dataset of current polarization in HDF5
-                geo_ds = init_geocoded_dataset(grid_group, pol, geo_grid,
+                geo_ds = init_geocoded_dataset(data_group, pol, geo_grid,
                                                'complex64',
                                                f'{pol} geocoded CSLC image',
                                                output_cfg=cfg.output_params)
@@ -193,7 +193,7 @@ def run(cfg: GeoRunConfig):
             ((carrier_phase_data_blk, carrier_phase_ds),
              (flatten_phase_data_blk, flatten_phase_ds)) = \
             [(np.full(out_shape, np.nan).astype(np.float64),
-                  init_geocoded_dataset(grid_group, ds_name, geo_grid,
+                  init_geocoded_dataset(data_group, ds_name, geo_grid,
                                         np.float64, ds_desc,
                                         output_cfg=cfg.output_params))
                  for ds_name, ds_desc in zip(phase_names, phase_descrs)]

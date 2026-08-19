@@ -7,8 +7,10 @@ Given one Sentinel-1 SLC granule name this fetches the five inputs referenced by
 1. SLC SAFE zip          -- ASF DAAC HTTPS datapool (Earthdata Login).
 2. Precise orbit (EOF)   -- ASF S1 aux archive, matched by validity window
                             (POEORB, falling back to RESORB for recent dates).
-3. DEM (ellipsoidal)     -- Copernicus GLO-30 stitched for the granule footprint
-                            with ``dem_stitcher`` (geoid -> ellipsoid corrected).
+3. DEM (ellipsoidal)     -- OPERA DEM v1.1, windowed directly from S3 (the exact
+                            DEM the CSLC-S1 PGE geocodes against). Falls back to
+                            a Copernicus GLO-30 stitch (``dem_stitcher``) with
+                            ``--dem-source glo30``.
 4. Ionosphere (IONEX TEC)-- NASA CDDIS GNSS IONEX; defaults to the Rapid IGS
                             (IGR) solution the CSLC-S1-SAS uses.
 5. Burst database        -- OPERA bbox-only SQLite (public burst_db release).
@@ -23,6 +25,13 @@ Credentials
 ASF and CDDIS use NASA Earthdata Login. Provide it once in ``~/.netrc``::
 
     machine urs.earthdata.nasa.gov login <user> password <pass>
+
+The default DEM source (``opera``) reads ``s3://opera-dem`` and needs AWS
+credentials with read access to that bucket, e.g.::
+
+    export AWS_PROFILE=saml-pub
+
+``--dem-source glo30`` needs no AWS credentials.
 
 Examples
 --------
@@ -67,6 +76,18 @@ DEFAULT_BURST_DB_URL = (
     "https://github.com/opera-adt/burst_db/releases/download/"
     "v0.10.0/opera-burst-bbox-only.sqlite3"
 )
+
+# The exact DEM the CSLC-S1 PGE geocodes against: a uniform 1 arcsec global
+# VRT (the same file the PGE's own stage_dem.py opens), ellipsoidal heights
+# already applied. Reproducing an archived OPERA product needs *this* DEM: an
+# independently stitched GLO-30 differs by ~1.4 cm in the geoid conversion,
+# enough C-band phase error (once flattening removes topography) to break
+# agreement. Take the **v1.1** VRT -- the bucket also carries an older
+# bucket-root mosaic (``EPSG4326/EPSG4326.vrt``) whose tile seams are off by
+# one column (up to ~23 m), and the native 1-degree tiles behind either VRT
+# are at raw Copernicus spacing (1.5-2 arcsec above 50N), neither of which the
+# PGE actually uses. Needs AWS credentials with ``s3://opera-dem`` read access.
+OPERA_DEM_VRT = "s3://opera-dem/v1.1/EPSG4326/EPSG4326.vrt"
 
 # CDDIS switched to the long IGS product names on this date.
 _NEW_IONEX_NAME_FROM = datetime.date(2023, 10, 18)
@@ -278,67 +299,55 @@ def _footprint_bbox(granule: str) -> tuple[float, float, float, float]:
     return (minx, miny, maxx, maxy)
 
 
-def stage_dem(
-    granule: str,
-    out_dir: Path,
-    margin_deg: float = 0.4,
-    dem_name: str = "dem_4326.tiff",
-    overwrite: bool = False,
-    bbox: tuple[float, float, float, float] | None = None,
-    snap_deg: float | None = None,
-) -> Path:
-    """Stitch an ellipsoidal Copernicus GLO-30 DEM covering the granule.
+def _stage_dem_opera(aoi: list[float], dest: Path) -> None:
+    """Window the OPERA DEM v1.1 global VRT (:data:`OPERA_DEM_VRT`) over ``aoi``.
 
-    The DEM must cover more than the SLC footprint: isce3 ``geo2rdr`` searches a
-    height range at the scene edges, and each burst's geogrid (from the burst
-    database) is padded, so a tight crop makes edge bursts warn ("limit may be
-    insufficient") and can leave nodata. Hence a generous default ``margin_deg``.
-
-    Parameters
-    ----------
-    granule :
-        Sentinel-1 SLC granule name whose footprint the DEM must cover.
-    out_dir :
-        Directory the stitched DEM GeoTIFF is written into.
-    margin_deg :
-        Padding added around the granule footprint, in degrees. Default 0.4.
-    dem_name :
-        Filename to save the stitched DEM under (default ``dem_4326.tiff``).
-    overwrite :
-        Re-stitch even if the DEM file is already present.
-    bbox :
-        Explicit ``(west, south, east, north)`` to stage instead of the
-        footprint-derived box -- e.g. to match a golden dataset's DEM extent.
-    snap_deg :
-        If set, expand the (footprint+margin) box outward to a multiple of this
-        many degrees (e.g. ``1.0`` snaps to whole-degree bounds, matching a DEM
-        built on an integer-degree grid). Ignored when ``bbox`` is given.
-
+    Reads ``/vsis3/...`` directly (nothing pre-staged); GDAL resolves AWS
+    credentials the usual way (``AWS_PROFILE``, env vars, or an EC2/ECS role).
+    Heights are already WGS84-ellipsoidal, so no geoid correction is needed.
     """
-    import math
+    from osgeo import gdal
 
+    gdal.UseExceptions()
+    w, s, e, n = aoi
+    vsi = OPERA_DEM_VRT.replace("s3://", "/vsis3/", 1)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    gdal.Translate(
+        str(dest),
+        vsi,
+        projWin=[w, n, e, s],
+        projWinSRS="EPSG:4326",
+        format="GTiff",
+        creationOptions=["COMPRESS=DEFLATE"],
+    )
+
+    # Nodata (open-water gaps where the DEM has no land tile) becomes 0: isce3
+    # geo2rdr (COMPASS's solid-earth-tide / geometry LUTs) fails to converge
+    # over nodata heights, so coastal/island bursts otherwise crash.
+    import numpy as np
+
+    ds = gdal.Open(str(dest), gdal.GA_Update)
+    band = ds.GetRasterBand(1)
+    nodata = band.GetNoDataValue()
+    arr = band.ReadAsArray()
+    mask = ~np.isfinite(arr)
+    if nodata is not None:
+        mask |= arr == nodata
+    if mask.any():
+        arr[mask] = 0.0
+        band.WriteArray(arr)
+        print(f"  filled {int(mask.sum())} DEM nodata px with 0.0")
+    band.DeleteNoDataValue()
+    ds.FlushCache()
+    ds = None
+
+
+def _stage_dem_glo30(aoi: list[float], dest: Path) -> None:
+    """Stitch an ellipsoidal Copernicus GLO-30 DEM over ``aoi`` with ``dem_stitcher``."""
     import numpy as np
     import rasterio
     from dem_stitcher import stitch_dem
 
-    dest = out_dir / dem_name
-    if dest.exists() and not overwrite:
-        print(f"  DEM present, skip: {dest.name}")
-        return dest
-
-    if bbox is not None:
-        aoi = list(bbox)
-    else:
-        w, s, e, n = _footprint_bbox(granule)
-        aoi = [w - margin_deg, s - margin_deg, e + margin_deg, n + margin_deg]
-        if snap_deg:
-            aoi = [
-                math.floor(aoi[0] / snap_deg) * snap_deg,
-                math.floor(aoi[1] / snap_deg) * snap_deg,
-                math.ceil(aoi[2] / snap_deg) * snap_deg,
-                math.ceil(aoi[3] / snap_deg) * snap_deg,
-            ]
-    print(f"  DEM stitch GLO-30 over {aoi}")
     array, profile = stitch_dem(
         aoi,
         "glo_30",
@@ -357,7 +366,86 @@ def stage_dem(
     )
     with rasterio.open(dest, "w", **profile) as ds:
         ds.write(array, 1)
-    print(f"  -> {dest} {array.shape}")
+
+
+def stage_dem(
+    granule: str,
+    out_dir: Path,
+    margin_deg: float = 0.4,
+    dem_name: str = "dem_4326.tiff",
+    overwrite: bool = False,
+    bbox: tuple[float, float, float, float] | None = None,
+    snap_deg: float | None = None,
+    source: str = "opera",
+) -> Path:
+    """Stage an ellipsoidal DEM covering the granule footprint.
+
+    The DEM must cover more than the SLC footprint: isce3 ``geo2rdr`` searches a
+    height range at the scene edges, and each burst's geogrid (from the burst
+    database) is padded, so a tight crop makes edge bursts warn ("limit may be
+    insufficient") and can leave nodata. Hence a generous default ``margin_deg``.
+
+    Parameters
+    ----------
+    granule :
+        Sentinel-1 SLC granule name whose footprint the DEM must cover.
+    out_dir :
+        Directory the DEM GeoTIFF is written into.
+    margin_deg :
+        Padding added around the granule footprint, in degrees. Default 0.4.
+    dem_name :
+        Filename to save the DEM under (default ``dem_4326.tiff``).
+    overwrite :
+        Re-stage even if the DEM file is already present.
+    bbox :
+        Explicit ``(west, south, east, north)`` to stage instead of the
+        footprint-derived box -- e.g. to match a golden dataset's DEM extent.
+    snap_deg :
+        If set, expand the (footprint+margin) box outward to a multiple of this
+        many degrees (e.g. ``1.0`` snaps to whole-degree bounds, matching a DEM
+        built on an integer-degree grid). Ignored when ``bbox`` is given.
+    source :
+        ``"opera"`` (default) windows :data:`OPERA_DEM_VRT` from S3 -- the
+        exact DEM the CSLC-S1 PGE geocodes against, needed to reproduce an
+        archived OPERA product (needs AWS credentials with ``s3://opera-dem``
+        read access, e.g. ``AWS_PROFILE=saml-pub``). ``"glo30"`` instead
+        stitches Copernicus GLO-30 with ``dem_stitcher`` -- no AWS credentials
+        needed, but will not bit-match an archived product.
+
+    """
+    import math
+
+    import rasterio
+
+    dest = out_dir / dem_name
+    if dest.exists() and not overwrite:
+        print(f"  DEM present, skip: {dest.name}")
+        return dest
+
+    if bbox is not None:
+        aoi = list(bbox)
+    else:
+        w, s, e, n = _footprint_bbox(granule)
+        aoi = [w - margin_deg, s - margin_deg, e + margin_deg, n + margin_deg]
+        if snap_deg:
+            aoi = [
+                math.floor(aoi[0] / snap_deg) * snap_deg,
+                math.floor(aoi[1] / snap_deg) * snap_deg,
+                math.ceil(aoi[2] / snap_deg) * snap_deg,
+                math.ceil(aoi[3] / snap_deg) * snap_deg,
+            ]
+
+    if source == "opera":
+        print(f"  DEM window OPERA v1.1 over {aoi}")
+        _stage_dem_opera(aoi, dest)
+    elif source == "glo30":
+        print(f"  DEM stitch GLO-30 over {aoi}")
+        _stage_dem_glo30(aoi, dest)
+    else:
+        raise ValueError(f"Unknown DEM source {source!r}; expected 'opera' or 'glo30'")
+
+    with rasterio.open(dest) as ds:
+        print(f"  -> {dest} {(ds.height, ds.width)}")
     return dest
 
 
@@ -714,8 +802,16 @@ def main(argv: list[str] | None = None) -> None:
         help="Orbit type (default: auto = precise, else restituted).",
     )
 
-    p_dem = sub.add_parser("dem", help="Stitch the ellipsoidal GLO-30 DEM.")
+    p_dem = sub.add_parser("dem", help="Stage the ellipsoidal DEM (OPERA v1.1 by default).")
     _add_common(p_dem)
+    p_dem.add_argument(
+        "--dem-source",
+        choices=["opera", "glo30"],
+        default="opera",
+        help="'opera' (default) windows the OPERA DEM v1.1 from S3 (needs AWS "
+        "credentials, e.g. AWS_PROFILE=saml-pub); 'glo30' stitches Copernicus "
+        "GLO-30 with dem_stitcher instead (no AWS credentials needed).",
+    )
     p_dem.add_argument(
         "--margin", type=float, default=0.4, help="Footprint margin in degrees."
     )
@@ -767,6 +863,14 @@ def main(argv: list[str] | None = None) -> None:
 
     p_all = sub.add_parser("all", help="Stage every input and write both runconfigs.")
     _add_common(p_all)
+    p_all.add_argument(
+        "--dem-source",
+        choices=["opera", "glo30"],
+        default="opera",
+        help="'opera' (default) windows the OPERA DEM v1.1 from S3 (needs AWS "
+        "credentials, e.g. AWS_PROFILE=saml-pub); 'glo30' stitches Copernicus "
+        "GLO-30 with dem_stitcher instead (no AWS credentials needed).",
+    )
     p_all.add_argument("--margin", type=float, default=0.4)
     p_all.add_argument(
         "--dem-bbox", type=float, nargs=4, metavar=("W", "S", "E", "N"), default=None,
@@ -799,6 +903,7 @@ def main(argv: list[str] | None = None) -> None:
         stage_dem(
             args.granule, out, args.margin, overwrite=args.overwrite,
             bbox=tuple(args.bbox) if args.bbox else None, snap_deg=args.snap,
+            source=args.dem_source,
         )
     elif args.cmd == "iono":
         stage_iono(args.granule, out, args.sol_code, args.product_type, overwrite=args.overwrite)
@@ -817,6 +922,7 @@ def main(argv: list[str] | None = None) -> None:
         stage_dem(
             args.granule, out, args.margin, overwrite=args.overwrite,
             bbox=tuple(args.dem_bbox) if args.dem_bbox else None, snap_deg=args.dem_snap,
+            source=args.dem_source,
         )
         print("[4/6] ionosphere")
         stage_iono(args.granule, out, args.sol_code, args.product_type, overwrite=args.overwrite)

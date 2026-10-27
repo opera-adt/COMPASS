@@ -21,7 +21,7 @@ dependency. It does not import `compass`, `s1reader`, `sentineleof`, or
 |-------|--------|-------|
 | SLC SAFE zip | ASF DAAC HTTPS datapool | Earthdata Login |
 | Orbit (EOF) | ASF S1 aux archive | by validity window; POEORB else RESORB |
-| DEM (ellipsoidal) | Copernicus GLO-30 (`dem_stitcher`) | geoid → ellipsoid |
+| DEM (ellipsoidal) | OPERA DEM v1.1 (S3), or Copernicus GLO-30 (`dem_stitcher`) | `--dem-source opera` (default) or `glo30` |
 | Ionosphere (TEC) | NASA CDDIS | Rapid IGS (**IGR**), the SAS default |
 | Burst database | OPERA `burst_db` release | public bbox-only SQLite |
 
@@ -34,6 +34,15 @@ machine urs.earthdata.nasa.gov login <user> password <pass>
 ```
 
 (or export `EARTHDATA_USERNAME` / `EARTHDATA_PASSWORD`).
+
+The default DEM source (`opera`) reads `s3://opera-dem` and needs AWS
+credentials with read access to that bucket:
+
+```bash
+export AWS_PROFILE=saml-pub
+```
+
+`--dem-source glo30` needs no AWS credentials.
 
 ## Usage
 
@@ -75,7 +84,7 @@ present is skipped unless you pass `--overwrite`.
 python scripts/stage_cslc_inputs.py slc <GRANULE>
 python scripts/stage_cslc_inputs.py orbit <GRANULE> [--orbit-type POEORB|RESORB]
 python scripts/stage_cslc_inputs.py dem <GRANULE> \
-    [--margin 0.4] [--bbox W S E N] [--snap 1.0]
+    [--dem-source opera|glo30] [--margin 0.4] [--bbox W S E N] [--snap 1.0]
 python scripts/stage_cslc_inputs.py iono <GRANULE> \
     [--product-type RAPID|FINAL] [--sol-code igs]
 python scripts/stage_cslc_inputs.py burst-db [--source URL|PATH]
@@ -87,6 +96,14 @@ Downloads skip files already present, so reruns only fetch the gaps.
 
 **Ionosphere** defaults to the **Rapid IGS (IGR)** solution the CSLC-S1-SAS uses;
 pass `--product-type FINAL --sol-code jpl` for the final `jplg`-style file.
+
+**DEM source.** `--dem-source opera` (default) windows the OPERA DEM v1.1
+global VRT directly from `s3://opera-dem` — the exact DEM the CSLC-S1 PGE
+geocodes against, needed to reproduce an archived OPERA product bit-for-bit
+(an independently stitched GLO-30 differs by ~1.4 cm in the geoid conversion,
+enough phase error to break agreement). `--dem-source glo30` stitches
+Copernicus GLO-30 with `dem_stitcher` instead — no AWS credentials needed, but
+won't bit-match an archived product.
 
 **DEM buffer.** The DEM must cover more than the SLC footprint (isce3 `geo2rdr`
 searches a height range at the edges, and each burst's geogrid is padded), so
@@ -124,3 +141,26 @@ Anything after `--` is forwarded to `stage_cslc_inputs.py`. Options: `--image`
 (default `opera/cslc_s1:final_0.5.7`), `--python`, `--no-user`, `--docker-arg`.
 Requires the COMPASS Docker image built (`./build_docker_image.sh`) and, for
 S1C/S1D, s1-reader >= v0.2.6 in that image (the 2026-06-24 S1C maneuver).
+
+### Timing correction (S1 AUX_INS / AUX_ITC)
+
+The run options set the runconfig's `processing.timing_correction` group before
+running the SAS:
+
+```bash
+# S1D relative to S1C, from the table packaged with COMPASS, phase only
+scripts/run_cslc.sh <GRANULE> --workdir DIR --skip-staging --az-timing carrier_phase
+
+# the same from your own table (built with s1_timing_table.py)
+scripts/run_cslc.sh <GRANULE> --workdir DIR --skip-staging --az-timing carrier_phase \
+    --timing-table OPERA_S1_AUX_TIMING_S1C-REF_G20261024T000000.json
+
+# a constant offset for every burst; geometry unless --az-timing says otherwise
+scripts/run_cslc.sh <GRANULE> --workdir DIR --skip-staging --az-time-offset 4.6614e-5
+```
+
+`carrier_phase` changes only the azimuth carrier phase (burst-overlap phase) and
+leaves geolocation alone, which is what the S1 platform timing bias needs;
+`geometry` shifts the data along track. `--range-timing geometry` applies the
+table's range term. The image must be built from a COMPASS that has
+`processing.timing_correction`.

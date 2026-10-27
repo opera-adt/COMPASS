@@ -27,6 +27,9 @@ runconfig:
       static_ancillary_file_group:
           # burst database sqlite file
           burst_database_file:
+          # Relative S1 timing table (OPERA_S1_AUX_TIMING_*.json). If not
+          # provided, the table packaged with COMPASS is used.
+          timing_table_file:
 
       product_path_group:
           # Directory where PGE will place results
@@ -70,6 +73,23 @@ runconfig:
                  # Type of troposphere delay. Any of 'dry', 'wet' or 'wet_dry' for
                  # the sum of wet and dry delays
                  delay_type: wet_dry
+
+          timing_correction:
+              # Azimuth timing correction: none, carrier_phase (azimuth
+              # carrier phase only; geolocation unchanged) or geometry (shift
+              # the data along track)
+              azimuth_mode: none
+              # Range timing correction: none or geometry
+              range_mode: none
+              # table: per-platform offsets from timing_table_file;
+              # constant: the constants below for every burst
+              offset_source: table
+              # Azimuth time offset in seconds (offset_source: constant)
+              azimuth_constant_offset: 0.0
+              # Two-way range time offset in seconds (offset_source: constant)
+              range_constant_offset: 0.0
+              # Burst the table does not cover: error or warn (apply nothing)
+              on_uncovered: error
 
           rdr2geo:
               # Convergence threshold for rdr2geo algorithm

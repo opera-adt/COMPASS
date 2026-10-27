@@ -436,7 +436,8 @@ def identity_to_h5group(dst_group, burst, cfg, product_type):
 
 def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
                         save_processing_parameters=True,
-                        eap_correction_applied='None'):
+                        eap_correction_applied='None',
+                        burst_timing=None):
     '''
     Write burst metadata to HDF5
 
@@ -452,6 +453,8 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
         If true, to save noise and calibration metadata in metadata
     save_processing_parameters: bool
         If true, to save processing parameters in metadata
+    burst_timing: compass.utils.timing_correction.BurstTiming or None
+        Timing correction applied to the burst; None records none requested
     '''
     if 'metadata' in parent_group:
         del parent_group['metadata']
@@ -642,6 +645,7 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
                  "If True, solid Earth tides correction has been applied in slant range direction"),
             Meta('azimuth_solid_earth_tides_applied', False,
                  "If True, solid Earth tides correction has been applied in azimuth direction"),
+            *_timing_meta_items(burst_timing),
             Meta('static_troposphere_applied',
                  bool(cfg.lut_params.enabled),
                  "If True, troposphere correction based on a static model has been applied"),
@@ -681,6 +685,60 @@ def metadata_to_h5group(parent_group, burst, cfg, save_noise_and_cal=True,
 
     poly1d_to_h5(burst_meta_group, 'azimuth_fm_rate', burst.azimuth_fm_rate)
     poly1d_to_h5(burst_meta_group, 'doppler', burst.doppler.poly1d)
+
+
+def _timing_meta_items(burst_timing):
+    '''
+    Metadata for the per-platform timing correction
+
+    Parameters
+    ----------
+    burst_timing: compass.utils.timing_correction.BurstTiming or None
+        Correction decided for the burst; None (e.g. static layers) records
+        that none was requested
+
+    Returns
+    -------
+    list of Meta
+    '''
+    if burst_timing is None:
+        from compass.utils.timing_correction import BurstTiming
+        burst_timing = BurstTiming()
+    return [
+        Meta('azimuth_timing_correction_mode', burst_timing.azimuth_mode,
+             ("Azimuth timing correction. none: not applied. carrier_phase: "
+              "applied to the azimuth carrier phase only, geolocation "
+              "unchanged; the azimuth_carrier_phase layer includes it. "
+              "geometry: data shifted along track")),
+        Meta('azimuth_timing_offset', burst_timing.azimuth_offset,
+             "Azimuth time offset applied by the timing correction",
+             {'units': 'seconds'}),
+        Meta('range_timing_correction_mode', burst_timing.range_mode,
+             ("Range timing correction. none: not applied. geometry: data "
+              "shifted in slant range")),
+        Meta('range_timing_offset', burst_timing.range_offset,
+             "Two-way range time offset applied by the timing correction",
+             {'units': 'seconds'}),
+        Meta('timing_correction_source', burst_timing.source,
+             ("Where the timing offsets came from: none, constant (runconfig) "
+              "or table")),
+        Meta('timing_correction_table', str(burst_timing.table_name),
+             "Relative timing table the offsets came from"),
+        Meta('timing_correction_reference_platform',
+             str(burst_timing.reference_platform),
+             "Platform the table's corrections are relative to"),
+        Meta('timing_correction_status', burst_timing.status,
+             "Why the timing offsets are what they are"),
+        Meta('azimuth_timing_swath_residual',
+             burst_timing.azimuth_swath_residual,
+             ("Part of azimuth_timing_offset that is a measured per-swath "
+              "residual (e.g. ESD) rather than from the AUX files"),
+             {'units': 'seconds'}),
+        Meta('range_timing_swath_residual', burst_timing.range_swath_residual,
+             ("Part of range_timing_offset that is a measured per-swath "
+              "residual rather than from the AUX files"),
+             {'units': 'seconds'}),
+    ]
 
 
 def algorithm_metadata_to_h5group(parent_group, is_static_layers=False):

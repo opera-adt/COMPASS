@@ -13,6 +13,11 @@ from ruamel.yaml import YAML
 from compass.utils.geo_grid import (generate_geogrids_from_db,
                                     generate_geogrids, geogrid_as_dict)
 from compass.utils.helpers import check_file_path
+from compass.utils.timing_correction import (DEFAULT_TIMING_TABLE,
+                                             TimingTable,
+                                             is_timing_requested,
+                                             load_timing_table,
+                                             resolve_burst_timing)
 from compass.utils.runconfig import (
     create_output_paths,
     runconfig_to_bursts,
@@ -44,11 +49,66 @@ def check_geocode_dict(geocode_cfg: dict) -> None:
                 raise ValueError(err_str)
 
 
+def load_timing_for_bursts(sns, bursts):
+    '''
+    Load processing.timing_correction's table, checking every burst now
+    rather than failing mid-run
+
+    Parameters
+    ----------
+    sns: types.SimpleNamespace
+        Runconfig groups
+    bursts: list of Sentinel1BurstSlc
+        Bursts the run will process
+
+    Returns
+    -------
+    TimingTable or None
+        The table, when offset_source is table and a correction is requested
+    '''
+    timing_params = sns.processing.timing_correction
+    if not is_timing_requested(timing_params) or \
+            timing_params.offset_source != 'table':
+        table = None
+    else:
+        table_file = sns.static_ancillary_file_group.timing_table_file or \
+            DEFAULT_TIMING_TABLE
+        check_file_path(table_file)
+        table = load_timing_table(table_file)
+
+    for burst in bursts:
+        resolve_burst_timing(burst, timing_params, table)
+    return table
+
+
+def timing_table_of(cfg):
+    '''
+    The run's timing table
+
+    The one GeoRunConfig.load_from_yaml loaded, or, for a GeoRunConfig built
+    some other way, loaded now with the same normalization and per-burst checks
+
+    Parameters
+    ----------
+    cfg: GeoRunConfig
+
+    Returns
+    -------
+    TimingTable or None
+        None when no correction is requested or offset_source is constant
+    '''
+    if cfg.timing_table is not None:
+        return cfg.timing_table
+    return load_timing_for_bursts(cfg.groups, cfg.bursts)
+
+
 @dataclass(frozen=True)
 class GeoRunConfig(RunConfig):
     '''dataclass containing GSLC runconfig'''
     # dict of geogrids associated to burst IDs
     geogrids: dict[str, GeoGridParameters]
+    # relative timing table, when processing.timing_correction uses one
+    timing_table: TimingTable | None = None
 
     @classmethod
     def load_from_yaml(cls, yaml_runconfig: str, workflow_name: str) -> GeoRunConfig:
@@ -96,6 +156,9 @@ class GeoRunConfig(RunConfig):
         # Load bursts
         bursts = runconfig_to_bursts(sns)
 
+        # Timing correction table; uncovered bursts fail here, before any work
+        timing_table = load_timing_for_bursts(sns, bursts)
+
         # Load geogrids
         dem_file = groups_cfg['dynamic_ancillary_file_group']['dem_file']
         if burst_database_file is None:
@@ -115,7 +178,8 @@ class GeoRunConfig(RunConfig):
         output_paths = create_output_paths(sns, bursts)
 
         return cls(cfg['runconfig']['name'], sns, bursts, empty_ref_dict,
-                   user_plus_default_yaml_str, output_paths, geogrids)
+                   user_plus_default_yaml_str, output_paths, geogrids,
+                   timing_table)
 
     @property
     def product_group(self) -> types.SimpleNamespace:
@@ -154,6 +218,10 @@ class GeoRunConfig(RunConfig):
         return self.groups.processing.correction_luts.troposphere
 
     @property
+    def timing_params(self) -> types.SimpleNamespace:
+        return self.groups.processing.timing_correction
+
+    @property
     def output_params(self) -> types.SimpleNamespace:
         return self.groups.output
 
@@ -167,6 +235,8 @@ class GeoRunConfig(RunConfig):
 
         self_as_dict['geogrids']= {b_id:geogrid_as_dict(geogrid)
                                    for b_id, geogrid in self.geogrids.items()}
+        self_as_dict['timing_table'] = None if self.timing_table is None \
+            else self.timing_table.name
 
         return self_as_dict
 

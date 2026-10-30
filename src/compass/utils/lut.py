@@ -20,7 +20,9 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
                                weather_model_path=None,
                                rg_step=200, az_step=0.25,
                                delay_type='dry',
-                               geo2rdr_params=None):
+                               geo2rdr_params=None,
+                               az_time_offset=0.0,
+                               rg_offset=0.0):
     '''
     Sum correction LUTs and returns cumulative correction LUT in slant range
     and azimuth directions
@@ -47,6 +49,14 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
     delay_type: str
         Type of troposphere delay. Any between 'dry', or 'wet', or
         'wet_dry' for the sum of wet and dry troposphere delays.
+    az_time_offset: float
+        Constant azimuth-time re-registration offset in seconds, added to the
+        azimuth correction LUT. Zero (the default) leaves geocoding unchanged.
+        A non-zero value shifts the burst along track by that much azimuth
+        time, which is how a per-platform azimuth timing bias is removed.
+    rg_offset: float
+        Constant slant-range offset in meters, added to the slant range
+        correction LUT. Zero (the default) leaves geocoding unchanged.
 
     Returns
     -------
@@ -79,8 +89,19 @@ def cumulative_correction_luts(burst, dem_path, tec_path,
     if 'dry' in delay_type:
         rg_lut_data += dry_los_tropo
 
+    # A constant range timing offset is, like az_time_offset below, a
+    # spatially uniform term in its LUT
+    if rg_offset:
+        rg_lut_data = rg_lut_data + rg_offset
+
     # Invert signs to correct for convention
     az_lut_data = -(bistatic_delay.data + az_fm_mismatch.data)
+
+    # A constant along-track re-registration rides on the same LUT as the
+    # model-based azimuth corrections, so it needs no separate plumbing into
+    # geocodeSlc: it is simply a spatially uniform term in the azimuth LUT.
+    if az_time_offset:
+        az_lut_data = az_lut_data + az_time_offset
 
     rg_lut = isce3.core.LUT2d(bistatic_delay.x_start,
                               bistatic_delay.y_start,

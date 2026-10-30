@@ -15,9 +15,10 @@ from s1reader.s1_reader import is_eap_correction_necessary
 
 from compass import s1_geocode_metadata
 from compass.s1_cslc_qa import QualityAssuranceCSLC
+from compass.utils.azimuth_phase import apply_azimuth_phase_offset
 from compass.utils.browse_image import make_browse_image
 from compass.utils.elevation_antenna_pattern import apply_eap_correction
-from compass.utils.geo_runconfig import GeoRunConfig
+from compass.utils.geo_runconfig import GeoRunConfig, timing_table_of
 from compass.utils.h5_helpers import (algorithm_metadata_to_h5group,
                                       corrections_to_h5group,
                                       identity_to_h5group,
@@ -28,6 +29,7 @@ from compass.utils.helpers import (bursts_grouping_generator,
                                    get_time_delta_str, get_module_name,
                                    OPERA_OPERATION_CONTACT_EMAIL)
 from compass.utils.lut import cumulative_correction_luts
+from compass.utils.timing_correction import resolve_burst_timing
 from compass.utils.yaml_argparse import YamlArgparse
 
 # TEMPORARY MEASURE TODO refactor types functions to isce3 namespace
@@ -37,6 +39,21 @@ from isce3.core.types import (truncate_mantissa, to_complex32)
 def _wrap_phase(phase_arr):
     # convenience function to wrap phase
     return (phase_arr + np.pi) % (2 * np.pi) - np.pi
+
+
+def _constant_lut(radar_grid, offset):
+    '''Return a LUT2d holding a constant offset over the radar grid.
+
+    Spans the radar grid in (slant range, azimuth time) so geocode_slc's
+    correction queries return the constant everywhere. Used when the model
+    correction LUTs are disabled but a timing offset is still requested: an
+    azimuth time [s] or a slant range [m], depending on which LUT it feeds.
+    '''
+    rng = np.array([radar_grid.starting_range,
+                    radar_grid.end_range], dtype=np.float64)
+    az = np.array([radar_grid.sensing_start,
+                   radar_grid.sensing_stop], dtype=np.float64)
+    return isce3.core.LUT2d(rng, az, np.full((2, 2), offset, dtype=np.float64))
 
 
 def run(cfg: GeoRunConfig):
@@ -61,6 +78,7 @@ def run(cfg: GeoRunConfig):
     threshold = cfg.geo2rdr_params.threshold
     iters = cfg.geo2rdr_params.numiter
     flatten = cfg.geocoding_params.flatten
+    timing_table = timing_table_of(cfg)
 
     for burst_id, bursts in bursts_grouping_generator(cfg.bursts):
         burst = bursts[0]
@@ -85,6 +103,15 @@ def run(cfg: GeoRunConfig):
         # Create scratch as needed
         scratch_path = out_paths.scratch_directory
 
+        # Per-platform timing correction. Geometry offsets ride on the
+        # correction LUTs; a carrier-phase offset changes the azimuth carrier
+        # only (below), leaving sampling and geolocation alone.
+        timing = resolve_burst_timing(burst, cfg.timing_params,
+                                      timing_table)
+        az_time_offset = timing.geometry_azimuth_offset
+        rg_offset = timing.geometry_range_offset_meters
+        az_phase_offset = timing.carrier_phase_azimuth_offset
+
         # If enabled, get range and azimuth LUTs
         t_corrections = time.perf_counter()
         if cfg.lut_params.enabled:
@@ -96,10 +123,17 @@ def run(cfg: GeoRunConfig):
                                            rg_step=cfg.lut_params.range_spacing,
                                            az_step=cfg.lut_params.azimuth_spacing,
                                            delay_type=cfg.tropo_params.delay_type,
-                                           geo2rdr_params=cfg.geo2rdr_params)
+                                           geo2rdr_params=cfg.geo2rdr_params,
+                                           az_time_offset=az_time_offset,
+                                           rg_offset=rg_offset)
         else:
-            rg_lut = isce3.core.LUT2d()
-            az_lut = isce3.core.LUT2d()
+            # Even with the model corrections off, honour requested geometry
+            # offsets by feeding geocode_slc constant LUTs.
+            rg_lut = _constant_lut(burst.as_isce3_radargrid(), rg_offset) \
+                if rg_offset else isce3.core.LUT2d()
+            az_lut = _constant_lut(burst.as_isce3_radargrid(),
+                                   az_time_offset) \
+                if az_time_offset else isce3.core.LUT2d()
         dt_corrections = get_time_delta_str(t_corrections)
 
         radar_grid = burst.as_isce3_radargrid()
@@ -108,6 +142,14 @@ def run(cfg: GeoRunConfig):
 
         # Get azimuth polynomial coefficients for this burst
         az_carrier_poly2d = burst.get_az_carrier_poly()
+
+        # Carrier-phase offset: re-ramp with the carrier of the shifted burst.
+        # The radar data is pre-multiplied by exp(i(P1 - P0)) below so the
+        # deramp with P1 still yields the true baseband.
+        if az_phase_offset:
+            az_carrier_ref = az_carrier_poly2d
+            az_carrier_poly2d = burst.get_az_carrier_poly(
+                offset=az_phase_offset / burst.azimuth_time_interval)
 
         # Extract burst boundaries
         b_bounds = np.s_[burst.first_valid_line:burst.last_valid_line,
@@ -165,7 +207,12 @@ def run(cfg: GeoRunConfig):
                 # Load input dataset of current polarization as array from GDAL
                 # raster
                 rdr_dataset = gdal.Open(temp_slc_path, gdal.GA_ReadOnly)
-                rdr_data_blks.append(rdr_dataset.ReadAsArray())
+                rdr_data_blk = rdr_dataset.ReadAsArray()
+                if az_phase_offset:
+                    apply_azimuth_phase_offset(rdr_data_blk, radar_grid,
+                                               az_carrier_ref,
+                                               az_carrier_poly2d)
+                rdr_data_blks.append(rdr_data_blk)
 
                 # Prepare output dataset of current polarization in HDF5
                 geo_ds = init_geocoded_dataset(grid_group, pol, geo_grid,
@@ -250,7 +297,8 @@ def run(cfg: GeoRunConfig):
             identity_to_h5group(root_group, burst, cfg, 'CSLC-S1')
 
             metadata_to_h5group(root_group, burst, cfg,
-                                eap_correction_applied=check_eap.phase_correction)
+                                eap_correction_applied=check_eap.phase_correction,
+                                burst_timing=timing)
             algorithm_metadata_to_h5group(root_group)
             if cfg.lut_params.enabled:
                 correction_group = geo_burst_h5.require_group(

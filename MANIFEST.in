@@ -1,2 +1,3 @@
 recursive-include src/compass/* *.yaml
 recursive-include src/compass/data *.gpkg
+recursive-include src/compass/data *.json

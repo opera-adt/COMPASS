@@ -1,0 +1,42 @@
+{
+  "productType": "OPERA_S1_AUX_TIMING",
+  "name": "OPERA_S1_AUX_TIMING_S1C-REF_G20261024T000000",
+  "generation": "2026-10-24T00:00:00Z",
+  "referencePlatform": "S1C",
+  "referenceAux": {
+    "auxIns": "S1C_AUX_INS_V20250224T000000_G20260604T134021",
+    "auxItc": "S1C_AUX_ITC_V20250519T094846_G20250521T125837"
+  },
+  "convention": "seconds; added to the burst azimuth time (range: two-way range time); correction = -(T_platform - T_reference)",
+  "entries": [
+    {
+      "platform": "S1D",
+      "validityStart": null,
+      "validityStop": null,
+      "azimuthTimeCorrection": 4.6614e-05,
+      "rangeTimeCorrection": 0.0,
+      "rangeComponents": [
+        "rangeCalibration"
+      ],
+      "auxIns": [
+        "S1D_AUX_INS_V20251110T000000_G20260415T145928",
+        "S1D_AUX_INS_V20260319T000000_G20260415T150144",
+        "S1D_AUX_INS_V20251110T000000_G20260603T113617",
+        "S1D_AUX_INS_V20260319T000000_G20260603T113743"
+      ],
+      "auxItc": "S1D_AUX_ITC_V20260319T000000_G20260318T105930",
+      "components": {
+        "azimuthTimeBias": -6.6299e-05,
+        "azimuthCalibration": 0.0,
+        "swstBias": -6.4576909e-09,
+        "rangeCalibration": 0.0,
+        "reference": {
+          "azimuthTimeBias": -1.9685e-05,
+          "azimuthCalibration": 0.0,
+          "swstBias": -5.9341056e-09,
+          "rangeCalibration": 0.0
+        }
+      }
+    }
+  ]
+}

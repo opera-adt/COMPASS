@@ -29,6 +29,7 @@ Homepage = "https://github.com/opera-adt/compass"
 "s1_static_layers.py" = "compass.s1_static_layers:main"
 "s1_geocode_stack.py" = "compass.s1_geocode_stack:main"
 "validate_product.py" = "compass.utils.validate_product:main"
+"s1_timing_table.py" = "compass.utils.timing_correction:main"
 
 # extra requirements: `pip install compass[docs]` or `pip install .[docs]`
 [tool.setuptools.dynamic.optional-dependencies.docs]

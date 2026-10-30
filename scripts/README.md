@@ -139,7 +139,8 @@ scripts/run_cslc.sh <GRANULE> --workdir DIR --skip-staging --az-timing carrier_p
     --timing-table OPERA_S1_AUX_TIMING_S1C-REF_G20261024T000000.json
 
 # a constant offset for every burst; geometry unless --az-timing says otherwise
-scripts/run_cslc.sh <GRANULE> --workdir DIR --skip-staging --az-time-offset 4.6614e-5
+scripts/run_cslc.sh <GRANULE> --workdir DIR --skip-staging \
+    --az-time-offset 4.6614e-5
 ```
 
 `carrier_phase` changes only the azimuth carrier phase (burst-overlap phase) and

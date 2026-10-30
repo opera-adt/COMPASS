@@ -26,10 +26,10 @@ def apply_azimuth_phase_offset(rdr_data, radar_grid, carrier_ref,
     Multiply radar-grid SLC data in place by exp(i*(P1 - P0)).
 
     Both carriers are evaluated at the coordinates isce3's geocode_slc uses
-    for its own deramp: azimuth time ``sensing_start + line / prf`` and slant
-    range ``starting_range + sample * range_pixel_spacing`` over the full
+    for its own deramp: azimuth time `sensing_start + line / prf` and slant
+    range `starting_range + sample * range_pixel_spacing` over the full
     radar grid, so the pre-multiplication cancels exactly against the deramp
-    with ``carrier_shifted``.
+    with `carrier_shifted`.
 
     Parameters
     ----------
@@ -41,7 +41,7 @@ def apply_azimuth_phase_offset(rdr_data, radar_grid, carrier_ref,
         Azimuth carrier polynomial P0 of the burst, as (azimuth time, range)
     carrier_shifted: isce3.core.Poly2d
         Azimuth carrier P1 of the burst shifted by the phase offset, i.e. what
-        ``burst.get_az_carrier_poly(offset=dt / burst.azimuth_time_interval)``
+        `burst.get_az_carrier_poly(offset=dt / burst.azimuth_time_interval)`
         returns
     block_lines: int
         Azimuth lines evaluated at a time, to bound memory
@@ -49,7 +49,7 @@ def apply_azimuth_phase_offset(rdr_data, radar_grid, carrier_ref,
     Returns
     -------
     np.ndarray
-        ``rdr_data``, for convenience
+        `rdr_data`, for convenience
     '''
     n_lines, n_samples = rdr_data.shape
     rng = radar_grid.starting_range + \

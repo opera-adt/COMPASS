@@ -22,9 +22,9 @@ generation, not per platform: a platform gets one entry per distinct set of
 aux values, each naming the generations it covers. A burst focused with a
 generation no entry names is "uncovered" and is not corrected silently.
 
-The SAS only reads tables (``load_timing_table``, ``TimingTable.lookup``) and
-turns the runconfig ``processing.timing_correction`` group into one decision
-per burst (``resolve_burst_timing``); ``build_timing_table`` and ``main`` are
+The SAS only reads tables (`load_timing_table`, `TimingTable.lookup`) and
+turns the runconfig `processing.timing_correction` group into one decision
+per burst (`resolve_burst_timing`); `build_timing_table` and `main` are
 offline tools that make tables.
 '''
 from __future__ import annotations
@@ -362,7 +362,7 @@ def build_timing_table(aux_files, reference_platform, apply_platforms,
     Returns
     -------
     dict
-        The table as JSON-ready data; write it with ``write_timing_table``
+        The table as JSON-ready data; write it with `write_timing_table`
     '''
     range_components = tuple(range_components)
     unknown = set(range_components) - set(RANGE_COMPONENTS)
@@ -471,7 +471,7 @@ def _parse_time(value, what):
 
 def write_timing_table(table, out_dir):
     '''
-    Write a table built by ``build_timing_table`` as <name>.json
+    Write a table built by `build_timing_table` as <name>.json
 
     Returns
     -------
@@ -769,7 +769,7 @@ def _platform_window(text):
         raise argparse.ArgumentTypeError(str(err))
 
 
-def get_parser():
+def create_parser():
     '''Command line for building a table'''
     parser = argparse.ArgumentParser(
         description='Build an OPERA_S1_AUX_TIMING table of per-platform '
@@ -809,7 +809,7 @@ def get_parser():
 def main(argv=None):
     '''Build and write a table and print its path. Returns None: the console
     script passes the return value to sys.exit.'''
-    args = get_parser().parse_args(argv)
+    args = create_parser().parse_args(argv)
     generation = args.generation or datetime.datetime.now(
         datetime.timezone.utc).replace(tzinfo=None, microsecond=0)
     residuals, source = None, None

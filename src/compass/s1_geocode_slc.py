@@ -42,7 +42,7 @@ def _wrap_phase(phase_arr):
 
 
 def _constant_lut(radar_grid, offset):
-    '''Return a LUT2d holding a constant ``offset`` over the radar grid.
+    '''Return a LUT2d holding a constant offset over the radar grid.
 
     Spans the radar grid in (slant range, azimuth time) so geocode_slc's
     correction queries return the constant everywhere. Used when the model

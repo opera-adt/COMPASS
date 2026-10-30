@@ -51,9 +51,6 @@ def written(tmp_path, table):
     return tc.load_timing_table(tc.write_timing_table(table, str(tmp_path)))
 
 
-# --------------------------------------------------------------------------- #
-# building
-# --------------------------------------------------------------------------- #
 def test_s1d_relative_to_s1c_matches_aux_chain():
     '''T_S1D - T_S1C = -66.299 - (-19.685) = -46.614 us, so the correction is
     +46.614 us. The archive ESD median for S1C-S1D is +47.48 us; this pins the
@@ -241,9 +238,6 @@ def test_parse_aux_name_strips_suffixes():
     assert parts['generation'] == datetime.datetime(2026, 3, 18, 10, 59, 30)
 
 
-# --------------------------------------------------------------------------- #
-# reading back
-# --------------------------------------------------------------------------- #
 def test_round_trip(tmp_path):
     table = written(tmp_path, s1d_table())
     assert table.name == 'OPERA_S1_AUX_TIMING_S1C-REF_G20261023T000000'
@@ -312,9 +306,6 @@ def test_load_accepts_adjacent_windows(tmp_path):
     assert len(table.entries) == 2
 
 
-# --------------------------------------------------------------------------- #
-# lookup
-# --------------------------------------------------------------------------- #
 WHEN = datetime.datetime(2026, 8, 1, 13, 55)
 
 
@@ -359,9 +350,6 @@ def test_validity_stop_is_exclusive():
     assert not entry.covers_time(stop)
 
 
-# --------------------------------------------------------------------------- #
-# command line
-# --------------------------------------------------------------------------- #
 def test_cli_builds_the_production_table(tmp_path, capsys):
     tc.main([*aux_files('S1C', 'S1D'), '--reference', 'S1C',
              '--apply', 'S1D', '--generation', '2026-10-23',
@@ -414,9 +402,6 @@ def test_cli_help():
     assert err.value.code == 0
 
 
-# --------------------------------------------------------------------------- #
-# per-burst resolution
-# --------------------------------------------------------------------------- #
 def burst(platform='S1D', aux_ins_name=AUX_INS['S1D'], sensing_start=WHEN,
           swath_name='iw2'):
     '''The four attributes resolve_burst_timing reads off a burst'''
@@ -550,9 +535,6 @@ def test_packaged_table_is_the_s1d_production_table():
                      'S1D_AUX_INS_V20260319T000000_G20260318T105812')
 
 
-# --------------------------------------------------------------------------- #
-# per-swath residuals
-# --------------------------------------------------------------------------- #
 RESIDUALS = {'S1D': {'IW1': {'azimuth': 0.4e-6},
                      'IW3': {'azimuth': -0.2e-6, 'range': 1e-10}}}
 RESIDUAL_SOURCE = 'ESD median, frame 46290, test'

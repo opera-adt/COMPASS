@@ -14,6 +14,7 @@ from s1reader.s1_burst_slc import Sentinel1BurstSlc
 import shapely
 
 import compass
+from compass.utils.timing_correction import BurstTiming
 
 
 TIME_STR_FMT = '%Y-%m-%d %H:%M:%S.%f'
@@ -702,7 +703,6 @@ def _timing_meta_items(burst_timing):
     list of Meta
     '''
     if burst_timing is None:
-        from compass.utils.timing_correction import BurstTiming
         burst_timing = BurstTiming()
     return [
         Meta('azimuth_timing_correction_mode', burst_timing.azimuth_mode,

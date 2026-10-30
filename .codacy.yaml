@@ -1,0 +1,6 @@
+---
+engines:
+  # Bandit B101 flags every assert; asserts are how pytest tests work
+  bandit:
+    exclude_paths:
+      - "tests/**"

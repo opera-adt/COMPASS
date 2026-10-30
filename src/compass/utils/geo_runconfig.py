@@ -86,8 +86,7 @@ def timing_table_of(cfg):
     The run's timing table
 
     The one GeoRunConfig.load_from_yaml loaded, or, for a GeoRunConfig built
-    some other way (cslc-batch constructs one per burst), loaded now with the
-    same normalization and per-burst checks
+    some other way, loaded now with the same normalization and per-burst checks
 
     Parameters
     ----------

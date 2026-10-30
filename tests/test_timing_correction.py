@@ -2,12 +2,12 @@
 Test the relative S1 timing table: building it from ESA aux products, reading
 it back, and looking bursts up in it
 
-The AUX_INS products come from s1reader's packaged data; the AUX_ITC products
-are small and live in tests/data/aux_itc.
+The AUX_INS and AUX_ITC products come from s1reader's packaged data.
 '''
 import datetime
 import json
 import pathlib
+import sys
 import types
 
 import pytest
@@ -17,7 +17,7 @@ from s1reader import s1_annotation
 from compass.utils import timing_correction as tc
 
 AUX_INS_DIR = pathlib.Path(s1_annotation.__file__).parent / 'data' / 'aux_ins'
-AUX_ITC_DIR = pathlib.Path(__file__).parent / 'data' / 'aux_itc'
+AUX_ITC_DIR = pathlib.Path(s1_annotation.__file__).parent / 'data' / 'aux_itc'
 
 AUX_INS = {
     'S1A': 'S1A_AUX_INS_V20250601T000000_G20251015T084917',
@@ -363,25 +363,35 @@ def test_validity_stop_is_exclusive():
 # command line
 # --------------------------------------------------------------------------- #
 def test_cli_builds_the_production_table(tmp_path, capsys):
-    path = tc.main([*aux_files('S1C', 'S1D'), '--reference', 'S1C',
-                    '--apply', 'S1D', '--generation', '2026-10-23',
-                    '--validity', 'S1D=2026-07-15', '-o', str(tmp_path)])
-    assert capsys.readouterr().out.strip() == path
+    tc.main([*aux_files('S1C', 'S1D'), '--reference', 'S1C',
+             '--apply', 'S1D', '--generation', '2026-10-23',
+             '--validity', 'S1D=2026-07-15', '-o', str(tmp_path)])
+    path = capsys.readouterr().out.strip()
     table = tc.load_timing_table(path)
     assert table.entries[0].validity_start == datetime.datetime(2026, 7, 15)
     assert table.entries[0].azimuth_time_correction == pytest.approx(
         46.614e-6, abs=1e-12)
 
 
-def test_cli_takes_every_generation(tmp_path, s1d_history):
+def test_cli_takes_every_generation(tmp_path, s1d_history, capsys):
     files = [str(AUX_INS_DIR / f'{AUX_INS["S1C"]}.SAFE.zip'),
              str(AUX_ITC_DIR / f'{AUX_ITC["S1C"]}.SAFE.zip'),
              str(AUX_ITC_DIR / f'{AUX_ITC["S1D"]}.SAFE.zip'), *s1d_history]
     out = tmp_path / 'out'
     out.mkdir()
-    path = tc.main([*files, '--reference', 'S1C', '--apply', 'S1D',
-                    '--generation', '2026-10-23', '-o', str(out)])
+    tc.main([*files, '--reference', 'S1C', '--apply', 'S1D',
+             '--generation', '2026-10-23', '-o', str(out)])
+    path = capsys.readouterr().out.strip()
     assert len(tc.load_timing_table(path).entries) == 3
+
+
+def test_cli_success_exits_zero(tmp_path):
+    '''The console script runs sys.exit(main()); a return value there fails'''
+    argv = [*aux_files('S1C', 'S1D'), '--reference', 'S1C', '--apply', 'S1D',
+            '--generation', '2026-10-23', '-o', str(tmp_path)]
+    with pytest.raises(SystemExit) as err:
+        sys.exit(tc.main(argv))
+    assert err.value.code is None
 
 
 @pytest.mark.parametrize('argv', [
@@ -639,14 +649,15 @@ def test_resolve_residual_only_on_requested_axes(tmp_path):
     assert timing.range_swath_residual == 0.0
 
 
-def test_cli_reads_swath_residuals(tmp_path):
+def test_cli_reads_swath_residuals(tmp_path, capsys):
     spec = tmp_path / 'residuals.json'
     spec.write_text(json.dumps({'source': RESIDUAL_SOURCE, **RESIDUALS}))
     out = tmp_path / 'out'
     out.mkdir()
-    path = tc.main([*aux_files('S1C', 'S1D'), '--reference', 'S1C',
-                    '--apply', 'S1D', '--generation', '2026-10-24',
-                    '--swath-residuals', str(spec), '-o', str(out)])
+    tc.main([*aux_files('S1C', 'S1D'), '--reference', 'S1C',
+             '--apply', 'S1D', '--generation', '2026-10-24',
+             '--swath-residuals', str(spec), '-o', str(out)])
+    path = capsys.readouterr().out.strip()
     (entry,) = tc.load_timing_table(path).entries
     assert entry.swath_residual_source == RESIDUAL_SOURCE
     assert entry.residual('iw1') == (0.4e-6, 0.0)

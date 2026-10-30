@@ -17,7 +17,7 @@ in seconds, added to the burst's azimuth (or two-way range) time. Platforms
 not listed in the table are not corrected.
 
 The IPF applies the AUX_INS azimuthTimeBias of the generation that focused a
-product (V10, 00_tools/tests/cslc FINDINGS 18), so T_X is per AUX_INS
+product, so T_X is per AUX_INS
 generation, not per platform: a platform gets one entry per distinct set of
 aux values, each naming the generations it covers. A burst focused with a
 generation no entry names is "uncovered" and is not corrected silently.
@@ -807,7 +807,8 @@ def get_parser():
 
 
 def main(argv=None):
-    '''Build and write a table; print its path'''
+    '''Build and write a table and print its path. Returns None: the console
+    script passes the return value to sys.exit.'''
     args = get_parser().parse_args(argv)
     generation = args.generation or datetime.datetime.now(
         datetime.timezone.utc).replace(tzinfo=None, microsecond=0)
@@ -821,9 +822,7 @@ def main(argv=None):
         range_components=args.range_components,
         validity=dict(args.validity), swath_residuals=residuals,
         swath_residual_source=source)
-    path = write_timing_table(table, args.out_dir)
-    print(path)
-    return path
+    print(write_timing_table(table, args.out_dir))
 
 
 if __name__ == '__main__':

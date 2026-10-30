@@ -21,7 +21,7 @@ dependency. It does not import `compass`, `s1reader`, `sentineleof`, or
 |-------|--------|-------|
 | SLC SAFE zip | ASF DAAC HTTPS datapool | Earthdata Login |
 | Orbit (EOF) | ASF S1 aux archive | by validity window; POEORB else RESORB |
-| DEM (ellipsoidal) | OPERA DEM v1.1 (S3) or GLO-30 | `--dem-source`, see below |
+| DEM (ellipsoidal) | OPERA v1.1 (S3) or GLO-30 | `--dem-source`, see below |
 | Ionosphere (TEC) | NASA CDDIS | Rapid IGS (**IGR**), the SAS default |
 | Burst database | OPERA `burst_db` release | public bbox-only SQLite |
 

@@ -365,8 +365,8 @@ def build_timing_table(aux_files, reference_platform, apply_platforms,
         The table as JSON-ready data; write it with `write_timing_table`
     '''
     range_components = tuple(range_components)
-    unknown = set(range_components) - set(RANGE_COMPONENTS)
-    if unknown or not range_components:
+    if (not range_components
+            or not set(range_components) <= set(RANGE_COMPONENTS)):
         raise ValueError(f'range_components must be a non-empty subset of '
                          f'{RANGE_COMPONENTS}, got {range_components}')
     if reference_platform in apply_platforms:
@@ -379,10 +379,10 @@ def build_timing_table(aux_files, reference_platform, apply_platforms,
     if swath_residuals:
         if not swath_residual_source:
             raise ValueError('swath_residuals need a swath_residual_source')
-        unknown = set(swath_residuals) - set(apply_platforms)
-        if unknown:
-            raise ValueError(f'swath_residuals for {sorted(unknown)}, which '
-                             'are not corrected')
+        if not set(swath_residuals) <= set(apply_platforms):
+            raise ValueError('swath_residuals for '
+                             f'{sorted(set(swath_residuals) - set(apply_platforms))}'
+                             ', which are not corrected')
         for platform, residuals in swath_residuals.items():
             _check_swath_residuals(residuals, f'swath_residuals[{platform}]')
 
@@ -464,9 +464,9 @@ def _parse_time(value, what):
         return None
     try:
         return datetime.datetime.strptime(value, '%Y-%m-%dT%H:%M:%SZ')
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as err:
         raise ValueError(f'{what} must be YYYY-MM-DDTHH:MM:SSZ or null, got '
-                         f'{value!r}')
+                         f'{value!r}') from err
 
 
 def write_timing_table(table, out_dir):
@@ -479,7 +479,7 @@ def write_timing_table(table, out_dir):
         Path written
     '''
     path = os.path.join(out_dir, f'{table["name"]}.json')
-    with open(path, 'w') as f:
+    with open(path, 'w', encoding='utf-8') as f:
         json.dump(table, f, indent=2)
         f.write('\n')
     return path
@@ -585,11 +585,11 @@ def load_timing_table(path):
         mistyped fields, the reference platform listed as corrected, or one
         AUX_INS generation claimed by two entries whose validity overlaps
     '''
-    with open(path) as f:
+    with open(path, encoding='utf-8') as f:
         try:
             raw = json.load(f)
         except json.JSONDecodeError as err:
-            raise ValueError(f'{path} is not JSON: {err}')
+            raise ValueError(f'{path} is not JSON: {err}') from err
 
     if raw.get('productType') != PRODUCT_TYPE:
         raise ValueError(f'{path}: productType must be {PRODUCT_TYPE}, got '
@@ -734,8 +734,8 @@ def resolve_burst_timing(burst, timing_params, table=None):
     if table is None:
         raise ValueError('offset_source is table but no timing table was '
                          'loaded')
-    common = dict(source='table', table_name=table.name,
-                  reference_platform=table.reference_platform)
+    common = {'source': 'table', 'table_name': table.name,
+              'reference_platform': table.reference_platform}
     try:
         entry = table.lookup(burst.platform_id, burst.sensing_start,
                              burst.aux_ins_name)
@@ -762,7 +762,10 @@ def _platform_window(text):
         raise argparse.ArgumentTypeError(
             f'expected PLATFORM=START[/STOP], got {text!r}')
     start, _, stop = window.partition('/')
-    parse = (lambda s: datetime.datetime.fromisoformat(s) if s else None)
+
+    def parse(text):
+        return datetime.datetime.fromisoformat(text) if text else None
+
     try:
         return platform, (parse(start), parse(stop))
     except ValueError as err:
@@ -814,7 +817,7 @@ def main(argv=None):
         datetime.timezone.utc).replace(tzinfo=None, microsecond=0)
     residuals, source = None, None
     if args.swath_residuals:
-        with open(args.swath_residuals) as f:
+        with open(args.swath_residuals, encoding='utf-8') as f:
             residuals = json.load(f)
         source = residuals.pop('source', None)
     table = build_timing_table(

@@ -9,7 +9,6 @@ builds.
 import types
 
 import isce3
-import numpy as np
 import pytest
 
 from compass.s1_geocode_slc import _constant_lut

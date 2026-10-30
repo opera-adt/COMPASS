@@ -249,7 +249,6 @@ def test_geometry_mode_moves_the_image(geocode_slc_params, tmp_path):
                             {'azimuth_mode': 'geometry',
                              'offset_source': 'constant',
                              'azimuth_constant_offset': dt})
-    grid = geocode_slc_params.grid_group_path
     with h5py.File(geocode_slc_params.output_hdf5_path, 'r') as ref, \
             h5py.File(new_path, 'r') as new:
         a = ref[geocode_slc_params.raster_path][()]

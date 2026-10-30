@@ -29,7 +29,7 @@ ASF and CDDIS use NASA Earthdata Login. Provide it once in ``~/.netrc``::
 The default DEM source (``opera``) reads ``s3://opera-dem`` and needs AWS
 credentials with read access to that bucket, e.g.::
 
-    export AWS_PROFILE=saml-pub
+    export AWS_PROFILE=<your-profile>
 
 ``--dem-source glo30`` needs no AWS credentials.
 
@@ -80,7 +80,7 @@ DEFAULT_BURST_DB_URL = (
 # The exact DEM the CSLC-S1 PGE geocodes against: a uniform 1 arcsec global
 # VRT (the same file the PGE's own stage_dem.py opens), ellipsoidal heights
 # already applied. Reproducing an archived OPERA product needs *this* DEM: an
-# independently stitched GLO-30 differs by ~1.4 cm in the geoid conversion,
+# independently stitched GLO-30 differs by centimetres in the geoid conversion,
 # enough C-band phase error (once flattening removes topography) to break
 # agreement. Take the **v1.1** VRT -- the bucket also carries an older
 # bucket-root mosaic (``EPSG4326/EPSG4326.vrt``) whose tile seams are off by
@@ -300,7 +300,7 @@ def _footprint_bbox(granule: str) -> tuple[float, float, float, float]:
 
 
 def _stage_dem_opera(aoi: list[float], dest: Path) -> None:
-    """Window the OPERA DEM v1.1 global VRT (:data:`OPERA_DEM_VRT`) over ``aoi``.
+    """Window the OPERA DEM v1.1 global VRT (``OPERA_DEM_VRT``) over ``aoi``.
 
     Reads ``/vsis3/...`` directly (nothing pre-staged); GDAL resolves AWS
     credentials the usual way (``AWS_PROFILE``, env vars, or an EC2/ECS role).
@@ -405,10 +405,10 @@ def stage_dem(
         many degrees (e.g. ``1.0`` snaps to whole-degree bounds, matching a DEM
         built on an integer-degree grid). Ignored when ``bbox`` is given.
     source :
-        ``"opera"`` (default) windows :data:`OPERA_DEM_VRT` from S3 -- the
+        ``"opera"`` (default) windows ``OPERA_DEM_VRT`` from S3 -- the
         exact DEM the CSLC-S1 PGE geocodes against, needed to reproduce an
         archived OPERA product (needs AWS credentials with ``s3://opera-dem``
-        read access, e.g. ``AWS_PROFILE=saml-pub``). ``"glo30"`` instead
+        read access, e.g. ``AWS_PROFILE``). ``"glo30"`` instead
         stitches Copernicus GLO-30 with ``dem_stitcher`` -- no AWS credentials
         needed, but will not bit-match an archived product.
 
@@ -809,7 +809,7 @@ def main(argv: list[str] | None = None) -> None:
         choices=["opera", "glo30"],
         default="opera",
         help="'opera' (default) windows the OPERA DEM v1.1 from S3 (needs AWS "
-        "credentials, e.g. AWS_PROFILE=saml-pub); 'glo30' stitches Copernicus "
+        "credentials, e.g. AWS_PROFILE); 'glo30' stitches Copernicus "
         "GLO-30 with dem_stitcher instead (no AWS credentials needed).",
     )
     p_dem.add_argument(
@@ -868,7 +868,7 @@ def main(argv: list[str] | None = None) -> None:
         choices=["opera", "glo30"],
         default="opera",
         help="'opera' (default) windows the OPERA DEM v1.1 from S3 (needs AWS "
-        "credentials, e.g. AWS_PROFILE=saml-pub); 'glo30' stitches Copernicus "
+        "credentials, e.g. AWS_PROFILE); 'glo30' stitches Copernicus "
         "GLO-30 with dem_stitcher instead (no AWS credentials needed).",
     )
     p_all.add_argument("--margin", type=float, default=0.4)

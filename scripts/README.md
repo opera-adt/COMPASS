@@ -39,7 +39,7 @@ The default DEM source (`opera`) reads `s3://opera-dem` and needs AWS
 credentials with read access to that bucket:
 
 ```bash
-export AWS_PROFILE=saml-pub
+export AWS_PROFILE=<your-profile>
 ```
 
 `--dem-source glo30` needs no AWS credentials.
@@ -100,7 +100,7 @@ pass `--product-type FINAL --sol-code jpl` for the final `jplg`-style file.
 **DEM source.** `--dem-source opera` (default) windows the OPERA DEM v1.1
 global VRT directly from `s3://opera-dem` — the exact DEM the CSLC-S1 PGE
 geocodes against, needed to reproduce an archived OPERA product bit-for-bit
-(an independently stitched GLO-30 differs by ~1.4 cm in the geoid conversion,
+(an independently stitched GLO-30 differs by centimetres in the geoid conversion,
 enough phase error to break agreement). `--dem-source glo30` stitches
 Copernicus GLO-30 with `dem_stitcher` instead — no AWS credentials needed, but
 won't bit-match an archived product.

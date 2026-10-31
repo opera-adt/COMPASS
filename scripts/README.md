@@ -21,7 +21,7 @@ dependency. It does not import `compass`, `s1reader`, `sentineleof`, or
 |-------|--------|-------|
 | SLC SAFE zip | ASF DAAC HTTPS datapool | Earthdata Login |
 | Orbit (EOF) | ASF S1 aux archive | by validity window; POEORB else RESORB |
-| DEM (ellipsoidal) | Copernicus GLO-30 (`dem_stitcher`) | geoid → ellipsoid |
+| DEM (ellipsoidal) | OPERA v1.1 (S3) or GLO-30 | `--dem-source`, see below |
 | Ionosphere (TEC) | NASA CDDIS | Rapid IGS (**IGR**), the SAS default |
 | Burst database | OPERA `burst_db` release | public bbox-only SQLite |
 
@@ -34,6 +34,15 @@ machine urs.earthdata.nasa.gov login <user> password <pass>
 ```
 
 (or export `EARTHDATA_USERNAME` / `EARTHDATA_PASSWORD`).
+
+The default DEM source (`opera`) reads `s3://opera-dem` and needs AWS
+credentials with read access to that bucket:
+
+```bash
+export AWS_PROFILE=<your-profile>
+```
+
+`--dem-source glo30` needs no AWS credentials.
 
 ## Usage
 
@@ -75,7 +84,7 @@ present is skipped unless you pass `--overwrite`.
 python scripts/stage_cslc_inputs.py slc <GRANULE>
 python scripts/stage_cslc_inputs.py orbit <GRANULE> [--orbit-type POEORB|RESORB]
 python scripts/stage_cslc_inputs.py dem <GRANULE> \
-    [--margin 0.4] [--bbox W S E N] [--snap 1.0]
+    [--dem-source opera|glo30] [--margin 0.4] [--bbox W S E N] [--snap 1.0]
 python scripts/stage_cslc_inputs.py iono <GRANULE> \
     [--product-type RAPID|FINAL] [--sol-code igs]
 python scripts/stage_cslc_inputs.py burst-db [--source URL|PATH]
@@ -87,6 +96,14 @@ Downloads skip files already present, so reruns only fetch the gaps.
 
 **Ionosphere** defaults to the **Rapid IGS (IGR)** solution the CSLC-S1-SAS uses;
 pass `--product-type FINAL --sol-code jpl` for the final `jplg`-style file.
+
+**DEM source.** `--dem-source opera` (default) windows the OPERA DEM v1.1
+global VRT directly from `s3://opera-dem` — the exact DEM the CSLC-S1 PGE
+geocodes against, needed to reproduce an archived OPERA product bit-for-bit
+(an independently stitched GLO-30 differs by centimetres in the geoid conversion,
+enough phase error to break agreement). `--dem-source glo30` stitches
+Copernicus GLO-30 with `dem_stitcher` instead — no AWS credentials needed, but
+won't bit-match an archived product.
 
 **DEM buffer.** The DEM must cover more than the SLC footprint (isce3 `geo2rdr`
 searches a height range at the edges, and each burst's geogrid is padded), so
